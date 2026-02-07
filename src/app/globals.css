@@ -1,26 +1,235 @@
 @import "tailwindcss";
 
+/* 8020 Design System - Metrics Hub */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Surface Colors (Light Mode) */
+  --surface-base: #ffffff;
+  --surface-raised: #f9fafb;
+  --surface-overlay: #f3f4f6;
+  --surface-sunken: #f3f4f6;
+
+  /* Text Colors (Light Mode) */
+  --text-primary: #111827;
+  --text-secondary: #374151;
+  --text-tertiary: #6b7280;
+  --text-disabled: #9ca3af;
+  --text-inverse: #ffffff;
+
+  /* Border Colors (Light Mode) */
+  --border-default: #e5e7eb;
+  --border-subtle: #f3f4f6;
+  --border-strong: #d1d5db;
+
+  /* Shadows (Light Mode) */
+  --shadow-xs: 0px 1px 2px rgba(16, 24, 40, 0.05);
+  --shadow-sm: 0px 1px 3px rgba(16, 24, 40, 0.1), 0px 1px 2px rgba(16, 24, 40, 0.06);
+  --shadow-md: 0px 4px 8px -2px rgba(16, 24, 40, 0.1), 0px 2px 4px -2px rgba(16, 24, 40, 0.06);
+  --shadow-lg: 0px 12px 16px -4px rgba(16, 24, 40, 0.08), 0px 4px 6px -2px rgba(16, 24, 40, 0.03);
+  --shadow-xl: 0px 20px 24px -4px rgba(16, 24, 40, 0.08), 0px 8px 8px -4px rgba(16, 24, 40, 0.03);
+}
+
+.dark {
+  /* Surface Colors (Dark Mode) - Get lighter as they elevate */
+  --surface-base: #111827;
+  --surface-raised: #1f2937;
+  --surface-overlay: #374151;
+  --surface-sunken: #030712;
+
+  /* Text Colors (Dark Mode) */
+  --text-primary: #f9fafb;
+  --text-secondary: #d1d5db;
+  --text-tertiary: #9ca3af;
+  --text-disabled: #4b5563;
+  --text-inverse: #111827;
+
+  /* Border Colors (Dark Mode) */
+  --border-default: #374151;
+  --border-subtle: #1f2937;
+  --border-strong: #4b5563;
+
+  /* Shadows (Dark Mode) - More prominent */
+  --shadow-xs: 0px 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0px 1px 3px rgba(0, 0, 0, 0.4), 0px 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0px 4px 8px -2px rgba(0, 0, 0, 0.5), 0px 2px 4px -2px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0px 12px 16px -4px rgba(0, 0, 0, 0.6), 0px 4px 6px -2px rgba(0, 0, 0, 0.3);
+  --shadow-xl: 0px 20px 24px -4px rgba(0, 0, 0, 0.7), 0px 8px 8px -4px rgba(0, 0, 0, 0.4);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Font Family */
+  --font-sans: 'Inter', system-ui, sans-serif;
+
+  /* Main Brand Color - BLUE for Metrics Hub */
+  --color-main-50: #eff6ff;
+  --color-main-100: #dbeafe;
+  --color-main-300: #93c5fd;
+  --color-main-500: #3b82f6;
+  --color-main-700: #1d4ed8;
+  --color-main-900: #1e3a8a;
+  --color-main-950: #172554;
+
+  /* Accent 1 - Blue Tones */
+  --color-accent-1-50: #eff6ff;
+  --color-accent-1-100: #dbeafe;
+  --color-accent-1-300: #93c5fd;
+  --color-accent-1-500: #3b82f6;
+  --color-accent-1-700: #1d4ed8;
+  --color-accent-1-900: #1e3a8a;
+  --color-accent-1-950: #172554;
+
+  /* Accent 2 - Indigo/Purple Tones */
+  --color-accent-2-50: #eef2ff;
+  --color-accent-2-100: #e0e7ff;
+  --color-accent-2-300: #a5b4fc;
+  --color-accent-2-500: #6366f1;
+  --color-accent-2-700: #4338ca;
+  --color-accent-2-900: #312e81;
+  --color-accent-2-950: #1e1b4b;
+
+  /* Accent 3 - Orange Tones */
+  --color-accent-3-50: #fff7ed;
+  --color-accent-3-100: #ffedd5;
+  --color-accent-3-300: #fdba74;
+  --color-accent-3-500: #f97316;
+  --color-accent-3-700: #c2410c;
+  --color-accent-3-900: #7c2d12;
+  --color-accent-3-950: #431407;
+
+  /* Accent 4 - Lime Tones */
+  --color-accent-4-50: #f7fee7;
+  --color-accent-4-100: #ecfccb;
+  --color-accent-4-300: #bef264;
+  --color-accent-4-500: #84cc16;
+  --color-accent-4-700: #4d7c0f;
+  --color-accent-4-900: #365314;
+  --color-accent-4-950: #1a2e05;
+
+  /* Accent 5 - Pink/Magenta Tones */
+  --color-accent-5-50: #fdf2f8;
+  --color-accent-5-100: #fce7f3;
+  --color-accent-5-300: #f9a8d4;
+  --color-accent-5-500: #ec4899;
+  --color-accent-5-700: #be185d;
+  --color-accent-5-900: #831843;
+  --color-accent-5-950: #500724;
+
+  /* Neutral Scale (Gray) */
+  --color-neutral-50: #f9fafb;
+  --color-neutral-100: #f3f4f6;
+  --color-neutral-200: #e5e7eb;
+  --color-neutral-300: #d1d5db;
+  --color-neutral-400: #9ca3af;
+  --color-neutral-500: #6b7280;
+  --color-neutral-600: #4b5563;
+  --color-neutral-700: #374151;
+  --color-neutral-800: #1f2937;
+  --color-neutral-900: #111827;
+  --color-neutral-950: #030712;
+
+  /* Semantic Status Colors */
+  --color-success-50: #f0fdf4;
+  --color-success-100: #dcfce7;
+  --color-success-300: #86efac;
+  --color-success-500: #22c55e;
+  --color-success-700: #15803d;
+  --color-success-900: #14532d;
+  --color-success-950: #052e16;
+
+  --color-alert-50: #fefce8;
+  --color-alert-100: #fef9c3;
+  --color-alert-300: #fde047;
+  --color-alert-500: #eab308;
+  --color-alert-700: #a16207;
+  --color-alert-900: #713f12;
+  --color-alert-950: #422006;
+
+  --color-error-50: #fef2f2;
+  --color-error-100: #fee2e2;
+  --color-error-300: #fca5a5;
+  --color-error-500: #ef4444;
+  --color-error-700: #b91c1c;
+  --color-error-900: #7f1d1d;
+  --color-error-950: #450a0a;
+
+  --color-info-50: #ecfeff;
+  --color-info-100: #cffafe;
+  --color-info-300: #67e8f9;
+  --color-info-500: #06b6d4;
+  --color-info-700: #0e7490;
+  --color-info-900: #164e63;
+  --color-info-950: #083344;
+
+  /* Semantic Tokens using CSS Variables */
+  --color-surface-base: var(--surface-base);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-overlay: var(--surface-overlay);
+  --color-surface-sunken: var(--surface-sunken);
+
+  --color-content-primary: var(--text-primary);
+  --color-content-secondary: var(--text-secondary);
+  --color-content-tertiary: var(--text-tertiary);
+  --color-content-disabled: var(--text-disabled);
+  --color-content-inverse: var(--text-inverse);
+
+  --color-stroke: var(--border-default);
+  --color-stroke-subtle: var(--border-subtle);
+  --color-stroke-strong: var(--border-strong);
+
+  /* Typography Scale */
+  --font-size-h1-alt: 1.5rem;
+  --font-size-h1: 1.375rem;
+  --font-size-h2: 1.25rem;
+  --font-size-h3: 1.125rem;
+  --font-size-h4: 1rem;
+  --font-size-h5: 0.875rem;
+  --font-size-h6: 0.75rem;
+  --font-size-h7: 0.625rem;
+
+  --font-size-body-large: 1rem;
+  --font-size-body-regular: 0.875rem;
+
+  --font-size-button-large: 1rem;
+  --font-size-button-regular: 0.875rem;
+  --font-size-button-small: 0.75rem;
+
+  --font-size-label-bold: 0.75rem;
+  --font-size-label: 0.75rem;
+  --font-size-link: 0.875rem;
+  --font-size-link-small: 0.75rem;
+  --font-size-suggestion-bold: 0.625rem;
+  --font-size-suggestion: 0.625rem;
+
+  /* Custom Shadow Classes */
+  --shadow-xs: var(--shadow-xs);
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  --shadow-xl: var(--shadow-xl);
+
+  /* Border Radius */
+  --radius-xs: 0.125rem;
+  --radius-sm: 0.25rem;
+  --radius: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
+  --radius-3xl: 2rem;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--surface-base);
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 0.875rem;
+  line-height: 1.5;
 }
