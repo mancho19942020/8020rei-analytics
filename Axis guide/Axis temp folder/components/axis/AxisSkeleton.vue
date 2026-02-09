@@ -1,0 +1,360 @@
+<script setup lang="ts">
+/**
+ * AxisSkeleton Component
+ *
+ * A versatile skeleton loader component for displaying loading placeholders
+ * following Axis design system specifications. Skeleton loaders improve perceived
+ * performance by showing a visual representation of content that's loading.
+ *
+ * USAGE:
+ * <AxisSkeleton />
+ * <AxisSkeleton variant="text" :lines="3" />
+ * <AxisSkeleton variant="avatar" size="lg" />
+ * <AxisSkeleton variant="card" />
+ * <AxisSkeleton variant="table-row" :columns="5" />
+ * <AxisSkeleton variant="custom" width="200px" height="100px" />
+ *
+ * VARIANTS:
+ * - text (default): Text line skeleton with optional multiple lines
+ * - avatar: Circular skeleton for profile pictures
+ * - button: Button-shaped skeleton
+ * - image: Rectangular image placeholder
+ * - card: Card skeleton with image, title, and description
+ * - table-row: Table row skeleton with configurable columns
+ * - input: Form input skeleton
+ * - custom: Custom dimensions
+ *
+ * ANIMATION:
+ * - pulse (default): Gentle opacity animation
+ * - wave: Left-to-right shimmer effect
+ * - none: No animation (static)
+ *
+ * ACCESSIBILITY:
+ * - Uses aria-hidden for decorative loading elements
+ * - Proper aria-label for screen readers
+ * - role="status" for loading state announcement
+ */
+
+interface Props {
+  /** Skeleton variant type */
+  variant?: "text" | "avatar" | "button" | "image" | "card" | "table-row" | "input" | "custom";
+  /** Animation style */
+  animation?: "pulse" | "wave" | "none";
+  /** Size preset (for avatar, button) */
+  size?: "sm" | "md" | "lg" | "xl";
+  /** Number of lines (for text variant) */
+  lines?: number;
+  /** Number of columns (for table-row variant) */
+  columns?: number;
+  /** Custom width (for custom variant or override) */
+  width?: string;
+  /** Custom height (for custom variant or override) */
+  height?: string;
+  /** Border radius override */
+  rounded?: "none" | "sm" | "md" | "lg" | "full";
+  /** Show as full-width block */
+  fullWidth?: boolean;
+  /** Accessible label for screen readers */
+  label?: string;
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  variant: "text",
+  animation: "pulse",
+  size: "md",
+  lines: 1,
+  columns: 4,
+  width: "",
+  height: "",
+  rounded: "md",
+  fullWidth: false,
+  label: "Loading...",
+});
+
+// Size mappings for different variants
+const sizeClasses = computed(() => {
+  const sizes = {
+    avatar: {
+      sm: "w-8 h-8",
+      md: "w-10 h-10",
+      lg: "w-12 h-12",
+      xl: "w-16 h-16",
+    },
+    button: {
+      sm: "w-16 h-7",
+      md: "w-20 h-9",
+      lg: "w-24 h-11",
+      xl: "w-32 h-12",
+    },
+    input: {
+      sm: "h-8",
+      md: "h-10",
+      lg: "h-12",
+      xl: "h-14",
+    },
+  };
+
+  if (props.variant === "avatar") return sizes.avatar[props.size];
+  if (props.variant === "button") return sizes.button[props.size];
+  if (props.variant === "input") return sizes.input[props.size];
+
+  return "";
+});
+
+// Border radius classes
+const radiusClasses = computed(() => {
+  // Avatar is always circular
+  if (props.variant === "avatar") return "rounded-full";
+
+  const radiusMap = {
+    none: "rounded-none",
+    sm: "rounded-sm",
+    md: "rounded",
+    lg: "rounded-lg",
+    full: "rounded-full",
+  };
+
+  return radiusMap[props.rounded];
+});
+
+// Animation classes
+const animationClasses = computed(() => {
+  const animations = {
+    pulse: "animate-pulse",
+    wave: "animate-skeleton-wave",
+    none: "",
+  };
+
+  return animations[props.animation];
+});
+
+// Base skeleton classes
+const baseClasses = computed(() => {
+  return [
+    "bg-neutral-200 dark:bg-neutral-700",
+    animationClasses.value,
+    radiusClasses.value,
+  ];
+});
+
+// Width/height style for custom dimensions
+const customStyle = computed(() => {
+  const style: Record<string, string> = {};
+
+  if (props.width) style.width = props.width;
+  if (props.height) style.height = props.height;
+
+  return style;
+});
+
+// Text line widths for natural variation
+const lineWidths = computed(() => {
+  // Create varied widths for multiple text lines
+  const widths = ["100%", "90%", "95%", "85%", "70%"];
+  return Array.from({ length: props.lines }, (_, i) => {
+    // Last line is typically shorter
+    if (i === props.lines - 1 && props.lines > 1) {
+      return "60%";
+    }
+    return widths[i % widths.length];
+  });
+});
+
+// Table column widths for natural variation
+const columnWidths = computed(() => {
+  const widths = ["60%", "80%", "70%", "90%", "50%"];
+  return Array.from({ length: props.columns }, (_, i) => widths[i % widths.length]);
+});
+</script>
+
+<template>
+  <div
+    role="status"
+    :aria-label="label"
+    :class="['axis-skeleton', fullWidth ? 'w-full' : '']"
+  >
+    <!-- Text Variant -->
+    <template v-if="variant === 'text'">
+      <div :class="['space-y-2', fullWidth ? 'w-full' : '']">
+        <div
+          v-for="(lineWidth, index) in lineWidths"
+          :key="index"
+          :class="[...baseClasses, 'h-4']"
+          :style="{ width: lineWidth }"
+          aria-hidden="true"
+        />
+      </div>
+    </template>
+
+    <!-- Avatar Variant -->
+    <template v-else-if="variant === 'avatar'">
+      <div
+        :class="[...baseClasses, sizeClasses]"
+        :style="customStyle"
+        aria-hidden="true"
+      />
+    </template>
+
+    <!-- Button Variant -->
+    <template v-else-if="variant === 'button'">
+      <div
+        :class="[...baseClasses, sizeClasses, fullWidth ? 'w-full' : '']"
+        :style="customStyle"
+        aria-hidden="true"
+      />
+    </template>
+
+    <!-- Input Variant -->
+    <template v-else-if="variant === 'input'">
+      <div :class="['space-y-2', fullWidth ? 'w-full' : 'w-64']">
+        <!-- Label skeleton -->
+        <div
+          :class="[...baseClasses, 'h-3 w-20']"
+          aria-hidden="true"
+        />
+        <!-- Input field skeleton -->
+        <div
+          :class="[...baseClasses, sizeClasses, 'w-full']"
+          :style="customStyle"
+          aria-hidden="true"
+        />
+      </div>
+    </template>
+
+    <!-- Image Variant -->
+    <template v-else-if="variant === 'image'">
+      <div
+        :class="[...baseClasses, 'flex items-center justify-center']"
+        :style="{ width: width || '100%', height: height || '200px' }"
+        aria-hidden="true"
+      >
+        <!-- Image icon placeholder -->
+        <svg
+          class="w-10 h-10 text-neutral-300 dark:text-neutral-600"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          stroke-width="1"
+          aria-hidden="true"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"
+          />
+        </svg>
+      </div>
+    </template>
+
+    <!-- Card Variant -->
+    <template v-else-if="variant === 'card'">
+      <div
+        :class="[
+          'border border-stroke rounded-lg overflow-hidden',
+          fullWidth ? 'w-full' : 'w-72'
+        ]"
+        aria-hidden="true"
+      >
+        <!-- Card image area -->
+        <div
+          :class="[...baseClasses, 'h-40 flex items-center justify-center rounded-none']"
+        >
+          <svg
+            class="w-10 h-10 text-neutral-300 dark:text-neutral-600"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            stroke-width="1"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"
+            />
+          </svg>
+        </div>
+        <!-- Card content -->
+        <div class="p-4 space-y-3">
+          <!-- Title -->
+          <div :class="[...baseClasses, 'h-5 w-3/4']" />
+          <!-- Description lines -->
+          <div class="space-y-2">
+            <div :class="[...baseClasses, 'h-3 w-full']" />
+            <div :class="[...baseClasses, 'h-3 w-5/6']" />
+          </div>
+          <!-- Action area -->
+          <div class="flex gap-2 pt-2">
+            <div :class="[...baseClasses, 'h-8 w-20']" />
+            <div :class="[...baseClasses, 'h-8 w-16']" />
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- Table Row Variant -->
+    <template v-else-if="variant === 'table-row'">
+      <div
+        :class="[
+          'flex items-center gap-4 py-3 px-4 border-b border-stroke-subtle',
+          fullWidth ? 'w-full' : ''
+        ]"
+        aria-hidden="true"
+      >
+        <div
+          v-for="(colWidth, index) in columnWidths"
+          :key="index"
+          :class="[...baseClasses, 'h-4 flex-1']"
+          :style="{ maxWidth: colWidth }"
+        />
+      </div>
+    </template>
+
+    <!-- Custom Variant -->
+    <template v-else-if="variant === 'custom'">
+      <div
+        :class="baseClasses"
+        :style="{
+          width: width || '100%',
+          height: height || '20px'
+        }"
+        aria-hidden="true"
+      />
+    </template>
+
+    <!-- Screen reader text -->
+    <span class="sr-only">{{ label }}</span>
+  </div>
+</template>
+
+<style>
+/* Wave animation for skeleton */
+@keyframes skeleton-wave {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.animate-skeleton-wave {
+  background: linear-gradient(
+    90deg,
+    rgb(229 231 235 / var(--tw-bg-opacity, 1)) 25%,
+    rgb(209 213 219 / var(--tw-bg-opacity, 1)) 50%,
+    rgb(229 231 235 / var(--tw-bg-opacity, 1)) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-wave 1.5s ease-in-out infinite;
+}
+
+:is(.dark .animate-skeleton-wave) {
+  background: linear-gradient(
+    90deg,
+    rgb(55 65 81 / var(--tw-bg-opacity, 1)) 25%,
+    rgb(75 85 99 / var(--tw-bg-opacity, 1)) 50%,
+    rgb(55 65 81 / var(--tw-bg-opacity, 1)) 75%
+  );
+  background-size: 200% 100%;
+}
+</style>
