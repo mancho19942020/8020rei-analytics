@@ -1,32 +1,37 @@
 /**
  * AxisSkeleton Component (React/Next.js version)
  *
- * A versatile skeleton loader component for displaying loading placeholders
- * following Axis design system specifications. Skeleton loaders improve perceived
- * performance by showing a visual representation of content that's loading.
+ * A minimalistic skeleton loader component for displaying loading placeholders
+ * following Axis design system specifications. Designed to be simple blocks
+ * that reflect the general shape of content without detailed inner elements.
  *
  * USAGE:
  * <AxisSkeleton />
  * <AxisSkeleton variant="text" lines={3} />
- * <AxisSkeleton variant="avatar" size="lg" />
  * <AxisSkeleton variant="card" />
- * <AxisSkeleton variant="table-row" columns={5} />
+ * <AxisSkeleton variant="widget" />
  * <AxisSkeleton variant="custom" width="200px" height="100px" />
  *
  * VARIANTS:
  * - text (default): Text line skeleton with optional multiple lines
  * - avatar: Circular skeleton for profile pictures
  * - button: Button-shaped skeleton
- * - image: Rectangular image placeholder
- * - card: Card skeleton with image, title, and description
+ * - card: Simple card-shaped block (minimalistic - no inner elements)
+ * - widget: Dashboard widget placeholder (minimalistic)
  * - table-row: Table row skeleton with configurable columns
  * - input: Form input skeleton
+ * - chart: Chart placeholder (simple block)
  * - custom: Custom dimensions
  *
  * ANIMATION:
- * - pulse (default): Gentle opacity animation
- * - wave: Left-to-right shimmer effect
+ * - pulse (default): Gentle opacity animation using CSS class
+ * - wave: Left-to-right shimmer effect using CSS class
  * - none: No animation (static)
+ *
+ * THEME CONSISTENCY:
+ * - Uses CSS classes from globals.css (skeleton-bg, skeleton-animate, skeleton-wave)
+ * - Automatically adapts to light/dark mode via CSS
+ * - No flash on initial load - colors are determined by CSS, not JS
  *
  * ACCESSIBILITY:
  * - Uses aria-hidden for decorative loading elements
@@ -38,7 +43,7 @@
 
 import React, { useMemo } from 'react';
 
-type SkeletonVariant = 'text' | 'avatar' | 'button' | 'image' | 'card' | 'table-row' | 'input' | 'custom';
+type SkeletonVariant = 'text' | 'avatar' | 'button' | 'card' | 'widget' | 'table-row' | 'input' | 'chart' | 'custom';
 type SkeletonAnimation = 'pulse' | 'wave' | 'none';
 type SkeletonSize = 'sm' | 'md' | 'lg' | 'xl';
 type SkeletonRounded = 'none' | 'sm' | 'md' | 'lg' | 'full';
@@ -124,20 +129,20 @@ export function AxisSkeleton({
     return radiusMap[rounded];
   }, [variant, rounded]);
 
-  // Animation classes
+  // Animation classes - using CSS classes from globals.css
   const animationClasses = useMemo(() => {
     const animations: Record<SkeletonAnimation, string> = {
-      pulse: 'animate-pulse',
-      wave: 'animate-skeleton-wave',
+      pulse: 'skeleton-animate',
+      wave: 'skeleton-wave',
       none: '',
     };
 
     return animations[animation];
   }, [animation]);
 
-  // Base skeleton classes
+  // Base skeleton classes using CSS class for background
   const baseClasses = [
-    'bg-neutral-200 dark:bg-neutral-700',
+    'skeleton-bg',
     animationClasses,
     radiusClasses,
   ].filter(Boolean).join(' ');
@@ -206,7 +211,7 @@ export function AxisSkeleton({
         />
       )}
 
-      {/* Input Variant */}
+      {/* Input Variant - simplified */}
       {variant === 'input' && (
         <div className={`space-y-2 ${fullWidth ? 'w-full' : 'w-64'}`}>
           {/* Label skeleton */}
@@ -223,69 +228,37 @@ export function AxisSkeleton({
         </div>
       )}
 
-      {/* Image Variant */}
-      {variant === 'image' && (
-        <div
-          className={`${baseClasses} flex items-center justify-center`}
-          style={{ width: width || '100%', height: height || '200px' }}
-          aria-hidden="true"
-        >
-          {/* Image icon placeholder */}
-          <svg
-            className="w-10 h-10 text-neutral-300 dark:text-neutral-600"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={1}
-            aria-hidden="true"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"
-            />
-          </svg>
-        </div>
-      )}
-
-      {/* Card Variant */}
+      {/* Card Variant - MINIMALISTIC: just a simple rounded block */}
       {variant === 'card' && (
         <div
-          className={`border border-stroke rounded-lg overflow-hidden ${fullWidth ? 'w-full' : 'w-72'}`}
+          className={`${baseClasses} rounded-lg ${fullWidth ? 'w-full' : 'w-72'}`}
+          style={{ height: height || '140px' }}
           aria-hidden="true"
-        >
-          {/* Card image area */}
-          <div className={`${baseClasses} h-40 flex items-center justify-center rounded-none`}>
-            <svg
-              className="w-10 h-10 text-neutral-300 dark:text-neutral-600"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={1}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"
-              />
-            </svg>
-          </div>
-          {/* Card content */}
-          <div className="p-4 space-y-3">
-            {/* Title */}
-            <div className={`${baseClasses} h-5 w-3/4`} />
-            {/* Description lines */}
-            <div className="space-y-2">
-              <div className={`${baseClasses} h-3 w-full`} />
-              <div className={`${baseClasses} h-3 w-5/6`} />
-            </div>
-            {/* Action area */}
-            <div className="flex gap-2 pt-2">
-              <div className={`${baseClasses} h-8 w-20`} />
-              <div className={`${baseClasses} h-8 w-16`} />
-            </div>
-          </div>
-        </div>
+        />
+      )}
+
+      {/* Widget Variant - MINIMALISTIC: dashboard widget placeholder */}
+      {variant === 'widget' && (
+        <div
+          className={`${baseClasses} rounded-lg ${fullWidth ? 'w-full' : ''}`}
+          style={{
+            width: width || '100%',
+            height: height || '200px'
+          }}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Chart Variant - MINIMALISTIC: simple chart placeholder */}
+      {variant === 'chart' && (
+        <div
+          className={`${baseClasses} rounded-lg`}
+          style={{
+            width: width || '100%',
+            height: height || '300px'
+          }}
+          aria-hidden="true"
+        />
       )}
 
       {/* Table Row Variant */}
@@ -318,39 +291,6 @@ export function AxisSkeleton({
 
       {/* Screen reader text */}
       <span className="sr-only">{label}</span>
-
-      {/* Wave animation styles */}
-      <style jsx>{`
-        @keyframes skeleton-wave {
-          0% {
-            background-position: 200% 0;
-          }
-          100% {
-            background-position: -200% 0;
-          }
-        }
-
-        :global(.animate-skeleton-wave) {
-          background: linear-gradient(
-            90deg,
-            rgb(229 231 235) 25%,
-            rgb(209 213 219) 50%,
-            rgb(229 231 235) 75%
-          );
-          background-size: 200% 100%;
-          animation: skeleton-wave 1.5s ease-in-out infinite;
-        }
-
-        :global(.dark .animate-skeleton-wave) {
-          background: linear-gradient(
-            90deg,
-            rgb(55 65 81) 25%,
-            rgb(75 85 99) 50%,
-            rgb(55 65 81) 75%
-          );
-          background-size: 200% 100%;
-        }
-      `}</style>
     </div>
   );
 }

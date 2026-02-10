@@ -5,7 +5,8 @@ import {
   getMetricsQuery,
   getUsersByDayQuery,
   getFeatureUsageQuery,
-  getTopClientsQuery
+  getTopClientsQuery,
+  UserType
 } from '@/lib/queries';
 
 interface Metrics {
@@ -43,9 +44,10 @@ interface MetricsData {
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const days = parseInt(searchParams.get('days') || '30');
+  const userType = (searchParams.get('userType') || 'all') as UserType;
 
-  // Create a unique cache key based on the query parameter
-  const cacheKey = `metrics:${days}`;
+  // Create a unique cache key based on the query parameters
+  const cacheKey = `metrics:${days}:${userType}`;
 
   // Check if we have cached data
   const cached = getCached<MetricsData>(cacheKey);
@@ -60,15 +62,15 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  console.log(`[API] Cache miss - fetching fresh data from BigQuery for ${days} days`);
+  console.log(`[API] Cache miss - fetching fresh data from BigQuery for ${days} days, userType: ${userType}`);
 
   try {
     // Execute 4 queries in parallel
     const [metrics, usersByDay, featureUsage, topClients] = await Promise.all([
-      runQuery<Metrics>(getMetricsQuery(days)),
-      runQuery<DailyData>(getUsersByDayQuery(days)),
-      runQuery<FeatureData>(getFeatureUsageQuery(days)),
-      runQuery<ClientData>(getTopClientsQuery(days)),
+      runQuery<Metrics>(getMetricsQuery(days, userType)),
+      runQuery<DailyData>(getUsersByDayQuery(days, userType)),
+      runQuery<FeatureData>(getFeatureUsageQuery(days, userType)),
+      runQuery<ClientData>(getTopClientsQuery(days, userType)),
     ]);
 
     const data: MetricsData = {

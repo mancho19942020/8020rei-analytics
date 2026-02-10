@@ -15,20 +15,21 @@
 4. [System Architecture](#system-architecture)
 5. [Authentication System](#authentication-system)
 6. [Data Layer Architecture](#data-layer-architecture)
-7. [Design System Implementation](#design-system-implementation)
-8. [Component Architecture](#component-architecture)
-9. [Complete Data Flow](#complete-data-flow)
-10. [File Structure & Organization](#file-structure--organization)
-11. [Environment Configuration](#environment-configuration)
-12. [Development Setup](#development-setup)
-13. [API Architecture](#api-architecture)
-14. [Caching Strategy](#caching-strategy)
-15. [State Management](#state-management)
-16. [Deployment Architecture](#deployment-architecture)
-17. [How Everything Connects](#how-everything-connects)
-18. [Development Workflow](#development-workflow)
-19. [Troubleshooting Guide](#troubleshooting-guide)
-20. [Future Enhancements](#future-enhancements)
+7. [User Type Filtering (Internal vs External)](#user-type-filtering-internal-vs-external)
+8. [Design System Implementation](#design-system-implementation)
+9. [Component Architecture](#component-architecture)
+10. [Complete Data Flow](#complete-data-flow)
+11. [File Structure & Organization](#file-structure--organization)
+12. [Environment Configuration](#environment-configuration)
+13. [Development Setup](#development-setup)
+14. [API Architecture](#api-architecture)
+15. [Caching Strategy](#caching-strategy)
+16. [State Management](#state-management)
+17. [Deployment Architecture](#deployment-architecture)
+18. [How Everything Connects](#how-everything-connects)
+19. [Development Workflow](#development-workflow)
+20. [Troubleshooting Guide](#troubleshooting-guide)
+21. [Future Enhancements](#future-enhancements)
 
 ---
 
@@ -78,17 +79,19 @@ The **8020REI Analytics Dashboard** is a production-ready, real-time analytics p
 | **Users Over Time** | Daily user count trend | Daily aggregation |
 | **Feature Usage** | Most visited pages/features | URL pattern matching |
 | **Top Clients** | Clients ranked by activity | Client-level aggregation |
+| **User Type Filter** | Internal (@8020rei.com) vs External users | GA4 `user_affiliation` property |
 
 ### Core Features
 
-1. **Time-Based Filtering:** View data for last 7, 30, or 90 days
-2. **Real-Time Queries:** Fresh data on every load (not pre-computed)
-3. **Interactive Charts:** Line charts and bar charts with Recharts
-4. **Client Ranking:** See which clients are most active
-5. **Dark Mode:** Seamless theme switching with localStorage persistence
-6. **Responsive Design:** Works on mobile, tablet, and desktop
-7. **Authentication:** Only @8020rei.com emails can access
-8. **Caching:** 5-minute cache reduces BigQuery costs by ~90%
+1. **User Type Filtering:** Filter by Internal (@8020rei.com) vs External users
+2. **Time-Based Filtering:** View data for last 7, 30, or 90 days
+3. **Real-Time Queries:** Fresh data on every load (not pre-computed)
+4. **Interactive Charts:** Line charts and bar charts with Recharts
+5. **Client Ranking:** See which clients are most active
+6. **Dark Mode:** Seamless theme switching with localStorage persistence
+7. **Responsive Design:** Works on mobile, tablet, and desktop
+8. **Authentication:** Only @8020rei.com emails can access
+9. **Caching:** 5-minute cache reduces BigQuery costs by ~90%
 
 ---
 
@@ -639,6 +642,487 @@ export async function runQuery<T>(query: string): Promise<T[]> {
 - Automatic credential detection (local vs production)
 - Type-safe query execution with generics
 - Simple API: `runQuery<Type>(sql)`
+
+---
+
+## User Type Filtering (Internal vs External)
+
+### Overview
+
+The 8020REI Analytics Dashboard provides the ability to filter all metrics and analytics by user type:
+- **Internal Users**: Company employees with @8020rei.com email addresses
+- **External Users**: Clients and customers with other email domains
+- **All Users**: Combined view of both internal and external users (default)
+
+This filtering is critical for separating internal testing/usage from actual client behavior, enabling accurate product analytics and decision-making.
+
+### Business Context
+
+**Why this matters:**
+- Internal employees test features, explore the platform, and perform administrative tasks
+- This internal activity can skew analytics and make client behavior harder to understand
+- Filtering by user type allows us to:
+  - See actual client engagement (external users only)
+  - Monitor employee activity separately (internal users only)
+  - Compare internal vs external usage patterns
+  - Make data-driven decisions based on real client behavior
+
+### How It Works: The user_affiliation Property
+
+**GA4 Configuration:**
+The main 8020REI platform sends a custom user property called `user_affiliation` with every GA4 event:
+
+```javascript
+// In the main 8020REI platform's GA4 tracking code
+gtag('set', 'user_properties', {
+  user_affiliation: userEmail.endsWith('@8020rei.com') ? 'internal' : 'external'
+});
+```
+
+**Possible Values:**
+| Value | Meaning | Criteria |
+|-------|---------|----------|
+| `'internal'` | Company employee | User email ends with @8020rei.com |
+| `'external'` | Client/customer | User email has any other domain |
+| `null` or empty | Unauthenticated | User not logged in (anonymous sessions) |
+
+**In BigQuery:**
+The `user_affiliation` property is stored in the `user_properties` array field of each GA4 event:
+
+```sql
+-- Example query to extract user_affiliation
+SELECT
+  (SELECT value.string_value
+   FROM UNNEST(user_properties)
+   WHERE key = 'user_affiliation') as user_affiliation
+FROM `web-app-production-451214.analytics_489035450.events_*`
+```
+
+### The Session-Based Challenge
+
+**Critical Insight:** A user might arrive at the platform unauthenticated, then log in mid-session.
+
+**Example Scenario:**
+```
+Time 0:00 - User lands on login page
+            → user_affiliation = null (not authenticated)
+
+Time 0:30 - User logs in with john@example.com
+            → user_affiliation = 'external'
+
+Time 1:00 - User views properties page
+            → user_affiliation = 'external'
+```
+
+**The Problem:**
+- Same session (`user_pseudo_id`) has BOTH null and 'external' values
+- If we naively filter events, we'd miss the pre-login events
+- We need to classify the ENTIRE session based on the final authenticated state
+
+**The Solution:**
+Always use the **LAST (most recent)** `user_affiliation` value per session:
+- Group events by `user_pseudo_id` (session identifier)
+- Find the last non-null `user_affiliation` using `LAST_VALUE()` window function
+- Apply that affiliation to ALL events in that session
+
+### Technical Implementation
+
+**Location:** `src/lib/queries.ts`
+
+#### 1. Helper Function: getUserTypeFilter()
+
+```typescript
+export function getUserTypeFilter(userType: UserType): string {
+  if (userType === 'all') {
+    return '1=1'; // No filter - include all users
+  }
+
+  if (userType === 'internal') {
+    return `(
+      SELECT value.string_value
+      FROM UNNEST(user_properties)
+      WHERE key = 'user_affiliation'
+    ) = 'internal'`;
+  }
+
+  // External users
+  return `(
+    SELECT value.string_value
+    FROM UNNEST(user_properties)
+    WHERE key = 'user_affiliation'
+  ) = 'external'`;
+}
+```
+
+#### 2. Session-Based Filtering Pattern
+
+All queries follow this pattern when filtering by user type:
+
+```sql
+-- Step 1: Find last affiliation per session
+WITH session_affiliation AS (
+  SELECT
+    user_pseudo_id,
+    LAST_VALUE(
+      (SELECT value.string_value
+       FROM UNNEST(user_properties)
+       WHERE key = 'user_affiliation')
+      IGNORE NULLS  -- Skip unauthenticated events
+    ) OVER (
+      PARTITION BY user_pseudo_id  -- Group by session
+      ORDER BY event_timestamp      -- Sort chronologically
+      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+    ) as final_affiliation
+  FROM `web-app-production-451214.analytics_489035450.events_*`
+  WHERE _TABLE_SUFFIX >= FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY))
+),
+
+-- Step 2: Filter to target user type
+filtered_sessions AS (
+  SELECT DISTINCT user_pseudo_id
+  FROM session_affiliation
+  WHERE final_affiliation = 'external'  -- or 'internal'
+)
+
+-- Step 3: Join back to get all events from those sessions
+SELECT
+  COUNT(*) as total_events,
+  COUNT(DISTINCT e.user_pseudo_id) as total_users
+FROM `web-app-production-451214.analytics_489035450.events_*` e
+INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
+WHERE _TABLE_SUFFIX >= FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY))
+```
+
+#### 3. Query Optimization
+
+**For 'all' users:**
+- Skip the session-based filtering entirely (more efficient)
+- Use simple direct queries without CTEs
+
+**For 'internal' or 'external':**
+- Use the session-based filtering pattern above
+- Ensures accurate classification of all events
+
+### Example: Metrics Query with User Type Filtering
+
+```typescript
+export function getMetricsQuery(days: number, userType: UserType = 'all'): string {
+  // Fast path: no filtering needed
+  if (userType === 'all') {
+    return `
+      SELECT
+        COUNT(DISTINCT user_pseudo_id) as total_users,
+        COUNT(*) as total_events,
+        COUNT(CASE WHEN event_name = 'page_view' THEN 1 END) as page_views,
+        COUNT(DISTINCT
+          REGEXP_EXTRACT(
+            (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'page_location'),
+            r'https://([^.]+)\\.8020rei\\.com'
+          )
+        ) as active_clients
+      FROM \`web-app-production-451214.analytics_489035450.events_*\`
+      WHERE _TABLE_SUFFIX >= FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))
+    `;
+  }
+
+  // Session-based filtering for internal/external
+  const targetAffiliation = userType === 'internal' ? 'internal' : 'external';
+
+  return `
+    WITH session_affiliation AS (
+      SELECT
+        user_pseudo_id,
+        LAST_VALUE(
+          (SELECT value.string_value FROM UNNEST(user_properties) WHERE key = 'user_affiliation')
+          IGNORE NULLS
+        ) OVER (
+          PARTITION BY user_pseudo_id
+          ORDER BY event_timestamp
+          ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+        ) as final_affiliation
+      FROM \`web-app-production-451214.analytics_489035450.events_*\`
+      WHERE _TABLE_SUFFIX >= FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))
+    ),
+    filtered_sessions AS (
+      SELECT DISTINCT user_pseudo_id
+      FROM session_affiliation
+      WHERE final_affiliation = '${targetAffiliation}'
+    )
+    SELECT
+      COUNT(DISTINCT e.user_pseudo_id) as total_users,
+      COUNT(*) as total_events,
+      COUNT(CASE WHEN e.event_name = 'page_view' THEN 1 END) as page_views,
+      COUNT(DISTINCT
+        REGEXP_EXTRACT(
+          (SELECT value.string_value FROM UNNEST(e.event_params) WHERE key = 'page_location'),
+          r'https://([^.]+)\\.8020rei\\.com'
+        )
+      ) as active_clients
+    FROM \`web-app-production-451214.analytics_489035450.events_*\` e
+    INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
+    WHERE _TABLE_SUFFIX >= FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))
+  `;
+}
+```
+
+### UI Integration
+
+**Filter Dropdown:**
+```typescript
+const USER_TYPE_OPTIONS: AxisSelectOption[] = [
+  { value: 'all', label: 'All Users' },
+  { value: 'internal', label: 'Internal Users' },
+  { value: 'external', label: 'External Users' },
+];
+
+// In Dashboard component
+const [userType, setUserType] = useState<'all' | 'internal' | 'external'>('all');
+
+// Trigger data refresh when filter changes
+useEffect(() => {
+  if (user) {
+    fetchData();
+  }
+}, [days, userType, user]);
+
+// Include in API call
+async function fetchData() {
+  const res = await fetch(`/api/metrics?days=${days}&userType=${userType}`);
+  // ...
+}
+```
+
+**API Route:**
+```typescript
+// src/app/api/metrics/route.ts
+export async function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams;
+  const days = parseInt(searchParams.get('days') || '30');
+  const userType = (searchParams.get('userType') || 'all') as UserType;
+
+  // Include userType in cache key
+  const cacheKey = `metrics:${days}:${userType}`;
+
+  // Execute queries with userType filter
+  const [metrics, usersByDay, featureUsage, topClients] = await Promise.all([
+    runQuery<Metrics>(getMetricsQuery(days, userType)),
+    runQuery<DailyData>(getUsersByDayQuery(days, userType)),
+    runQuery<FeatureData>(getFeatureUsageQuery(days, userType)),
+    runQuery<ClientData>(getTopClientsQuery(days, userType)),
+  ]);
+
+  // ...
+}
+```
+
+### Diagnostic Tools
+
+**Diagnostic Endpoint:** `/api/diagnostics`
+
+Created to verify that `user_affiliation` data exists and is being sent correctly from the main platform.
+
+**Usage:**
+```bash
+# Check last 7 days of user affiliation data
+curl http://localhost:4000/api/diagnostics?days=7
+```
+
+**Sample Response:**
+```json
+{
+  "success": true,
+  "summary": {
+    "total_records": 87,
+    "internal_users": 12,
+    "external_users": 45,
+    "unauthenticated": 30,
+    "has_affiliation": 57,
+    "total_events": 145782
+  },
+  "sample_data": [
+    {
+      "final_affiliation": "external",
+      "user_id": "john@example.com",
+      "user_pseudo_id": "1234567890.9876543210",
+      "total_events": 234,
+      "active_days": 5
+    },
+    {
+      "final_affiliation": "internal",
+      "user_id": "german@8020rei.com",
+      "user_pseudo_id": "9876543210.1234567890",
+      "total_events": 567,
+      "active_days": 12
+    }
+  ],
+  "message": "✅ Found 12 internal and 45 external users. Filters should work correctly!",
+  "timestamp": "2026-02-10T12:00:00.000Z"
+}
+```
+
+**When to use:**
+- Initial setup: Verify user_affiliation is being sent
+- Troubleshooting: Diagnose why filters aren't working
+- Validation: Confirm internal/external split makes sense
+
+### Common Issues & Troubleshooting
+
+#### Issue 1: Internal Users Shows Zero
+
+**Symptom:** "Internal Users" filter returns 0 users, but you know employees use the platform.
+
+**Possible Causes:**
+1. `user_affiliation` property not being sent from main platform
+2. Property name mismatch (e.g., 'userAffiliation' vs 'user_affiliation')
+3. Logic error in main platform (all users marked as 'external')
+
+**Diagnosis:**
+```bash
+# Check diagnostic endpoint
+curl http://localhost:4000/api/diagnostics?days=7
+
+# Look for:
+# - "internal_users": 0 means no internal users found
+# - "has_affiliation": 0 means property not being sent at all
+```
+
+**Solutions:**
+1. Verify main platform GA4 code sends `user_affiliation`
+2. Check BigQuery directly: Run diagnostic query manually
+3. Verify email domain logic in main platform
+
+#### Issue 2: All Users = Internal + External Doesn't Match
+
+**Symptom:** "All Users" shows 1000, but "Internal" (50) + "External" (800) = 850
+
+**Explanation:** This is **expected behavior**.
+- The 150 missing users are unauthenticated sessions (anonymous visitors)
+- They have no `user_affiliation` property
+- They appear in "All Users" but not in "Internal" or "External"
+
+**Example:**
+```
+All Users:      1000 sessions
+├─ Internal:     50 (@8020rei.com emails)
+├─ External:    800 (other domains)
+└─ Anonymous:   150 (never logged in)
+```
+
+#### Issue 3: User Switches Accounts Mid-Session
+
+**Symptom:** A session has conflicting affiliations (e.g., first 'internal', then 'external')
+
+**Explanation:** Rare but possible:
+```
+Time 0:00 - Login with german@8020rei.com → 'internal'
+Time 1:00 - Logout and login with john@example.com → 'external'
+```
+
+**How we handle it:**
+- `LAST_VALUE()` takes the most recent affiliation ('external' in this case)
+- Entire session is classified as 'external'
+- This is the correct behavior (final authenticated state matters most)
+
+### Performance Considerations
+
+**Query Cost:**
+- "All Users" query: ~0.5 GB scanned (fast, cheap)
+- "Internal/External" query: ~1.2 GB scanned (slower, more expensive)
+
+**Why the difference:**
+- Session-based filtering requires full table scan with window functions
+- CTEs (Common Table Expressions) add overhead
+- `LAST_VALUE` with window needs to sort all events
+
+**Optimization Tips:**
+1. **Cache aggressively**: Use longer cache TTL for filtered queries (10-15 minutes)
+2. **Limit date range**: Fewer days = less data scanned
+3. **Precompute sessions**: Create a materialized view of session affiliations (advanced)
+4. **Cluster tables**: Partition by user_pseudo_id for faster session queries (advanced)
+
+### Testing User Type Filtering
+
+**Manual Test Checklist:**
+
+1. **Verify All Users (default)**
+   - Load dashboard
+   - Should show all metrics
+   - Note the total users count
+
+2. **Test Internal Users**
+   - Select "Internal Users" filter
+   - Dashboard should refresh
+   - Should show lower numbers (only @8020rei.com users)
+   - Check if numbers make sense (your team size)
+
+3. **Test External Users**
+   - Select "External Users" filter
+   - Should show client activity only
+   - Typically higher than internal (more clients than employees)
+   - Feature usage should differ (clients use different features)
+
+4. **Verify Caching**
+   - Switch between filters
+   - Second load of same filter should be instant (cached)
+   - Check "cached: true" in API response
+
+5. **Run Diagnostics**
+   - Visit `/api/diagnostics?days=7`
+   - Verify both internal and external users exist
+   - Check sample data looks reasonable
+
+### Integration with Main Platform
+
+**Requirements for main 8020REI platform:**
+
+The main platform MUST send the `user_affiliation` property with every GA4 event:
+
+```javascript
+// When user logs in or on every page load for authenticated users
+const userEmail = getCurrentUserEmail(); // e.g., "german@8020rei.com"
+
+gtag('set', 'user_properties', {
+  user_affiliation: userEmail.endsWith('@8020rei.com') ? 'internal' : 'external'
+});
+```
+
+**Best Practices:**
+1. Set on every page load (not just login)
+2. Update if user switches accounts
+3. Clear on logout (set to null)
+4. Test thoroughly with both internal and external test accounts
+5. Monitor in GA4 DebugView to verify it's being sent
+
+**Validation:**
+- Use GA4 DebugView to see user_affiliation in real-time
+- Check BigQuery exports after 24-48 hours
+- Run diagnostic endpoint to verify analytics dashboard receives data
+
+### Future Enhancements
+
+**Potential improvements to user type filtering:**
+
+1. **More Granular Filtering**
+   - Filter by specific email domain (e.g., only users from client-x.com)
+   - Filter by user role (admin, viewer, editor)
+   - Filter by client account
+
+2. **Multi-Select Filtering**
+   - Select multiple user types at once
+   - Example: "Internal + Partner" users
+
+3. **Saved Filter Presets**
+   - Save commonly used filter combinations
+   - Quick access to "Client Activity Only" preset
+
+4. **User Segmentation**
+   - Automatically detect user segments
+   - Show recommendations: "Top 10% most active users"
+   - Cohort analysis: "Users who joined in Q1 2026"
+
+5. **Real-Time Affiliation Updates**
+   - Handle mid-session account switches more intelligently
+   - Track authentication state changes explicitly
 
 ---
 
@@ -1321,11 +1805,12 @@ export function setCache<T>(key: string, data: T): void {
 | File | Purpose | Key Content |
 |------|---------|-------------|
 | `src/app/layout.tsx` | Root layout for entire app | Inter font, AuthProvider, theme class |
-| `src/app/page.tsx` | Main dashboard page | Fetches data, renders components, handles auth |
-| `src/app/api/metrics/route.ts` | API endpoint for metrics | Executes BigQuery queries, caching |
+| `src/app/page.tsx` | Main dashboard page | Fetches data, renders components, handles auth, user type filter |
+| `src/app/api/metrics/route.ts` | API endpoint for metrics | Executes BigQuery queries, caching, user type filtering |
+| `src/app/api/diagnostics/route.ts` | Diagnostic endpoint | Verify user_affiliation data exists |
 | `src/lib/firebase/AuthContext.tsx` | Authentication provider | User state, sign in/out, email validation |
 | `src/lib/bigquery.ts` | BigQuery client setup | Credentials, query execution |
-| `src/lib/queries.ts` | SQL query definitions | 4 main queries for dashboard data |
+| `src/lib/queries.ts` | SQL query definitions | 4 main queries + user type filtering logic |
 | `src/lib/cache.ts` | Caching layer | In-memory cache with TTL |
 | `src/components/axis/*.tsx` | Reusable UI components | Design system components |
 | `src/components/dashboard/*.tsx` | Dashboard-specific components | Scorecards, charts, tables |
@@ -2143,12 +2628,13 @@ Solution:
 **This is a Next.js 16 analytics dashboard that:**
 1. Queries Google Analytics 4 data from BigQuery
 2. Displays usage metrics for the 8020REI platform
-3. Requires Firebase authentication (@8020rei.com emails only)
-4. Uses Axis Design System for UI components
-5. Has full dark mode support
-6. Caches data for 5 minutes to reduce costs
-7. Runs on port 4000 (not 3000) locally
-8. Is production-ready for Vercel deployment
+3. Filters by user type: Internal (@8020rei.com) vs External users
+4. Requires Firebase authentication (@8020rei.com emails only)
+5. Uses Axis Design System for UI components
+6. Has full dark mode support
+7. Caches data for 5 minutes to reduce costs
+8. Runs on port 4000 (not 3000) locally
+9. Is production-ready for Vercel deployment
 
 **Key Technologies:**
 - Frontend: Next.js 16, React 19, TypeScript, Tailwind CSS

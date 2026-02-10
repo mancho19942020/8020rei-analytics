@@ -1,0 +1,3132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>8020 Design Kit - Axis Design System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* CSS Reset */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* CSS Variables - Light Mode */
+    :root {
+      --surface-base: #ffffff;
+      --surface-raised: #f9fafb;
+      --surface-overlay: #f3f4f6;
+      --surface-sunken: #f3f4f6;
+      --text-primary: #111827;
+      --text-secondary: #374151;
+      --text-tertiary: #6b7280;
+      --text-disabled: #9ca3af;
+      --border-default: #e5e7eb;
+      --border-subtle: #f3f4f6;
+      --border-strong: #d1d5db;
+      --shadow-sm: 0px 1px 3px rgba(16, 24, 40, 0.1), 0px 1px 2px rgba(16, 24, 40, 0.06);
+      --shadow-md: 0px 4px 8px -2px rgba(16, 24, 40, 0.1), 0px 2px 4px -2px rgba(16, 24, 40, 0.06);
+
+      /* Brand Colors */
+      --main-50: #eff6ff;
+      --main-100: #dbeafe;
+      --main-300: #93c5fd;
+      --main-500: #3b82f6;
+      --main-700: #1d4ed8;
+      --main-900: #1e3a8a;
+      --main-950: #172554;
+    }
+
+    /* Dark Mode */
+    .dark {
+      --surface-base: #111827;
+      --surface-raised: #1f2937;
+      --surface-overlay: #374151;
+      --surface-sunken: #030712;
+      --text-primary: #f9fafb;
+      --text-secondary: #d1d5db;
+      --text-tertiary: #9ca3af;
+      --text-disabled: #4b5563;
+      --border-default: #374151;
+      --border-subtle: #1f2937;
+      --border-strong: #4b5563;
+      --shadow-sm: 0px 1px 3px rgba(0, 0, 0, 0.4), 0px 1px 2px rgba(0, 0, 0, 0.3);
+      --shadow-md: 0px 4px 8px -2px rgba(0, 0, 0, 0.5), 0px 2px 4px -2px rgba(0, 0, 0, 0.3);
+    }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--surface-base);
+      color: var(--text-primary);
+      font-size: 14px;
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    /* Layout */
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* Header */
+    .header {
+      position: sticky;
+      top: 0;
+      background: var(--surface-base);
+      border-bottom: 1px solid var(--border-default);
+      padding: 16px 0;
+      z-index: 100;
+    }
+
+    .header-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .logo span {
+      font-weight: 700;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    /* Theme Toggle Button */
+    .theme-toggle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border: 1px solid var(--main-700);
+      border-radius: 4px;
+      background: transparent;
+      color: var(--text-primary);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .dark .theme-toggle {
+      border-color: var(--main-500);
+    }
+
+    .theme-toggle:hover {
+      background: var(--main-50);
+    }
+
+    .dark .theme-toggle:hover {
+      background: var(--main-950);
+    }
+
+    .theme-toggle svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    .sun-icon, .dark .moon-icon { display: none; }
+    .moon-icon, .dark .sun-icon { display: block; }
+
+    /* Navigation */
+    .nav {
+      position: sticky;
+      top: 69px;
+      background: var(--surface-sunken);
+      border-bottom: 1px solid var(--border-default);
+      padding: 0;
+      z-index: 99;
+      overflow-x: auto;
+    }
+
+    .dark .nav {
+      background: var(--surface-base);
+    }
+
+    .nav-list {
+      display: flex;
+      list-style: none;
+      gap: 0;
+      min-width: max-content;
+    }
+
+    .nav-link {
+      display: block;
+      padding: 12px 20px;
+      text-decoration: none;
+      color: var(--text-secondary);
+      font-size: 14px;
+      font-weight: 500;
+      border-bottom: 2px solid transparent;
+      transition: all 0.15s ease;
+    }
+
+    .nav-link:hover {
+      color: var(--text-primary);
+      background: var(--surface-overlay);
+    }
+
+    .nav-link.active {
+      color: var(--main-700);
+      border-bottom-color: var(--main-700);
+    }
+
+    .dark .nav-link.active {
+      color: var(--main-500);
+      border-bottom-color: var(--main-500);
+    }
+
+    /* Main Content */
+    main {
+      padding: 32px 0 64px;
+    }
+
+    /* Sections */
+    section {
+      margin-bottom: 48px;
+      scroll-margin-top: 140px;
+    }
+
+    .section-title {
+      font-size: 24px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: var(--text-primary);
+    }
+
+    .section-subtitle {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 24px;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--surface-raised);
+      border: 1px solid var(--border-default);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 16px;
+    }
+
+    .card-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: var(--text-primary);
+    }
+
+    /* Color Swatches */
+    .color-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .color-palette {
+      background: var(--surface-raised);
+      border: 1px solid var(--border-default);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .color-palette-header {
+      padding: 16px;
+      border-bottom: 1px solid var(--border-default);
+    }
+
+    .color-palette-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .color-palette-desc {
+      font-size: 12px;
+      color: var(--text-tertiary);
+      margin-top: 4px;
+    }
+
+    .color-swatches {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .color-swatch {
+      display: flex;
+      align-items: center;
+      padding: 8px 16px;
+      gap: 12px;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+
+    .color-swatch:hover {
+      background: var(--surface-overlay);
+    }
+
+    .swatch-preview {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      border: 1px solid var(--border-default);
+      flex-shrink: 0;
+    }
+
+    .swatch-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .swatch-name {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .swatch-value {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+    }
+
+    .copy-indicator {
+      font-size: 10px;
+      color: var(--text-disabled);
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+
+    .color-swatch:hover .copy-indicator {
+      opacity: 1;
+    }
+
+    /* Typography Scale */
+    .type-scale {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .type-row {
+      display: flex;
+      align-items: baseline;
+      gap: 24px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .type-meta {
+      width: 140px;
+      flex-shrink: 0;
+    }
+
+    .type-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--main-700);
+      font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+    }
+
+    .dark .type-name {
+      color: var(--main-500);
+    }
+
+    .type-specs {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      margin-top: 4px;
+    }
+
+    .type-sample {
+      flex: 1;
+      color: var(--text-primary);
+    }
+
+    /* Component Cards */
+    .component-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: 16px;
+    }
+
+    .component-card {
+      background: var(--surface-raised);
+      border: 1px solid var(--border-default);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .component-preview {
+      padding: 24px;
+      background: var(--surface-sunken);
+      border-bottom: 1px solid var(--border-default);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      justify-content: center;
+      min-height: 100px;
+    }
+
+    .dark .component-preview {
+      background: var(--surface-overlay);
+    }
+
+    .component-info {
+      padding: 16px;
+    }
+
+    .component-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .component-desc {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-bottom: 12px;
+    }
+
+    .component-props {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .prop-tag {
+      font-size: 10px;
+      padding: 2px 8px;
+      background: var(--main-50);
+      color: var(--main-700);
+      border-radius: 4px;
+      font-weight: 500;
+    }
+
+    .dark .prop-tag {
+      background: var(--main-950);
+      color: var(--main-300);
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 8px 16px;
+      font-size: 14px;
+      font-weight: 500;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      border: none;
+      font-family: inherit;
+    }
+
+    .btn-filled {
+      background: var(--main-700);
+      color: white;
+    }
+
+    .btn-filled:hover {
+      background: var(--main-900);
+    }
+
+    .btn-outlined {
+      background: transparent;
+      border: 1px solid var(--main-700);
+      color: var(--text-primary);
+    }
+
+    .dark .btn-outlined {
+      border-color: var(--main-500);
+    }
+
+    .btn-outlined:hover {
+      background: var(--main-50);
+    }
+
+    .dark .btn-outlined:hover {
+      background: var(--main-950);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-primary);
+      border: none;
+    }
+
+    .btn-ghost:hover {
+      background: var(--main-50);
+    }
+
+    .dark .btn-ghost:hover {
+      background: var(--main-950);
+    }
+
+    .btn-sm {
+      height: 28px;
+      padding: 0 12px;
+      font-size: 12px;
+    }
+
+    .btn-md {
+      height: 36px;
+      padding: 0 16px;
+    }
+
+    .btn-lg {
+      height: 44px;
+      padding: 0 20px;
+      font-size: 16px;
+    }
+
+    .btn-destructive {
+      background: #ef4444;
+      color: white;
+    }
+
+    .btn-destructive:hover {
+      background: #b91c1c;
+    }
+
+    /* Inputs */
+    .input {
+      height: 36px;
+      padding: 0 12px;
+      font-size: 14px;
+      border: 1px solid var(--border-default);
+      border-radius: 12px;
+      background: var(--surface-base);
+      color: var(--text-primary);
+      font-family: inherit;
+      transition: all 0.15s ease;
+    }
+
+    .input:focus {
+      outline: none;
+      border-color: var(--main-500);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .input::placeholder {
+      color: var(--text-disabled);
+    }
+
+    /* Callouts */
+    .callout {
+      display: flex;
+      gap: 12px;
+      padding: 16px;
+      border-radius: 12px;
+      border-left: 4px solid;
+    }
+
+    .callout-info {
+      background: #eff6ff;
+      border-left-color: #3b82f6;
+      color: #1d4ed8;
+    }
+
+    .dark .callout-info {
+      background: #172554;
+      color: #93c5fd;
+    }
+
+    .callout-success {
+      background: #f0fdf4;
+      border-left-color: #22c55e;
+      color: #15803d;
+    }
+
+    .dark .callout-success {
+      background: #052e16;
+      color: #86efac;
+    }
+
+    .callout-alert {
+      background: #fefce8;
+      border-left-color: #eab308;
+      color: #a16207;
+    }
+
+    .dark .callout-alert {
+      background: #422006;
+      color: #fde047;
+    }
+
+    .callout-error {
+      background: #fef2f2;
+      border-left-color: #ef4444;
+      color: #b91c1c;
+    }
+
+    .dark .callout-error {
+      background: #450a0a;
+      color: #fca5a5;
+    }
+
+    .callout-icon {
+      width: 20px;
+      height: 20px;
+      flex-shrink: 0;
+    }
+
+    /* Pills/Tags */
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      font-size: 12px;
+      font-weight: 500;
+      border-radius: 9999px;
+    }
+
+    .pill-info { background: #dbeafe; color: #1d4ed8; }
+    .pill-success { background: #dcfce7; color: #15803d; }
+    .pill-alert { background: #fef9c3; color: #a16207; }
+    .pill-error { background: #fee2e2; color: #b91c1c; }
+    .pill-neutral { background: #f3f4f6; color: #374151; }
+
+    .dark .pill-info { background: #1e3a8a; color: #93c5fd; }
+    .dark .pill-success { background: #14532d; color: #86efac; }
+    .dark .pill-alert { background: #713f12; color: #fde047; }
+    .dark .pill-error { background: #7f1d1d; color: #fca5a5; }
+    .dark .pill-neutral { background: #374151; color: #d1d5db; }
+
+    /* Tags */
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      font-size: 12px;
+      font-weight: 500;
+      border-radius: 4px;
+      background: var(--surface-overlay);
+      color: var(--text-secondary);
+    }
+
+    .tag-close {
+      width: 14px;
+      height: 14px;
+      cursor: pointer;
+      opacity: 0.6;
+    }
+
+    .tag-close:hover {
+      opacity: 1;
+    }
+
+    /* Toggle */
+    .toggle {
+      position: relative;
+      width: 44px;
+      height: 24px;
+      background: var(--border-default);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .toggle.active {
+      background: var(--main-700);
+    }
+
+    .toggle-knob {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 20px;
+      height: 20px;
+      background: white;
+      border-radius: 50%;
+      transition: transform 0.2s ease;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+
+    .toggle.active .toggle-knob {
+      transform: translateX(20px);
+    }
+
+    /* Checkbox */
+    .checkbox-wrapper {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+
+    .checkbox {
+      width: 18px;
+      height: 18px;
+      border: 2px solid var(--border-strong);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+    }
+
+    .checkbox.checked {
+      background: var(--main-700);
+      border-color: var(--main-700);
+    }
+
+    .checkbox svg {
+      width: 12px;
+      height: 12px;
+      color: white;
+      opacity: 0;
+    }
+
+    .checkbox.checked svg {
+      opacity: 1;
+    }
+
+    /* Spacing Scale */
+    .spacing-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .spacing-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .spacing-label {
+      width: 80px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+    }
+
+    .spacing-bar {
+      height: 24px;
+      background: var(--main-100);
+      border-radius: 4px;
+    }
+
+    .dark .spacing-bar {
+      background: var(--main-900);
+    }
+
+    .spacing-value {
+      font-size: 12px;
+      color: var(--text-tertiary);
+    }
+
+    /* Shadow Scale */
+    .shadow-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 16px;
+    }
+
+    .shadow-box {
+      height: 80px;
+      background: var(--surface-base);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+
+    /* Radius Scale */
+    .radius-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .radius-box {
+      width: 64px;
+      height: 64px;
+      background: var(--main-100);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }
+
+    .dark .radius-box {
+      background: var(--main-900);
+    }
+
+    .radius-name {
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+
+    .radius-value {
+      font-size: 9px;
+      color: var(--text-tertiary);
+    }
+
+    /* Code Block */
+    .code-block {
+      background: #1f2937;
+      color: #f3f4f6;
+      padding: 16px;
+      border-radius: 8px;
+      font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+      font-size: 13px;
+      overflow-x: auto;
+      margin: 12px 0;
+    }
+
+    .code-block code {
+      color: inherit;
+    }
+
+    .code-keyword { color: #c084fc; }
+    .code-string { color: #86efac; }
+    .code-prop { color: #93c5fd; }
+    .code-comment { color: #6b7280; }
+
+    /* Best Practices */
+    .best-practice {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .bp-do, .bp-dont {
+      flex: 1;
+      padding: 16px;
+      border-radius: 12px;
+    }
+
+    .bp-do {
+      background: #f0fdf4;
+      border: 1px solid #86efac;
+    }
+
+    .dark .bp-do {
+      background: #052e16;
+      border-color: #14532d;
+    }
+
+    .bp-dont {
+      background: #fef2f2;
+      border: 1px solid #fca5a5;
+    }
+
+    .dark .bp-dont {
+      background: #450a0a;
+      border-color: #7f1d1d;
+    }
+
+    .bp-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .bp-do .bp-header { color: #15803d; }
+    .bp-dont .bp-header { color: #b91c1c; }
+
+    .dark .bp-do .bp-header { color: #86efac; }
+    .dark .bp-dont .bp-header { color: #fca5a5; }
+
+    .bp-content {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    /* Table */
+    .table-wrapper {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-default);
+    }
+
+    th {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      background: var(--surface-sunken);
+    }
+
+    .dark th {
+      background: var(--surface-overlay);
+    }
+
+    td {
+      font-size: 14px;
+      color: var(--text-primary);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       SKELETON LOADER STYLES
+       ═══════════════════════════════════════════════════════════════════════════
+       Use these classes for skeleton loaders to ensure consistent appearance
+       across light and dark modes. MINIMALISTIC approach - simple blocks only.
+    */
+
+    /* Base skeleton background - automatically adapts to theme */
+    .skeleton-bg {
+      background-color: #e5e7eb;
+      border-radius: 6px;
+    }
+
+    .dark .skeleton-bg {
+      background-color: #374151;
+    }
+
+    /* Skeleton pulse animation */
+    @keyframes skeleton-pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .skeleton-animate {
+      animation: skeleton-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+
+    /* Skeleton wave animation */
+    @keyframes skeleton-wave {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    .skeleton-wave {
+      background: linear-gradient(90deg, #e5e7eb 25%, #d1d5db 50%, #e5e7eb 75%);
+      background-size: 200% 100%;
+      animation: skeleton-wave 1.5s ease-in-out infinite;
+      border-radius: 6px;
+    }
+
+    .dark .skeleton-wave {
+      background: linear-gradient(90deg, #374151 25%, #4b5563 50%, #374151 75%);
+      background-size: 200% 100%;
+    }
+
+    /* Legacy skeleton class for backwards compatibility */
+    .skeleton {
+      background: linear-gradient(90deg, var(--surface-overlay) 25%, var(--border-subtle) 50%, var(--surface-overlay) 75%);
+      background-size: 200% 100%;
+      animation: skeleton-wave 1.5s infinite;
+      border-radius: 6px;
+    }
+
+    /* Toast Notification */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--surface-raised);
+      border: 1px solid var(--border-default);
+      border-radius: 8px;
+      padding: 12px 16px;
+      box-shadow: var(--shadow-md);
+      display: none;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      color: var(--text-primary);
+      z-index: 1000;
+    }
+
+    .toast.show {
+      display: flex;
+      animation: toast-in 0.3s ease;
+    }
+
+    @keyframes toast-in {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .container {
+        padding: 0 16px;
+      }
+
+      .component-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .color-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .best-practice {
+        flex-direction: column;
+      }
+
+      .type-row {
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .type-meta {
+        width: 100%;
+      }
+    }
+
+    /* Last Updated */
+    .last-updated {
+      font-size: 12px;
+      color: var(--text-tertiary);
+      padding: 24px 0;
+      border-top: 1px solid var(--border-default);
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="container">
+      <div class="header-content">
+        <div class="logo"><span>8020</span> Design Kit</div>
+        <div class="header-actions">
+          <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">
+            <svg class="sun-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" />
+            </svg>
+            <svg class="moon-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Navigation -->
+  <nav class="nav">
+    <div class="container">
+      <ul class="nav-list">
+        <li><a href="#colors" class="nav-link active">Colors</a></li>
+        <li><a href="#typography" class="nav-link">Typography</a></li>
+        <li><a href="#components" class="nav-link">Components</a></li>
+        <li><a href="#charts" class="nav-link">Charts</a></li>
+        <li><a href="#workspace" class="nav-link">Workspace</a></li>
+        <li><a href="#widgets" class="nav-link">Widgets</a></li>
+        <li><a href="#dashboard" class="nav-link">Dashboard</a></li>
+        <li><a href="#global" class="nav-link">Global</a></li>
+        <li><a href="#spacing" class="nav-link">Spacing</a></li>
+        <li><a href="#shadows" class="nav-link">Shadows</a></li>
+        <li><a href="#radius" class="nav-link">Radius</a></li>
+        <li><a href="#best-practices" class="nav-link">Best Practices</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main>
+    <div class="container">
+      <!-- Colors Section -->
+      <section id="colors">
+        <h2 class="section-title">Color System</h2>
+        <p class="section-subtitle">Semantic color tokens that automatically adapt to light and dark mode. Click any swatch to copy the Tailwind class.</p>
+
+        <div class="color-grid">
+          <!-- Main Brand -->
+          <div class="color-palette">
+            <div class="color-palette-header">
+              <div class="color-palette-name">Main (Brand)</div>
+              <div class="color-palette-desc">Primary brand color for buttons, links, and accents</div>
+            </div>
+            <div class="color-swatches">
+              <div class="color-swatch" onclick="copyClass('bg-main-50')">
+                <div class="swatch-preview" style="background: #eff6ff;"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">main-50</div>
+                  <div class="swatch-value">#eff6ff</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+              <div class="color-swatch" onclick="copyClass('bg-main-100')">
+                <div class="swatch-preview" style="background: #dbeafe;"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">main-100</div>
+                  <div class="swatch-value">#dbeafe</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+              <div class="color-swatch" onclick="copyClass('bg-main-500')">
+                <div class="swatch-preview" style="background: #3b82f6;"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">main-500</div>
+                  <div class="swatch-value">#3b82f6</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+              <div class="color-swatch" onclick="copyClass('bg-main-700')">
+                <div class="swatch-preview" style="background: #1d4ed8;"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">main-700</div>
+                  <div class="swatch-value">#1d4ed8</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+              <div class="color-swatch" onclick="copyClass('bg-main-900')">
+                <div class="swatch-preview" style="background: #1e3a8a;"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">main-900</div>
+                  <div class="swatch-value">#1e3a8a</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Semantic Surfaces -->
+          <div class="color-palette">
+            <div class="color-palette-header">
+              <div class="color-palette-name">Surfaces</div>
+              <div class="color-palette-desc">Background colors for different elevation levels</div>
+            </div>
+            <div class="color-swatches">
+              <div class="color-swatch" onclick="copyClass('bg-surface-base')">
+                <div class="swatch-preview" style="background: var(--surface-base); border: 1px solid var(--border-default);"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">surface-base</div>
+                  <div class="swatch-value">Page background</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+              <div class="color-swatch" onclick="copyClass('bg-surface-raised')">
+                <div class="swatch-preview" style="background: var(--surface-raised); border: 1px solid var(--border-default);"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">surface-raised</div>
+                  <div class="swatch-value">Cards, elevated elements</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+              <div class="color-swatch" onclick="copyClass('bg-surface-overlay')">
+                <div class="swatch-preview" style="background: var(--surface-overlay); border: 1px solid var(--border-default);"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">surface-overlay</div>
+                  <div class="swatch-value">Modals, popovers</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Content Colors -->
+          <div class="color-palette">
+            <div class="color-palette-header">
+              <div class="color-palette-name">Content (Text)</div>
+              <div class="color-palette-desc">Text colors with semantic meaning</div>
+            </div>
+            <div class="color-swatches">
+              <div class="color-swatch" onclick="copyClass('text-content-primary')">
+                <div class="swatch-preview" style="background: var(--text-primary);"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">content-primary</div>
+                  <div class="swatch-value">Headings, primary text</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+              <div class="color-swatch" onclick="copyClass('text-content-secondary')">
+                <div class="swatch-preview" style="background: var(--text-secondary);"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">content-secondary</div>
+                  <div class="swatch-value">Body text</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+              <div class="color-swatch" onclick="copyClass('text-content-tertiary')">
+                <div class="swatch-preview" style="background: var(--text-tertiary);"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">content-tertiary</div>
+                  <div class="swatch-value">Labels, metadata</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+              <div class="color-swatch" onclick="copyClass('text-content-disabled')">
+                <div class="swatch-preview" style="background: var(--text-disabled);"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">content-disabled</div>
+                  <div class="swatch-value">Disabled state</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Stroke Colors -->
+          <div class="color-palette">
+            <div class="color-palette-header">
+              <div class="color-palette-name">Stroke (Borders)</div>
+              <div class="color-palette-desc">Border colors for containers and dividers</div>
+            </div>
+            <div class="color-swatches">
+              <div class="color-swatch" onclick="copyClass('border-stroke')">
+                <div class="swatch-preview" style="background: var(--border-default);"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">stroke</div>
+                  <div class="swatch-value">Default borders</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+              <div class="color-swatch" onclick="copyClass('border-stroke-subtle')">
+                <div class="swatch-preview" style="background: var(--border-subtle);"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">stroke-subtle</div>
+                  <div class="swatch-value">Subtle dividers</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+              <div class="color-swatch" onclick="copyClass('border-stroke-strong')">
+                <div class="swatch-preview" style="background: var(--border-strong);"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">stroke-strong</div>
+                  <div class="swatch-value">Emphasized borders</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Success -->
+          <div class="color-palette">
+            <div class="color-palette-header">
+              <div class="color-palette-name">Success</div>
+              <div class="color-palette-desc">Positive feedback and confirmations</div>
+            </div>
+            <div class="color-swatches">
+              <div class="color-swatch" onclick="copyClass('bg-success-50')">
+                <div class="swatch-preview" style="background: #f0fdf4;"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">success-50</div>
+                  <div class="swatch-value">#f0fdf4</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+              <div class="color-swatch" onclick="copyClass('bg-success-500')">
+                <div class="swatch-preview" style="background: #22c55e;"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">success-500</div>
+                  <div class="swatch-value">#22c55e</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+              <div class="color-swatch" onclick="copyClass('text-success-700')">
+                <div class="swatch-preview" style="background: #15803d;"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">success-700</div>
+                  <div class="swatch-value">#15803d</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Error -->
+          <div class="color-palette">
+            <div class="color-palette-header">
+              <div class="color-palette-name">Error</div>
+              <div class="color-palette-desc">Errors and destructive actions</div>
+            </div>
+            <div class="color-swatches">
+              <div class="color-swatch" onclick="copyClass('bg-error-50')">
+                <div class="swatch-preview" style="background: #fef2f2;"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">error-50</div>
+                  <div class="swatch-value">#fef2f2</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+              <div class="color-swatch" onclick="copyClass('bg-error-500')">
+                <div class="swatch-preview" style="background: #ef4444;"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">error-500</div>
+                  <div class="swatch-value">#ef4444</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+              <div class="color-swatch" onclick="copyClass('text-error-700')">
+                <div class="swatch-preview" style="background: #b91c1c;"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">error-700</div>
+                  <div class="swatch-value">#b91c1c</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Data Visualization Colors -->
+        <h3 style="font-size: 18px; font-weight: 600; margin: 32px 0 8px; color: var(--text-primary);">Data Visualization</h3>
+        <p class="section-subtitle" style="margin-bottom: 16px;">Colors optimized for charts, graphs, and data visualization. Designed for maximum contrast and accessibility.</p>
+
+        <div class="color-grid">
+          <!-- Chart Colors -->
+          <div class="color-palette">
+            <div class="color-palette-header">
+              <div class="color-palette-name">Chart Colors (1-6)</div>
+              <div class="color-palette-desc">Primary palette for data series in charts</div>
+            </div>
+            <div class="color-swatches">
+              <div class="color-swatch" onclick="copyClass('bg-chart-1')">
+                <div class="swatch-preview" style="background: #3b82f6;"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">chart-1</div>
+                  <div class="swatch-value">#3b82f6 (Blue)</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+              <div class="color-swatch" onclick="copyClass('bg-chart-2')">
+                <div class="swatch-preview" style="background: #22c55e;"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">chart-2</div>
+                  <div class="swatch-value">#22c55e (Green)</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+              <div class="color-swatch" onclick="copyClass('bg-chart-3')">
+                <div class="swatch-preview" style="background: #f97316;"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">chart-3</div>
+                  <div class="swatch-value">#f97316 (Orange)</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+              <div class="color-swatch" onclick="copyClass('bg-chart-4')">
+                <div class="swatch-preview" style="background: #8b5cf6;"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">chart-4</div>
+                  <div class="swatch-value">#8b5cf6 (Violet)</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+              <div class="color-swatch" onclick="copyClass('bg-chart-5')">
+                <div class="swatch-preview" style="background: #ec4899;"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">chart-5</div>
+                  <div class="swatch-value">#ec4899 (Pink)</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+              <div class="color-swatch" onclick="copyClass('bg-chart-6')">
+                <div class="swatch-preview" style="background: #14b8a6;"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">chart-6</div>
+                  <div class="swatch-value">#14b8a6 (Teal)</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Chart Colors 7-12 -->
+          <div class="color-palette">
+            <div class="color-palette-header">
+              <div class="color-palette-name">Chart Colors (7-12)</div>
+              <div class="color-palette-desc">Extended palette for complex visualizations</div>
+            </div>
+            <div class="color-swatches">
+              <div class="color-swatch" onclick="copyClass('bg-chart-7')">
+                <div class="swatch-preview" style="background: #f59e0b;"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">chart-7</div>
+                  <div class="swatch-value">#f59e0b (Amber)</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+              <div class="color-swatch" onclick="copyClass('bg-chart-8')">
+                <div class="swatch-preview" style="background: #ef4444;"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">chart-8</div>
+                  <div class="swatch-value">#ef4444 (Red)</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+              <div class="color-swatch" onclick="copyClass('bg-chart-9')">
+                <div class="swatch-preview" style="background: #6366f1;"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">chart-9</div>
+                  <div class="swatch-value">#6366f1 (Indigo)</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+              <div class="color-swatch" onclick="copyClass('bg-chart-10')">
+                <div class="swatch-preview" style="background: #84cc16;"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">chart-10</div>
+                  <div class="swatch-value">#84cc16 (Lime)</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+              <div class="color-swatch" onclick="copyClass('bg-chart-11')">
+                <div class="swatch-preview" style="background: #0ea5e9;"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">chart-11</div>
+                  <div class="swatch-value">#0ea5e9 (Sky)</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+              <div class="color-swatch" onclick="copyClass('bg-chart-12')">
+                <div class="swatch-preview" style="background: #64748b;"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">chart-12</div>
+                  <div class="swatch-value">#64748b (Slate)</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sequential Scales -->
+          <div class="color-palette">
+            <div class="color-palette-header">
+              <div class="color-palette-name">Sequential Scales</div>
+              <div class="color-palette-desc">For heatmaps, intensity gradients, and continuous data</div>
+            </div>
+            <div class="color-swatches">
+              <div class="color-swatch" onclick="copyClass('bg-seq-blue-1')">
+                <div class="swatch-preview" style="background: linear-gradient(to right, #dbeafe, #93c5fd, #60a5fa, #3b82f6, #1d4ed8);"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">Blue Scale</div>
+                  <div class="swatch-value">seq-blue-1 to seq-blue-5</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+              <div class="color-swatch" onclick="copyClass('bg-seq-green-1')">
+                <div class="swatch-preview" style="background: linear-gradient(to right, #dcfce7, #86efac, #4ade80, #22c55e, #15803d);"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">Green Scale</div>
+                  <div class="swatch-value">seq-green-1 to seq-green-5</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+              <div class="color-swatch" onclick="copyClass('bg-seq-orange-1')">
+                <div class="swatch-preview" style="background: linear-gradient(to right, #ffedd5, #fed7aa, #fdba74, #f97316, #c2410c);"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">Orange Scale</div>
+                  <div class="swatch-value">seq-orange-1 to seq-orange-5</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+              <div class="color-swatch" onclick="copyClass('bg-seq-red-1')">
+                <div class="swatch-preview" style="background: linear-gradient(to right, #fee2e2, #fca5a5, #f87171, #ef4444, #b91c1c);"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">Red Scale</div>
+                  <div class="swatch-value">seq-red-1 to seq-red-5</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Diverging Scale -->
+          <div class="color-palette">
+            <div class="color-palette-header">
+              <div class="color-palette-name">Diverging Scale</div>
+              <div class="color-palette-desc">For positive/negative values or above/below threshold data</div>
+            </div>
+            <div class="color-swatches">
+              <div class="color-swatch" onclick="copyClass('bg-diverge-neg-2')">
+                <div class="swatch-preview" style="background: #b91c1c;"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">diverge-neg-2</div>
+                  <div class="swatch-value">Strong negative</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+              <div class="color-swatch" onclick="copyClass('bg-diverge-neg-1')">
+                <div class="swatch-preview" style="background: #f87171;"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">diverge-neg-1</div>
+                  <div class="swatch-value">Mild negative</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+              <div class="color-swatch" onclick="copyClass('bg-diverge-neutral')">
+                <div class="swatch-preview" style="background: #9ca3af;"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">diverge-neutral</div>
+                  <div class="swatch-value">Neutral / zero</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+              <div class="color-swatch" onclick="copyClass('bg-diverge-pos-1')">
+                <div class="swatch-preview" style="background: #4ade80;"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">diverge-pos-1</div>
+                  <div class="swatch-value">Mild positive</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+              <div class="color-swatch" onclick="copyClass('bg-diverge-pos-2')">
+                <div class="swatch-preview" style="background: #15803d;"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">diverge-pos-2</div>
+                  <div class="swatch-value">Strong positive</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Accent Colors Extended -->
+          <div class="color-palette">
+            <div class="color-palette-header">
+              <div class="color-palette-name">Accent 6-9</div>
+              <div class="color-palette-desc">Extended accents for complex dashboards</div>
+            </div>
+            <div class="color-swatches">
+              <div class="color-swatch" onclick="copyClass('bg-accent-6-500')">
+                <div class="swatch-preview" style="background: #14b8a6;"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">accent-6</div>
+                  <div class="swatch-value">Teal (#14b8a6)</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+              <div class="color-swatch" onclick="copyClass('bg-accent-7-500')">
+                <div class="swatch-preview" style="background: #f43f5e;"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">accent-7</div>
+                  <div class="swatch-value">Rose (#f43f5e)</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+              <div class="color-swatch" onclick="copyClass('bg-accent-8-500')">
+                <div class="swatch-preview" style="background: #f59e0b;"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">accent-8</div>
+                  <div class="swatch-value">Amber (#f59e0b)</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+              <div class="color-swatch" onclick="copyClass('bg-accent-9-500')">
+                <div class="swatch-preview" style="background: #10b981;"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">accent-9</div>
+                  <div class="swatch-value">Emerald (#10b981)</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Accent Colors 10-12 -->
+          <div class="color-palette">
+            <div class="color-palette-header">
+              <div class="color-palette-name">Accent 10-12</div>
+              <div class="color-palette-desc">Additional accents for variety</div>
+            </div>
+            <div class="color-swatches">
+              <div class="color-swatch" onclick="copyClass('bg-accent-10-500')">
+                <div class="swatch-preview" style="background: #8b5cf6;"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">accent-10</div>
+                  <div class="swatch-value">Violet (#8b5cf6)</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+              <div class="color-swatch" onclick="copyClass('bg-accent-11-500')">
+                <div class="swatch-preview" style="background: #0ea5e9;"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">accent-11</div>
+                  <div class="swatch-value">Sky (#0ea5e9)</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+              <div class="color-swatch" onclick="copyClass('bg-accent-12-500')">
+                <div class="swatch-preview" style="background: #64748b;"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">accent-12</div>
+                  <div class="swatch-value">Slate (#64748b)</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Typography Section -->
+      <section id="typography">
+        <h2 class="section-title">Typography Scale</h2>
+        <p class="section-subtitle">Inter font family with semantic size tokens. Use these classes for consistent text sizing.</p>
+
+        <div class="card">
+          <div class="card-title">Headlines</div>
+          <div class="type-scale">
+            <div class="type-row">
+              <div class="type-meta">
+                <div class="type-name">text-h1-alt</div>
+                <div class="type-specs">24px / 600</div>
+              </div>
+              <div class="type-sample" style="font-size: 24px; font-weight: 600; line-height: 1.3;">Hero sections and landing pages</div>
+            </div>
+            <div class="type-row">
+              <div class="type-meta">
+                <div class="type-name">text-h1</div>
+                <div class="type-specs">22px / 600</div>
+              </div>
+              <div class="type-sample" style="font-size: 22px; font-weight: 600; line-height: 1.3;">Page titles</div>
+            </div>
+            <div class="type-row">
+              <div class="type-meta">
+                <div class="type-name">text-h2</div>
+                <div class="type-specs">20px / 600</div>
+              </div>
+              <div class="type-sample" style="font-size: 20px; font-weight: 600; line-height: 1.3;">Section titles</div>
+            </div>
+            <div class="type-row">
+              <div class="type-meta">
+                <div class="type-name">text-h3</div>
+                <div class="type-specs">18px / 600</div>
+              </div>
+              <div class="type-sample" style="font-size: 18px; font-weight: 600; line-height: 1.35;">Subsection headers</div>
+            </div>
+            <div class="type-row">
+              <div class="type-meta">
+                <div class="type-name">text-h4</div>
+                <div class="type-specs">16px / 600</div>
+              </div>
+              <div class="type-sample" style="font-size: 16px; font-weight: 600; line-height: 1.4;">Component titles</div>
+            </div>
+            <div class="type-row">
+              <div class="type-meta">
+                <div class="type-name">text-h5</div>
+                <div class="type-specs">14px / 600</div>
+              </div>
+              <div class="type-sample" style="font-size: 14px; font-weight: 600; line-height: 1.4;">Small headers</div>
+            </div>
+            <div class="type-row">
+              <div class="type-meta">
+                <div class="type-name">text-h6</div>
+                <div class="type-specs">12px / 500</div>
+              </div>
+              <div class="type-sample" style="font-size: 12px; font-weight: 500; line-height: 1.4;">MICRO HEADERS</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Body & UI Text</div>
+          <div class="type-scale">
+            <div class="type-row">
+              <div class="type-meta">
+                <div class="type-name">text-body-large</div>
+                <div class="type-specs">16px / 400</div>
+              </div>
+              <div class="type-sample" style="font-size: 16px; font-weight: 400; line-height: 1.5;">Lead paragraphs and important content</div>
+            </div>
+            <div class="type-row">
+              <div class="type-meta">
+                <div class="type-name">text-body-regular</div>
+                <div class="type-specs">14px / 400</div>
+              </div>
+              <div class="type-sample" style="font-size: 14px; font-weight: 400; line-height: 1.5;">Default body text for all content</div>
+            </div>
+            <div class="type-row">
+              <div class="type-meta">
+                <div class="type-name">text-button-regular</div>
+                <div class="type-specs">14px / 500</div>
+              </div>
+              <div class="type-sample" style="font-size: 14px; font-weight: 500; line-height: 1.5;">Button labels</div>
+            </div>
+            <div class="type-row">
+              <div class="type-meta">
+                <div class="type-name">text-label</div>
+                <div class="type-specs">12px / 400</div>
+              </div>
+              <div class="type-sample" style="font-size: 12px; font-weight: 400; line-height: 1.4;">Form labels and captions</div>
+            </div>
+            <div class="type-row">
+              <div class="type-meta">
+                <div class="type-name">text-suggestion</div>
+                <div class="type-specs">10px / 400</div>
+              </div>
+              <div class="type-sample" style="font-size: 10px; font-weight: 400; line-height: 1.4;">Badges, timestamps, non-essential info only</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Components Section -->
+      <section id="components">
+        <h2 class="section-title">Component Library</h2>
+        <p class="section-subtitle">12 production-ready Axis components with full dark mode support.</p>
+
+        <div class="component-grid">
+          <!-- AxisButton -->
+          <div class="component-card">
+            <div class="component-preview">
+              <button class="btn btn-filled btn-md">Filled</button>
+              <button class="btn btn-outlined btn-md">Outlined</button>
+              <button class="btn btn-ghost btn-md">Ghost</button>
+              <button class="btn btn-destructive btn-md">Delete</button>
+            </div>
+            <div class="component-info">
+              <div class="component-name">AxisButton</div>
+              <div class="component-desc">Versatile button with 3 variants, 3 sizes, loading state, and icon support.</div>
+              <div class="component-props">
+                <span class="prop-tag">variant</span>
+                <span class="prop-tag">size</span>
+                <span class="prop-tag">destructive</span>
+                <span class="prop-tag">loading</span>
+                <span class="prop-tag">iconLeft</span>
+                <span class="prop-tag">iconRight</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- AxisInput -->
+          <div class="component-card">
+            <div class="component-preview">
+              <input type="text" class="input" placeholder="Enter text..." style="width: 200px;">
+            </div>
+            <div class="component-info">
+              <div class="component-name">AxisInput</div>
+              <div class="component-desc">Text input with label, error states, password toggle, and icon support.</div>
+              <div class="component-props">
+                <span class="prop-tag">label</span>
+                <span class="prop-tag">error</span>
+                <span class="prop-tag">type</span>
+                <span class="prop-tag">iconLeft</span>
+                <span class="prop-tag">iconRight</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- AxisCallout -->
+          <div class="component-card">
+            <div class="component-preview" style="flex-direction: column; align-items: stretch;">
+              <div class="callout callout-info" style="font-size: 12px;">
+                <span>Info: This is an informational callout.</span>
+              </div>
+              <div class="callout callout-success" style="font-size: 12px;">
+                <span>Success: Operation completed.</span>
+              </div>
+            </div>
+            <div class="component-info">
+              <div class="component-name">AxisCallout</div>
+              <div class="component-desc">Informational banners with 4 types: info, success, alert, error.</div>
+              <div class="component-props">
+                <span class="prop-tag">type</span>
+                <span class="prop-tag">title</span>
+                <span class="prop-tag">hideIcon</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- AxisPill -->
+          <div class="component-card">
+            <div class="component-preview">
+              <span class="pill pill-info">Info</span>
+              <span class="pill pill-success">Success</span>
+              <span class="pill pill-alert">Alert</span>
+              <span class="pill pill-error">Error</span>
+              <span class="pill pill-neutral">Neutral</span>
+            </div>
+            <div class="component-info">
+              <div class="component-name">AxisPill</div>
+              <div class="component-desc">Status badges with 5 semantic color variants.</div>
+              <div class="component-props">
+                <span class="prop-tag">type</span>
+                <span class="prop-tag">size</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- AxisTag -->
+          <div class="component-card">
+            <div class="component-preview">
+              <span class="tag">
+                Tag Label
+                <svg class="tag-close" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </span>
+              <span class="tag" style="background: #dbeafe; color: #1d4ed8;">Blue Tag</span>
+            </div>
+            <div class="component-info">
+              <div class="component-name">AxisTag</div>
+              <div class="component-desc">Removable tags with multiple color options for filters and categories.</div>
+              <div class="component-props">
+                <span class="prop-tag">color</span>
+                <span class="prop-tag">onRemove</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- AxisToggle -->
+          <div class="component-card">
+            <div class="component-preview">
+              <div class="toggle" onclick="this.classList.toggle('active')">
+                <div class="toggle-knob"></div>
+              </div>
+              <div class="toggle active" onclick="this.classList.toggle('active')">
+                <div class="toggle-knob"></div>
+              </div>
+            </div>
+            <div class="component-info">
+              <div class="component-name">AxisToggle</div>
+              <div class="component-desc">Binary on/off switch with label and hint text support.</div>
+              <div class="component-props">
+                <span class="prop-tag">checked</span>
+                <span class="prop-tag">onChange</span>
+                <span class="prop-tag">label</span>
+                <span class="prop-tag">hint</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- AxisCheckbox -->
+          <div class="component-card">
+            <div class="component-preview">
+              <label class="checkbox-wrapper" onclick="this.querySelector('.checkbox').classList.toggle('checked')">
+                <div class="checkbox">
+                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <span>Unchecked</span>
+              </label>
+              <label class="checkbox-wrapper" onclick="this.querySelector('.checkbox').classList.toggle('checked')">
+                <div class="checkbox checked">
+                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <span>Checked</span>
+              </label>
+            </div>
+            <div class="component-info">
+              <div class="component-name">AxisCheckbox</div>
+              <div class="component-desc">Checkbox input with label and error state support.</div>
+              <div class="component-props">
+                <span class="prop-tag">checked</span>
+                <span class="prop-tag">onChange</span>
+                <span class="prop-tag">label</span>
+                <span class="prop-tag">error</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- AxisSelect -->
+          <div class="component-card">
+            <div class="component-preview">
+              <select class="input" style="width: 200px;">
+                <option>Select an option...</option>
+                <option>Option 1</option>
+                <option>Option 2</option>
+                <option>Option 3</option>
+              </select>
+            </div>
+            <div class="component-info">
+              <div class="component-name">AxisSelect</div>
+              <div class="component-desc">Dropdown select with searchable options and custom styling.</div>
+              <div class="component-props">
+                <span class="prop-tag">options</span>
+                <span class="prop-tag">value</span>
+                <span class="prop-tag">onChange</span>
+                <span class="prop-tag">searchable</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- AxisCard -->
+          <div class="component-card">
+            <div class="component-preview" style="background: var(--surface-raised);">
+              <div style="background: var(--surface-base); border: 1px solid var(--border-default); border-radius: 12px; padding: 16px; width: 180px;">
+                <div style="font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">Total Users</div>
+                <div style="font-size: 24px; font-weight: 600; color: var(--text-primary);">1,234</div>
+              </div>
+            </div>
+            <div class="component-info">
+              <div class="component-name">AxisCard</div>
+              <div class="component-desc">Container with Header, Body, Footer, and Media sub-components. Stat variant for metrics.</div>
+              <div class="component-props">
+                <span class="prop-tag">variant</span>
+                <span class="prop-tag">padding</span>
+                <span class="prop-tag">shadow</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- AxisNavigationTab -->
+          <div class="component-card">
+            <div class="component-preview" style="flex-direction: column; gap: 16px;">
+              <!-- Text-only tabs (line variant) -->
+              <div style="width: 100%;">
+                <div style="font-size: 10px; color: var(--text-muted); margin-bottom: 4px;">Text-only (line variant)</div>
+                <div style="display: flex; gap: 0; border-bottom: 1px solid var(--border-default);">
+                  <span style="padding: 8px 16px; font-size: 14px; font-weight: 600; border-bottom: 2px solid var(--main-700); color: var(--main-700);">Active</span>
+                  <span style="padding: 8px 16px; font-size: 14px; font-weight: 500; color: var(--text-secondary);">Tab 2</span>
+                  <span style="padding: 8px 16px; font-size: 14px; font-weight: 500; color: var(--text-secondary);">Tab 3</span>
+                </div>
+              </div>
+              <!-- Tabs with icons (line variant) -->
+              <div style="width: 100%;">
+                <div style="font-size: 10px; color: var(--text-muted); margin-bottom: 4px;">With icons (12px gap, vertically centered)</div>
+                <div style="display: flex; gap: 0; border-bottom: 1px solid var(--border-default);">
+                  <span style="display: inline-flex; align-items: center; justify-content: center; gap: 12px; padding: 12px 16px; font-size: 14px; font-weight: 600; border-bottom: 2px solid var(--main-700); color: var(--main-700);">
+                    <svg style="width: 20px; height: 20px; flex-shrink: 0;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+                    </svg>
+                    Analytics
+                  </span>
+                  <span style="display: inline-flex; align-items: center; justify-content: center; gap: 12px; padding: 12px 16px; font-size: 14px; font-weight: 500; color: var(--text-secondary);">
+                    <svg style="width: 20px; height: 20px; flex-shrink: 0;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+                    </svg>
+                    Users
+                  </span>
+                  <span style="display: inline-flex; align-items: center; justify-content: center; gap: 12px; padding: 12px 16px; font-size: 14px; font-weight: 500; color: var(--text-secondary);">
+                    <svg style="width: 20px; height: 20px; flex-shrink: 0;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M10.343 3.94c.09-.542.56-.94 1.11-.94h1.093c.55 0 1.02.398 1.11.94l.149.894c.07.424.384.764.78.93.398.164.855.142 1.205-.108l.737-.527a1.125 1.125 0 011.45.12l.773.774c.39.389.44 1.002.12 1.45l-.527.737c-.25.35-.272.806-.107 1.204.165.397.505.71.93.78l.893.15c.543.09.94.56.94 1.109v1.094c0 .55-.397 1.02-.94 1.11l-.893.149c-.425.07-.765.383-.93.78-.165.398-.143.854.107 1.204l.527.738c.32.447.269 1.06-.12 1.45l-.774.773a1.125 1.125 0 01-1.449.12l-.738-.527c-.35-.25-.806-.272-1.203-.107-.397.165-.71.505-.781.929l-.149.894c-.09.542-.56.94-1.11.94h-1.094c-.55 0-1.019-.398-1.11-.94l-.148-.894c-.071-.424-.384-.764-.781-.93-.398-.164-.854-.142-1.204.108l-.738.527c-.447.32-1.06.269-1.45-.12l-.773-.774a1.125 1.125 0 01-.12-1.45l.527-.737c.25-.35.273-.806.108-1.204-.165-.397-.505-.71-.93-.78l-.894-.15c-.542-.09-.94-.56-.94-1.109v-1.094c0-.55.398-1.02.94-1.11l.894-.149c.424-.07.765-.383.93-.78.165-.398.143-.854-.107-1.204l-.527-.738a1.125 1.125 0 01.12-1.45l.773-.773a1.125 1.125 0 011.45-.12l.737.527c.35.25.807.272 1.204.107.397-.165.71-.505.78-.929l.15-.894z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    Settings
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div class="component-info">
+              <div class="component-name">AxisNavigationTab</div>
+              <div class="component-desc">Tab navigation with line and contained variants. Supports optional icons with proper vertical centering and 12px gap (md) or 10px gap (sm) between icon and text.</div>
+              <div class="component-props">
+                <span class="prop-tag">variant: line | contained</span>
+                <span class="prop-tag">size: sm | md</span>
+                <span class="prop-tag">tabs</span>
+                <span class="prop-tag">tabs[].icon</span>
+                <span class="prop-tag">activeTab</span>
+                <span class="prop-tag">onTabChange</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- AxisTable -->
+          <div class="component-card">
+            <div class="component-preview" style="padding: 0; overflow: hidden;">
+              <div class="table-wrapper" style="width: 100%;">
+                <table style="font-size: 12px;">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Status</th>
+                      <th>Value</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Item 1</td>
+                      <td><span class="pill pill-success" style="font-size: 10px;">Active</span></td>
+                      <td>$100</td>
+                    </tr>
+                    <tr>
+                      <td>Item 2</td>
+                      <td><span class="pill pill-alert" style="font-size: 10px;">Pending</span></td>
+                      <td>$250</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="component-info">
+              <div class="component-name">AxisTable</div>
+              <div class="component-desc">Data table with sorting, pagination, and row selection.</div>
+              <div class="component-props">
+                <span class="prop-tag">columns</span>
+                <span class="prop-tag">data</span>
+                <span class="prop-tag">sortable</span>
+                <span class="prop-tag">pagination</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- AxisSkeleton -->
+          <div class="component-card">
+            <div class="component-preview" style="flex-direction: column; gap: 12px; align-items: stretch; padding: 16px;">
+              <!-- Widget skeleton - minimalistic block -->
+              <div class="skeleton-bg skeleton-animate" style="height: 60px; width: 100%; border-radius: 8px;"></div>
+              <!-- Chart skeleton - minimalistic block -->
+              <div class="skeleton-wave" style="height: 80px; width: 100%; border-radius: 8px;"></div>
+              <!-- Text skeleton -->
+              <div style="display: flex; flex-direction: column; gap: 6px;">
+                <div class="skeleton-bg skeleton-animate" style="height: 14px; width: 70%;"></div>
+                <div class="skeleton-bg skeleton-animate" style="height: 14px; width: 100%;"></div>
+              </div>
+            </div>
+            <div class="component-info">
+              <div class="component-name">AxisSkeleton</div>
+              <div class="component-desc">Minimalistic loading placeholders. Use simple blocks (widget, chart, card) that reflect page structure without detailed inner elements.</div>
+              <div class="component-props">
+                <span class="prop-tag">variant: widget | chart | card | text | button | custom</span>
+                <span class="prop-tag">animation: pulse | wave</span>
+                <span class="prop-tag">fullWidth</span>
+                <span class="prop-tag">width</span>
+                <span class="prop-tag">height</span>
+                <span class="prop-tag">lines</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Charts Section -->
+      <section id="charts">
+        <h2 class="section-title">Chart Components</h2>
+        <p class="section-subtitle">Reusable chart components with consistent styling, balanced margins for centering, and dark mode support. Always use these instead of raw Recharts.</p>
+
+        <div class="component-grid">
+          <!-- BaseLineChart -->
+          <div class="component-card">
+            <div class="component-preview" style="padding: 16px;">
+              <svg width="180" height="80" viewBox="0 0 180 80">
+                <line x1="20" y1="70" x2="170" y2="70" stroke="var(--border-default)" stroke-width="1"/>
+                <line x1="20" y1="10" x2="20" y2="70" stroke="var(--border-default)" stroke-width="1"/>
+                <polyline
+                  fill="none"
+                  stroke="#3b82f6"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  points="25,55 45,45 65,50 85,30 105,40 125,25 145,35 165,20"
+                />
+                <circle cx="25" cy="55" r="3" fill="#3b82f6"/>
+                <circle cx="45" cy="45" r="3" fill="#3b82f6"/>
+                <circle cx="65" cy="50" r="3" fill="#3b82f6"/>
+                <circle cx="85" cy="30" r="3" fill="#3b82f6"/>
+                <circle cx="105" cy="40" r="3" fill="#3b82f6"/>
+                <circle cx="125" cy="25" r="3" fill="#3b82f6"/>
+                <circle cx="145" cy="35" r="3" fill="#3b82f6"/>
+                <circle cx="165" cy="20" r="3" fill="#3b82f6"/>
+              </svg>
+            </div>
+            <div class="component-info">
+              <div class="component-name">BaseLineChart</div>
+              <div class="component-desc">Time series line chart with consistent styling and balanced margins for centering.</div>
+              <div class="component-props">
+                <span class="prop-tag">data</span>
+                <span class="prop-tag">color</span>
+                <span class="prop-tag">showDots</span>
+                <span class="prop-tag">tooltipFormatter</span>
+                <span class="prop-tag">yAxisWidth</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- BaseHorizontalBarChart -->
+          <div class="component-card">
+            <div class="component-preview" style="padding: 16px;">
+              <svg width="180" height="80" viewBox="0 0 180 80">
+                <line x1="50" y1="10" x2="50" y2="70" stroke="var(--border-default)" stroke-width="1"/>
+                <text x="10" y="22" font-size="9" fill="var(--text-secondary)">Item A</text>
+                <text x="10" y="42" font-size="9" fill="var(--text-secondary)">Item B</text>
+                <text x="10" y="62" font-size="9" fill="var(--text-secondary)">Item C</text>
+                <rect x="50" y="12" width="110" height="14" rx="2" fill="#3b82f6"/>
+                <rect x="50" y="32" width="85" height="14" rx="2" fill="#3b82f6"/>
+                <rect x="50" y="52" width="60" height="14" rx="2" fill="#3b82f6"/>
+              </svg>
+            </div>
+            <div class="component-info">
+              <div class="component-name">BaseHorizontalBarChart</div>
+              <div class="component-desc">Horizontal bar chart for category comparisons (e.g., feature usage).</div>
+              <div class="component-props">
+                <span class="prop-tag">data</span>
+                <span class="prop-tag">color</span>
+                <span class="prop-tag">categoryKey</span>
+                <span class="prop-tag">yAxisWidth</span>
+                <span class="prop-tag">tooltipFormatter</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- BaseStackedBarChart -->
+          <div class="component-card">
+            <div class="component-preview" style="padding: 16px;">
+              <svg width="180" height="80" viewBox="0 0 180 80">
+                <line x1="20" y1="70" x2="170" y2="70" stroke="var(--border-default)" stroke-width="1"/>
+                <line x1="20" y1="10" x2="20" y2="70" stroke="var(--border-default)" stroke-width="1"/>
+                <!-- Stacked bars -->
+                <rect x="30" y="40" width="16" height="30" fill="#22c55e"/>
+                <rect x="30" y="20" width="16" height="20" rx="2" fill="#3b82f6"/>
+                <rect x="55" y="45" width="16" height="25" fill="#22c55e"/>
+                <rect x="55" y="30" width="16" height="15" rx="2" fill="#3b82f6"/>
+                <rect x="80" y="35" width="16" height="35" fill="#22c55e"/>
+                <rect x="80" y="15" width="16" height="20" rx="2" fill="#3b82f6"/>
+                <rect x="105" y="50" width="16" height="20" fill="#22c55e"/>
+                <rect x="105" y="35" width="16" height="15" rx="2" fill="#3b82f6"/>
+                <rect x="130" y="30" width="16" height="40" fill="#22c55e"/>
+                <rect x="130" y="10" width="16" height="20" rx="2" fill="#3b82f6"/>
+                <rect x="155" y="42" width="16" height="28" fill="#22c55e"/>
+                <rect x="155" y="25" width="16" height="17" rx="2" fill="#3b82f6"/>
+              </svg>
+            </div>
+            <div class="component-info">
+              <div class="component-name">BaseStackedBarChart</div>
+              <div class="component-desc">Stacked vertical bar chart for multiple series (e.g., new vs returning users).</div>
+              <div class="component-props">
+                <span class="prop-tag">data</span>
+                <span class="prop-tag">series</span>
+                <span class="prop-tag">showLegend</span>
+                <span class="prop-tag">stackId</span>
+                <span class="prop-tag">yAxisWidth</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- BaseDonutChart -->
+          <div class="component-card">
+            <div class="component-preview" style="padding: 16px;">
+              <svg width="80" height="80" viewBox="0 0 80 80">
+                <!-- Donut segments -->
+                <circle cx="40" cy="40" r="30" fill="none" stroke="#3b82f6" stroke-width="12" stroke-dasharray="94.25 188.5" stroke-dashoffset="0" transform="rotate(-90 40 40)"/>
+                <circle cx="40" cy="40" r="30" fill="none" stroke="#22c55e" stroke-width="12" stroke-dasharray="56.55 188.5" stroke-dashoffset="-94.25" transform="rotate(-90 40 40)"/>
+                <circle cx="40" cy="40" r="30" fill="none" stroke="#f97316" stroke-width="12" stroke-dasharray="37.7 188.5" stroke-dashoffset="-150.8" transform="rotate(-90 40 40)"/>
+              </svg>
+            </div>
+            <div class="component-info">
+              <div class="component-name">BaseDonutChart</div>
+              <div class="component-desc">Donut/pie chart for categorical distribution (e.g., device breakdown, traffic by medium).</div>
+              <div class="component-props">
+                <span class="prop-tag">data</span>
+                <span class="prop-tag">colors</span>
+                <span class="prop-tag">innerRadius</span>
+                <span class="prop-tag">outerRadius</span>
+                <span class="prop-tag">showLegend</span>
+                <span class="prop-tag">showLabels</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Usage Example -->
+        <div class="card" style="margin-top: 24px;">
+          <h3 style="font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--text-primary);">Usage Example</h3>
+          <div class="code-block">
+            <code>
+<span class="code-keyword">import</span> { BaseLineChart } <span class="code-keyword">from</span> <span class="code-string">'@/components/charts'</span>;
+
+<span class="code-keyword">const</span> data = [
+  { <span class="code-prop">label</span>: <span class="code-string">'01/11'</span>, <span class="code-prop">value</span>: 65 },
+  { <span class="code-prop">label</span>: <span class="code-string">'01/12'</span>, <span class="code-prop">value</span>: 78 },
+];
+
+&lt;<span class="code-keyword">BaseLineChart</span>
+  <span class="code-prop">data</span>={data}
+  <span class="code-prop">color</span>=<span class="code-string">"rgb(59, 130, 246)"</span>
+  <span class="code-prop">tooltipFormatter</span>={(value) =&gt; [(value ?? 0).toLocaleString(), <span class="code-string">'Users'</span>]}
+/&gt;
+            </code>
+          </div>
+        </div>
+      </section>
+
+      <!-- Workspace Section -->
+      <section id="workspace">
+        <h2 class="section-title">Workspace Components</h2>
+        <p class="section-subtitle">Grid layout system for drag-and-drop widget arrangement with resize support. In edit mode, widgets can be dragged (handle icon) and resized (SE corner, E edge, S edge).</p>
+
+        <div class="component-grid">
+          <!-- GridWorkspace -->
+          <div class="component-card">
+            <div class="component-preview" style="padding: 12px;">
+              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; width: 100%;">
+                <div style="background: var(--main-100); border-radius: 4px; height: 32px; position: relative;">
+                  <!-- Resize handle indicator -->
+                  <div style="position: absolute; bottom: 2px; right: 2px; width: 6px; height: 6px; border-right: 2px solid var(--main-500); border-bottom: 2px solid var(--main-500);"></div>
+                </div>
+                <div style="background: var(--main-100); border-radius: 4px; height: 32px; grid-column: span 2; position: relative;">
+                  <div style="position: absolute; bottom: 2px; right: 2px; width: 6px; height: 6px; border-right: 2px solid var(--main-500); border-bottom: 2px solid var(--main-500);"></div>
+                </div>
+                <div style="background: var(--main-100); border-radius: 4px; height: 32px; grid-column: span 2;"></div>
+                <div style="background: var(--main-100); border-radius: 4px; height: 32px;"></div>
+              </div>
+            </div>
+            <div class="component-info">
+              <div class="component-name">GridWorkspace</div>
+              <div class="component-desc">Drag-and-drop grid with resize support. In edit mode, widgets can be dragged (via handle) and resized (via edges/corner).</div>
+              <div class="component-props">
+                <span class="prop-tag">layout</span>
+                <span class="prop-tag">onLayoutChange</span>
+                <span class="prop-tag">editMode</span>
+                <span class="prop-tag">widgets</span>
+                <span class="prop-tag">isResizable</span>
+                <span class="prop-tag">resizeHandles</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Widget -->
+          <div class="component-card">
+            <div class="component-preview" style="padding: 12px;">
+              <div style="background: var(--surface-raised); border: 1px solid var(--border-default); border-radius: 8px; padding: 8px; position: relative;">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-default); padding-bottom: 6px; margin-bottom: 6px;">
+                  <div style="display: flex; align-items: center; gap: 4px;">
+                    <div style="width: 12px; height: 8px; border-top: 2px solid var(--text-tertiary); border-bottom: 2px solid var(--text-tertiary);"></div>
+                    <span style="font-size: 11px; font-weight: 600;">Widget Title</span>
+                  </div>
+                  <div style="display: flex; gap: 4px;">
+                    <div style="width: 14px; height: 14px; background: var(--surface-overlay); border-radius: 2px;"></div>
+                    <div style="width: 14px; height: 14px; background: var(--surface-overlay); border-radius: 2px;"></div>
+                  </div>
+                </div>
+                <div style="height: 30px; background: var(--surface-overlay); border-radius: 4px;"></div>
+                <!-- Resize handle indicators -->
+                <div style="position: absolute; bottom: 4px; right: 4px; width: 8px; height: 8px; border-right: 2px solid var(--text-tertiary); border-bottom: 2px solid var(--text-tertiary);"></div>
+                <div style="position: absolute; bottom: 50%; right: 2px; transform: translateY(50%); width: 3px; height: 16px; background: var(--text-disabled); border-radius: 1px;"></div>
+                <div style="position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%); width: 16px; height: 3px; background: var(--text-disabled); border-radius: 1px;"></div>
+              </div>
+            </div>
+            <div class="component-info">
+              <div class="component-name">Widget</div>
+              <div class="component-desc">Base wrapper with drag handle (top-left), resize handles (edges/corner), export and settings buttons.</div>
+              <div class="component-props">
+                <span class="prop-tag">title</span>
+                <span class="prop-tag">onExport</span>
+                <span class="prop-tag">onSettings</span>
+                <span class="prop-tag">editMode</span>
+                <span class="prop-tag">onRemove</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- WidgetCatalog -->
+          <div class="component-card">
+            <div class="component-preview" style="padding: 12px;">
+              <div style="background: var(--surface-raised); border: 1px solid var(--border-default); border-radius: 8px; padding: 8px; width: 100%;">
+                <div style="font-size: 10px; font-weight: 600; margin-bottom: 6px;">Add Widget</div>
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px;">
+                  <div style="background: var(--main-50); border: 1px solid var(--main-300); border-radius: 4px; padding: 4px; font-size: 8px; text-align: center;">Metrics</div>
+                  <div style="background: var(--surface-overlay); border: 1px solid var(--border-default); border-radius: 4px; padding: 4px; font-size: 8px; text-align: center;">Chart</div>
+                </div>
+              </div>
+            </div>
+            <div class="component-info">
+              <div class="component-name">WidgetCatalog</div>
+              <div class="component-desc">Modal for selecting and adding new widgets to the workspace.</div>
+              <div class="component-props">
+                <span class="prop-tag">isOpen</span>
+                <span class="prop-tag">onClose</span>
+                <span class="prop-tag">onAddWidget</span>
+                <span class="prop-tag">existingWidgets</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- WidgetSettings -->
+          <div class="component-card">
+            <div class="component-preview" style="padding: 12px;">
+              <div style="background: var(--surface-raised); border: 1px solid var(--border-default); border-radius: 8px; padding: 8px; width: 100%;">
+                <div style="font-size: 10px; font-weight: 600; margin-bottom: 6px;">Widget Settings</div>
+                <div style="background: var(--surface-overlay); border: 1px solid var(--border-default); border-radius: 4px; padding: 4px; font-size: 8px; margin-bottom: 4px;">Title: Widget Name</div>
+                <div style="display: flex; gap: 4px;">
+                  <div style="flex: 1; background: var(--main-500); color: white; border-radius: 4px; padding: 3px; font-size: 8px; text-align: center;">Save</div>
+                  <div style="flex: 1; background: var(--error-100); color: var(--error-700); border-radius: 4px; padding: 3px; font-size: 8px; text-align: center;">Delete</div>
+                </div>
+              </div>
+            </div>
+            <div class="component-info">
+              <div class="component-name">WidgetSettings</div>
+              <div class="component-desc">Modal for editing widget title and configuration, with delete option.</div>
+              <div class="component-props">
+                <span class="prop-tag">widget</span>
+                <span class="prop-tag">isOpen</span>
+                <span class="prop-tag">onSave</span>
+                <span class="prop-tag">onDelete</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Widgets Section -->
+      <section id="widgets">
+        <h2 class="section-title">Widget Components</h2>
+        <p class="section-subtitle">Pre-built dashboard widgets for displaying metrics, charts, and data. Each widget renders inside the Widget wrapper.</p>
+
+        <div class="component-grid">
+          <!-- MetricsOverviewWidget -->
+          <div class="component-card">
+            <div class="component-preview" style="padding: 12px;">
+              <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px;">
+                <div style="background: var(--surface-raised); border: 1px solid var(--border-default); border-radius: 6px; padding: 6px;">
+                  <div style="font-size: 8px; color: var(--text-tertiary);">Total Users</div>
+                  <div style="font-size: 14px; font-weight: 600;">1,234</div>
+                </div>
+                <div style="background: var(--surface-raised); border: 1px solid var(--border-default); border-radius: 6px; padding: 6px;">
+                  <div style="font-size: 8px; color: var(--text-tertiary);">Events</div>
+                  <div style="font-size: 14px; font-weight: 600;">5,678</div>
+                </div>
+              </div>
+            </div>
+            <div class="component-info">
+              <div class="component-name">MetricsOverviewWidget</div>
+              <div class="component-desc">Displays key metrics (users, events, page views, clients) in a card grid.</div>
+              <div class="component-props">
+                <span class="prop-tag">data</span>
+                <span class="prop-tag">previousData</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- TimeSeriesWidget -->
+          <div class="component-card">
+            <div class="component-preview" style="padding: 12px;">
+              <svg width="140" height="50" viewBox="0 0 140 50">
+                <polyline fill="none" stroke="#3b82f6" stroke-width="2" points="10,40 30,35 50,38 70,25 90,30 110,20 130,15"/>
+              </svg>
+            </div>
+            <div class="component-info">
+              <div class="component-name">TimeSeriesWidget</div>
+              <div class="component-desc">Line chart for time-series data using BaseLineChart.</div>
+              <div class="component-props">
+                <span class="prop-tag">data</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- BarChartWidget -->
+          <div class="component-card">
+            <div class="component-preview" style="padding: 12px;">
+              <svg width="140" height="50" viewBox="0 0 140 50">
+                <rect x="10" y="10" width="80" height="10" rx="2" fill="#3b82f6"/>
+                <rect x="10" y="25" width="60" height="10" rx="2" fill="#3b82f6"/>
+                <rect x="10" y="40" width="40" height="10" rx="2" fill="#3b82f6"/>
+              </svg>
+            </div>
+            <div class="component-info">
+              <div class="component-name">BarChartWidget</div>
+              <div class="component-desc">Horizontal bar chart for category comparisons using BaseHorizontalBarChart.</div>
+              <div class="component-props">
+                <span class="prop-tag">data</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- DataTableWidget -->
+          <div class="component-card">
+            <div class="component-preview" style="padding: 12px;">
+              <div style="background: var(--surface-raised); border: 1px solid var(--border-default); border-radius: 4px; overflow: hidden;">
+                <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; font-size: 8px; background: var(--surface-overlay); padding: 4px; font-weight: 600;">
+                  <span>Client</span><span>Users</span><span>Events</span>
+                </div>
+                <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; font-size: 8px; padding: 4px; border-top: 1px solid var(--border-subtle);">
+                  <span>demo</span><span>45</span><span>234</span>
+                </div>
+              </div>
+            </div>
+            <div class="component-info">
+              <div class="component-name">DataTableWidget</div>
+              <div class="component-desc">Data table for displaying client metrics with columns and rows.</div>
+              <div class="component-props">
+                <span class="prop-tag">data</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- UserActivityWidget -->
+          <div class="component-card">
+            <div class="component-preview" style="padding: 12px;">
+              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px;">
+                <div style="background: var(--surface-raised); border: 1px solid var(--border-default); border-radius: 4px; padding: 4px; text-align: center;">
+                  <div style="font-size: 7px; color: var(--text-tertiary);">DAU</div>
+                  <div style="font-size: 11px; font-weight: 600;">45</div>
+                  <div style="font-size: 7px; color: #22c55e;">↑ 12%</div>
+                </div>
+                <div style="background: var(--surface-raised); border: 1px solid var(--border-default); border-radius: 4px; padding: 4px; text-align: center;">
+                  <div style="font-size: 7px; color: var(--text-tertiary);">WAU</div>
+                  <div style="font-size: 11px; font-weight: 600;">234</div>
+                  <div style="font-size: 7px; color: #22c55e;">↑ 8%</div>
+                </div>
+                <div style="background: var(--surface-raised); border: 1px solid var(--border-default); border-radius: 4px; padding: 4px; text-align: center;">
+                  <div style="font-size: 7px; color: var(--text-tertiary);">MAU</div>
+                  <div style="font-size: 11px; font-weight: 600;">567</div>
+                  <div style="font-size: 7px; color: #22c55e;">↑ 5%</div>
+                </div>
+              </div>
+            </div>
+            <div class="component-info">
+              <div class="component-name">UserActivityWidget</div>
+              <div class="component-desc">DAU/WAU/MAU metrics with trend indicators and sparklines.</div>
+              <div class="component-props">
+                <span class="prop-tag">data</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- NewVsReturningWidget -->
+          <div class="component-card">
+            <div class="component-preview" style="padding: 12px;">
+              <svg width="140" height="50" viewBox="0 0 140 50">
+                <rect x="15" y="30" width="12" height="20" fill="#22c55e"/>
+                <rect x="15" y="15" width="12" height="15" fill="#3b82f6"/>
+                <rect x="35" y="25" width="12" height="25" fill="#22c55e"/>
+                <rect x="35" y="10" width="12" height="15" fill="#3b82f6"/>
+                <rect x="55" y="20" width="12" height="30" fill="#22c55e"/>
+                <rect x="55" y="5" width="12" height="15" fill="#3b82f6"/>
+                <rect x="75" y="28" width="12" height="22" fill="#22c55e"/>
+                <rect x="75" y="15" width="12" height="13" fill="#3b82f6"/>
+              </svg>
+            </div>
+            <div class="component-info">
+              <div class="component-name">NewVsReturningWidget</div>
+              <div class="component-desc">Stacked bar chart comparing new vs returning users over time.</div>
+              <div class="component-props">
+                <span class="prop-tag">data</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- EngagementMetricsWidget -->
+          <div class="component-card">
+            <div class="component-preview" style="padding: 12px;">
+              <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px;">
+                <div style="background: var(--surface-raised); border: 1px solid var(--border-default); border-radius: 4px; padding: 4px;">
+                  <div style="font-size: 7px; color: var(--text-tertiary);">Sessions/User</div>
+                  <div style="font-size: 10px; font-weight: 600;">2.4</div>
+                </div>
+                <div style="background: var(--surface-raised); border: 1px solid var(--border-default); border-radius: 4px; padding: 4px;">
+                  <div style="font-size: 7px; color: var(--text-tertiary);">Bounce Rate</div>
+                  <div style="font-size: 10px; font-weight: 600;">32%</div>
+                </div>
+              </div>
+            </div>
+            <div class="component-info">
+              <div class="component-name">EngagementMetricsWidget</div>
+              <div class="component-desc">Engagement metrics: sessions/user, engaged rate, bounce rate, avg time.</div>
+              <div class="component-props">
+                <span class="prop-tag">data</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- SessionSummaryWidget -->
+          <div class="component-card">
+            <div class="component-preview" style="padding: 12px;">
+              <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px;">
+                <div style="background: var(--surface-raised); border: 1px solid var(--border-default); border-radius: 4px; padding: 6px;">
+                  <div style="font-size: 7px; color: var(--text-tertiary);">Total Sessions</div>
+                  <div style="font-size: 12px; font-weight: 600;">1,234</div>
+                </div>
+                <div style="background: var(--surface-raised); border: 1px solid var(--border-default); border-radius: 4px; padding: 6px;">
+                  <div style="font-size: 7px; color: var(--text-tertiary);">Unique Users</div>
+                  <div style="font-size: 12px; font-weight: 600;">567</div>
+                </div>
+              </div>
+            </div>
+            <div class="component-info">
+              <div class="component-name">SessionSummaryWidget</div>
+              <div class="component-desc">Total sessions and unique users with trend indicators.</div>
+              <div class="component-props">
+                <span class="prop-tag">data</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- CountryWidget -->
+          <div class="component-card">
+            <div class="component-preview" style="padding: 12px;">
+              <svg width="140" height="50" viewBox="0 0 140 50">
+                <text x="10" y="12" style="font-size: 6px; fill: var(--text-tertiary);">United States</text>
+                <rect x="60" y="5" width="70" height="8" rx="2" fill="#3b82f6"/>
+                <text x="10" y="27" style="font-size: 6px; fill: var(--text-tertiary);">Philippines</text>
+                <rect x="60" y="20" width="35" height="8" rx="2" fill="#3b82f6"/>
+                <text x="10" y="42" style="font-size: 6px; fill: var(--text-tertiary);">Colombia</text>
+                <rect x="60" y="35" width="20" height="8" rx="2" fill="#3b82f6"/>
+              </svg>
+            </div>
+            <div class="component-info">
+              <div class="component-name">CountryWidget</div>
+              <div class="component-desc">Horizontal bar chart showing users by country.</div>
+              <div class="component-props">
+                <span class="prop-tag">data</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- ContinentWidget -->
+          <div class="component-card">
+            <div class="component-preview" style="padding: 12px; display: flex; justify-content: center;">
+              <svg width="60" height="60" viewBox="0 0 60 60">
+                <circle cx="30" cy="30" r="25" fill="none" stroke-width="10" stroke="#3b82f6" stroke-dasharray="100 100" stroke-dashoffset="0"/>
+                <circle cx="30" cy="30" r="25" fill="none" stroke-width="10" stroke="#22c55e" stroke-dasharray="30 100" stroke-dashoffset="-100"/>
+                <circle cx="30" cy="30" r="25" fill="none" stroke-width="10" stroke="#f59e0b" stroke-dasharray="15 100" stroke-dashoffset="-130"/>
+                <circle cx="30" cy="30" r="15" fill="var(--surface-base)"/>
+              </svg>
+            </div>
+            <div class="component-info">
+              <div class="component-name">ContinentWidget</div>
+              <div class="component-desc">Donut chart showing activity distribution by continent.</div>
+              <div class="component-props">
+                <span class="prop-tag">data</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- RegionWidget -->
+          <div class="component-card">
+            <div class="component-preview" style="padding: 12px;">
+              <div style="background: var(--surface-raised); border: 1px solid var(--border-default); border-radius: 4px; overflow: hidden;">
+                <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; font-size: 7px; background: var(--surface-overlay); padding: 4px; font-weight: 600;">
+                  <span>State</span><span>Users</span><span>%</span>
+                </div>
+                <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; font-size: 7px; padding: 4px; border-top: 1px solid var(--border-subtle);">
+                  <span>Oregon</span><span>186</span><span>40%</span>
+                </div>
+                <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; font-size: 7px; padding: 4px; border-top: 1px solid var(--border-subtle);">
+                  <span>Virginia</span><span>81</span><span>17%</span>
+                </div>
+              </div>
+            </div>
+            <div class="component-info">
+              <div class="component-name">RegionWidget</div>
+              <div class="component-desc">Table showing users by US state/region with percentages.</div>
+              <div class="component-props">
+                <span class="prop-tag">data</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- CityWidget -->
+          <div class="component-card">
+            <div class="component-preview" style="padding: 12px;">
+              <div style="background: var(--surface-raised); border: 1px solid var(--border-default); border-radius: 4px; overflow: hidden;">
+                <div style="display: grid; grid-template-columns: 1.5fr 1fr 0.5fr 0.5fr; font-size: 7px; background: var(--surface-overlay); padding: 4px; font-weight: 600;">
+                  <span>City</span><span>State</span><span>Users</span><span>%</span>
+                </div>
+                <div style="display: grid; grid-template-columns: 1.5fr 1fr 0.5fr 0.5fr; font-size: 7px; padding: 4px; border-top: 1px solid var(--border-subtle);">
+                  <span>Boardman</span><span>OR</span><span>186</span><span>40%</span>
+                </div>
+                <div style="display: grid; grid-template-columns: 1.5fr 1fr 0.5fr 0.5fr; font-size: 7px; padding: 4px; border-top: 1px solid var(--border-subtle);">
+                  <span>Ashburn</span><span>VA</span><span>77</span><span>17%</span>
+                </div>
+              </div>
+            </div>
+            <div class="component-info">
+              <div class="component-name">CityWidget</div>
+              <div class="component-desc">Table showing users by city with state and percentages.</div>
+              <div class="component-props">
+                <span class="prop-tag">data</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Dashboard Section -->
+      <section id="dashboard">
+        <h2 class="section-title">Dashboard Components</h2>
+        <p class="section-subtitle">Page-level components for dashboard tabs and legacy chart components.</p>
+
+        <div class="component-grid">
+          <!-- UsersTab -->
+          <div class="component-card">
+            <div class="component-preview" style="padding: 12px;">
+              <div style="background: var(--surface-raised); border: 1px solid var(--border-default); border-radius: 6px; padding: 8px;">
+                <div style="font-size: 9px; font-weight: 600; margin-bottom: 6px; color: var(--text-secondary);">Users Tab</div>
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                  <div style="height: 16px; background: var(--surface-overlay); border-radius: 3px;"></div>
+                  <div style="height: 24px; background: var(--surface-overlay); border-radius: 3px;"></div>
+                  <div style="height: 16px; background: var(--surface-overlay); border-radius: 3px;"></div>
+                </div>
+              </div>
+            </div>
+            <div class="component-info">
+              <div class="component-name">UsersTab</div>
+              <div class="component-desc">Chapter 2 tab with user metrics, engagement data, and GridWorkspace layout.</div>
+              <div class="component-props">
+                <span class="prop-tag">days</span>
+                <span class="prop-tag">userType</span>
+                <span class="prop-tag">editMode</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- GeographyTab -->
+          <div class="component-card">
+            <div class="component-preview" style="padding: 12px;">
+              <div style="background: var(--surface-raised); border: 1px solid var(--border-default); border-radius: 6px; padding: 8px;">
+                <div style="font-size: 9px; font-weight: 600; margin-bottom: 6px; color: var(--text-secondary);">Geography Tab</div>
+                <div style="display: flex; gap: 4px;">
+                  <div style="flex: 1; height: 32px; background: var(--surface-overlay); border-radius: 3px;"></div>
+                  <div style="flex: 1; height: 32px; background: var(--surface-overlay); border-radius: 3px;"></div>
+                </div>
+              </div>
+            </div>
+            <div class="component-info">
+              <div class="component-name">GeographyTab</div>
+              <div class="component-desc">Chapter 7 tab with geographic metrics (country, continent, region, city) and GridWorkspace layout.</div>
+              <div class="component-props">
+                <span class="prop-tag">days</span>
+                <span class="prop-tag">userType</span>
+                <span class="prop-tag">editMode</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Scorecard -->
+          <div class="component-card">
+            <div class="component-preview" style="padding: 12px;">
+              <div style="background: var(--surface-raised); border: 1px solid var(--border-default); border-radius: 6px; padding: 10px; display: flex; align-items: center; gap: 8px;">
+                <div style="width: 28px; height: 28px; background: var(--main-100); border-radius: 6px; display: flex; align-items: center; justify-content: center;">
+                  <div style="width: 12px; height: 12px; background: var(--main-500); border-radius: 2px;"></div>
+                </div>
+                <div>
+                  <div style="font-size: 8px; color: var(--text-tertiary);">Total Users</div>
+                  <div style="font-size: 16px; font-weight: 600;">1,234</div>
+                </div>
+              </div>
+            </div>
+            <div class="component-info">
+              <div class="component-name">Scorecard</div>
+              <div class="component-desc">Single metric display card with icon, label, and large value.</div>
+              <div class="component-props">
+                <span class="prop-tag">title</span>
+                <span class="prop-tag">value</span>
+                <span class="prop-tag">icon</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- ClientsTable -->
+          <div class="component-card">
+            <div class="component-preview" style="padding: 12px;">
+              <div style="background: var(--surface-raised); border: 1px solid var(--border-default); border-radius: 4px; overflow: hidden; font-size: 8px;">
+                <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; background: var(--surface-overlay); padding: 4px; font-weight: 600;">
+                  <span>Client</span><span>Events</span><span>Users</span><span>Views</span>
+                </div>
+                <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; padding: 4px;">
+                  <span>demo</span><span>500</span><span>45</span><span>234</span>
+                </div>
+              </div>
+            </div>
+            <div class="component-info">
+              <div class="component-name">ClientsTable</div>
+              <div class="component-desc">Table displaying client metrics with events, users, and page views.</div>
+              <div class="component-props">
+                <span class="prop-tag">data</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- TimeSeriesChart -->
+          <div class="component-card">
+            <div class="component-preview" style="padding: 12px;">
+              <svg width="140" height="50" viewBox="0 0 140 50">
+                <line x1="10" y1="45" x2="130" y2="45" stroke="var(--border-default)" stroke-width="1"/>
+                <polyline fill="none" stroke="#3b82f6" stroke-width="2" points="15,35 35,30 55,33 75,20 95,25 115,15"/>
+                <text x="15" y="50" font-size="6" fill="var(--text-tertiary)">01/11</text>
+                <text x="115" y="50" font-size="6" fill="var(--text-tertiary)">02/10</text>
+              </svg>
+            </div>
+            <div class="component-info">
+              <div class="component-name">TimeSeriesChart</div>
+              <div class="component-desc">Legacy line chart component for time-series visualization (uses Recharts directly).</div>
+              <div class="component-props">
+                <span class="prop-tag">data</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- FeatureBarChart -->
+          <div class="component-card">
+            <div class="component-preview" style="padding: 12px;">
+              <svg width="140" height="50" viewBox="0 0 140 50">
+                <text x="5" y="12" font-size="7" fill="var(--text-secondary)">Buybox</text>
+                <rect x="40" y="5" width="90" height="10" rx="2" fill="#3b82f6"/>
+                <text x="5" y="27" font-size="7" fill="var(--text-secondary)">Props</text>
+                <rect x="40" y="20" width="70" height="10" rx="2" fill="#3b82f6"/>
+                <text x="5" y="42" font-size="7" fill="var(--text-secondary)">Login</text>
+                <rect x="40" y="35" width="50" height="10" rx="2" fill="#3b82f6"/>
+              </svg>
+            </div>
+            <div class="component-info">
+              <div class="component-name">FeatureBarChart</div>
+              <div class="component-desc">Legacy horizontal bar chart for feature usage (uses Recharts directly).</div>
+              <div class="component-props">
+                <span class="prop-tag">data</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- NewVsReturningChart -->
+          <div class="component-card">
+            <div class="component-preview" style="padding: 12px;">
+              <svg width="140" height="50" viewBox="0 0 140 50">
+                <rect x="20" y="25" width="15" height="20" fill="#22c55e"/>
+                <rect x="20" y="10" width="15" height="15" fill="#3b82f6"/>
+                <rect x="45" y="20" width="15" height="25" fill="#22c55e"/>
+                <rect x="45" y="8" width="15" height="12" fill="#3b82f6"/>
+                <rect x="70" y="15" width="15" height="30" fill="#22c55e"/>
+                <rect x="70" y="5" width="15" height="10" fill="#3b82f6"/>
+              </svg>
+            </div>
+            <div class="component-info">
+              <div class="component-name">NewVsReturningChart</div>
+              <div class="component-desc">Legacy stacked bar chart for new vs returning users (uses Recharts directly).</div>
+              <div class="component-props">
+                <span class="prop-tag">data</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Global Section -->
+      <section id="global">
+        <h2 class="section-title">Global Components</h2>
+        <p class="section-subtitle">App-wide utility components used across the entire application.</p>
+
+        <div class="component-grid">
+          <!-- ThemeToggle -->
+          <div class="component-card">
+            <div class="component-preview">
+              <button class="theme-toggle" style="width: 36px; height: 36px;">
+                <svg class="sun-icon" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="5"/>
+                  <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+                </svg>
+              </button>
+              <button class="theme-toggle" style="width: 36px; height: 36px; margin-left: 8px;">
+                <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
+                </svg>
+              </button>
+            </div>
+            <div class="component-info">
+              <div class="component-name">ThemeToggle</div>
+              <div class="component-desc">Button to toggle between light and dark mode. Persists preference to localStorage.</div>
+              <div class="component-props">
+                <span class="prop-tag">-</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Logo -->
+          <div class="component-card">
+            <div class="component-preview">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <!-- Circular progress icon with gap -->
+                <svg width="24" height="24" viewBox="0 0 96 96" fill="none">
+                  <path d="M77.22,39.39l17.01-5.56C87.93,14.55,69.81,0,48.43,0v18.15c13.49.12,24.89,9,28.78,21.23Z" fill="#3e77d7"/>
+                  <path d="M95.41,38.53l-17.05,5.38c.18,1.36.29,2.74.29,4.15c0,16.83-13.65,30.48-30.48,30.48s-30.48-13.65-30.48-30.48c0-15.16,11.06-27.72,25.56-30.08l.19-17.97C19.26,2.36.26,22.6,0,47.43c-.28,26.6,21.06,48.39,47.66,48.66c26.6.28,48.39-21.06,48.66-47.66c.04-3.39-.28-6.71-.92-9.91Z" fill="var(--text-primary)"/>
+                </svg>
+                <span style="font-weight: 700; font-size: 14px; letter-spacing: -0.02em;">8020<span style="color: var(--main-500);">METRICS</span><span style="font-weight: 500;">HUB</span></span>
+              </div>
+            </div>
+            <div class="component-info">
+              <div class="component-name">Logo</div>
+              <div class="component-desc">8020METRICS HUB brand logo with circular progress icon. Supports light/dark mode via separate SVG files.</div>
+              <div class="component-props">
+                <span class="prop-tag">className</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- DesignKitButton -->
+          <div class="component-card">
+            <div class="component-preview">
+              <button class="btn btn-outlined btn-sm" style="font-size: 11px; padding: 6px 10px;">
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="margin-right: 4px;">
+                  <path d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/>
+                </svg>
+                Design Kit
+              </button>
+            </div>
+            <div class="component-info">
+              <div class="component-name">DesignKitButton</div>
+              <div class="component-desc">Button that opens this Design Kit documentation in a new browser tab.</div>
+              <div class="component-props">
+                <span class="prop-tag">-</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Spacing Section -->
+      <section id="spacing">
+        <h2 class="section-title">Spacing Scale</h2>
+        <p class="section-subtitle">Tailwind default spacing scale (4px base unit). Use gap-* for flex/grid gaps and p-*/m-* for padding/margin.</p>
+
+        <div class="card">
+          <div class="spacing-grid">
+            <div class="spacing-row">
+              <span class="spacing-label">gap-1</span>
+              <div class="spacing-bar" style="width: 4px;"></div>
+              <span class="spacing-value">4px</span>
+            </div>
+            <div class="spacing-row">
+              <span class="spacing-label">gap-2</span>
+              <div class="spacing-bar" style="width: 8px;"></div>
+              <span class="spacing-value">8px</span>
+            </div>
+            <div class="spacing-row">
+              <span class="spacing-label">gap-3</span>
+              <div class="spacing-bar" style="width: 12px;"></div>
+              <span class="spacing-value">12px</span>
+            </div>
+            <div class="spacing-row">
+              <span class="spacing-label">gap-4</span>
+              <div class="spacing-bar" style="width: 16px;"></div>
+              <span class="spacing-value">16px (standard)</span>
+            </div>
+            <div class="spacing-row">
+              <span class="spacing-label">gap-6</span>
+              <div class="spacing-bar" style="width: 24px;"></div>
+              <span class="spacing-value">24px</span>
+            </div>
+            <div class="spacing-row">
+              <span class="spacing-label">gap-8</span>
+              <div class="spacing-bar" style="width: 32px;"></div>
+              <span class="spacing-value">32px</span>
+            </div>
+            <div class="spacing-row">
+              <span class="spacing-label">p-4</span>
+              <div class="spacing-bar" style="width: 16px;"></div>
+              <span class="spacing-value">16px (card padding)</span>
+            </div>
+            <div class="spacing-row">
+              <span class="spacing-label">px-6 py-4</span>
+              <div class="spacing-bar" style="width: 24px;"></div>
+              <span class="spacing-value">24px x 16px (section)</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Shadows Section -->
+      <section id="shadows">
+        <h2 class="section-title">Shadow Scale</h2>
+        <p class="section-subtitle">Shadows adapt to light/dark mode. Use subtle shadows by default, stronger on hover/interaction.</p>
+
+        <div class="shadow-grid">
+          <div class="shadow-box" style="box-shadow: var(--shadow-sm);">shadow-xs<br><small>Default cards</small></div>
+          <div class="shadow-box" style="box-shadow: 0px 1px 3px rgba(16, 24, 40, 0.1), 0px 1px 2px rgba(16, 24, 40, 0.06);">shadow-sm<br><small>Hover states</small></div>
+          <div class="shadow-box" style="box-shadow: var(--shadow-md);">shadow-md<br><small>Dropdowns</small></div>
+          <div class="shadow-box" style="box-shadow: 0px 12px 16px -4px rgba(16, 24, 40, 0.08), 0px 4px 6px -2px rgba(16, 24, 40, 0.03);">shadow-lg<br><small>Modals</small></div>
+          <div class="shadow-box" style="box-shadow: 0px 20px 24px -4px rgba(16, 24, 40, 0.08), 0px 8px 8px -4px rgba(16, 24, 40, 0.03);">shadow-xl<br><small>Overlays</small></div>
+        </div>
+      </section>
+
+      <!-- Border Radius Section -->
+      <section id="radius">
+        <h2 class="section-title">Border Radius Scale</h2>
+        <p class="section-subtitle">Consistent rounding across all components.</p>
+
+        <div class="radius-grid">
+          <div class="radius-box" style="border-radius: 2px;">
+            <span class="radius-name">rounded-xs</span>
+            <span class="radius-value">2px</span>
+          </div>
+          <div class="radius-box" style="border-radius: 4px;">
+            <span class="radius-name">rounded-sm</span>
+            <span class="radius-value">4px</span>
+          </div>
+          <div class="radius-box" style="border-radius: 6px;">
+            <span class="radius-name">rounded</span>
+            <span class="radius-value">6px</span>
+          </div>
+          <div class="radius-box" style="border-radius: 8px;">
+            <span class="radius-name">rounded-md</span>
+            <span class="radius-value">8px</span>
+          </div>
+          <div class="radius-box" style="border-radius: 12px;">
+            <span class="radius-name">rounded-lg</span>
+            <span class="radius-value">12px</span>
+          </div>
+          <div class="radius-box" style="border-radius: 16px;">
+            <span class="radius-name">rounded-xl</span>
+            <span class="radius-value">16px</span>
+          </div>
+          <div class="radius-box" style="border-radius: 9999px;">
+            <span class="radius-name">rounded-full</span>
+            <span class="radius-value">pill</span>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top: 24px;">
+          <div class="card-title">Common Usage</div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Component</th>
+                  <th>Class</th>
+                  <th>Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Buttons</td>
+                  <td><code>rounded-sm</code></td>
+                  <td>4px</td>
+                </tr>
+                <tr>
+                  <td>Inputs</td>
+                  <td><code>rounded-lg</code></td>
+                  <td>12px</td>
+                </tr>
+                <tr>
+                  <td>Cards</td>
+                  <td><code>rounded-lg</code></td>
+                  <td>12px</td>
+                </tr>
+                <tr>
+                  <td>Modals</td>
+                  <td><code>rounded-xl</code></td>
+                  <td>16px</td>
+                </tr>
+                <tr>
+                  <td>Avatars</td>
+                  <td><code>rounded-full</code></td>
+                  <td>9999px</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Best Practices Section -->
+      <section id="best-practices">
+        <h2 class="section-title">Best Practices</h2>
+        <p class="section-subtitle">Guidelines for using the design system correctly.</p>
+
+        <div class="card">
+          <div class="card-title">Semantic Tokens</div>
+          <div class="best-practice">
+            <div class="bp-do">
+              <div class="bp-header">
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+                DO
+              </div>
+              <div class="bp-content">
+                <code>bg-surface-base</code><br>
+                <code>text-content-primary</code><br>
+                <code>border-stroke</code><br><br>
+                Let semantic tokens handle light/dark mode automatically.
+              </div>
+            </div>
+            <div class="bp-dont">
+              <div class="bp-header">
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                DON'T
+              </div>
+              <div class="bp-content">
+                <code>bg-white dark:bg-gray-900</code><br>
+                <code>text-gray-900 dark:text-white</code><br><br>
+                Don't override semantic tokens with explicit dark: variants.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Main Content Area</div>
+          <div class="best-practice">
+            <div class="bp-do">
+              <div class="bp-header">
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+                DO
+              </div>
+              <div class="bp-content">
+                <code>bg-neutral-100 dark:bg-surface-raised</code><br><br>
+                Use neutral-100 in light mode for softer background. Cards on top appear elevated.
+              </div>
+            </div>
+            <div class="bp-dont">
+              <div class="bp-header">
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                DON'T
+              </div>
+              <div class="bp-content">
+                <code>bg-surface-base</code> for main content<br><br>
+                Pure white is harsh. Use subtle gray for better contrast with card elevation.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Interactive Colors</div>
+          <div class="best-practice">
+            <div class="bp-do">
+              <div class="bp-header">
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+                DO
+              </div>
+              <div class="bp-content">
+                <code>hover:bg-main-50 dark:hover:bg-main-950</code><br><br>
+                Use dark: variants for interactive states (hover, focus, active).
+              </div>
+            </div>
+            <div class="bp-dont">
+              <div class="bp-header">
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                DON'T
+              </div>
+              <div class="bp-content">
+                <code>hover:bg-blue-50</code> (no dark variant)<br><br>
+                Always provide dark mode hover states for colored interactions.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Component Import Pattern</div>
+          <div class="code-block">
+<code><span class="code-comment">// Import from the barrel file</span>
+<span class="code-keyword">import</span> {
+  AxisButton,
+  AxisInput,
+  AxisCard,
+  AxisCallout
+} <span class="code-keyword">from</span> <span class="code-string">'@/components/axis'</span>;
+
+<span class="code-comment">// Usage</span>
+&lt;<span class="code-prop">AxisButton</span> <span class="code-prop">variant</span>=<span class="code-string">"filled"</span>&gt;Save&lt;/<span class="code-prop">AxisButton</span>&gt;
+&lt;<span class="code-prop">AxisInput</span> <span class="code-prop">label</span>=<span class="code-string">"Email"</span> <span class="code-prop">type</span>=<span class="code-string">"email"</span> /&gt;
+&lt;<span class="code-prop">AxisCallout</span> <span class="code-prop">type</span>=<span class="code-string">"info"</span> <span class="code-prop">title</span>=<span class="code-string">"Note"</span>&gt;
+  Content here
+&lt;/<span class="code-prop">AxisCallout</span>&gt;</code>
+          </div>
+        </div>
+      </section>
+
+      <!-- Last Updated -->
+      <div class="last-updated">
+        Last updated: <span id="last-updated-date">February 10, 2026</span> |
+        Axis Design System v1.0 |
+        42 Components (12 UI + 4 Charts + 4 Workspace + 12 Widgets + 7 Dashboard + 3 Global)
+      </div>
+    </div>
+  </main>
+
+  <!-- Toast Notification -->
+  <div class="toast" id="toast">
+    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+    </svg>
+    <span id="toast-message">Copied!</span>
+  </div>
+
+  <script>
+    // Theme Toggle
+    function toggleTheme() {
+      document.documentElement.classList.toggle('dark');
+      localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+    }
+
+    // Initialize theme from localStorage or system preference
+    (function() {
+      const savedTheme = localStorage.getItem('theme');
+      if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark');
+      }
+    })();
+
+    // Copy class to clipboard
+    function copyClass(className) {
+      navigator.clipboard.writeText(className).then(() => {
+        showToast(`Copied: ${className}`);
+      });
+    }
+
+    // Show toast notification
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      const toastMessage = document.getElementById('toast-message');
+      toastMessage.textContent = message;
+      toast.classList.add('show');
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 2000);
+    }
+
+    // Smooth scroll for navigation
+    document.querySelectorAll('.nav-link').forEach(link => {
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        const targetId = link.getAttribute('href').slice(1);
+        const target = document.getElementById(targetId);
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Update active state
+        document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+        link.classList.add('active');
+      });
+    });
+
+    // Update active nav link on scroll
+    const sections = document.querySelectorAll('section[id]');
+    const navLinks = document.querySelectorAll('.nav-link');
+
+    window.addEventListener('scroll', () => {
+      let current = '';
+      sections.forEach(section => {
+        const sectionTop = section.offsetTop - 160;
+        if (window.scrollY >= sectionTop) {
+          current = section.getAttribute('id');
+        }
+      });
+
+      navLinks.forEach(link => {
+        link.classList.remove('active');
+        if (link.getAttribute('href') === `#${current}`) {
+          link.classList.add('active');
+        }
+      });
+    });
+  </script>
+</body>
+</html>

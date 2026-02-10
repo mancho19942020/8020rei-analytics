@@ -31,10 +31,11 @@ const STORAGE_KEY = 'theme-preference';
 
 export function useTheme() {
   // User's preference (what they chose)
-  const [preference, setPreferenceState] = useState<ThemePreference>('system');
+  // Default to 'dark' for new users - they can switch to light if preferred
+  const [preference, setPreferenceState] = useState<ThemePreference>('dark');
 
   // System preference (detected from OS)
-  const [systemPreference, setSystemPreference] = useState<ResolvedTheme>('light');
+  const [systemPreference, setSystemPreference] = useState<ResolvedTheme>('dark');
 
   // Track if mounted (for SSR safety)
   const [isMounted, setIsMounted] = useState(false);
@@ -97,9 +98,13 @@ export function useTheme() {
     setSystemPreference(mediaQuery.matches ? 'dark' : 'light');
 
     // Load saved preference from localStorage
+    // If no preference is saved, default to 'dark' (new users start in dark mode)
     const saved = localStorage.getItem(STORAGE_KEY) as ThemePreference | null;
     if (saved && ['light', 'dark', 'system'].includes(saved)) {
       setPreferenceState(saved);
+    } else {
+      // First visit - default to dark mode
+      setPreferenceState('dark');
     }
 
     // Watch for system preference changes

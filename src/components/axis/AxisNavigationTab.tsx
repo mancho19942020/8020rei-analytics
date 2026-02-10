@@ -116,12 +116,12 @@ export function AxisNavigationTab({
     sm: {
       tab: 'h-9 px-3 text-body-regular',
       icon: 'w-4 h-4',
-      gap: 'gap-1.5',
+      gap: 'gap-2.5',
     },
     md: {
       tab: 'h-[52px] px-4 text-body-large',
       icon: 'w-5 h-5',
-      gap: 'gap-2',
+      gap: 'gap-3',
     },
   }[size];
 
@@ -151,9 +151,8 @@ export function AxisNavigationTab({
       } else if (selected) {
         baseClasses.push(
           'cursor-pointer',
-          'border-main-700 dark:border-main-400',
-          'text-main-700 dark:text-main-400',
           'font-semibold',
+          'selected-tab-line',
         );
       } else {
         baseClasses.push(
@@ -176,9 +175,9 @@ export function AxisNavigationTab({
         baseClasses.push(
           'cursor-pointer',
           'bg-main-50 dark:bg-main-950',
-          'text-main-700 dark:text-main-400',
           'font-semibold',
           'rounded-lg',
+          'selected-tab-contained',
         );
       } else {
         baseClasses.push(
@@ -222,7 +221,7 @@ export function AxisNavigationTab({
         >
           {/* Icon (optional) */}
           {tab.icon && (
-            <span className={sizeClasses.icon} aria-hidden="true">
+            <span className={`${sizeClasses.icon} flex items-center justify-center shrink-0`} aria-hidden="true">
               {tab.icon}
             </span>
           )}

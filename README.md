@@ -2,10 +2,7 @@
 
 A modern, production-ready analytics dashboard built with Next.js 16, TypeScript, and the Axis Design System. Features real-time BigQuery integration, Firebase Authentication, and comprehensive dark mode support.
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue)
-![Next.js](https://img.shields.io/badge/Next.js-16.1.6-black)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue)
-![License](https://img.shields.io/badge/license-MIT-green)
+**Version:** 1.0.0 | **Stack:** Next.js 16.1.6 + TypeScript 5 | **License:** MIT
 
 ---
 
@@ -109,23 +106,38 @@ See [FIREBASE_SETUP_GUIDE.md](./FIREBASE_SETUP_GUIDE.md) for detailed setup inst
 
 ## 🎨 Design System
 
-This project uses the **Axis Design System** - a comprehensive, accessible component library.
+This project uses the **Axis Design System** - a production-grade, accessible component library built with semantic design tokens.
 
-### Key Principles:
+### Key Principles
 
-- **Semantic Tokens** - Use `main`, `success`, `error` instead of color names
-- **Dark Mode First** - Every component supports both light and dark themes
-- **Accessible** - WCAG AA compliant with 4.5:1 text contrast
-- **Consistent** - Unified spacing, typography, and interaction patterns
+- **Semantic Tokens** - Use `main-700`, `success-500`, `error-700` (not color names like `blue-500`)
+- **Dark Mode Support** - All components work seamlessly in both light and dark themes
+- **WCAG AA Compliant** - 4.5:1 text contrast, keyboard navigation, screen reader support
+- **Consistent Patterns** - Unified spacing, typography, and component behavior
 
-### Component Library:
+### Design Tokens
 
-**Core:** AxisButton, AxisCard, AxisInput, AxisSelect, AxisCallout
-**Forms:** AxisCheckbox, AxisRadio, AxisToggle, AxisSlider
-**Data:** AxisTable, AxisTag, AxisPill, AxisSkeleton
-**Navigation:** AxisBreadcrumb, AxisNavigationTab, AxisStepper
+| Token Category | Usage | Example |
+|----------------|-------|---------|
+| **main** | Primary brand color (blue) | `bg-main-700`, `text-main-700` |
+| **accent-1 to accent-5** | Charts, data visualization | `bg-accent-1-500` |
+| **neutral** | Text, backgrounds, borders | `text-neutral-700`, `border-neutral-200` |
+| **success/alert/error/info** | Semantic status colors | `text-success-700`, `bg-error-50` |
 
-See [docs/DESIGN_SYSTEM.md](./docs/DESIGN_SYSTEM.md) for complete documentation.
+### Component Library
+
+30+ production-ready React components:
+
+- **Core:** AxisButton, AxisCard, AxisInput, AxisSelect, AxisCallout
+- **Forms:** AxisCheckbox, AxisRadio, AxisToggle, AxisSlider
+- **Data:** AxisTable, AxisTag, AxisPill, AxisSkeleton
+- **Navigation:** AxisBreadcrumb, AxisNavigationTab, AxisStepper
+
+**📖 Complete Documentation:** [Design System Guide](./docs/DESIGN_SYSTEM.md)
+
+For implementation details and full token reference, see:
+- `docs/DESIGN_SYSTEM.md` - Complete design system documentation
+- `Axis guide/Axis temp folder/` - Axis component library source
 
 ---
 

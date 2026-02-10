@@ -9,13 +9,15 @@ interface Client {
   events: number;
   users: number;
   page_views: number;
+  [key: string]: unknown;
 }
 
 interface ClientsTableProps {
   data: Client[];
+  showTitle?: boolean;
 }
 
-export function ClientsTable({ data }: ClientsTableProps) {
+export function ClientsTable({ data, showTitle = true }: ClientsTableProps) {
   // Define table columns
   const columns: Column[] = useMemo(
     () => [
@@ -52,15 +54,17 @@ export function ClientsTable({ data }: ClientsTableProps) {
   );
 
   return (
-    <AxisTable
-      title="Top Clients"
-      columns={columns}
-      data={data}
-      rowKey="client"
-      sortable
-      paginated
-      defaultPageSize={25}
-      rowLabel="clients"
-    />
+    <div className="h-full">
+      <AxisTable
+        title={showTitle ? "Top Clients" : undefined}
+        columns={columns}
+        data={data}
+        rowKey="client"
+        sortable
+        paginated
+        defaultPageSize={25}
+        rowLabel="clients"
+      />
+    </div>
   );
 }

@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Dark mode selector for Tailwind v4 */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* 8020 Design System - Metrics Hub */
 :root {
   /* Surface Colors (Light Mode) */
@@ -113,6 +116,137 @@
   --color-accent-5-900: #831843;
   --color-accent-5-950: #500724;
 
+  /* Accent 6 - Teal/Cyan Tones */
+  --color-accent-6-50: #f0fdfa;
+  --color-accent-6-100: #ccfbf1;
+  --color-accent-6-300: #5eead4;
+  --color-accent-6-500: #14b8a6;
+  --color-accent-6-700: #0f766e;
+  --color-accent-6-900: #134e4a;
+  --color-accent-6-950: #042f2e;
+
+  /* Accent 7 - Rose/Coral Tones */
+  --color-accent-7-50: #fff1f2;
+  --color-accent-7-100: #ffe4e6;
+  --color-accent-7-300: #fda4af;
+  --color-accent-7-500: #f43f5e;
+  --color-accent-7-700: #be123c;
+  --color-accent-7-900: #881337;
+  --color-accent-7-950: #4c0519;
+
+  /* Accent 8 - Amber/Gold Tones */
+  --color-accent-8-50: #fffbeb;
+  --color-accent-8-100: #fef3c7;
+  --color-accent-8-300: #fcd34d;
+  --color-accent-8-500: #f59e0b;
+  --color-accent-8-700: #b45309;
+  --color-accent-8-900: #78350f;
+  --color-accent-8-950: #451a03;
+
+  /* Accent 9 - Emerald/Green Tones */
+  --color-accent-9-50: #ecfdf5;
+  --color-accent-9-100: #d1fae5;
+  --color-accent-9-300: #6ee7b7;
+  --color-accent-9-500: #10b981;
+  --color-accent-9-700: #047857;
+  --color-accent-9-900: #064e3b;
+  --color-accent-9-950: #022c22;
+
+  /* Accent 10 - Violet/Purple Tones */
+  --color-accent-10-50: #f5f3ff;
+  --color-accent-10-100: #ede9fe;
+  --color-accent-10-300: #c4b5fd;
+  --color-accent-10-500: #8b5cf6;
+  --color-accent-10-700: #6d28d9;
+  --color-accent-10-900: #4c1d95;
+  --color-accent-10-950: #2e1065;
+
+  /* Accent 11 - Sky/Light Blue Tones */
+  --color-accent-11-50: #f0f9ff;
+  --color-accent-11-100: #e0f2fe;
+  --color-accent-11-300: #7dd3fc;
+  --color-accent-11-500: #0ea5e9;
+  --color-accent-11-700: #0369a1;
+  --color-accent-11-900: #0c4a6e;
+  --color-accent-11-950: #082f49;
+
+  /* Accent 12 - Slate/Cool Gray Tones */
+  --color-accent-12-50: #f8fafc;
+  --color-accent-12-100: #f1f5f9;
+  --color-accent-12-300: #cbd5e1;
+  --color-accent-12-500: #64748b;
+  --color-accent-12-700: #334155;
+  --color-accent-12-900: #1e293b;
+  --color-accent-12-950: #0f172a;
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+     DATA VISUALIZATION COLORS
+     ═══════════════════════════════════════════════════════════════════════════
+     Optimized for charts, graphs, and data visualization.
+     Use chart-1 through chart-12 for sequential data series.
+     These colors are designed for maximum contrast and accessibility.
+  */
+
+  /* Chart Primary Colors - Use for main data series */
+  --color-chart-1: #3b82f6;   /* Blue - Primary */
+  --color-chart-2: #22c55e;   /* Green - Success/Positive */
+  --color-chart-3: #f97316;   /* Orange - Attention */
+  --color-chart-4: #8b5cf6;   /* Violet - Secondary */
+  --color-chart-5: #ec4899;   /* Pink - Highlight */
+  --color-chart-6: #14b8a6;   /* Teal - Tertiary */
+  --color-chart-7: #f59e0b;   /* Amber - Warning */
+  --color-chart-8: #ef4444;   /* Red - Error/Negative */
+  --color-chart-9: #6366f1;   /* Indigo - Alternative */
+  --color-chart-10: #84cc16;  /* Lime - Positive Alt */
+  --color-chart-11: #0ea5e9;  /* Sky - Info */
+  --color-chart-12: #64748b;  /* Slate - Neutral */
+
+  /* Chart Categorical - For pie charts, donut charts, categorical data */
+  --color-category-a: #3b82f6;   /* Blue */
+  --color-category-b: #10b981;   /* Emerald */
+  --color-category-c: #f97316;   /* Orange */
+  --color-category-d: #8b5cf6;   /* Violet */
+  --color-category-e: #f43f5e;   /* Rose */
+  --color-category-f: #06b6d4;   /* Cyan */
+  --color-category-g: #eab308;   /* Yellow */
+  --color-category-h: #ec4899;   /* Pink */
+
+  /* Sequential Color Scales - For heatmaps, gradients, intensity */
+  /* Blue Scale (cold) */
+  --color-seq-blue-1: #dbeafe;
+  --color-seq-blue-2: #93c5fd;
+  --color-seq-blue-3: #60a5fa;
+  --color-seq-blue-4: #3b82f6;
+  --color-seq-blue-5: #1d4ed8;
+
+  /* Green Scale (positive) */
+  --color-seq-green-1: #dcfce7;
+  --color-seq-green-2: #86efac;
+  --color-seq-green-3: #4ade80;
+  --color-seq-green-4: #22c55e;
+  --color-seq-green-5: #15803d;
+
+  /* Orange Scale (warm) */
+  --color-seq-orange-1: #ffedd5;
+  --color-seq-orange-2: #fed7aa;
+  --color-seq-orange-3: #fdba74;
+  --color-seq-orange-4: #f97316;
+  --color-seq-orange-5: #c2410c;
+
+  /* Red Scale (hot/negative) */
+  --color-seq-red-1: #fee2e2;
+  --color-seq-red-2: #fca5a5;
+  --color-seq-red-3: #f87171;
+  --color-seq-red-4: #ef4444;
+  --color-seq-red-5: #b91c1c;
+
+  /* Diverging Scale - For data with positive/negative or above/below threshold */
+  --color-diverge-neg-2: #b91c1c;  /* Strong negative */
+  --color-diverge-neg-1: #f87171;  /* Mild negative */
+  --color-diverge-neutral: #9ca3af; /* Neutral/zero */
+  --color-diverge-pos-1: #4ade80;  /* Mild positive */
+  --color-diverge-pos-2: #15803d;  /* Strong positive */
+
   /* Neutral Scale (Gray) */
   --color-neutral-50: #f9fafb;
   --color-neutral-100: #f3f4f6;
@@ -207,14 +341,16 @@
   --shadow-xl: var(--shadow-xl);
 
   /* Border Radius */
-  --radius-xs: 0.125rem;
-  --radius-sm: 0.25rem;
-  --radius: 0.375rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.75rem;
-  --radius-xl: 1rem;
-  --radius-2xl: 1.5rem;
-  --radius-3xl: 2rem;
+  --radius-xs: 0.125rem;     /* 2px */
+  --radius-sm: 0.25rem;      /* 4px */
+  --radius: 0.375rem;        /* 6px - Default */
+  --radius-md: 0.5rem;       /* 8px */
+  --radius-lg: 0.75rem;      /* 12px */
+  --radius-xl: 1rem;         /* 16px */
+  --radius-2xl: 1.5rem;      /* 24px */
+  --radius-3xl: 2rem;        /* 32px */
+  --radius-4xl: 2.5rem;      /* 40px */
+  --radius-full: 9999px;     /* Fully rounded */
 }
 
 /* Reduced Motion Support */
@@ -232,4 +368,239 @@ body {
   font-family: 'Inter', system-ui, sans-serif;
   font-size: 0.875rem;
   line-height: 1.5;
+}
+
+/* Light mode gray backgrounds - only applies in light mode */
+.light-gray-bg {
+  background-color: #f3f4f6;
+}
+
+.dark .light-gray-bg {
+  background-color: var(--surface-base);
+}
+
+/* Selected tab styling - line variant */
+.selected-tab-line {
+  color: #3b82f6 !important;
+  border-bottom-color: #3b82f6 !important;
+}
+
+.dark .selected-tab-line {
+  color: #60a5fa !important;
+  border-bottom-color: #60a5fa !important;
+}
+
+/* Selected tab styling - contained variant */
+.selected-tab-contained {
+  color: #3b82f6 !important;
+}
+
+.dark .selected-tab-contained {
+  color: #60a5fa !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SKELETON LOADER STYLES
+   ═══════════════════════════════════════════════════════════════════════════
+   Use these classes for skeleton loaders to ensure consistent appearance
+   across light and dark modes without relying on Tailwind dark: classes.
+*/
+
+/* Skeleton base background - matches theme */
+.skeleton-bg {
+  background-color: #e5e7eb;
+}
+
+.dark .skeleton-bg {
+  background-color: #374151;
+}
+
+/* Skeleton icon color (for image placeholders) */
+.skeleton-icon {
+  color: #d1d5db;
+}
+
+.dark .skeleton-icon {
+  color: #4b5563;
+}
+
+/* Skeleton pulse animation */
+@keyframes skeleton-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.skeleton-animate {
+  animation: skeleton-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Skeleton wave animation - light mode */
+@keyframes skeleton-wave-light {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.skeleton-wave {
+  background: linear-gradient(
+    90deg,
+    #e5e7eb 25%,
+    #d1d5db 50%,
+    #e5e7eb 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-wave-light 1.5s ease-in-out infinite;
+}
+
+/* Skeleton wave animation - dark mode */
+.dark .skeleton-wave {
+  background: linear-gradient(
+    90deg,
+    #374151 25%,
+    #4b5563 50%,
+    #374151 75%
+  );
+  background-size: 200% 100%;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   WIDGET RESIZE HANDLES
+   ═══════════════════════════════════════════════════════════════════════════
+   Styles for react-grid-layout resize handles in edit mode.
+   Handles appear on: SE corner (primary), E edge (right), S edge (bottom)
+*/
+
+/* Base resize handle styling */
+.react-grid-item > .react-resizable-handle {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  z-index: 10;
+}
+
+/* Southeast corner handle (primary) */
+.react-grid-item > .react-resizable-handle-se {
+  bottom: 0;
+  right: 0;
+  cursor: se-resize;
+}
+
+.react-grid-item > .react-resizable-handle-se::after {
+  content: '';
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid #9ca3af;
+  border-bottom: 2px solid #9ca3af;
+  transition: border-color 0.15s ease;
+}
+
+.react-grid-item:hover > .react-resizable-handle-se::after,
+.react-grid-item > .react-resizable-handle-se:hover::after {
+  border-color: #3b82f6;
+}
+
+.dark .react-grid-item > .react-resizable-handle-se::after {
+  border-color: #6b7280;
+}
+
+.dark .react-grid-item:hover > .react-resizable-handle-se::after,
+.dark .react-grid-item > .react-resizable-handle-se:hover::after {
+  border-color: #60a5fa;
+}
+
+/* East (right) edge handle */
+.react-grid-item > .react-resizable-handle-e {
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: e-resize;
+  width: 12px;
+  height: 40px;
+}
+
+.react-grid-item > .react-resizable-handle-e::after {
+  content: '';
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 24px;
+  background-color: #d1d5db;
+  border-radius: 2px;
+  transition: background-color 0.15s ease;
+}
+
+.react-grid-item:hover > .react-resizable-handle-e::after,
+.react-grid-item > .react-resizable-handle-e:hover::after {
+  background-color: #3b82f6;
+}
+
+.dark .react-grid-item > .react-resizable-handle-e::after {
+  background-color: #4b5563;
+}
+
+.dark .react-grid-item:hover > .react-resizable-handle-e::after,
+.dark .react-grid-item > .react-resizable-handle-e:hover::after {
+  background-color: #60a5fa;
+}
+
+/* South (bottom) edge handle */
+.react-grid-item > .react-resizable-handle-s {
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  cursor: s-resize;
+  width: 40px;
+  height: 12px;
+}
+
+.react-grid-item > .react-resizable-handle-s::after {
+  content: '';
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 24px;
+  height: 3px;
+  background-color: #d1d5db;
+  border-radius: 2px;
+  transition: background-color 0.15s ease;
+}
+
+.react-grid-item:hover > .react-resizable-handle-s::after,
+.react-grid-item > .react-resizable-handle-s:hover::after {
+  background-color: #3b82f6;
+}
+
+.dark .react-grid-item > .react-resizable-handle-s::after {
+  background-color: #4b5563;
+}
+
+.dark .react-grid-item:hover > .react-resizable-handle-s::after,
+.dark .react-grid-item > .react-resizable-handle-s:hover::after {
+  background-color: #60a5fa;
+}
+
+/* Placeholder styling during resize/drag */
+.react-grid-placeholder {
+  background-color: rgba(59, 130, 246, 0.2) !important;
+  border: 2px dashed #3b82f6 !important;
+  border-radius: 8px;
+  transition: none !important;
+}
+
+.dark .react-grid-placeholder {
+  background-color: rgba(96, 165, 250, 0.15) !important;
+  border-color: #60a5fa !important;
 }

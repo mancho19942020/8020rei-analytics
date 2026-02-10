@@ -348,16 +348,16 @@ export function AxisTable({
 
   // Main table render
   return (
-    <div className="border border-stroke rounded-lg bg-surface-base overflow-hidden flex flex-col">
+    <div className="border border-stroke rounded-lg bg-surface-base overflow-hidden flex flex-col h-full">
       {/* Header */}
       {title && (
-        <div className="px-4 py-3 border-b border-stroke bg-surface-raised">
+        <div className="px-4 py-3 border-b border-stroke bg-surface-raised flex-shrink-0">
           <h3 className="text-h4 text-content-primary font-semibold">{title}</h3>
         </div>
       )}
 
-      {/* Table container with fixed header */}
-      <div className="overflow-auto flex-1">
+      {/* Table container with fixed header - scrollable area */}
+      <div className="overflow-auto flex-1 min-h-0">
         <table className="w-full" style={{ tableLayout: 'fixed', borderCollapse: 'separate', borderSpacing: 0 }}>
           {/* Header */}
           <thead className="sticky top-0 z-10">
@@ -488,9 +488,9 @@ export function AxisTable({
         </table>
       </div>
 
-      {/* Pagination */}
+      {/* Pagination - sticky at bottom */}
       {paginated && totalRows > 0 && (
-        <div className="flex items-center justify-between px-4 py-3 border-t border-stroke bg-surface-base">
+        <div className="flex items-center justify-between px-4 py-3 border-t border-stroke bg-surface-base flex-shrink-0">
           {/* Left: Row count */}
           <div className="text-body-regular text-content-secondary">
             <span className="font-medium">{startRow}</span>
