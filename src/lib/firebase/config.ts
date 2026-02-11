@@ -17,12 +17,12 @@ import { getAuth, Auth } from 'firebase/auth';
  */
 
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || 'AIzaSyBvPgBxqdKIc1lYj2zESZVSrEb8cPjucX4',
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || 'rei-analytics-b4b8b.firebaseapp.com',
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'rei-analytics-b4b8b',
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'rei-analytics-b4b8b.firebasestorage.app',
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '204019448414',
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || '1:204019448414:web:3a7c7516f7284b442d52cf',
 };
 
 // Initialize Firebase (only once)
