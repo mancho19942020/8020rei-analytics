@@ -1,0 +1,37 @@
+{
+  "name": "@8020metrics/api",
+  "version": "1.0.0",
+  "description": "Backend API for 8020METRICS HUB - handles multi-source data integrations",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "lint": "eslint src --ext .ts"
+  },
+  "keywords": [
+    "analytics",
+    "bigquery",
+    "salesforce",
+    "metrics"
+  ],
+  "author": "8020REI",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@google-cloud/bigquery": "^8.1.1",
+    "fastify": "^5.2.1",
+    "@fastify/cors": "^10.0.2",
+    "@fastify/helmet": "^13.0.1",
+    "dotenv": "^16.4.7",
+    "ioredis": "^5.4.2",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.10",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

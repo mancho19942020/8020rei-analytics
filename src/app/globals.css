@@ -56,6 +56,9 @@
   --shadow-md: 0px 4px 8px -2px rgba(0, 0, 0, 0.5), 0px 2px 4px -2px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0px 12px 16px -4px rgba(0, 0, 0, 0.6), 0px 4px 6px -2px rgba(0, 0, 0, 0.3);
   --shadow-xl: 0px 20px 24px -4px rgba(0, 0, 0, 0.7), 0px 8px 8px -4px rgba(0, 0, 0, 0.4);
+
+  /* Tab Selection Color (Dark Mode) */
+  --color-tab-selection: #f9fafb; /* neutral-50 for high contrast in dark mode */
 }
 
 @theme inline {
@@ -293,6 +296,14 @@
   --color-info-900: #164e63;
   --color-info-950: #083344;
 
+  /* ═══════════════════════════════════════════════════════════════════════════
+     TAB SELECTION COLORS (SEMANTIC TOKENS)
+     ═══════════════════════════════════════════════════════════════════════════
+     Semantic tokens for active/selected tab states in navigation components.
+     Provides high contrast in both light and dark modes.
+  */
+  --color-tab-selection: #1e3a8a; /* main-900 for high contrast in light mode */
+
   /* Semantic Tokens using CSS Variables */
   --color-surface-base: var(--surface-base);
   --color-surface-raised: var(--surface-raised);
@@ -379,24 +390,23 @@ body {
   background-color: var(--surface-base);
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   SELECTED TAB STYLING
+   ═══════════════════════════════════════════════════════════════════════════
+   Uses semantic --color-tab-selection token for high contrast in both modes:
+   - Light mode: main-900 (#1e3a8a)
+   - Dark mode: neutral-50 (#f9fafb)
+*/
+
 /* Selected tab styling - line variant */
 .selected-tab-line {
-  color: #3b82f6 !important;
-  border-bottom-color: #3b82f6 !important;
-}
-
-.dark .selected-tab-line {
-  color: #60a5fa !important;
-  border-bottom-color: #60a5fa !important;
+  color: var(--color-tab-selection) !important;
+  border-bottom-color: var(--color-tab-selection) !important;
 }
 
 /* Selected tab styling - contained variant */
 .selected-tab-contained {
-  color: #3b82f6 !important;
-}
-
-.dark .selected-tab-contained {
-  color: #60a5fa !important;
+  color: var(--color-tab-selection) !important;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -603,4 +613,183 @@ body {
 .dark .react-grid-placeholder {
   background-color: rgba(96, 165, 250, 0.15) !important;
   border-color: #60a5fa !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LOGIN PAGE - GLASSMORPHISM & ANIMATED BACKGROUND
+   ═══════════════════════════════════════════════════════════════════════════
+   Modern dark-mode login page with glass effects and animated gradient orbs.
+*/
+
+/* Login page background - dark gradient base */
+.login-bg {
+  background: linear-gradient(135deg, #0a0a0f 0%, #0d1117 50%, #161b22 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Animated gradient orbs */
+.login-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.4;
+  animation: float 20s ease-in-out infinite;
+}
+
+.login-orb-1 {
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(62, 119, 215, 0.5) 0%, rgba(62, 119, 215, 0) 70%);
+  top: -200px;
+  right: -100px;
+  animation-delay: 0s;
+}
+
+.login-orb-2 {
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.4) 0%, rgba(59, 130, 246, 0) 70%);
+  bottom: -150px;
+  left: -100px;
+  animation-delay: -7s;
+}
+
+.login-orb-3 {
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, rgba(29, 78, 216, 0.35) 0%, rgba(29, 78, 216, 0) 70%);
+  top: 40%;
+  left: 20%;
+  animation-delay: -14s;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  25% {
+    transform: translate(30px, -30px) scale(1.05);
+  }
+  50% {
+    transform: translate(-20px, 20px) scale(0.95);
+  }
+  75% {
+    transform: translate(-30px, -20px) scale(1.02);
+  }
+}
+
+/* Glassmorphism card */
+.glass-card {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* Glass card with subtle glow on hover */
+.glass-card-hover {
+  transition: all 0.3s ease;
+}
+
+.glass-card-hover:hover {
+  border-color: rgba(62, 119, 215, 0.25);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    0 0 60px rgba(62, 119, 215, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* Glass input fields */
+.glass-input {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #f9fafb;
+  transition: all 0.2s ease;
+}
+
+.glass-input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.glass-input:focus {
+  outline: none;
+  border-color: rgba(62, 119, 215, 0.5);
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: 0 0 20px rgba(62, 119, 215, 0.15);
+}
+
+/* Glass button - gradient with glow */
+.glass-button {
+  background: linear-gradient(135deg, #1d4ed8 0%, #3b82f6 50%, #3e77d7 100%);
+  border: none;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.glass-button::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.2) 0%, transparent 50%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.glass-button:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 10px 40px rgba(62, 119, 215, 0.4),
+    0 0 60px rgba(62, 119, 215, 0.2);
+}
+
+.glass-button:hover::before {
+  opacity: 1;
+}
+
+.glass-button:active {
+  transform: translateY(0);
+}
+
+/* Info badge with glass effect */
+.glass-badge {
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  backdrop-filter: blur(10px);
+}
+
+/* Google button - outlined glass variant */
+.glass-google-btn {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  transition: all 0.3s ease;
+}
+
+.glass-google-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.25);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+/* Subtle grid pattern overlay */
+.login-grid-pattern {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 60px 60px;
+  pointer-events: none;
+}
+
+/* Radial vignette effect */
+.login-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 0%, rgba(0, 0, 0, 0.4) 100%);
+  pointer-events: none;
 }

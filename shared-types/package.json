@@ -1,0 +1,21 @@
+{
+  "name": "@8020metrics/shared-types",
+  "version": "1.0.0",
+  "description": "Shared TypeScript types for 8020METRICS HUB",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch"
+  },
+  "keywords": [
+    "types",
+    "typescript",
+    "8020metrics"
+  ],
+  "author": "8020REI",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  }
+}

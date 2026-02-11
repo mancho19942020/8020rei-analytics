@@ -7,8 +7,8 @@ import { useAuth } from '@/lib/firebase/AuthContext';
 /**
  * Login Page with Firebase Authentication
  *
- * This page allows users to sign in with their @8020rei.com Google account.
- * Non-company emails are automatically blocked by the AuthContext.
+ * Modern dark-mode login with glassmorphism effects.
+ * Only @8020rei.com Google accounts are permitted.
  */
 
 export default function LoginPage() {
@@ -17,57 +17,85 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (user) {
-      // User is already signed in, redirect to dashboard
       router.push('/');
     }
   }, [user, router]);
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-main-50 to-main-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-main-700 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+      <div className="min-h-screen login-bg flex items-center justify-center">
+        {/* Background elements */}
+        <div className="login-orb login-orb-1" />
+        <div className="login-orb login-orb-2" />
+        <div className="login-grid-pattern" />
+        <div className="login-vignette" />
+
+        <div className="text-center relative z-10">
+          <div className="w-12 h-12 mx-auto mb-4 relative">
+            <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-blue-500 animate-spin" />
+            <div className="absolute inset-1 rounded-full border-2 border-transparent border-t-blue-400 animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }} />
+          </div>
+          <p className="text-neutral-400 text-sm">Loading...</p>
         </div>
       </div>
     );
   }
 
   if (user) {
-    return null; // Will redirect
+    return null;
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-main-50 to-main-100 flex items-center justify-center px-4">
-      <div className="max-w-md w-full">
-        {/* Sign In Card */}
-        <div className="bg-white rounded-lg shadow-xl p-8">
-          {/* Logo/Title */}
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-main-700 rounded-full mb-4">
-              <span className="text-3xl">📊</span>
-            </div>
-            <h1 className="text-2xl font-semibold text-gray-900 mb-2">
-              8020REI Analytics
-            </h1>
-            <p className="text-gray-600">
+    <div className="min-h-screen login-bg flex items-center justify-center px-4">
+      {/* Animated background orbs */}
+      <div className="login-orb login-orb-1" />
+      <div className="login-orb login-orb-2" />
+      <div className="login-orb login-orb-3" />
+
+      {/* Subtle grid overlay */}
+      <div className="login-grid-pattern" />
+
+      {/* Vignette effect */}
+      <div className="login-vignette" />
+
+      <div className="max-w-md w-full relative z-10">
+        {/* Glass Card */}
+        <div className="glass-card glass-card-hover rounded-2xl p-8 md:p-10">
+          {/* Logo */}
+          <div className="text-center mb-10 pt-2">
+            <img
+              src="/logo/logo-dark.svg"
+              alt="8020 Metrics Hub"
+              className="h-5 md:h-6 mx-auto mb-8"
+            />
+            <p className="text-neutral-500 text-xs">
               Sign in with your company Google account
             </p>
           </div>
 
-          {/* Company Email Notice */}
-          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-sm text-blue-800">
-              <span className="font-semibold">🔒 Company Access Only</span>
-              <br />
-              Only @8020rei.com email addresses are allowed to access this dashboard.
-            </p>
+          {/* Company Access Notice */}
+          <div className="mb-6 p-4 glass-badge rounded-xl">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 mt-0.5">
+                <svg className="w-4 h-4 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-blue-400 font-medium text-sm mb-1">
+                  Company Access Only
+                </p>
+                <p className="text-neutral-400 text-xs leading-relaxed">
+                  Only @8020rei.com email addresses are allowed to access this dashboard.
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* Google Sign In Button */}
           <button
             onClick={signInWithGoogle}
-            className="w-full flex items-center justify-center gap-3 bg-white border-2 border-gray-300 rounded-lg px-6 py-3 text-gray-700 font-medium hover:bg-gray-50 hover:border-gray-400 active:bg-gray-100 transition-all duration-200 shadow-sm hover:shadow-md"
+            className="w-full glass-google-btn rounded-xl px-6 py-3.5 flex items-center justify-center gap-3 text-white font-medium"
           >
             {/* Google Logo */}
             <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -91,17 +119,17 @@ export default function LoginPage() {
             Continue with Google
           </button>
 
-          {/* Info Text */}
+          {/* Terms Text */}
           <div className="mt-6 text-center">
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-neutral-500">
               By signing in, you agree to access the 8020REI Analytics platform.
             </p>
           </div>
         </div>
 
-        {/* Footer Note */}
-        <div className="mt-6 text-center">
-          <p className="text-sm text-gray-600">
+        {/* Footer */}
+        <div className="mt-8 text-center">
+          <p className="text-sm text-neutral-600">
             Need help? Contact your administrator.
           </p>
         </div>

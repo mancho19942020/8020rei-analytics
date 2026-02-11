@@ -14,7 +14,8 @@ import { Layout } from 'react-grid-layout';
  * Features tab types: feature-usage, feature-distribution, feature-adoption, feature-trend, top-pages
  * Clients tab types: clients-overview, clients-table, client-activity-trend
  * Traffic tab types: traffic-by-source, traffic-by-medium, top-referrers, sessions-by-day, first-visits-trend
- * Technology tab types: device-category, browser-distribution, operating-system, device-language
+ * Traffic tab types: traffic-by-source, traffic-by-medium, traffic-browser, top-referrers, top-pages, sessions-by-day, first-visits-trend
+ * Technology tab types: device-category, browser-distribution, operating-system, device-language, screen-resolution
  * Geography tab types: country, continent, region, city
  */
 export type WidgetType =
@@ -41,7 +42,9 @@ export type WidgetType =
   // Traffic tab widgets
   | 'traffic-by-source'
   | 'traffic-by-medium'
+  | 'traffic-browser'
   | 'top-referrers'
+  | 'top-pages'
   | 'sessions-by-day'
   | 'first-visits-trend'
   // Technology tab widgets
@@ -49,6 +52,7 @@ export type WidgetType =
   | 'browser-distribution'
   | 'operating-system'
   | 'device-language'
+  | 'screen-resolution'
   // Geography tab widgets
   | 'country'
   | 'continent'

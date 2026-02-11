@@ -1,29 +1,72 @@
-# 8020REI Analytics Dashboard
+# 8020METRICS HUB
 
-A modern, production-ready analytics dashboard built with Next.js 16, TypeScript, and the Axis Design System. Features real-time BigQuery integration, Firebase Authentication, and comprehensive dark mode support.
+A comprehensive analytics and operations dashboard for 8020REI. Built with Next.js 16, TypeScript, and the Axis Design System. Features multi-source data integration, Firebase Authentication, and a modular widget-based architecture.
 
-**Version:** 1.0.0 | **Stack:** Next.js 16.1.6 + TypeScript 5 | **License:** MIT
-
----
-
-## ✨ Features
-
-- **📊 Real-time Analytics** - Live data from Google Analytics 4 via BigQuery
-- **🔐 Secure Authentication** - Firebase Auth with @8020rei.com email restriction
-- **🎨 Axis Design System** - 30+ production-ready React components
-- **🌙 Dark Mode** - Seamless theme switching with localStorage persistence
-- **♿ Accessible** - WCAG AA compliant with keyboard navigation support
-- **📱 Responsive** - Mobile-first design that works on all devices
-- **⚡ Fast** - Optimized with caching and efficient data fetching
-- **🎯 Type-Safe** - Full TypeScript support throughout
+**Version:** 2.0.0 | **Stack:** Next.js 16 + Fastify Backend | **License:** MIT
 
 ---
 
-## 🚀 Quick Start
+## What is This?
+
+8020METRICS HUB is the central dashboard for monitoring all 8020REI operations:
+
+- **Analytics** - Google Analytics 4 data for 8020REI and 8020Roofing platforms
+- **Salesforce** - CRM integrations, leads funnel, delivery tracking (coming soon)
+- **Data Silos** - SILO scraping, Zillow market data (coming soon)
+- **Tools** - Skip Trace, Rapid Response, Smart Drop (coming soon)
+- **Pipelines** - ETL job monitoring, data processing status (coming soon)
+- **QA** - Axiom validation, BuyBox verification, test results (coming soon)
+- **ML Models** - Deal scoring, model performance, drift detection (coming soon)
+
+---
+
+## Project Structure
+
+```
+8020rei-analytics/
+│
+├── src/                    ← FRONTEND (what users see in browser)
+│   ├── app/                   Pages and current API routes
+│   ├── components/            UI components (Axis Design System)
+│   ├── lib/                   Data fetching utilities
+│   └── types/                 TypeScript definitions
+│
+├── backend/                ← BACKEND API (data processing hub)
+│   └── src/
+│       ├── routes/            API endpoints for each data source
+│       ├── services/          Connections to BigQuery, Salesforce, etc.
+│       └── config/            Environment configuration
+│
+├── shared-types/           ← SHARED (used by both frontend & backend)
+│   └── src/                   Common TypeScript types
+│
+├── public/                 ← STATIC FILES
+│   └── design-kit.html        Design system documentation
+│
+└── Design docs/            ← PLANNING & DOCUMENTATION
+    └── Product plan/          Architecture plans, roadmaps
+```
+
+### How It Works
+
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│    Frontend     │     │     Backend     │     │  Data Sources   │
+│    (src/)       │ ──► │   (backend/)    │ ──► │                 │
+│                 │     │                 │     │  • BigQuery     │
+│  • Dashboard    │     │  • API Routes   │     │  • Salesforce   │
+│  • Charts       │     │  • Caching      │     │  • AWS          │
+│  • Widgets      │     │  • Auth         │     │  • Skip Trace   │
+└─────────────────┘     └─────────────────┘     └─────────────────┘
+```
+
+---
+
+## Quick Start
 
 ### Prerequisites
 
-- Node.js 18+ and npm
+- Node.js 20+
 - Google Cloud account with BigQuery access
 - Firebase project with Authentication enabled
 - `@8020rei.com` email address for login
@@ -31,139 +74,144 @@ A modern, production-ready analytics dashboard built with Next.js 16, TypeScript
 ### Installation
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/8020rei-analytics.git
+# Clone and install
+git clone https://github.com/8020rei/8020rei-analytics.git
 cd 8020rei-analytics
-
-# Install dependencies
 npm install
 
-# Set up environment variables
+# Set up environment
 cp .env.local.example .env.local
 # Edit .env.local with your credentials
 
 # Authenticate with Google Cloud (for local development)
 gcloud auth application-default login
 
-# Start the development server
-npm run dev
+# Start the frontend (port 4000)
+npm run dev -- -p 4000
 ```
 
-Visit **http://localhost:4000** to see the dashboard.
-
----
-
-## 📁 Project Structure
-
-```
-8020rei-analytics/
-├── src/
-│   ├── app/                    # Next.js App Router
-│   │   ├── api/                # API routes (metrics, auth)
-│   │   ├── login/              # Login page
-│   │   └── page.tsx            # Dashboard page
-│   │
-│   ├── components/
-│   │   ├── axis/               # Axis Design System components
-│   │   ├── dashboard/          # Dashboard-specific components
-│   │   └── ThemeToggle.tsx     # Dark mode toggle
-│   │
-│   ├── hooks/                  # React hooks (useTheme, useMetrics)
-│   ├── lib/                    # Core functionality (Firebase, BigQuery)
-│   └── types/                  # TypeScript definitions
-│
-├── docs/                       # Documentation
-├── FIREBASE_SETUP_GUIDE.md     # Firebase setup instructions
-├── IMPLEMENTATION_PLAN.md      # Development roadmap
-└── .env.local                  # Environment variables (not in git)
-```
-
----
-
-## 🔧 Configuration
-
-### Environment Variables
-
-Create a `.env.local` file with:
-
-```env
-# Google Cloud / BigQuery
-GOOGLE_CLOUD_PROJECT=your-project-id
-BIGQUERY_DATASET=your-dataset-id
-
-# Firebase Configuration
-NEXT_PUBLIC_FIREBASE_API_KEY=your-api-key
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
-NEXT_PUBLIC_FIREBASE_APP_ID=your-app-id
-```
-
-See [FIREBASE_SETUP_GUIDE.md](./FIREBASE_SETUP_GUIDE.md) for detailed setup instructions.
-
----
-
-## 🎨 Design System
-
-This project uses the **Axis Design System** - a production-grade, accessible component library built with semantic design tokens.
-
-### Key Principles
-
-- **Semantic Tokens** - Use `main-700`, `success-500`, `error-700` (not color names like `blue-500`)
-- **Dark Mode Support** - All components work seamlessly in both light and dark themes
-- **WCAG AA Compliant** - 4.5:1 text contrast, keyboard navigation, screen reader support
-- **Consistent Patterns** - Unified spacing, typography, and component behavior
-
-### Design Tokens
-
-| Token Category | Usage | Example |
-|----------------|-------|---------|
-| **main** | Primary brand color (blue) | `bg-main-700`, `text-main-700` |
-| **accent-1 to accent-5** | Charts, data visualization | `bg-accent-1-500` |
-| **neutral** | Text, backgrounds, borders | `text-neutral-700`, `border-neutral-200` |
-| **success/alert/error/info** | Semantic status colors | `text-success-700`, `bg-error-50` |
-
-### Component Library
-
-30+ production-ready React components:
-
-- **Core:** AxisButton, AxisCard, AxisInput, AxisSelect, AxisCallout
-- **Forms:** AxisCheckbox, AxisRadio, AxisToggle, AxisSlider
-- **Data:** AxisTable, AxisTag, AxisPill, AxisSkeleton
-- **Navigation:** AxisBreadcrumb, AxisNavigationTab, AxisStepper
-
-**📖 Complete Documentation:** [Design System Guide](./docs/DESIGN_SYSTEM.md)
-
-For implementation details and full token reference, see:
-- `docs/DESIGN_SYSTEM.md` - Complete design system documentation
-- `Axis guide/Axis temp folder/` - Axis component library source
-
----
-
-## 🛠️ Development
-
-### Commands:
+### Starting the Backend (Optional)
 
 ```bash
-npm run dev          # Start development server (port 4000)
-npm run build        # Production build
-npm start            # Start production server
-npm run lint         # Run ESLint
+cd backend
+npm install
+npm run dev
+# Backend runs on port 4001
 ```
 
 ---
 
-## 🤝 Contributing
+## Navigation Structure
 
-We welcome contributions! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
+The dashboard uses a 3-level navigation system:
+
+### Level 1: Main Sections
+| Section | Status | Description |
+|---------|--------|-------------|
+| Analytics | Active | Google Analytics 4 data |
+| Salesforce | Coming Soon | CRM and integrations |
+| Data Silos | Coming Soon | External data (SILO, Zillow) |
+| Tools | Coming Soon | Skip Trace, Direct Mail |
+| Pipelines | Coming Soon | ETL job monitoring |
+| QA | Coming Soon | Data quality checks |
+| ML Models | Coming Soon | Model performance |
+
+### Level 2: Sub-sections (varies by section)
+Example for Analytics:
+- 8020REI GA4 (active)
+- 8020Roofing GA4 (coming soon)
+
+### Level 3: Detail Tabs (for GA4 sections)
+Overview | Users | Features | Clients | Traffic | Technology | Geography | Events | Insights
 
 ---
 
-## 📄 License
+## Data Sources
 
-This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
+### Currently Active
+
+#### Google Analytics 4 (via BigQuery)
+- **Project:** `web-app-production-451214`
+- **Dataset:** `analytics_489035450`
+- **Data Freshness:** 24-48 hours (GA4 limitation)
+- **Authentication:** Service account or gcloud CLI
+
+**Required Permissions:**
+- BigQuery Data Viewer
+- BigQuery Job User
+
+### Future Integrations
+
+| Data Source | Contact | Status |
+|-------------|---------|--------|
+| Salesforce | Job, Ignacio, Johan | Planned |
+| AWS (Aurora/Athena) | Diego | Planned |
+| Skip Trace (Batch Elites) | Johan | Planned |
+| Skip Trace (Direct Skip) | Johan | Planned |
+| Back Office (QA) | Johan, Nicolas | Planned |
+| ML Models | Eduardo | Planned |
 
 ---
 
-**Built with ❤️ by the 8020REI team**
+## Development
+
+### Commands
+
+```bash
+# Frontend
+npm run dev -- -p 4000    # Start dev server on port 4000
+npm run build             # Production build
+npm run lint              # Run linter
+
+# Backend
+cd backend
+npm run dev               # Start backend on port 4001
+npm run build             # Build for production
+```
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `src/app/page.tsx` | Main dashboard page with navigation |
+| `src/lib/queries.ts` | BigQuery SQL queries |
+| `src/components/axis/` | Design system components |
+| `backend/src/services/` | Data source connections |
+| `.claude/skills/dashboard-builder/SKILL.md` | Dashboard building guide |
+
+---
+
+## Design System
+
+This project uses the **Axis Design System**. Key principles:
+
+- **Semantic Tokens:** Use `main-700`, `success-500` (not `blue-500`)
+- **Dark Mode:** All components support light/dark themes
+- **Accessibility:** WCAG AA compliant
+
+**Documentation:** Open the dashboard and click "Design Kit" in the header, or view `/public/design-kit.html`
+
+---
+
+## Documentation
+
+| Document | Location | Description |
+|----------|----------|-------------|
+| Design Kit | `public/design-kit.html` | Component library & usage |
+| Dashboard Builder | `.claude/skills/dashboard-builder/SKILL.md` | How to build new tabs |
+| Strategic Plan | `Design docs/Product plan/STRATEGIC_ARCHITECTURE_PLAN.md` | Architecture & roadmap |
+| Product Requirements | `Design docs/Product plan/product-ops-dashboard.md` | Full requirements |
+
+---
+
+## Contributing
+
+When adding new features:
+
+1. **New Data Source:** Add service in `backend/src/services/`, routes in `backend/src/routes/`
+2. **New Dashboard Tab:** Follow patterns in `.claude/skills/dashboard-builder/SKILL.md`
+3. **New Widget:** Add to `src/components/workspace/widgets/`
+
+---
+
+**Built with care by the 8020REI team**

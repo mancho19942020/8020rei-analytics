@@ -1,0 +1,2457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>8020METRICS HUB - Complete Platform Guide</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ═══════════════════════════════════════════════════════════════════════════
+       GLOBAL STYLES
+       ═══════════════════════════════════════════════════════════════════════════ */
+    :root {
+      --color-bg: #fafafa;
+      --color-surface: #ffffff;
+      --color-text: #262626;
+      --color-text-secondary: #525252;
+      --color-text-tertiary: #737373;
+      --color-border: #e5e5e5;
+      --color-accent: #1d4ed8;
+      --color-accent-light: #dbeafe;
+      --color-success: #16a34a;
+      --color-success-light: #dcfce7;
+      --color-warning: #ca8a04;
+      --color-warning-light: #fef9c3;
+      --color-error: #dc2626;
+      --color-error-light: #fee2e2;
+      --color-code-bg: #171717;
+      --color-code-text: #e5e5e5;
+      --sidebar-width: 280px;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      font-size: 15px;
+      line-height: 1.7;
+      color: var(--color-text);
+      background-color: var(--color-bg);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       LAYOUT
+       ═══════════════════════════════════════════════════════════════════════════ */
+    .sidebar {
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: var(--sidebar-width);
+      height: 100vh;
+      background: var(--color-surface);
+      border-right: 1px solid var(--color-border);
+      overflow-y: auto;
+      padding: 24px 0;
+      z-index: 100;
+    }
+
+    .sidebar-logo {
+      padding: 0 20px 20px;
+      border-bottom: 1px solid var(--color-border);
+      margin-bottom: 16px;
+    }
+
+    .sidebar-logo h1 {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--color-accent);
+    }
+
+    .sidebar-logo span {
+      font-size: 12px;
+      color: var(--color-text-tertiary);
+      display: block;
+      margin-top: 4px;
+    }
+
+    .sidebar nav {
+      padding: 0 12px;
+    }
+
+    .sidebar-section {
+      margin-bottom: 20px;
+    }
+
+    .sidebar-section-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--color-text-tertiary);
+      padding: 8px;
+      margin-bottom: 4px;
+    }
+
+    .sidebar a {
+      display: block;
+      padding: 8px 12px;
+      color: var(--color-text-secondary);
+      text-decoration: none;
+      font-size: 13px;
+      border-radius: 6px;
+      transition: all 0.15s ease;
+    }
+
+    .sidebar a:hover {
+      background: var(--color-accent-light);
+      color: var(--color-accent);
+    }
+
+    .sidebar a.active {
+      background: var(--color-accent);
+      color: white;
+    }
+
+    .main-content {
+      margin-left: var(--sidebar-width);
+      padding: 40px 60px 80px;
+      max-width: 900px;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       TYPOGRAPHY
+       ═══════════════════════════════════════════════════════════════════════════ */
+    h1, h2, h3, h4, h5 {
+      color: var(--color-text);
+      font-weight: 600;
+      line-height: 1.3;
+    }
+
+    h1 { font-size: 32px; margin-bottom: 16px; }
+    h2 { font-size: 24px; margin: 48px 0 20px; padding-top: 24px; border-top: 1px solid var(--color-border); }
+    h3 { font-size: 18px; margin: 32px 0 12px; }
+    h4 { font-size: 16px; margin: 24px 0 8px; }
+
+    p {
+      margin-bottom: 16px;
+    }
+
+    a {
+      color: var(--color-accent);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    strong {
+      font-weight: 600;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       HERO SECTION
+       ═══════════════════════════════════════════════════════════════════════════ */
+    .hero {
+      background: linear-gradient(135deg, var(--color-accent) 0%, #3b82f6 100%);
+      color: white;
+      padding: 48px 40px;
+      border-radius: 12px;
+      margin-bottom: 48px;
+    }
+
+    .hero h1 {
+      color: white;
+      font-size: 36px;
+      margin-bottom: 12px;
+    }
+
+    .hero-subtitle {
+      font-size: 18px;
+      opacity: 0.9;
+      margin-bottom: 24px;
+    }
+
+    .hero-meta {
+      display: flex;
+      gap: 24px;
+      font-size: 14px;
+      opacity: 0.8;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       CODE BLOCKS
+       ═══════════════════════════════════════════════════════════════════════════ */
+    pre {
+      background: var(--color-code-bg);
+      color: var(--color-code-text);
+      padding: 20px;
+      border-radius: 8px;
+      overflow-x: auto;
+      margin: 16px 0;
+      font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    code {
+      font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+      font-size: 13px;
+    }
+
+    :not(pre) > code {
+      background: #f3f4f6;
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: var(--color-text);
+    }
+
+    /* Syntax highlighting */
+    .code-keyword { color: #c678dd; }
+    .code-string { color: #98c379; }
+    .code-number { color: #d19a66; }
+    .code-comment { color: #5c6370; font-style: italic; }
+    .code-function { color: #61afef; }
+    .code-variable { color: #e06c75; }
+    .code-type { color: #e5c07b; }
+    .code-operator { color: #56b6c2; }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       CALLOUT BOXES
+       ═══════════════════════════════════════════════════════════════════════════ */
+    .callout {
+      padding: 16px 20px;
+      border-radius: 8px;
+      margin: 20px 0;
+      border-left: 4px solid;
+    }
+
+    .callout-title {
+      font-weight: 600;
+      font-size: 14px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .callout-info {
+      background: var(--color-accent-light);
+      border-color: var(--color-accent);
+    }
+
+    .callout-info .callout-title { color: var(--color-accent); }
+
+    .callout-success {
+      background: var(--color-success-light);
+      border-color: var(--color-success);
+    }
+
+    .callout-success .callout-title { color: var(--color-success); }
+
+    .callout-warning {
+      background: var(--color-warning-light);
+      border-color: var(--color-warning);
+    }
+
+    .callout-warning .callout-title { color: var(--color-warning); }
+
+    .callout-error {
+      background: var(--color-error-light);
+      border-color: var(--color-error);
+    }
+
+    .callout-error .callout-title { color: var(--color-error); }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       TABLES
+       ═══════════════════════════════════════════════════════════════════════════ */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 14px;
+    }
+
+    th, td {
+      padding: 12px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    th {
+      background: #f9fafb;
+      font-weight: 600;
+      color: var(--color-text);
+    }
+
+    tr:hover {
+      background: #f9fafb;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       STEP INDICATORS
+       ═══════════════════════════════════════════════════════════════════════════ */
+    .steps {
+      counter-reset: step;
+      margin: 24px 0;
+    }
+
+    .step {
+      position: relative;
+      padding-left: 48px;
+      margin-bottom: 24px;
+    }
+
+    .step::before {
+      counter-increment: step;
+      content: counter(step);
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 32px;
+      height: 32px;
+      background: var(--color-accent);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .step-title {
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       KEYBOARD KEYS
+       ═══════════════════════════════════════════════════════════════════════════ */
+    kbd {
+      display: inline-block;
+      padding: 4px 8px;
+      font-family: 'SF Mono', 'Monaco', monospace;
+      font-size: 12px;
+      background: #f3f4f6;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      box-shadow: 0 1px 0 #d1d5db;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       ASCII DIAGRAMS
+       ═══════════════════════════════════════════════════════════════════════════ */
+    .diagram {
+      background: #f9fafb;
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      padding: 24px;
+      margin: 20px 0;
+      overflow-x: auto;
+    }
+
+    .diagram pre {
+      background: transparent;
+      color: var(--color-text);
+      padding: 0;
+      margin: 0;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       TWO COLUMN LAYOUT
+       ═══════════════════════════════════════════════════════════════════════════ */
+    .two-columns {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin: 20px 0;
+    }
+
+    .column {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      padding: 20px;
+    }
+
+    .column-title {
+      font-weight: 600;
+      font-size: 14px;
+      margin-bottom: 12px;
+      color: var(--color-text-secondary);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       LISTS
+       ═══════════════════════════════════════════════════════════════════════════ */
+    ul, ol {
+      margin: 16px 0;
+      padding-left: 24px;
+    }
+
+    li {
+      margin-bottom: 8px;
+    }
+
+    li ul, li ol {
+      margin: 8px 0;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       COMPONENT CARD
+       ═══════════════════════════════════════════════════════════════════════════ */
+    .component-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 16px;
+      margin: 20px 0;
+    }
+
+    .component-card {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      padding: 16px;
+    }
+
+    .component-card h5 {
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+
+    .component-card p {
+      font-size: 13px;
+      color: var(--color-text-tertiary);
+      margin: 0;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       FILE TREE
+       ═══════════════════════════════════════════════════════════════════════════ */
+    .file-tree {
+      background: #f9fafb;
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      padding: 20px;
+      margin: 20px 0;
+      font-family: 'SF Mono', 'Monaco', monospace;
+      font-size: 13px;
+      line-height: 1.8;
+    }
+
+    .file-tree .folder { color: var(--color-accent); font-weight: 500; }
+    .file-tree .file { color: var(--color-text-secondary); }
+    .file-tree .comment { color: var(--color-text-tertiary); font-style: italic; }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       RESPONSIVE
+       ═══════════════════════════════════════════════════════════════════════════ */
+    @media (max-width: 900px) {
+      .sidebar {
+        display: none;
+      }
+
+      .main-content {
+        margin-left: 0;
+        padding: 24px;
+      }
+
+      .two-columns {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       PRINT STYLES
+       ═══════════════════════════════════════════════════════════════════════════ */
+    @media print {
+      .sidebar {
+        display: none;
+      }
+
+      .main-content {
+        margin-left: 0;
+        padding: 20px;
+        max-width: 100%;
+      }
+
+      .hero {
+        background: #f3f4f6;
+        color: var(--color-text);
+      }
+
+      .hero h1 {
+        color: var(--color-text);
+      }
+
+      pre {
+        background: #f3f4f6;
+        color: var(--color-text);
+        border: 1px solid var(--color-border);
+      }
+
+      h2 {
+        page-break-before: always;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     SIDEBAR NAVIGATION
+     ═══════════════════════════════════════════════════════════════════════════ -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <h1>8020METRICS HUB</h1>
+    <span>Platform Guide</span>
+  </div>
+
+  <nav>
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Part 1: Foundations</div>
+      <a href="#welcome">Welcome</a>
+      <a href="#terminal">The Terminal</a>
+      <a href="#code-editors">Code Editors</a>
+      <a href="#git-github">Git & GitHub</a>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Part 2: Web Basics</div>
+      <a href="#how-web-works">How the Web Works</a>
+      <a href="#html-css-js">HTML, CSS & JavaScript</a>
+      <a href="#typescript">TypeScript</a>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Part 3: Tech Stack</div>
+      <a href="#nextjs">Next.js & React</a>
+      <a href="#tailwindcss">TailwindCSS</a>
+      <a href="#bigquery">BigQuery</a>
+      <a href="#firebase-auth">Firebase Auth</a>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Part 4: This Platform</div>
+      <a href="#architecture">Project Architecture</a>
+      <a href="#design-system">Axis Design System</a>
+      <a href="#dashboard-features">Dashboard Features</a>
+      <a href="#api-routes">API Routes</a>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Part 5: Workflows</div>
+      <a href="#ai-development">AI-Assisted Development</a>
+      <a href="#daily-workflows">Daily Workflows</a>
+      <a href="#glossary">Glossary</a>
+    </div>
+  </nav>
+</aside>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     MAIN CONTENT
+     ═══════════════════════════════════════════════════════════════════════════ -->
+<main class="main-content">
+
+<!-- HERO SECTION -->
+<div class="hero">
+  <h1>8020METRICS HUB Platform Guide</h1>
+  <p class="hero-subtitle">A complete guide to understanding and contributing to our analytics dashboard platform, from absolute zero to confident contributor.</p>
+  <div class="hero-meta">
+    <span>Last Updated: February 2026</span>
+    <span>Reading Time: ~90 minutes</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     PART 1: UNIVERSAL FOUNDATIONS
+     ═══════════════════════════════════════════════════════════════════════════ -->
+
+<section id="welcome">
+<h2>1. Welcome & Overview</h2>
+
+<p>Welcome to the 8020METRICS HUB platform guide. This document will teach you everything you need to know to understand, work with, and contribute to our analytics dashboard. By the end, you will understand the tools, technologies, and workflows that make this platform work.</p>
+
+<h3>What Is This Platform?</h3>
+
+<p>8020METRICS HUB is an internal analytics dashboard for 8020REI. It pulls data from Google Analytics 4 (via BigQuery), processes it, and displays it in a clean, interactive dashboard. Think of it as a customized version of Google Analytics, but built specifically for our needs.</p>
+
+<p>The platform shows:</p>
+<ul>
+  <li>User activity (daily, weekly, monthly active users)</li>
+  <li>Feature usage (which parts of our product people use most)</li>
+  <li>Client analytics (how different clients engage with our platform)</li>
+  <li>Traffic sources (where users come from)</li>
+  <li>Geographic data (where users are located)</li>
+  <li>Technology breakdown (devices, browsers, operating systems)</li>
+</ul>
+
+<h3>The Big Picture</h3>
+
+<div class="diagram">
+<pre>
+    +------------------+        +------------------+        +------------------+
+    |                  |        |                  |        |                  |
+    |   Your Browser   | -----> |   Next.js App    | -----> |    BigQuery      |
+    |   (Frontend)     |        |   (API Routes)   |        |    (Database)    |
+    |                  |        |                  |        |                  |
+    +------------------+        +------------------+        +------------------+
+           |                           |                           |
+           |                           |                           |
+           v                           v                           v
+      React Components            API Routes               Google Analytics
+      + Axis Design System        + Caching                Data (GA4 export)
+      + TailwindCSS               + Firebase Auth
+</pre>
+</div>
+
+<p>Here is how data flows through the system:</p>
+
+<ol>
+  <li><strong>Google Analytics 4</strong> automatically tracks user behavior on our main platform</li>
+  <li><strong>BigQuery</strong> stores all this analytics data (Google exports GA4 data to BigQuery daily)</li>
+  <li><strong>Our API routes</strong> query BigQuery and return processed data</li>
+  <li><strong>The React frontend</strong> displays this data in charts, tables, and widgets</li>
+</ol>
+
+<div class="callout callout-info">
+  <div class="callout-title">What You Will Learn</div>
+  <p>This guide covers: terminal basics, Git/GitHub, code editors, how websites work, our tech stack (Next.js, React, TailwindCSS, BigQuery, Firebase), our design system, and how to work with AI tools like Claude.</p>
+</div>
+
+</section>
+
+<section id="terminal">
+<h2>2. The Terminal</h2>
+
+<p>The terminal (also called "command line" or "shell") is a text-based interface for communicating with your computer. Instead of clicking buttons and icons, you type commands. Every developer uses the terminal daily.</p>
+
+<h3>Why Use the Terminal?</h3>
+
+<p>Many development tasks are faster or only possible via terminal:</p>
+<ul>
+  <li>Running the development server</li>
+  <li>Installing packages (libraries of code)</li>
+  <li>Using Git for version control</li>
+  <li>Running build scripts</li>
+</ul>
+
+<h3>Opening the Terminal</h3>
+
+<p><strong>On macOS:</strong></p>
+<ol>
+  <li>Press <kbd>Cmd</kbd> + <kbd>Space</kbd> to open Spotlight</li>
+  <li>Type "Terminal" and press <kbd>Enter</kbd></li>
+</ol>
+
+<p><strong>On Windows:</strong></p>
+<ol>
+  <li>Press <kbd>Win</kbd> + <kbd>R</kbd></li>
+  <li>Type "cmd" or "powershell" and press <kbd>Enter</kbd></li>
+  <li>For better experience, install Windows Terminal from the Microsoft Store</li>
+</ol>
+
+<h3>Essential Commands</h3>
+
+<p>Here are the commands you will use most often:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Command</th>
+      <th>What It Does</th>
+      <th>Example</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>pwd</code></td>
+      <td>Print Working Directory - shows where you are</td>
+      <td><code>pwd</code> outputs <code>/Users/yourname</code></td>
+    </tr>
+    <tr>
+      <td><code>ls</code></td>
+      <td>List files and folders in current directory</td>
+      <td><code>ls</code> or <code>ls -la</code> (detailed)</td>
+    </tr>
+    <tr>
+      <td><code>cd</code></td>
+      <td>Change Directory - navigate to a folder</td>
+      <td><code>cd Documents</code> or <code>cd ..</code> (go up)</td>
+    </tr>
+    <tr>
+      <td><code>mkdir</code></td>
+      <td>Make Directory - create a new folder</td>
+      <td><code>mkdir my-project</code></td>
+    </tr>
+    <tr>
+      <td><code>rm</code></td>
+      <td>Remove - delete files (careful!)</td>
+      <td><code>rm file.txt</code></td>
+    </tr>
+    <tr>
+      <td><code>cp</code></td>
+      <td>Copy files</td>
+      <td><code>cp original.txt copy.txt</code></td>
+    </tr>
+    <tr>
+      <td><code>mv</code></td>
+      <td>Move (or rename) files</td>
+      <td><code>mv old.txt new.txt</code></td>
+    </tr>
+    <tr>
+      <td><code>clear</code></td>
+      <td>Clear the terminal screen</td>
+      <td><code>clear</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Keyboard Shortcuts</h3>
+
+<ul>
+  <li><kbd>Tab</kbd> - Autocomplete file/folder names (type part of a name, press Tab)</li>
+  <li><kbd>Ctrl</kbd> + <kbd>C</kbd> - Stop a running command (very important!)</li>
+  <li><kbd>Up Arrow</kbd> - Cycle through previous commands</li>
+  <li><kbd>Ctrl</kbd> + <kbd>L</kbd> - Clear screen (same as <code>clear</code>)</li>
+</ul>
+
+<h3>Package Managers</h3>
+
+<p>A <strong>package manager</strong> is a tool that installs, updates, and manages external code libraries. Think of it like an app store for code. Our project uses <strong>npm</strong> (Node Package Manager).</p>
+
+<pre><code><span class="code-comment"># Install all project dependencies (run in project folder)</span>
+npm install
+
+<span class="code-comment"># Add a new package to the project</span>
+npm install package-name
+
+<span class="code-comment"># Run the development server</span>
+npm run dev
+
+<span class="code-comment"># Build for production</span>
+npm run build</code></pre>
+
+<div class="callout callout-warning">
+  <div class="callout-title">Be Careful with rm</div>
+  <p>The <code>rm</code> command permanently deletes files. There is no trash/recycle bin. Double-check before running <code>rm</code>, especially <code>rm -rf</code> (recursive force delete).</p>
+</div>
+
+</section>
+
+<section id="code-editors">
+<h2>3. Code Editors (VS Code)</h2>
+
+<p>A code editor is the application where you write and edit code. While you could technically use Notepad, a proper code editor provides syntax highlighting, autocomplete, error detection, and many features that make coding easier.</p>
+
+<p>We use <strong>Visual Studio Code</strong> (VS Code) - a free, powerful editor made by Microsoft. It is the most popular code editor in the world.</p>
+
+<h3>Installing VS Code</h3>
+
+<div class="steps">
+  <div class="step">
+    <div class="step-title">Download VS Code</div>
+    <p>Go to <code>https://code.visualstudio.com</code> and download the installer for your operating system.</p>
+  </div>
+
+  <div class="step">
+    <div class="step-title">Install It</div>
+    <p>Run the installer. On macOS, drag VS Code to your Applications folder.</p>
+  </div>
+
+  <div class="step">
+    <div class="step-title">Open a Project</div>
+    <p>Go to File > Open Folder and select your project folder. The entire project structure appears in the sidebar.</p>
+  </div>
+</div>
+
+<h3>Key Features</h3>
+
+<ul>
+  <li><strong>File Explorer</strong> (left sidebar) - Browse and open files in your project</li>
+  <li><strong>Integrated Terminal</strong> - Press <kbd>Ctrl</kbd> + <kbd>`</kbd> (backtick) to open a terminal right inside VS Code</li>
+  <li><strong>Search</strong> - Press <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>F</kbd> to search across all files</li>
+  <li><strong>Source Control</strong> - Built-in Git interface for commits and branches</li>
+  <li><strong>Extensions</strong> - Add-ons that enhance functionality</li>
+</ul>
+
+<h3>Essential Keyboard Shortcuts</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Action</th>
+      <th>macOS</th>
+      <th>Windows</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Open Command Palette</td>
+      <td><kbd>Cmd</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd></td>
+      <td><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd></td>
+    </tr>
+    <tr>
+      <td>Quick Open File</td>
+      <td><kbd>Cmd</kbd> + <kbd>P</kbd></td>
+      <td><kbd>Ctrl</kbd> + <kbd>P</kbd></td>
+    </tr>
+    <tr>
+      <td>Find in Files</td>
+      <td><kbd>Cmd</kbd> + <kbd>Shift</kbd> + <kbd>F</kbd></td>
+      <td><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>F</kbd></td>
+    </tr>
+    <tr>
+      <td>Toggle Terminal</td>
+      <td><kbd>Ctrl</kbd> + <kbd>`</kbd></td>
+      <td><kbd>Ctrl</kbd> + <kbd>`</kbd></td>
+    </tr>
+    <tr>
+      <td>Save File</td>
+      <td><kbd>Cmd</kbd> + <kbd>S</kbd></td>
+      <td><kbd>Ctrl</kbd> + <kbd>S</kbd></td>
+    </tr>
+    <tr>
+      <td>Go to Definition</td>
+      <td><kbd>F12</kbd> or <kbd>Cmd</kbd> + <kbd>Click</kbd></td>
+      <td><kbd>F12</kbd> or <kbd>Ctrl</kbd> + <kbd>Click</kbd></td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Recommended Extensions</h3>
+
+<p>Install these extensions for working on our project (press <kbd>Cmd</kbd>/<kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>X</kbd> to open Extensions):</p>
+
+<div class="component-grid">
+  <div class="component-card">
+    <h5>ESLint</h5>
+    <p>JavaScript/TypeScript linting - catches errors as you type</p>
+  </div>
+  <div class="component-card">
+    <h5>Prettier</h5>
+    <p>Code formatter - keeps code style consistent</p>
+  </div>
+  <div class="component-card">
+    <h5>Tailwind CSS IntelliSense</h5>
+    <p>Autocomplete for Tailwind classes</p>
+  </div>
+  <div class="component-card">
+    <h5>GitLens</h5>
+    <p>Enhanced Git features and blame annotations</p>
+  </div>
+</div>
+
+</section>
+
+<section id="git-github">
+<h2>4. Git & GitHub</h2>
+
+<p>Git is a <strong>version control system</strong>. It tracks changes to your code over time, lets you undo mistakes, and enables multiple people to work on the same codebase without conflicts. Think of it like Google Docs' version history, but for code.</p>
+
+<p><strong>GitHub</strong> is a website that hosts Git repositories (code projects) online. It is where our code lives and where we collaborate.</p>
+
+<h3>Key Concepts</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Term</th>
+      <th>Definition</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Repository (Repo)</strong></td>
+      <td>A project folder tracked by Git. Contains all code and history.</td>
+    </tr>
+    <tr>
+      <td><strong>Commit</strong></td>
+      <td>A snapshot of your code at a specific point. Like a save point in a video game.</td>
+    </tr>
+    <tr>
+      <td><strong>Branch</strong></td>
+      <td>A parallel version of the code. Used to develop features without affecting main code.</td>
+    </tr>
+    <tr>
+      <td><strong>Main/Master</strong></td>
+      <td>The primary branch. Contains production-ready code.</td>
+    </tr>
+    <tr>
+      <td><strong>Pull Request (PR)</strong></td>
+      <td>A request to merge your branch into main. Where code review happens.</td>
+    </tr>
+    <tr>
+      <td><strong>Merge</strong></td>
+      <td>Combining changes from one branch into another.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>How Branches Work</h3>
+
+<div class="diagram">
+<pre>
+      main:     A ---- B ---- C ---- D ---- E (latest)
+                       \           /
+      feature:          F ---- G --
+
+      A, B, C... = Commits (snapshots of code)
+
+      1. You create a branch from main at commit B
+      2. You make changes (commits F, G) on your branch
+      3. Meanwhile, someone else adds commit C to main
+      4. You create a Pull Request
+      5. After review, your branch merges into main (creating D)
+      6. Development continues (E)
+</pre>
+</div>
+
+<h3>Essential Git Commands</h3>
+
+<pre><code><span class="code-comment"># Check current status (what's changed, what's staged)</span>
+git status
+
+<span class="code-comment"># See recent commit history</span>
+git log --oneline
+
+<span class="code-comment"># Download latest changes from GitHub</span>
+git pull
+
+<span class="code-comment"># Create a new branch and switch to it</span>
+git checkout -b feature/my-feature
+
+<span class="code-comment"># Stage changes for commit</span>
+git add .                    <span class="code-comment"># Stage all changes</span>
+git add specific-file.tsx    <span class="code-comment"># Stage one file</span>
+
+<span class="code-comment"># Commit staged changes with a message</span>
+git commit -m "Add new dashboard widget"
+
+<span class="code-comment"># Push your branch to GitHub</span>
+git push origin feature/my-feature
+
+<span class="code-comment"># Switch to an existing branch</span>
+git checkout main</code></pre>
+
+<h3>Daily Workflow</h3>
+
+<div class="steps">
+  <div class="step">
+    <div class="step-title">Start Fresh</div>
+    <p>Switch to main and pull latest: <code>git checkout main && git pull</code></p>
+  </div>
+
+  <div class="step">
+    <div class="step-title">Create a Branch</div>
+    <p>Create a branch for your work: <code>git checkout -b feature/add-user-chart</code></p>
+  </div>
+
+  <div class="step">
+    <div class="step-title">Make Changes</div>
+    <p>Write code, test it, make sure it works.</p>
+  </div>
+
+  <div class="step">
+    <div class="step-title">Commit Your Work</div>
+    <p>Stage and commit: <code>git add . && git commit -m "Add user activity chart"</code></p>
+  </div>
+
+  <div class="step">
+    <div class="step-title">Push to GitHub</div>
+    <p>Upload your branch: <code>git push origin feature/add-user-chart</code></p>
+  </div>
+
+  <div class="step">
+    <div class="step-title">Create Pull Request</div>
+    <p>Go to GitHub, click "Compare & Pull Request", add description, request review.</p>
+  </div>
+</div>
+
+<div class="callout callout-info">
+  <div class="callout-title">Commit Message Tips</div>
+  <p>Write clear commit messages. Start with a verb: "Add", "Fix", "Update", "Remove". Describe what the commit does, not how. Example: "Fix pagination bug on clients page" not "Changed line 42".</p>
+</div>
+
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     PART 2: WEB FUNDAMENTALS
+     ═══════════════════════════════════════════════════════════════════════════ -->
+
+<section id="how-web-works">
+<h2>5. How the Web Works</h2>
+
+<p>Before diving into our specific technologies, you need to understand how websites actually work. This knowledge is fundamental to everything else.</p>
+
+<h3>Client-Server Model</h3>
+
+<p>When you visit a website, two computers are communicating:</p>
+
+<ul>
+  <li><strong>Client</strong> - Your browser (Chrome, Safari, Firefox). It requests pages and displays them.</li>
+  <li><strong>Server</strong> - A computer somewhere that stores the website code and data. It responds to requests.</li>
+</ul>
+
+<div class="diagram">
+<pre>
+    +-----------+                           +-----------+
+    |           |  1. Request: GET /users   |           |
+    |  Browser  | ------------------------> |   Server  |
+    |  (Client) |                           |           |
+    |           | <------------------------ |           |
+    |           |  2. Response: JSON data   |           |
+    +-----------+                           +-----------+
+</pre>
+</div>
+
+<h3>HTTP Methods</h3>
+
+<p>When the client talks to the server, it uses different "methods" depending on what it wants to do:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Method</th>
+      <th>Purpose</th>
+      <th>Example</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>GET</code></td>
+      <td>Retrieve data (read-only)</td>
+      <td>Get list of users, fetch analytics data</td>
+    </tr>
+    <tr>
+      <td><code>POST</code></td>
+      <td>Create new data</td>
+      <td>Create a new user account</td>
+    </tr>
+    <tr>
+      <td><code>PUT</code></td>
+      <td>Update existing data (replace)</td>
+      <td>Update a user's profile</td>
+    </tr>
+    <tr>
+      <td><code>DELETE</code></td>
+      <td>Remove data</td>
+      <td>Delete a user account</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>What Is an API?</h3>
+
+<p><strong>API</strong> stands for Application Programming Interface. It is a set of rules that lets one program talk to another. In web development, an API usually means "the server endpoints that return data."</p>
+
+<p>For example, our dashboard has an API endpoint:</p>
+
+<pre><code>GET /api/metrics?days=30&userType=all</code></pre>
+
+<p>This endpoint:</p>
+<ul>
+  <li>Uses the <code>GET</code> method (retrieving data)</li>
+  <li>Has a path: <code>/api/metrics</code></li>
+  <li>Has query parameters: <code>days=30</code> and <code>userType=all</code></li>
+</ul>
+
+<h3>JSON - The Data Format</h3>
+
+<p><strong>JSON</strong> (JavaScript Object Notation) is the standard format for sending data between client and server. It looks like this:</p>
+
+<pre><code>{
+  "<span class="code-string">success</span>": <span class="code-keyword">true</span>,
+  "<span class="code-string">data</span>": {
+    "<span class="code-string">metrics</span>": {
+      "<span class="code-string">total_users</span>": <span class="code-number">15420</span>,
+      "<span class="code-string">page_views</span>": <span class="code-number">89234</span>,
+      "<span class="code-string">active_clients</span>": <span class="code-number">47</span>
+    },
+    "<span class="code-string">usersByDay</span>": [
+      { "<span class="code-string">date</span>": "<span class="code-string">2026-02-01</span>", "<span class="code-string">users</span>": <span class="code-number">523</span> },
+      { "<span class="code-string">date</span>": "<span class="code-string">2026-02-02</span>", "<span class="code-string">users</span>": <span class="code-number">612</span> }
+    ]
+  }
+}</code></pre>
+
+<p>JSON uses:</p>
+<ul>
+  <li>Curly braces <code>{}</code> for objects (key-value pairs)</li>
+  <li>Square brackets <code>[]</code> for arrays (lists)</li>
+  <li>Strings in double quotes</li>
+  <li>Numbers without quotes</li>
+  <li>Booleans: <code>true</code> or <code>false</code></li>
+</ul>
+
+</section>
+
+<section id="html-css-js">
+<h2>6. HTML, CSS & JavaScript</h2>
+
+<p>Every website is built on three core technologies. While our project uses frameworks that abstract these, understanding the fundamentals helps you understand what the frameworks are doing.</p>
+
+<h3>HTML - The Structure</h3>
+
+<p><strong>HTML</strong> (HyperText Markup Language) defines the content and structure of a page. It is like the skeleton of a website.</p>
+
+<pre><code>&lt;<span class="code-keyword">div</span> <span class="code-variable">class</span>=<span class="code-string">"card"</span>&gt;
+  &lt;<span class="code-keyword">h2</span>&gt;Total Users&lt;/<span class="code-keyword">h2</span>&gt;
+  &lt;<span class="code-keyword">p</span>&gt;15,420&lt;/<span class="code-keyword">p</span>&gt;
+  &lt;<span class="code-keyword">button</span>&gt;View Details&lt;/<span class="code-keyword">button</span>&gt;
+&lt;/<span class="code-keyword">div</span>&gt;</code></pre>
+
+<h3>CSS - The Styling</h3>
+
+<p><strong>CSS</strong> (Cascading Style Sheets) controls how things look: colors, sizes, spacing, layouts.</p>
+
+<pre><code><span class="code-keyword">.card</span> {
+  <span class="code-variable">background</span>: <span class="code-string">white</span>;
+  <span class="code-variable">padding</span>: <span class="code-number">20px</span>;
+  <span class="code-variable">border-radius</span>: <span class="code-number">8px</span>;
+  <span class="code-variable">box-shadow</span>: <span class="code-number">0 2px 4px</span> <span class="code-function">rgba</span>(<span class="code-number">0, 0, 0, 0.1</span>);
+}</code></pre>
+
+<h3>JavaScript - The Behavior</h3>
+
+<p><strong>JavaScript</strong> (JS) makes pages interactive. It responds to clicks, fetches data, updates the page dynamically.</p>
+
+<pre><code><span class="code-keyword">function</span> <span class="code-function">loadMetrics</span>() {
+  <span class="code-function">fetch</span>(<span class="code-string">'/api/metrics'</span>)
+    .<span class="code-function">then</span>(<span class="code-variable">response</span> <span class="code-operator">=></span> <span class="code-variable">response</span>.<span class="code-function">json</span>())
+    .<span class="code-function">then</span>(<span class="code-variable">data</span> <span class="code-operator">=></span> {
+      <span class="code-comment">// Update the page with the data</span>
+      <span class="code-variable">document</span>.<span class="code-function">getElementById</span>(<span class="code-string">'users'</span>).<span class="code-variable">textContent</span> = <span class="code-variable">data</span>.<span class="code-variable">total_users</span>;
+    });
+}</code></pre>
+
+<div class="callout callout-info">
+  <div class="callout-title">You Do Not Write Raw HTML/CSS/JS</div>
+  <p>Our project uses React (which generates HTML), TailwindCSS (utility classes for CSS), and TypeScript (enhanced JavaScript). The frameworks handle the complexity while you write cleaner, more maintainable code.</p>
+</div>
+
+</section>
+
+<section id="typescript">
+<h2>7. TypeScript</h2>
+
+<p><strong>TypeScript</strong> is JavaScript with type annotations. It catches errors before you run your code, provides better autocomplete, and makes code easier to understand.</p>
+
+<h3>Why Types Matter</h3>
+
+<p>In regular JavaScript, you might write:</p>
+
+<pre><code><span class="code-keyword">function</span> <span class="code-function">calculateTotal</span>(<span class="code-variable">price</span>, <span class="code-variable">quantity</span>) {
+  <span class="code-keyword">return</span> <span class="code-variable">price</span> * <span class="code-variable">quantity</span>;
+}
+
+<span class="code-comment">// This works:</span>
+<span class="code-function">calculateTotal</span>(<span class="code-number">10</span>, <span class="code-number">5</span>);  <span class="code-comment">// 50</span>
+
+<span class="code-comment">// But this is a bug that JavaScript won't catch:</span>
+<span class="code-function">calculateTotal</span>(<span class="code-string">"ten"</span>, <span class="code-string">"five"</span>);  <span class="code-comment">// "NaN" - oops!</span></code></pre>
+
+<p>With TypeScript:</p>
+
+<pre><code><span class="code-keyword">function</span> <span class="code-function">calculateTotal</span>(<span class="code-variable">price</span>: <span class="code-type">number</span>, <span class="code-variable">quantity</span>: <span class="code-type">number</span>): <span class="code-type">number</span> {
+  <span class="code-keyword">return</span> <span class="code-variable">price</span> * <span class="code-variable">quantity</span>;
+}
+
+<span class="code-function">calculateTotal</span>(<span class="code-string">"ten"</span>, <span class="code-string">"five"</span>);  <span class="code-comment">// ERROR: TypeScript catches this!</span></code></pre>
+
+<h3>Common Types</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Type</th>
+      <th>Description</th>
+      <th>Example</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>string</code></td>
+      <td>Text</td>
+      <td><code>"hello"</code></td>
+    </tr>
+    <tr>
+      <td><code>number</code></td>
+      <td>Numbers (integers and decimals)</td>
+      <td><code>42</code>, <code>3.14</code></td>
+    </tr>
+    <tr>
+      <td><code>boolean</code></td>
+      <td>True or false</td>
+      <td><code>true</code>, <code>false</code></td>
+    </tr>
+    <tr>
+      <td><code>array</code></td>
+      <td>List of items</td>
+      <td><code>number[]</code>, <code>string[]</code></td>
+    </tr>
+    <tr>
+      <td><code>object</code></td>
+      <td>Key-value pairs</td>
+      <td><code>{ name: string; age: number }</code></td>
+    </tr>
+    <tr>
+      <td><code>null</code></td>
+      <td>Intentionally empty</td>
+      <td><code>null</code></td>
+    </tr>
+    <tr>
+      <td><code>undefined</code></td>
+      <td>Not yet assigned</td>
+      <td><code>undefined</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Interfaces</h3>
+
+<p>An <strong>interface</strong> defines the shape of an object. This is heavily used in our codebase:</p>
+
+<pre><code><span class="code-keyword">interface</span> <span class="code-type">Widget</span> {
+  <span class="code-variable">id</span>: <span class="code-type">string</span>;
+  <span class="code-variable">type</span>: <span class="code-type">WidgetType</span>;
+  <span class="code-variable">title</span>: <span class="code-type">string</span>;
+  <span class="code-variable">x</span>: <span class="code-type">number</span>;
+  <span class="code-variable">y</span>: <span class="code-type">number</span>;
+  <span class="code-variable">w</span>: <span class="code-type">number</span>;
+  <span class="code-variable">h</span>: <span class="code-type">number</span>;
+  <span class="code-variable">minW</span>?: <span class="code-type">number</span>;  <span class="code-comment">// ? means optional</span>
+  <span class="code-variable">minH</span>?: <span class="code-type">number</span>;
+}</code></pre>
+
+<p>Our project defines interfaces in <code>src/types/</code>:</p>
+<ul>
+  <li><code>widget.ts</code> - Widget and layout types</li>
+  <li><code>metrics.ts</code> - Analytics data types</li>
+  <li><code>axis.ts</code> - Design system component types</li>
+</ul>
+
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     PART 3: THIS PLATFORM'S TECH STACK
+     ═══════════════════════════════════════════════════════════════════════════ -->
+
+<section id="nextjs">
+<h2>8. Next.js & React</h2>
+
+<p>Our frontend is built with <strong>Next.js 16</strong> (a React framework) and <strong>React 19</strong>. These are the core technologies that power our user interface.</p>
+
+<h3>What Is React?</h3>
+
+<p>React is a JavaScript library for building user interfaces. Instead of manipulating HTML directly, you build <strong>components</strong> - reusable pieces of UI. React then efficiently updates the actual page when data changes.</p>
+
+<h3>What Is Next.js?</h3>
+
+<p>Next.js is a framework built on top of React. It adds:</p>
+<ul>
+  <li><strong>File-based routing</strong> - Create a file at <code>app/login/page.tsx</code> and you get a <code>/login</code> route</li>
+  <li><strong>API routes</strong> - Backend endpoints right in your frontend project</li>
+  <li><strong>Server-side rendering</strong> - Pages can be rendered on the server for better performance</li>
+  <li><strong>Built-in optimizations</strong> - Image optimization, code splitting, etc.</li>
+</ul>
+
+<h3>Components</h3>
+
+<p>A component is a function that returns JSX (JavaScript XML - HTML-like syntax in JavaScript):</p>
+
+<pre><code><span class="code-comment">// A simple component</span>
+<span class="code-keyword">function</span> <span class="code-function">MetricCard</span>({ <span class="code-variable">title</span>, <span class="code-variable">value</span> }: { <span class="code-variable">title</span>: <span class="code-type">string</span>; <span class="code-variable">value</span>: <span class="code-type">number</span> }) {
+  <span class="code-keyword">return</span> (
+    &lt;<span class="code-keyword">div</span> <span class="code-variable">className</span>=<span class="code-string">"bg-white p-4 rounded-lg"</span>&gt;
+      &lt;<span class="code-keyword">h3</span>&gt;{<span class="code-variable">title</span>}&lt;/<span class="code-keyword">h3</span>&gt;
+      &lt;<span class="code-keyword">p</span> <span class="code-variable">className</span>=<span class="code-string">"text-2xl font-bold"</span>&gt;{<span class="code-variable">value</span>.<span class="code-function">toLocaleString</span>()}&lt;/<span class="code-keyword">p</span>&gt;
+    &lt;/<span class="code-keyword">div</span>&gt;
+  );
+}
+
+<span class="code-comment">// Using the component</span>
+&lt;<span class="code-function">MetricCard</span> <span class="code-variable">title</span>=<span class="code-string">"Total Users"</span> <span class="code-variable">value</span>={<span class="code-number">15420</span>} /&gt;</code></pre>
+
+<h3>State (useState)</h3>
+
+<p><strong>State</strong> is data that can change over time. When state changes, React re-renders the component:</p>
+
+<pre><code><span class="code-keyword">import</span> { <span class="code-function">useState</span> } <span class="code-keyword">from</span> <span class="code-string">'react'</span>;
+
+<span class="code-keyword">function</span> <span class="code-function">Counter</span>() {
+  <span class="code-keyword">const</span> [<span class="code-variable">count</span>, <span class="code-variable">setCount</span>] = <span class="code-function">useState</span>(<span class="code-number">0</span>);  <span class="code-comment">// Initial value is 0</span>
+
+  <span class="code-keyword">return</span> (
+    &lt;<span class="code-keyword">div</span>&gt;
+      &lt;<span class="code-keyword">p</span>&gt;Count: {<span class="code-variable">count</span>}&lt;/<span class="code-keyword">p</span>&gt;
+      &lt;<span class="code-keyword">button</span> <span class="code-variable">onClick</span>={() <span class="code-operator">=></span> <span class="code-function">setCount</span>(<span class="code-variable">count</span> + <span class="code-number">1</span>)}&gt;
+        Increment
+      &lt;/<span class="code-keyword">button</span>&gt;
+    &lt;/<span class="code-keyword">div</span>&gt;
+  );
+}</code></pre>
+
+<h3>Effects (useEffect)</h3>
+
+<p><strong>Effects</strong> let you perform side effects - like fetching data when a component loads:</p>
+
+<pre><code><span class="code-keyword">import</span> { <span class="code-function">useState</span>, <span class="code-function">useEffect</span> } <span class="code-keyword">from</span> <span class="code-string">'react'</span>;
+
+<span class="code-keyword">function</span> <span class="code-function">Dashboard</span>() {
+  <span class="code-keyword">const</span> [<span class="code-variable">data</span>, <span class="code-variable">setData</span>] = <span class="code-function">useState</span>(<span class="code-keyword">null</span>);
+  <span class="code-keyword">const</span> [<span class="code-variable">loading</span>, <span class="code-variable">setLoading</span>] = <span class="code-function">useState</span>(<span class="code-keyword">true</span>);
+
+  <span class="code-function">useEffect</span>(() <span class="code-operator">=></span> {
+    <span class="code-comment">// This runs when the component mounts</span>
+    <span class="code-function">fetch</span>(<span class="code-string">'/api/metrics'</span>)
+      .<span class="code-function">then</span>(<span class="code-variable">res</span> <span class="code-operator">=></span> <span class="code-variable">res</span>.<span class="code-function">json</span>())
+      .<span class="code-function">then</span>(<span class="code-variable">json</span> <span class="code-operator">=></span> {
+        <span class="code-function">setData</span>(<span class="code-variable">json</span>.<span class="code-variable">data</span>);
+        <span class="code-function">setLoading</span>(<span class="code-keyword">false</span>);
+      });
+  }, []);  <span class="code-comment">// Empty array = run once on mount</span>
+
+  <span class="code-keyword">if</span> (<span class="code-variable">loading</span>) <span class="code-keyword">return</span> &lt;<span class="code-keyword">p</span>&gt;Loading...&lt;/<span class="code-keyword">p</span>&gt;;
+
+  <span class="code-keyword">return</span> &lt;<span class="code-keyword">div</span>&gt;{<span class="code-comment">/* render data */</span>}&lt;/<span class="code-keyword">div</span>&gt;;
+}</code></pre>
+
+<h3>File Structure</h3>
+
+<p>In Next.js 16 with the App Router:</p>
+
+<div class="file-tree">
+<span class="folder">src/app/</span>
+  <span class="file">layout.tsx</span>        <span class="comment">-- Root layout (wraps all pages)</span>
+  <span class="file">page.tsx</span>          <span class="comment">-- Homepage (/)</span>
+  <span class="folder">login/</span>
+    <span class="file">page.tsx</span>        <span class="comment">-- Login page (/login)</span>
+  <span class="folder">api/</span>
+    <span class="folder">metrics/</span>
+      <span class="file">route.ts</span>      <span class="comment">-- API endpoint (/api/metrics)</span>
+</div>
+
+</section>
+
+<section id="tailwindcss">
+<h2>9. TailwindCSS</h2>
+
+<p><strong>TailwindCSS</strong> is a CSS framework where you style elements using utility classes directly in your HTML/JSX. Instead of writing custom CSS, you compose styles from pre-built classes.</p>
+
+<h3>Traditional CSS vs Tailwind</h3>
+
+<div class="two-columns">
+  <div class="column">
+    <div class="column-title">Traditional CSS</div>
+    <pre><code><span class="code-comment">/* styles.css */</span>
+<span class="code-keyword">.card</span> {
+  <span class="code-variable">background</span>: white;
+  <span class="code-variable">padding</span>: 16px;
+  <span class="code-variable">border-radius</span>: 8px;
+  <span class="code-variable">box-shadow</span>: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+<span class="code-comment">&lt;!-- HTML --&gt;</span>
+&lt;<span class="code-keyword">div</span> <span class="code-variable">class</span>=<span class="code-string">"card"</span>&gt;...&lt;/<span class="code-keyword">div</span>&gt;</code></pre>
+  </div>
+  <div class="column">
+    <div class="column-title">TailwindCSS</div>
+    <pre><code><span class="code-comment">&lt;!-- No separate CSS file needed --&gt;</span>
+&lt;<span class="code-keyword">div</span> <span class="code-variable">className</span>=<span class="code-string">"bg-white p-4 rounded-lg shadow-sm"</span>&gt;
+  ...
+&lt;/<span class="code-keyword">div</span>&gt;</code></pre>
+  </div>
+</div>
+
+<h3>Common Utility Classes</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Class Pattern</th>
+      <th>What It Does</th>
+      <th>Examples</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>p-{size}</code></td>
+      <td>Padding</td>
+      <td><code>p-4</code> (16px), <code>p-6</code> (24px), <code>px-4</code> (horizontal)</td>
+    </tr>
+    <tr>
+      <td><code>m-{size}</code></td>
+      <td>Margin</td>
+      <td><code>m-4</code>, <code>mt-2</code> (top only), <code>mb-4</code> (bottom only)</td>
+    </tr>
+    <tr>
+      <td><code>bg-{color}</code></td>
+      <td>Background color</td>
+      <td><code>bg-white</code>, <code>bg-main-500</code>, <code>bg-gray-100</code></td>
+    </tr>
+    <tr>
+      <td><code>text-{color}</code></td>
+      <td>Text color</td>
+      <td><code>text-gray-700</code>, <code>text-white</code></td>
+    </tr>
+    <tr>
+      <td><code>text-{size}</code></td>
+      <td>Font size</td>
+      <td><code>text-sm</code>, <code>text-lg</code>, <code>text-2xl</code></td>
+    </tr>
+    <tr>
+      <td><code>font-{weight}</code></td>
+      <td>Font weight</td>
+      <td><code>font-medium</code>, <code>font-semibold</code>, <code>font-bold</code></td>
+    </tr>
+    <tr>
+      <td><code>flex</code></td>
+      <td>Flexbox container</td>
+      <td><code>flex items-center justify-between gap-4</code></td>
+    </tr>
+    <tr>
+      <td><code>rounded-{size}</code></td>
+      <td>Border radius</td>
+      <td><code>rounded</code>, <code>rounded-lg</code>, <code>rounded-full</code></td>
+    </tr>
+    <tr>
+      <td><code>shadow-{size}</code></td>
+      <td>Box shadow</td>
+      <td><code>shadow-xs</code>, <code>shadow-sm</code>, <code>shadow-md</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Responsive Design</h3>
+
+<p>Prefix classes with breakpoint names to apply styles at different screen sizes:</p>
+
+<pre><code>&lt;<span class="code-keyword">div</span> <span class="code-variable">className</span>=<span class="code-string">"w-full md:w-1/2 lg:w-1/3"</span>&gt;
+  <span class="code-comment">&lt;!-- Full width on mobile, half on medium screens, third on large --&gt;</span>
+&lt;/<span class="code-keyword">div</span>&gt;</code></pre>
+
+<h3>Dark Mode</h3>
+
+<p>Prefix with <code>dark:</code> to apply styles only in dark mode:</p>
+
+<pre><code>&lt;<span class="code-keyword">div</span> <span class="code-variable">className</span>=<span class="code-string">"bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"</span>&gt;
+  <span class="code-comment">&lt;!-- White background in light mode, dark gray in dark mode --&gt;</span>
+&lt;/<span class="code-keyword">div</span>&gt;</code></pre>
+
+<div class="callout callout-warning">
+  <div class="callout-title">Important: Custom CSS Classes</div>
+  <p>In our project, some Tailwind classes do not work reliably. We use custom CSS classes defined in <code>globals.css</code> for critical styling:</p>
+  <ul>
+    <li><code>light-gray-bg</code> - Gray background for navigation/toolbar in light mode</li>
+    <li><code>selected-tab-line</code> - Selected tab styling (line variant)</li>
+    <li><code>selected-tab-contained</code> - Selected tab styling (contained variant)</li>
+  </ul>
+</div>
+
+</section>
+
+<section id="bigquery">
+<h2>10. BigQuery</h2>
+
+<p><strong>BigQuery</strong> is Google's cloud data warehouse. It is where all our analytics data is stored. Google Analytics 4 automatically exports data to BigQuery daily.</p>
+
+<h3>What Is a Data Warehouse?</h3>
+
+<p>A data warehouse is a database optimized for analytics. Unlike regular databases designed for quick reads/writes, data warehouses are designed to analyze massive amounts of data quickly.</p>
+
+<h3>How We Use BigQuery</h3>
+
+<ol>
+  <li><strong>GA4 exports data</strong> - Google Analytics sends event data to BigQuery daily</li>
+  <li><strong>API queries BigQuery</strong> - Our API routes run SQL queries against this data</li>
+  <li><strong>Results displayed</strong> - The frontend receives processed data and shows charts/tables</li>
+</ol>
+
+<h3>SQL Basics</h3>
+
+<p>SQL (Structured Query Language) is how you query databases. Here is a simplified example from our codebase:</p>
+
+<pre><code><span class="code-keyword">SELECT</span>
+  <span class="code-function">COUNT</span>(<span class="code-keyword">DISTINCT</span> user_pseudo_id) <span class="code-keyword">AS</span> total_users,
+  <span class="code-function">COUNT</span>(*) <span class="code-keyword">AS</span> total_events
+<span class="code-keyword">FROM</span>
+  <span class="code-string">`project.dataset.events_*`</span>
+<span class="code-keyword">WHERE</span>
+  _TABLE_SUFFIX <span class="code-keyword">BETWEEN</span> <span class="code-string">'20260101'</span> <span class="code-keyword">AND</span> <span class="code-string">'20260201'</span></code></pre>
+
+<p>Key SQL concepts:</p>
+<ul>
+  <li><code>SELECT</code> - What columns to retrieve</li>
+  <li><code>FROM</code> - Which table to query</li>
+  <li><code>WHERE</code> - Filter conditions</li>
+  <li><code>GROUP BY</code> - Group results (for aggregations)</li>
+  <li><code>ORDER BY</code> - Sort results</li>
+</ul>
+
+<h3>Our BigQuery Setup</h3>
+
+<p>The BigQuery connection is configured in <code>src/lib/bigquery.ts</code>:</p>
+
+<pre><code><span class="code-keyword">import</span> { <span class="code-function">BigQuery</span> } <span class="code-keyword">from</span> <span class="code-string">'@google-cloud/bigquery'</span>;
+
+<span class="code-keyword">export const</span> <span class="code-variable">DATASET</span> = process.env.<span class="code-variable">BIGQUERY_DATASET</span>;
+<span class="code-keyword">export const</span> <span class="code-variable">PROJECT</span> = process.env.<span class="code-variable">GOOGLE_CLOUD_PROJECT</span>;
+
+<span class="code-keyword">export async function</span> <span class="code-function">runQuery</span>&lt;<span class="code-type">T</span>&gt;(<span class="code-variable">query</span>: <span class="code-type">string</span>): <span class="code-type">Promise</span>&lt;<span class="code-type">T</span>[]&gt; {
+  <span class="code-keyword">const</span> [<span class="code-variable">rows</span>] = <span class="code-keyword">await</span> bigquery.<span class="code-function">query</span>({ <span class="code-variable">query</span> });
+  <span class="code-keyword">return</span> <span class="code-variable">rows</span> <span class="code-keyword">as</span> <span class="code-type">T</span>[];
+}</code></pre>
+
+<p>All SQL queries are defined in <code>src/lib/queries.ts</code>.</p>
+
+</section>
+
+<section id="firebase-auth">
+<h2>11. Firebase Authentication</h2>
+
+<p><strong>Firebase</strong> is Google's app development platform. We use Firebase Authentication for login functionality.</p>
+
+<h3>How Authentication Works</h3>
+
+<ol>
+  <li>User clicks "Sign in with Google"</li>
+  <li>Firebase opens a Google login popup</li>
+  <li>User authenticates with their Google account</li>
+  <li>Firebase returns a user object with email, name, etc.</li>
+  <li>Our code checks if the email ends with <code>@8020rei.com</code></li>
+  <li>If yes, user is logged in. If no, they are signed out and blocked.</li>
+</ol>
+
+<h3>The Auth Context</h3>
+
+<p>Authentication state is managed via React Context in <code>src/lib/firebase/AuthContext.tsx</code>:</p>
+
+<pre><code><span class="code-comment">// Using auth in any component:</span>
+<span class="code-keyword">import</span> { <span class="code-function">useAuth</span> } <span class="code-keyword">from</span> <span class="code-string">'@/lib/firebase/AuthContext'</span>;
+
+<span class="code-keyword">function</span> <span class="code-function">MyComponent</span>() {
+  <span class="code-keyword">const</span> { <span class="code-variable">user</span>, <span class="code-variable">loading</span>, <span class="code-variable">signOut</span> } = <span class="code-function">useAuth</span>();
+
+  <span class="code-keyword">if</span> (<span class="code-variable">loading</span>) <span class="code-keyword">return</span> &lt;<span class="code-keyword">p</span>&gt;Loading...&lt;/<span class="code-keyword">p</span>&gt;;
+  <span class="code-keyword">if</span> (!<span class="code-variable">user</span>) <span class="code-keyword">return</span> &lt;<span class="code-keyword">p</span>&gt;Please log in&lt;/<span class="code-keyword">p</span>&gt;;
+
+  <span class="code-keyword">return</span> (
+    &lt;<span class="code-keyword">div</span>&gt;
+      &lt;<span class="code-keyword">p</span>&gt;Welcome, {<span class="code-variable">user</span>.<span class="code-variable">email</span>}&lt;/<span class="code-keyword">p</span>&gt;
+      &lt;<span class="code-keyword">button</span> <span class="code-variable">onClick</span>={<span class="code-variable">signOut</span>}&gt;Log Out&lt;/<span class="code-keyword">button</span>&gt;
+    &lt;/<span class="code-keyword">div</span>&gt;
+  );
+}</code></pre>
+
+<h3>Environment Variables</h3>
+
+<p>Firebase configuration is stored in environment variables (not committed to Git for security):</p>
+
+<pre><code><span class="code-comment"># .env.local</span>
+NEXT_PUBLIC_FIREBASE_API_KEY=your-api-key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
+NEXT_PUBLIC_FIREBASE_APP_ID=your-app-id</code></pre>
+
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     PART 4: THIS PLATFORM SPECIFICALLY
+     ═══════════════════════════════════════════════════════════════════════════ -->
+
+<section id="architecture">
+<h2>12. Project Architecture</h2>
+
+<p>Now let us look at how our specific project is organized. Understanding the file structure helps you know where to find things and where to add new code.</p>
+
+<h3>Complete Directory Structure</h3>
+
+<div class="file-tree">
+<span class="folder">8020rei-analytics/</span>
+├── <span class="folder">src/</span>
+│   ├── <span class="folder">app/</span>                        <span class="comment">-- Next.js App Router</span>
+│   │   ├── <span class="file">layout.tsx</span>              <span class="comment">-- Root layout (theme, auth provider)</span>
+│   │   ├── <span class="file">page.tsx</span>                <span class="comment">-- Main dashboard page</span>
+│   │   ├── <span class="file">globals.css</span>             <span class="comment">-- Global styles, design tokens</span>
+│   │   ├── <span class="folder">login/</span>
+│   │   │   └── <span class="file">page.tsx</span>            <span class="comment">-- Login page</span>
+│   │   └── <span class="folder">api/</span>                    <span class="comment">-- API routes</span>
+│   │       └── <span class="folder">metrics/</span>
+│   │           ├── <span class="file">route.ts</span>        <span class="comment">-- Main metrics endpoint</span>
+│   │           ├── <span class="folder">users/</span>          <span class="comment">-- /api/metrics/users</span>
+│   │           ├── <span class="folder">features/</span>       <span class="comment">-- /api/metrics/features</span>
+│   │           ├── <span class="folder">clients/</span>        <span class="comment">-- /api/metrics/clients</span>
+│   │           ├── <span class="folder">traffic/</span>        <span class="comment">-- /api/metrics/traffic</span>
+│   │           ├── <span class="folder">technology/</span>     <span class="comment">-- /api/metrics/technology</span>
+│   │           ├── <span class="folder">geography/</span>      <span class="comment">-- /api/metrics/geography</span>
+│   │           ├── <span class="folder">events/</span>         <span class="comment">-- /api/metrics/events</span>
+│   │           └── <span class="folder">insights/</span>       <span class="comment">-- /api/metrics/insights</span>
+│   │
+│   ├── <span class="folder">components/</span>                 <span class="comment">-- React components</span>
+│   │   ├── <span class="folder">axis/</span>                   <span class="comment">-- Design system components</span>
+│   │   │   ├── <span class="file">AxisButton.tsx</span>
+│   │   │   ├── <span class="file">AxisCard.tsx</span>
+│   │   │   ├── <span class="file">AxisCallout.tsx</span>
+│   │   │   ├── <span class="file">AxisNavigationTab.tsx</span>
+│   │   │   ├── <span class="file">AxisSelect.tsx</span>
+│   │   │   ├── <span class="file">AxisSkeleton.tsx</span>
+│   │   │   ├── <span class="file">AxisTable.tsx</span>
+│   │   │   └── <span class="file">index.ts</span>            <span class="comment">-- Exports all components</span>
+│   │   │
+│   │   ├── <span class="folder">charts/</span>                 <span class="comment">-- Reusable chart components</span>
+│   │   │   ├── <span class="file">BaseLineChart.tsx</span>
+│   │   │   ├── <span class="file">BaseHorizontalBarChart.tsx</span>
+│   │   │   ├── <span class="file">BaseStackedBarChart.tsx</span>
+│   │   │   ├── <span class="file">BaseDonutChart.tsx</span>
+│   │   │   └── <span class="file">index.ts</span>
+│   │   │
+│   │   ├── <span class="folder">dashboard/</span>              <span class="comment">-- Tab components</span>
+│   │   │   ├── <span class="file">UsersTab.tsx</span>
+│   │   │   ├── <span class="file">FeaturesTab.tsx</span>
+│   │   │   ├── <span class="file">ClientsTab.tsx</span>
+│   │   │   ├── <span class="file">TrafficTab.tsx</span>
+│   │   │   ├── <span class="file">TechnologyTab.tsx</span>
+│   │   │   ├── <span class="file">GeographyTab.tsx</span>
+│   │   │   ├── <span class="file">EventsTab.tsx</span>
+│   │   │   └── <span class="file">InsightsTab.tsx</span>
+│   │   │
+│   │   └── <span class="folder">workspace/</span>              <span class="comment">-- Widget system</span>
+│   │       ├── <span class="file">GridWorkspace.tsx</span>    <span class="comment">-- Drag-and-drop grid</span>
+│   │       ├── <span class="file">WidgetCatalog.tsx</span>    <span class="comment">-- Add widget modal</span>
+│   │       ├── <span class="file">WidgetSettings.tsx</span>   <span class="comment">-- Widget config modal</span>
+│   │       └── <span class="folder">widgets/</span>            <span class="comment">-- Individual widget components</span>
+│   │           ├── <span class="file">MetricsOverviewWidget.tsx</span>
+│   │           ├── <span class="file">UserActivityWidget.tsx</span>
+│   │           └── <span class="file">... (40+ widgets)</span>
+│   │
+│   ├── <span class="folder">hooks/</span>                      <span class="comment">-- Custom React hooks</span>
+│   │   └── <span class="file">useTheme.ts</span>            <span class="comment">-- Dark/light mode hook</span>
+│   │
+│   ├── <span class="folder">lib/</span>                        <span class="comment">-- Core utilities</span>
+│   │   ├── <span class="file">bigquery.ts</span>            <span class="comment">-- BigQuery client</span>
+│   │   ├── <span class="file">cache.ts</span>               <span class="comment">-- In-memory caching</span>
+│   │   ├── <span class="file">export.ts</span>              <span class="comment">-- CSV export functions</span>
+│   │   ├── <span class="file">queries.ts</span>             <span class="comment">-- All SQL queries</span>
+│   │   ├── <span class="folder">firebase/</span>
+│   │   │   ├── <span class="file">config.ts</span>          <span class="comment">-- Firebase initialization</span>
+│   │   │   └── <span class="file">AuthContext.tsx</span>    <span class="comment">-- Auth state management</span>
+│   │   └── <span class="folder">workspace/</span>
+│   │       └── <span class="file">defaultLayouts.ts</span>  <span class="comment">-- Widget layout configs</span>
+│   │
+│   └── <span class="folder">types/</span>                      <span class="comment">-- TypeScript types</span>
+│       ├── <span class="file">widget.ts</span>              <span class="comment">-- Widget type definitions</span>
+│       ├── <span class="file">metrics.ts</span>             <span class="comment">-- API response types</span>
+│       └── <span class="file">axis.ts</span>                <span class="comment">-- Component prop types</span>
+│
+├── <span class="folder">backend/</span>                        <span class="comment">-- Separate backend (Fastify)</span>
+│   └── <span class="folder">src/</span>
+│       ├── <span class="file">index.ts</span>               <span class="comment">-- Server entry point</span>
+│       ├── <span class="folder">routes/</span>                <span class="comment">-- API endpoints</span>
+│       └── <span class="folder">services/</span>              <span class="comment">-- Business logic</span>
+│
+├── <span class="folder">.claude/</span>                        <span class="comment">-- AI agent configuration</span>
+│   └── <span class="folder">skills/</span>
+│       └── <span class="folder">dashboard-builder/</span>
+│           └── <span class="file">SKILL.md</span>           <span class="comment">-- Dashboard building rules</span>
+│
+├── <span class="file">package.json</span>                    <span class="comment">-- Project dependencies</span>
+├── <span class="file">tsconfig.json</span>                   <span class="comment">-- TypeScript configuration</span>
+├── <span class="file">CLAUDE.md</span>                       <span class="comment">-- Project instructions for AI</span>
+└── <span class="file">.env.local</span>                      <span class="comment">-- Environment variables (not in Git)</span>
+</div>
+
+<h3>Key Files to Know</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>File</th>
+      <th>Purpose</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>src/app/page.tsx</code></td>
+      <td>Main dashboard - navigation, toolbar, tab rendering</td>
+    </tr>
+    <tr>
+      <td><code>src/app/globals.css</code></td>
+      <td>All design tokens, custom classes, theme variables</td>
+    </tr>
+    <tr>
+      <td><code>src/lib/queries.ts</code></td>
+      <td>All BigQuery SQL queries</td>
+    </tr>
+    <tr>
+      <td><code>src/lib/workspace/defaultLayouts.ts</code></td>
+      <td>Widget catalog and default layouts for each tab</td>
+    </tr>
+    <tr>
+      <td><code>CLAUDE.md</code></td>
+      <td>Instructions for AI agents working on this project</td>
+    </tr>
+  </tbody>
+</table>
+
+</section>
+
+<section id="design-system">
+<h2>13. Axis Design System</h2>
+
+<p>The <strong>Axis Design System</strong> is our custom component library. It provides consistent, accessible UI components that work in both light and dark modes.</p>
+
+<h3>Design Tokens</h3>
+
+<p>Design tokens are the foundational values that define our visual language. They are CSS variables defined in <code>globals.css</code>:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Token Type</th>
+      <th>Usage</th>
+      <th>Example</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>main-*</code></td>
+      <td>Primary brand color (blue)</td>
+      <td><code>bg-main-700</code>, <code>text-main-500</code></td>
+    </tr>
+    <tr>
+      <td><code>neutral-*</code></td>
+      <td>Grays for text, borders, backgrounds</td>
+      <td><code>text-neutral-700</code>, <code>border-neutral-200</code></td>
+    </tr>
+    <tr>
+      <td><code>success-*</code></td>
+      <td>Positive states (green)</td>
+      <td><code>bg-success-100</code>, <code>text-success-700</code></td>
+    </tr>
+    <tr>
+      <td><code>alert-*</code></td>
+      <td>Warning states (yellow)</td>
+      <td><code>bg-alert-100</code>, <code>text-alert-700</code></td>
+    </tr>
+    <tr>
+      <td><code>error-*</code></td>
+      <td>Error states (red)</td>
+      <td><code>bg-error-100</code>, <code>text-error-700</code></td>
+    </tr>
+    <tr>
+      <td><code>accent-1</code> to <code>accent-12</code></td>
+      <td>Chart colors, data visualization</td>
+      <td><code>bg-accent-1-500</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="callout callout-warning">
+  <div class="callout-title">Available Color Shades</div>
+  <p>Only these shades are defined: 50, 100, 300, 500, 700, 900, 950. Do NOT use 200, 400, 600, or 800.</p>
+</div>
+
+<h3>Available Components</h3>
+
+<div class="component-grid">
+  <div class="component-card">
+    <h5>AxisButton</h5>
+    <p>Primary, secondary, outline, ghost variants</p>
+  </div>
+  <div class="component-card">
+    <h5>AxisCard</h5>
+    <p>Container with header, body, footer sections</p>
+  </div>
+  <div class="component-card">
+    <h5>AxisCallout</h5>
+    <p>Alert boxes: info, success, warning, error</p>
+  </div>
+  <div class="component-card">
+    <h5>AxisNavigationTab</h5>
+    <p>Tab navigation with line/contained variants</p>
+  </div>
+  <div class="component-card">
+    <h5>AxisSelect</h5>
+    <p>Dropdown select with search</p>
+  </div>
+  <div class="component-card">
+    <h5>AxisInput</h5>
+    <p>Text input with label, error, help text</p>
+  </div>
+  <div class="component-card">
+    <h5>AxisCheckbox</h5>
+    <p>Checkbox with label</p>
+  </div>
+  <div class="component-card">
+    <h5>AxisToggle</h5>
+    <p>On/off switch</p>
+  </div>
+  <div class="component-card">
+    <h5>AxisTable</h5>
+    <p>Data table with sorting</p>
+  </div>
+  <div class="component-card">
+    <h5>AxisSkeleton</h5>
+    <p>Loading placeholders</p>
+  </div>
+  <div class="component-card">
+    <h5>AxisTag</h5>
+    <p>Labels and badges</p>
+  </div>
+  <div class="component-card">
+    <h5>AxisPill</h5>
+    <p>Rounded status indicators</p>
+  </div>
+</div>
+
+<h3>Using Components</h3>
+
+<pre><code><span class="code-keyword">import</span> {
+  <span class="code-function">AxisButton</span>,
+  <span class="code-function">AxisCallout</span>,
+  <span class="code-function">AxisSelect</span>
+} <span class="code-keyword">from</span> <span class="code-string">'@/components/axis'</span>;
+
+<span class="code-comment">// Button variants</span>
+&lt;<span class="code-function">AxisButton</span> <span class="code-variable">variant</span>=<span class="code-string">"primary"</span>&gt;Save&lt;/<span class="code-function">AxisButton</span>&gt;
+&lt;<span class="code-function">AxisButton</span> <span class="code-variable">variant</span>=<span class="code-string">"outline"</span> <span class="code-variable">size</span>=<span class="code-string">"sm"</span>&gt;Cancel&lt;/<span class="code-function">AxisButton</span>&gt;
+
+<span class="code-comment">// Callout (alert box)</span>
+&lt;<span class="code-function">AxisCallout</span> <span class="code-variable">type</span>=<span class="code-string">"info"</span> <span class="code-variable">title</span>=<span class="code-string">"Note"</span>&gt;
+  This is an informational message.
+&lt;/<span class="code-function">AxisCallout</span>&gt;
+
+<span class="code-comment">// Select dropdown</span>
+&lt;<span class="code-function">AxisSelect</span>
+  <span class="code-variable">value</span>={<span class="code-variable">days</span>}
+  <span class="code-variable">onChange</span>={<span class="code-variable">setDays</span>}
+  <span class="code-variable">options</span>={[
+    { <span class="code-variable">value</span>: <span class="code-number">7</span>, <span class="code-variable">label</span>: <span class="code-string">'Last 7 days'</span> },
+    { <span class="code-variable">value</span>: <span class="code-number">30</span>, <span class="code-variable">label</span>: <span class="code-string">'Last 30 days'</span> },
+  ]}
+/&gt;</code></pre>
+
+<h3>Chart Components</h3>
+
+<p>We have standardized chart components in <code>src/components/charts/</code>:</p>
+
+<ul>
+  <li><code>BaseLineChart</code> - Time series data</li>
+  <li><code>BaseHorizontalBarChart</code> - Category comparisons</li>
+  <li><code>BaseStackedBarChart</code> - Multiple series stacked</li>
+  <li><code>BaseDonutChart</code> - Proportional data</li>
+</ul>
+
+<p>Always use these instead of raw Recharts to ensure consistent styling and dark mode support.</p>
+
+</section>
+
+<section id="dashboard-features">
+<h2>14. Dashboard Features</h2>
+
+<p>The dashboard has multiple tabs, each showing different analytics data. Here is what each tab displays:</p>
+
+<h3>Tab Overview</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Tab</th>
+      <th>Purpose</th>
+      <th>Key Widgets</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Overview</strong></td>
+      <td>High-level KPIs and trends</td>
+      <td>Key metrics, users over time, feature usage, top clients table</td>
+    </tr>
+    <tr>
+      <td><strong>Users</strong></td>
+      <td>User engagement metrics</td>
+      <td>DAU/WAU/MAU, new vs returning, engagement metrics, session summary</td>
+    </tr>
+    <tr>
+      <td><strong>Features</strong></td>
+      <td>Product feature usage</td>
+      <td>Views per feature, distribution donut, adoption rates, trends, top pages</td>
+    </tr>
+    <tr>
+      <td><strong>Clients</strong></td>
+      <td>Client-specific analytics</td>
+      <td>Client metrics, top clients table, activity trend</td>
+    </tr>
+    <tr>
+      <td><strong>Traffic</strong></td>
+      <td>Traffic sources and acquisition</td>
+      <td>By source/medium, top referrers, sessions by day, first visits</td>
+    </tr>
+    <tr>
+      <td><strong>Technology</strong></td>
+      <td>Device and browser data</td>
+      <td>Device category, browser, OS, language distribution</td>
+    </tr>
+    <tr>
+      <td><strong>Geography</strong></td>
+      <td>User locations</td>
+      <td>By country, continent, state, city</td>
+    </tr>
+    <tr>
+      <td><strong>Events</strong></td>
+      <td>User interactions</td>
+      <td>Scroll depth, event metrics, volume trend, event breakdown</td>
+    </tr>
+    <tr>
+      <td><strong>Insights</strong></td>
+      <td>Alerts and anomalies</td>
+      <td>Alert summary, by category, alerts feed</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Widget System</h3>
+
+<p>Widgets are draggable, resizable dashboard components. The system uses <code>react-grid-layout</code> for the drag-and-drop functionality.</p>
+
+<p>Key features:</p>
+<ul>
+  <li><strong>Edit Mode</strong> - Toggle to enable drag/resize</li>
+  <li><strong>Add Widget</strong> - Open catalog to add new widgets</li>
+  <li><strong>Reset Layout</strong> - Restore default arrangement</li>
+  <li><strong>Export</strong> - Each widget can export its data to CSV</li>
+  <li><strong>Persistence</strong> - Layouts are saved to localStorage</li>
+</ul>
+
+<h3>Navigation Structure</h3>
+
+<p>The dashboard has 3 levels of navigation:</p>
+
+<ol>
+  <li><strong>Main Sections</strong> - Analytics, Salesforce, Data Silos, Tools, Pipelines, QA, ML Models</li>
+  <li><strong>Sub-sections</strong> - e.g., "8020REI GA4" within Analytics</li>
+  <li><strong>Detail Tabs</strong> - Overview, Users, Features, etc.</li>
+</ol>
+
+</section>
+
+<section id="api-routes">
+<h2>15. API Routes</h2>
+
+<p>The frontend communicates with the backend via API routes. In Next.js, API routes live in the <code>src/app/api/</code> directory.</p>
+
+<h3>Main Endpoints</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Endpoint</th>
+      <th>Method</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>/api/metrics</code></td>
+      <td>GET</td>
+      <td>Overview metrics (total users, events, page views, active clients)</td>
+    </tr>
+    <tr>
+      <td><code>/api/metrics/users</code></td>
+      <td>GET</td>
+      <td>User activity data (DAU, WAU, MAU, new vs returning)</td>
+    </tr>
+    <tr>
+      <td><code>/api/metrics/features</code></td>
+      <td>GET</td>
+      <td>Feature usage, adoption rates, trends</td>
+    </tr>
+    <tr>
+      <td><code>/api/metrics/clients</code></td>
+      <td>GET</td>
+      <td>Client activity, top clients</td>
+    </tr>
+    <tr>
+      <td><code>/api/metrics/traffic</code></td>
+      <td>GET</td>
+      <td>Traffic sources, referrers, mediums</td>
+    </tr>
+    <tr>
+      <td><code>/api/metrics/technology</code></td>
+      <td>GET</td>
+      <td>Devices, browsers, operating systems</td>
+    </tr>
+    <tr>
+      <td><code>/api/metrics/geography</code></td>
+      <td>GET</td>
+      <td>User locations</td>
+    </tr>
+    <tr>
+      <td><code>/api/metrics/events</code></td>
+      <td>GET</td>
+      <td>Event types, scroll depth, interactions</td>
+    </tr>
+    <tr>
+      <td><code>/api/metrics/insights</code></td>
+      <td>GET</td>
+      <td>Alerts and anomalies</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Query Parameters</h3>
+
+<p>All endpoints accept these parameters:</p>
+
+<ul>
+  <li><code>days</code> - Number of days to query (7, 30, 90)</li>
+  <li><code>userType</code> - Filter by user type (all, internal, external)</li>
+</ul>
+
+<p>Example: <code>/api/metrics/users?days=30&userType=external</code></p>
+
+<h3>Response Format</h3>
+
+<pre><code>{
+  "<span class="code-string">success</span>": <span class="code-keyword">true</span>,
+  "<span class="code-string">data</span>": {
+    <span class="code-comment">// Endpoint-specific data</span>
+  },
+  "<span class="code-string">cached</span>": <span class="code-keyword">false</span>,
+  "<span class="code-string">timestamp</span>": "<span class="code-string">2026-02-11T10:30:00.000Z</span>"
+}</code></pre>
+
+<h3>Caching</h3>
+
+<p>API responses are cached in memory for 5 minutes to reduce BigQuery costs and improve performance. The <code>cached</code> field in the response indicates whether the data came from cache.</p>
+
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     PART 5: WORKFLOWS
+     ═══════════════════════════════════════════════════════════════════════════ -->
+
+<section id="ai-development">
+<h2>16. AI-Assisted Development</h2>
+
+<p>This project heavily uses AI tools for development, primarily <strong>Claude</strong> (Anthropic's AI assistant). Understanding how to work with AI tools effectively will make you much more productive.</p>
+
+<h3>Claude Code</h3>
+
+<p>Claude Code is a CLI (command-line interface) tool that lets Claude read your codebase, make changes, run commands, and more. It is like having a skilled developer available 24/7.</p>
+
+<h3>How to Communicate Effectively</h3>
+
+<p>The quality of AI output depends heavily on how you ask for things:</p>
+
+<div class="two-columns">
+  <div class="column">
+    <div class="column-title">Less Effective</div>
+    <p>"Fix the bug"</p>
+    <p>"Make it better"</p>
+    <p>"Add a chart"</p>
+  </div>
+  <div class="column">
+    <div class="column-title">More Effective</div>
+    <p>"The Users tab is not loading data. It shows 'Error fetching data'. Check the API route at /api/metrics/users and the UsersTab component."</p>
+    <p>"Add a line chart to the Traffic tab showing daily sessions over the selected time period. Use BaseLineChart from our chart components."</p>
+  </div>
+</div>
+
+<h3>Tips for Working with AI</h3>
+
+<ul>
+  <li><strong>Be specific</strong> - Include file paths, component names, exact error messages</li>
+  <li><strong>Provide context</strong> - "On the Users tab..." rather than just "the page"</li>
+  <li><strong>State the goal</strong> - "I want users to be able to..." helps AI understand intent</li>
+  <li><strong>Mention constraints</strong> - "Follow the existing patterns in other tab components"</li>
+  <li><strong>Ask for explanations</strong> - "Why did you choose this approach?" helps you learn</li>
+</ul>
+
+<h3>The CLAUDE.md File</h3>
+
+<p>The <code>CLAUDE.md</code> file at the project root contains instructions that Claude reads before working on the project. It specifies:</p>
+
+<ul>
+  <li>Project overview and purpose</li>
+  <li>Important files and their locations</li>
+  <li>Development server port (4000)</li>
+  <li>Required patterns and rules</li>
+</ul>
+
+<h3>The Dashboard Builder Skill</h3>
+
+<p>Located at <code>.claude/skills/dashboard-builder/SKILL.md</code>, this file contains detailed rules for building dashboard features:</p>
+
+<ul>
+  <li>Which CSS classes to use (and which Tailwind classes fail)</li>
+  <li>Light/dark mode requirements</li>
+  <li>Widget patterns and constraints</li>
+  <li>Chart component usage</li>
+  <li>Tab component template</li>
+</ul>
+
+<div class="callout callout-success">
+  <div class="callout-title">Before Building Dashboard Features</div>
+  <p>Always instruct Claude to read the Dashboard Builder Skill first: "Read .claude/skills/dashboard-builder/SKILL.md before making any changes to dashboard components."</p>
+</div>
+
+</section>
+
+<section id="daily-workflows">
+<h2>17. Daily Workflows</h2>
+
+<p>Here are the common workflows you will follow when working on this project.</p>
+
+<h3>Starting the Development Server</h3>
+
+<div class="steps">
+  <div class="step">
+    <div class="step-title">Open Terminal</div>
+    <p>Launch Terminal (or use VS Code's integrated terminal).</p>
+  </div>
+
+  <div class="step">
+    <div class="step-title">Navigate to Project</div>
+    <pre><code>cd /path/to/8020rei-analytics</code></pre>
+  </div>
+
+  <div class="step">
+    <div class="step-title">Install Dependencies (first time or after package.json changes)</div>
+    <pre><code>npm install</code></pre>
+  </div>
+
+  <div class="step">
+    <div class="step-title">Start Dev Server</div>
+    <pre><code>npm run dev</code></pre>
+  </div>
+
+  <div class="step">
+    <div class="step-title">Open Browser</div>
+    <p>Visit <code>http://localhost:4000</code></p>
+  </div>
+</div>
+
+<h3>Making a Code Change</h3>
+
+<div class="steps">
+  <div class="step">
+    <div class="step-title">Pull Latest Code</div>
+    <pre><code>git checkout main && git pull</code></pre>
+  </div>
+
+  <div class="step">
+    <div class="step-title">Create Feature Branch</div>
+    <pre><code>git checkout -b feature/describe-your-change</code></pre>
+  </div>
+
+  <div class="step">
+    <div class="step-title">Make Your Changes</div>
+    <p>Edit files, test in browser, verify it works.</p>
+  </div>
+
+  <div class="step">
+    <div class="step-title">Commit</div>
+    <pre><code>git add .
+git commit -m "Add descriptive message about your change"</code></pre>
+  </div>
+
+  <div class="step">
+    <div class="step-title">Push to GitHub</div>
+    <pre><code>git push origin feature/describe-your-change</code></pre>
+  </div>
+
+  <div class="step">
+    <div class="step-title">Create Pull Request</div>
+    <p>Go to GitHub, click "Compare & Pull Request", fill in description.</p>
+  </div>
+</div>
+
+<h3>Common Commands Reference</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Task</th>
+      <th>Command</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Start dev server</td>
+      <td><code>npm run dev</code></td>
+    </tr>
+    <tr>
+      <td>Build for production</td>
+      <td><code>npm run build</code></td>
+    </tr>
+    <tr>
+      <td>Run linter</td>
+      <td><code>npm run lint</code></td>
+    </tr>
+    <tr>
+      <td>Check Git status</td>
+      <td><code>git status</code></td>
+    </tr>
+    <tr>
+      <td>View recent commits</td>
+      <td><code>git log --oneline -10</code></td>
+    </tr>
+    <tr>
+      <td>Discard local changes</td>
+      <td><code>git checkout -- .</code></td>
+    </tr>
+    <tr>
+      <td>Switch branch</td>
+      <td><code>git checkout branch-name</code></td>
+    </tr>
+  </tbody>
+</table>
+
+</section>
+
+<section id="glossary">
+<h2>18. Glossary</h2>
+
+<p>Technical terms used throughout this guide and the codebase:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Term</th>
+      <th>Definition</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>API</strong></td>
+      <td>Application Programming Interface. A set of rules for software to communicate. In web dev, usually means the server endpoints that return data.</td>
+    </tr>
+    <tr>
+      <td><strong>BigQuery</strong></td>
+      <td>Google's cloud data warehouse. Stores and queries large datasets efficiently.</td>
+    </tr>
+    <tr>
+      <td><strong>Branch</strong></td>
+      <td>A parallel version of code in Git. Used for developing features without affecting the main codebase.</td>
+    </tr>
+    <tr>
+      <td><strong>Cache</strong></td>
+      <td>Temporary storage for frequently accessed data to improve performance.</td>
+    </tr>
+    <tr>
+      <td><strong>Client</strong></td>
+      <td>1) Your browser (the "client" in client-server). 2) A customer/tenant in our system.</td>
+    </tr>
+    <tr>
+      <td><strong>CLI</strong></td>
+      <td>Command Line Interface. A text-based interface for interacting with software.</td>
+    </tr>
+    <tr>
+      <td><strong>Commit</strong></td>
+      <td>A saved snapshot of your code in Git. Like a save point.</td>
+    </tr>
+    <tr>
+      <td><strong>Component</strong></td>
+      <td>A reusable piece of UI in React. Self-contained code that renders a specific part of the page.</td>
+    </tr>
+    <tr>
+      <td><strong>CSS</strong></td>
+      <td>Cascading Style Sheets. The language for styling web pages (colors, layouts, fonts).</td>
+    </tr>
+    <tr>
+      <td><strong>DAU/WAU/MAU</strong></td>
+      <td>Daily/Weekly/Monthly Active Users. Metrics for user engagement.</td>
+    </tr>
+    <tr>
+      <td><strong>Dependency</strong></td>
+      <td>External code your project relies on. Listed in package.json.</td>
+    </tr>
+    <tr>
+      <td><strong>Design Token</strong></td>
+      <td>A named value representing a design decision (color, spacing, font). Enables consistency.</td>
+    </tr>
+    <tr>
+      <td><strong>Endpoint</strong></td>
+      <td>A specific URL path that an API responds to (e.g., /api/metrics).</td>
+    </tr>
+    <tr>
+      <td><strong>Environment Variable</strong></td>
+      <td>Configuration values stored outside code (like API keys). Set in .env files.</td>
+    </tr>
+    <tr>
+      <td><strong>Firebase</strong></td>
+      <td>Google's app development platform. We use it for authentication.</td>
+    </tr>
+    <tr>
+      <td><strong>Framework</strong></td>
+      <td>A structured foundation for building software. Next.js is a React framework.</td>
+    </tr>
+    <tr>
+      <td><strong>GA4</strong></td>
+      <td>Google Analytics 4. The current version of Google Analytics.</td>
+    </tr>
+    <tr>
+      <td><strong>Git</strong></td>
+      <td>A version control system that tracks code changes over time.</td>
+    </tr>
+    <tr>
+      <td><strong>GitHub</strong></td>
+      <td>A website that hosts Git repositories and enables collaboration.</td>
+    </tr>
+    <tr>
+      <td><strong>Hook (React)</strong></td>
+      <td>Functions that let you "hook into" React features (useState, useEffect).</td>
+    </tr>
+    <tr>
+      <td><strong>HTML</strong></td>
+      <td>HyperText Markup Language. The structure of web pages.</td>
+    </tr>
+    <tr>
+      <td><strong>HTTP</strong></td>
+      <td>HyperText Transfer Protocol. How browsers and servers communicate.</td>
+    </tr>
+    <tr>
+      <td><strong>Interface</strong></td>
+      <td>In TypeScript, a definition of an object's shape (what properties it has).</td>
+    </tr>
+    <tr>
+      <td><strong>JavaScript</strong></td>
+      <td>The programming language that runs in browsers (and servers via Node.js).</td>
+    </tr>
+    <tr>
+      <td><strong>JSON</strong></td>
+      <td>JavaScript Object Notation. A data format for transferring data between systems.</td>
+    </tr>
+    <tr>
+      <td><strong>JSX</strong></td>
+      <td>JavaScript XML. HTML-like syntax used in React components.</td>
+    </tr>
+    <tr>
+      <td><strong>KPI</strong></td>
+      <td>Key Performance Indicator. An important metric that indicates success.</td>
+    </tr>
+    <tr>
+      <td><strong>Layout</strong></td>
+      <td>How elements are arranged on a page. Also: a Next.js file that wraps pages.</td>
+    </tr>
+    <tr>
+      <td><strong>Library</strong></td>
+      <td>Reusable code that provides specific functionality (React is a library).</td>
+    </tr>
+    <tr>
+      <td><strong>Linter</strong></td>
+      <td>A tool that checks code for errors and style issues (ESLint).</td>
+    </tr>
+    <tr>
+      <td><strong>localStorage</strong></td>
+      <td>Browser storage that persists data locally. Used for saving user preferences.</td>
+    </tr>
+    <tr>
+      <td><strong>Merge</strong></td>
+      <td>Combining changes from one Git branch into another.</td>
+    </tr>
+    <tr>
+      <td><strong>Next.js</strong></td>
+      <td>A React framework that adds routing, API routes, and optimizations.</td>
+    </tr>
+    <tr>
+      <td><strong>Node.js</strong></td>
+      <td>JavaScript runtime for servers. Lets you run JavaScript outside browsers.</td>
+    </tr>
+    <tr>
+      <td><strong>npm</strong></td>
+      <td>Node Package Manager. Installs and manages JavaScript packages.</td>
+    </tr>
+    <tr>
+      <td><strong>Package</strong></td>
+      <td>A bundle of code you can install and use in your project.</td>
+    </tr>
+    <tr>
+      <td><strong>Props</strong></td>
+      <td>Properties passed to React components. How parent components send data to children.</td>
+    </tr>
+    <tr>
+      <td><strong>Pull Request (PR)</strong></td>
+      <td>A request to merge your branch into another branch. Where code review happens.</td>
+    </tr>
+    <tr>
+      <td><strong>Query</strong></td>
+      <td>A request for data. SQL queries ask databases for specific data.</td>
+    </tr>
+    <tr>
+      <td><strong>React</strong></td>
+      <td>A JavaScript library for building user interfaces using components.</td>
+    </tr>
+    <tr>
+      <td><strong>Repository (Repo)</strong></td>
+      <td>A project folder tracked by Git. Contains code and version history.</td>
+    </tr>
+    <tr>
+      <td><strong>Route</strong></td>
+      <td>A URL path that maps to a page or API endpoint (/login, /api/metrics).</td>
+    </tr>
+    <tr>
+      <td><strong>Server</strong></td>
+      <td>A computer that responds to requests. Stores code, databases, and serves pages.</td>
+    </tr>
+    <tr>
+      <td><strong>SQL</strong></td>
+      <td>Structured Query Language. The language for querying databases.</td>
+    </tr>
+    <tr>
+      <td><strong>State</strong></td>
+      <td>Data that can change over time in a React component. Triggers re-renders.</td>
+    </tr>
+    <tr>
+      <td><strong>Tailwind</strong></td>
+      <td>A CSS framework using utility classes (bg-white, p-4, flex).</td>
+    </tr>
+    <tr>
+      <td><strong>Terminal</strong></td>
+      <td>A text-based interface for running commands on your computer.</td>
+    </tr>
+    <tr>
+      <td><strong>TypeScript</strong></td>
+      <td>JavaScript with type annotations. Catches errors at compile time.</td>
+    </tr>
+    <tr>
+      <td><strong>Widget</strong></td>
+      <td>A self-contained UI component in our dashboard. Displays a specific type of data.</td>
+    </tr>
+  </tbody>
+</table>
+
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     FOOTER
+     ═══════════════════════════════════════════════════════════════════════════ -->
+
+<div style="margin-top: 80px; padding-top: 40px; border-top: 1px solid var(--color-border); text-align: center; color: var(--color-text-tertiary);">
+  <p>8020METRICS HUB Platform Guide</p>
+  <p>Built with care by the 8020REI team</p>
+  <p style="font-size: 13px; margin-top: 20px;">Last updated: February 2026</p>
+</div>
+
+</main>
+
+</body>
+</html>

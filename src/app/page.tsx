@@ -50,36 +50,151 @@ const USER_TYPE_OPTIONS: AxisSelectOption[] = [
   { value: 'external', label: 'External Users' },
 ];
 
-// First-level navigation - Data Sources
-const DATA_SOURCE_TABS: AxisNavigationTabItem[] = [
+// ============================================================================
+// NAVIGATION STRUCTURE (3 Levels)
+// ============================================================================
+// Level 1: Main Sections (Analytics, Salesforce, Data, Tools, etc.)
+// Level 2: Sub-sections within each main section
+// Level 3: Detail tabs (Overview, Users, Features, etc.) - only for applicable sections
+// ============================================================================
+
+// First-level navigation - Main Sections
+const MAIN_SECTION_TABS: AxisNavigationTabItem[] = [
+  {
+    id: 'analytics',
+    name: 'Analytics',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+      </svg>
+    ),
+  },
+  {
+    id: 'salesforce',
+    name: 'Salesforce',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+      </svg>
+    ),
+  },
+  {
+    id: 'data-silos',
+    name: 'Data Silos',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+      </svg>
+    ),
+  },
+  {
+    id: 'tools',
+    name: 'Tools',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+      </svg>
+    ),
+  },
+  {
+    id: 'pipelines',
+    name: 'Pipelines',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+      </svg>
+    ),
+  },
+  {
+    id: 'qa',
+    name: 'QA',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ),
+  },
+  {
+    id: 'ml-models',
+    name: 'ML Models',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+      </svg>
+    ),
+  },
+];
+
+// Second-level navigation - Sub-sections per Main Section
+// Analytics sub-sections
+const ANALYTICS_SUBSECTION_TABS: AxisNavigationTabItem[] = [
   {
     id: '8020rei-ga4',
     name: '8020REI GA4',
   },
   {
     id: '8020roofing-ga4',
-    name: '8020ROOFING GA4',
-    disabled: true,
-  },
-  {
-    id: 'operational',
-    name: 'Operational',
-    disabled: true,
-  },
-  {
-    id: 'zillow',
-    name: 'Zillow',
-    disabled: true,
-  },
-  {
-    id: 'skiptrace',
-    name: 'Skiptrace',
+    name: '8020Roofing GA4',
     disabled: true,
   },
 ];
 
-// Second-level navigation - Section tabs (for 8020REI GA4)
-const NAVIGATION_TABS: AxisNavigationTabItem[] = [
+// Salesforce sub-sections
+const SALESFORCE_SUBSECTION_TABS: AxisNavigationTabItem[] = [
+  { id: 'integrations', name: 'Integrations' },
+  { id: 'leads-funnel', name: 'Leads Funnel' },
+  { id: 'delivery-audit', name: 'Delivery Audit' },
+  { id: 'feedback-loop', name: 'Feedback Loop' },
+];
+
+// Data Silos sub-sections
+const DATA_SILOS_SUBSECTION_TABS: AxisNavigationTabItem[] = [
+  { id: 'silo-scraping', name: 'SILO (Scraping)' },
+  { id: 'zillow', name: 'Zillow' },
+];
+
+// Tools sub-sections
+const TOOLS_SUBSECTION_TABS: AxisNavigationTabItem[] = [
+  { id: 'skiptrace', name: 'Skip Trace' },
+  { id: 'rapid-response', name: 'Rapid Response' },
+  { id: 'smart-drop', name: 'Smart Drop' },
+];
+
+// Pipelines sub-sections
+const PIPELINES_SUBSECTION_TABS: AxisNavigationTabItem[] = [
+  { id: 'pipeline-overview', name: 'Overview' },
+  { id: 'bronze-silver-gold', name: 'Bronze → Silver → Gold' },
+  { id: 'buyers-list', name: 'Buyers List' },
+];
+
+// QA sub-sections
+const QA_SUBSECTION_TABS: AxisNavigationTabItem[] = [
+  { id: 'axiom-validation', name: 'Axiom Validation' },
+  { id: 'buybox-columns', name: 'BuyBox Columns' },
+  { id: 'smoke-sanity', name: 'Smoke & Sanity' },
+];
+
+// ML Models sub-sections
+const ML_MODELS_SUBSECTION_TABS: AxisNavigationTabItem[] = [
+  { id: 'deal-scoring', name: 'Deal Scoring' },
+  { id: 'model-performance', name: 'Model Performance' },
+  { id: 'drift-detection', name: 'Drift Detection' },
+];
+
+// Map main section to its sub-section tabs
+const SUBSECTION_TABS_MAP: Record<string, AxisNavigationTabItem[]> = {
+  'analytics': ANALYTICS_SUBSECTION_TABS,
+  'salesforce': SALESFORCE_SUBSECTION_TABS,
+  'data-silos': DATA_SILOS_SUBSECTION_TABS,
+  'tools': TOOLS_SUBSECTION_TABS,
+  'pipelines': PIPELINES_SUBSECTION_TABS,
+  'qa': QA_SUBSECTION_TABS,
+  'ml-models': ML_MODELS_SUBSECTION_TABS,
+};
+
+// Third-level navigation - Detail tabs (for GA4 analytics sections)
+const GA4_DETAIL_TABS: AxisNavigationTabItem[] = [
   {
     id: 'overview',
     name: 'Overview',
@@ -173,8 +288,10 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [isCached, setIsCached] = useState(false);
-  const [activeDataSource, setActiveDataSource] = useState('8020rei-ga4');
-  const [activeTab, setActiveTab] = useState('overview');
+  // Navigation state (3 levels)
+  const [activeMainSection, setActiveMainSection] = useState('analytics');
+  const [activeSubsection, setActiveSubsection] = useState('8020rei-ga4');
+  const [activeDetailTab, setActiveDetailTab] = useState('overview');
   const [editMode, setEditMode] = useState(false);
   const [showWidgetCatalog, setShowWidgetCatalog] = useState(false);
   const [selectedWidgetForSettings, setSelectedWidgetForSettings] = useState<Widget | null>(null);
@@ -249,7 +366,7 @@ export default function Dashboard() {
 
   // Reset layout to default (unified for all tabs)
   const handleResetLayout = () => {
-    switch (activeTab) {
+    switch (activeDetailTab) {
       case 'overview':
         setLayout(DEFAULT_LAYOUT);
         if (typeof window !== 'undefined') {
@@ -285,7 +402,7 @@ export default function Dashboard() {
 
   // Open widget catalog (unified for all tabs)
   const handleOpenWidgetCatalog = () => {
-    switch (activeTab) {
+    switch (activeDetailTab) {
       case 'overview':
         setShowWidgetCatalog(true);
         break;
@@ -546,24 +663,47 @@ export default function Dashboard() {
           </div>
         </header>
 
-        {/* First-Level Navigation - Data Sources */}
+        {/* First-Level Navigation - Main Sections */}
         <nav className="px-6 border-b border-stroke light-gray-bg">
           <AxisNavigationTab
-            activeTab={activeDataSource}
-            onTabChange={setActiveDataSource}
-            tabs={DATA_SOURCE_TABS}
+            activeTab={activeMainSection}
+            onTabChange={(section) => {
+              setActiveMainSection(section);
+              // Reset subsection to first available when changing main section
+              const subsections = SUBSECTION_TABS_MAP[section];
+              if (subsections && subsections.length > 0) {
+                const firstEnabled = subsections.find(s => !s.disabled);
+                if (firstEnabled) {
+                  setActiveSubsection(firstEnabled.id);
+                }
+              }
+            }}
+            tabs={MAIN_SECTION_TABS}
             variant="line"
             size="sm"
           />
         </nav>
 
-        {/* Second-Level Navigation - Section Tabs (only show for active data source) */}
-        {activeDataSource === '8020rei-ga4' && (
+        {/* Second-Level Navigation - Sub-sections (show for all main sections) */}
+        {SUBSECTION_TABS_MAP[activeMainSection] && (
           <nav className="px-6 border-b border-stroke light-gray-bg">
             <AxisNavigationTab
-              activeTab={activeTab}
-              onTabChange={setActiveTab}
-              tabs={NAVIGATION_TABS}
+              activeTab={activeSubsection}
+              onTabChange={setActiveSubsection}
+              tabs={SUBSECTION_TABS_MAP[activeMainSection]}
+              variant="line"
+              size="sm"
+            />
+          </nav>
+        )}
+
+        {/* Third-Level Navigation - Detail Tabs (only for GA4 analytics sections) */}
+        {activeMainSection === 'analytics' && (activeSubsection === '8020rei-ga4' || activeSubsection === '8020roofing-ga4') && (
+          <nav className="px-6 border-b border-stroke light-gray-bg">
+            <AxisNavigationTab
+              activeTab={activeDetailTab}
+              onTabChange={setActiveDetailTab}
+              tabs={GA4_DETAIL_TABS}
               variant="line"
               size="sm"
             />
@@ -646,7 +786,7 @@ export default function Dashboard() {
         {/* Main Content */}
         <main className="px-6 py-4 min-h-[calc(100vh-180px)] light-gray-bg">
           {/* Overview Tab - Grid Workspace */}
-          {activeTab === 'overview' && (
+          {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && activeDetailTab === 'overview' && (
             <>
               {/* Edit Mode Info */}
               {editMode && (
@@ -672,7 +812,7 @@ export default function Dashboard() {
           )}
 
           {/* Users Tab */}
-          {activeTab === 'users' && (
+          {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && activeDetailTab === 'users' && (
             <UsersTab
               ref={usersTabRef}
               days={days}
@@ -683,7 +823,7 @@ export default function Dashboard() {
           )}
 
           {/* Features Tab */}
-          {activeTab === 'features' && (
+          {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && activeDetailTab === 'features' && (
             <FeaturesTab
               ref={featuresTabRef}
               days={days}
@@ -694,7 +834,7 @@ export default function Dashboard() {
           )}
 
           {/* Clients Tab */}
-          {activeTab === 'clients' && (
+          {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && activeDetailTab === 'clients' && (
             <ClientsTab
               ref={clientsTabRef}
               days={days}
@@ -705,7 +845,7 @@ export default function Dashboard() {
           )}
 
           {/* Traffic Tab */}
-          {activeTab === 'traffic' && (
+          {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && activeDetailTab === 'traffic' && (
             <TrafficTab
               ref={trafficTabRef}
               days={days}
@@ -716,7 +856,7 @@ export default function Dashboard() {
           )}
 
           {/* Technology Tab */}
-          {activeTab === 'technology' && (
+          {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && activeDetailTab === 'technology' && (
             <TechnologyTab
               ref={technologyTabRef}
               days={days}
@@ -727,7 +867,7 @@ export default function Dashboard() {
           )}
 
           {/* Geography Tab */}
-          {activeTab === 'geography' && (
+          {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && activeDetailTab === 'geography' && (
             <GeographyTab
               ref={geographyTabRef}
               days={days}
@@ -738,7 +878,7 @@ export default function Dashboard() {
           )}
 
           {/* Events Tab */}
-          {activeTab === 'events' && (
+          {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && activeDetailTab === 'events' && (
             <EventsTab
               ref={eventsTabRef}
               days={days}
@@ -749,7 +889,7 @@ export default function Dashboard() {
           )}
 
           {/* Insights Tab */}
-          {activeTab === 'insights' && (
+          {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && activeDetailTab === 'insights' && (
             <InsightsTab
               ref={insightsTabRef}
               days={days}
@@ -759,14 +899,36 @@ export default function Dashboard() {
             />
           )}
 
-          {/* Placeholder for other tabs */}
-          {!['overview', 'users', 'features', 'clients', 'traffic', 'technology', 'geography', 'events', 'insights'].includes(activeTab) && (
-            <div className="flex items-center justify-center h-64">
-              <AxisCallout type="info" title={`${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} - Coming Soon`}>
-                <p className="text-body-regular">
-                  This tab is currently under development. Check back soon!
+          {/* Under Construction placeholder for sections without content */}
+          {(activeMainSection !== 'analytics' || activeSubsection !== '8020rei-ga4') && (
+            <div className="flex items-center justify-center min-h-[calc(100vh-320px)]">
+              <div className="text-center">
+                {/* Construction Icon */}
+                <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-surface-raised border-2 border-dashed border-stroke mb-6">
+                  <svg className="w-12 h-12 text-content-tertiary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.26 4.26m-1.745 1.437l1.745-1.437m6.615 8.206L15.75 15.75M4.867 19.125h.008v.008h-.008v-.008z" />
+                  </svg>
+                </div>
+
+                {/* Title with Section & Subsection */}
+                <h2 className="text-2xl font-semibold text-content-primary mb-2">
+                  Under Construction
+                </h2>
+
+                {/* Breadcrumb showing current location */}
+                <p className="text-body-large text-content-secondary mb-6">
+                  {MAIN_SECTION_TABS.find(s => s.id === activeMainSection)?.name}
+                  {' / '}
+                  {SUBSECTION_TABS_MAP[activeMainSection]?.find(s => s.id === activeSubsection)?.name || activeSubsection}
                 </p>
-              </AxisCallout>
+
+                {/* Info box */}
+                <div className="inline-block bg-surface-raised border border-stroke rounded-lg px-6 py-4 max-w-md">
+                  <p className="text-sm text-content-secondary">
+                    This section is being developed. The data integration and dashboard widgets for this area will be available soon.
+                  </p>
+                </div>
+              </div>
             </div>
           )}
         </main>

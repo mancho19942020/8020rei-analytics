@@ -114,12 +114,12 @@ export function AxisNavigationTab({
   // Size-based classes
   const sizeClasses = {
     sm: {
-      tab: 'h-9 px-3 text-body-regular',
+      tab: 'h-9 px-4 text-body-regular',
       icon: 'w-4 h-4',
       gap: 'gap-2.5',
     },
     md: {
-      tab: 'h-[52px] px-4 text-body-large',
+      tab: 'h-[52px] px-6 text-body-large',
       icon: 'w-5 h-5',
       gap: 'gap-3',
     },

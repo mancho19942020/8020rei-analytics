@@ -54,9 +54,9 @@ Use the CSS classes in `globals.css`:
 - `.selected-tab-line` - For line variant tabs
 - `.selected-tab-contained` - For contained variant tabs
 
-Colors:
-- Light mode: `#3b82f6` (medium blue)
-- Dark mode: `#60a5fa` (light blue)
+These classes use the semantic token `--color-tab-selection` for high contrast:
+- Light mode: `main-900` (#1e3a8a - dark blue for high contrast)
+- Dark mode: `neutral-50` (#f9fafb - near-white for high contrast)
 
 ### 4. Widget Shadows
 
@@ -710,20 +710,50 @@ The app defaults to **dark mode** for new users. The theme is stored in localSto
 Add new widget types to `src/types/widget.ts`:
 ```typescript
 export type WidgetType =
+  // Overview tab widgets
   | 'metrics'
   | 'timeseries'
   | 'barchart'
   | 'table'
+  // Users tab widgets
   | 'user-activity'
   | 'new-vs-returning'
   | 'engagement-metrics'
   | 'session-summary'
-  // ... and more for each tab (features, clients, traffic, technology, geography)
+  | 'first-visits-trend'
+  | 'sessions-by-day'
+  // Features tab widgets
+  | 'feature-usage'
+  | 'feature-distribution'
+  | 'feature-adoption'
+  | 'feature-trend'
+  | 'top-pages'
+  // Clients tab widgets
+  | 'clients-overview'
+  | 'clients-table'
+  | 'client-activity-trend'
+  // Traffic tab widgets
+  | 'traffic-by-source'
+  | 'traffic-by-medium'
+  | 'traffic-browser'
+  | 'top-referrers'
+  // Technology tab widgets
+  | 'device-category'
+  | 'browser-distribution'
+  | 'operating-system'
+  | 'device-language'
+  | 'screen-resolution'
+  // Geography tab widgets
   | 'country'
   | 'continent'
   | 'region'
   | 'city'
-  // Insights tab
+  // Events tab widgets
+  | 'event-breakdown'
+  | 'event-volume-trend'
+  | 'event-metrics'
+  | 'scroll-depth'
+  // Insights tab widgets
   | 'insights-summary'
   | 'alerts-feed'
   | 'alerts-by-category';
