@@ -159,6 +159,7 @@ const TOOLS_SUBSECTION_TABS: AxisNavigationTabItem[] = [
   { id: 'skiptrace', name: 'Skip Trace' },
   { id: 'rapid-response', name: 'Rapid Response' },
   { id: 'smart-drop', name: 'Smart Drop' },
+  { id: 'api-token', name: 'API Token' },
 ];
 
 // Pipelines sub-sections
