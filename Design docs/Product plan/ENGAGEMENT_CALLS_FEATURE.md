@@ -1,7 +1,8 @@
 # Engagement Calls Feature - Feasibility Assessment
 
 **Created**: February 11, 2026
-**Status**: Planning
+**Updated**: February 13, 2026
+**Status**: In Progress - Core Feature Complete, Enhancements Pending
 **Owner**: Product Design Lead
 
 ---
@@ -28,8 +29,9 @@ As the lead product designer, I follow a protocol of joining monthly engagement 
 
 ### Current Data Storage
 
-- **Location**: Google Drive folder
-- **Format**: Word documents (.docx)
+- **Location**: Google Drive folder (with subfolders per report period)
+- **Format**: Word documents (.docx) AND Google Docs (native)
+- **Structure**: Each report lives in its own folder (e.g., "01 05-09 jan", "02 12-16 jan")
 - **Contents**:
   - Call transcriptions
   - Summaries
@@ -145,6 +147,144 @@ Everything in Option 2, plus:
 
 ---
 
+## Chosen Approach: Option 2 (Google Drive Integration)
+
+**Decision Date**: February 13, 2026
+
+Google Cloud setup has been completed:
+- [x] Service Account created
+- [x] JSON key file downloaded
+- [x] Google Drive folder shared with service account
+- [x] Credentials configured in project (`credentials/google-drive-key.json`)
+- [x] Environment variables set (`GOOGLE_DRIVE_CREDENTIALS_PATH`, `GOOGLE_DRIVE_FOLDER_ID`)
+- [x] Implementation started (Phase 1 complete)
+
+---
+
+## UI Specifications
+
+### Navigation
+
+- Add **"Engagement Calls"** as the last tab in the main navigation (after ML Models)
+- Icon: Phone or chat bubble icon
+
+### View 1: Cards View (Landing Page)
+
+When clicking "Engagement Calls", users see a grid of preview cards:
+
+| Element | Description |
+|---------|-------------|
+| Layout | Grid of cards (responsive: 3-4 columns on desktop, 1-2 on mobile) |
+| Card content | Title, date, customer name, category (folder), preview snippet |
+| Interaction | Click card to open document reader |
+| Grouping | Documents grouped or filterable by folder (4 categories) |
+
+### View 2: Document Reader (Notion-Style)
+
+When clicking a card, users enter a focused reading view:
+
+| Element | Description |
+|---------|-------------|
+| **Layout** | Centered content with max-width (~700-800px) on large screens |
+| **Responsive** | Full-width on mobile/tablet, centered on desktop |
+| **Header** | Document title (large), metadata (customer, date, category) |
+| **Typography** | Clean hierarchy - H1, H2, paragraphs, lists, quotes |
+| **Navigation** | Back button to return to cards view |
+
+**Design Reference**: Notion document style
+- Content is NOT full-width on large screens (maintains readable line length)
+- Comfortable spacing between sections
+- Images/diagrams centered within the content area
+
+---
+
+## Action Plan
+
+### Phase 1: Backend Foundation - COMPLETE
+
+| Step | Task | Status |
+|------|------|--------|
+| 1.1 | Set up Google Drive API integration in the project | Done |
+| 1.2 | Securely store JSON credentials (environment variables) | Done |
+| 1.3 | Create API endpoint to list all documents (folder + subfolders) | Done |
+| 1.4 | Create API endpoint to fetch and parse documents | Done |
+| 1.5 | Support both Word documents AND Google Docs | Done |
+| 1.6 | Test with actual folder to confirm document reading works | Done |
+
+### Phase 2: Frontend - Navigation & Cards View - COMPLETE
+
+| Step | Task | Status |
+|------|------|--------|
+| 2.1 | Add "Engagement Calls" tab to main navigation | Done |
+| 2.2 | Create cards grid layout for documents | Done |
+| 2.3 | Design card component (title, date, folder, preview) | Done |
+| 2.4 | Connect cards to API to display real documents | Done |
+| 2.5 | Add loading states and empty states | Done |
+| 2.6 | Card UI improvements (vertical design, better contrast) | Done |
+
+### Phase 3: Frontend - Document Reader View - COMPLETE
+
+| Step | Task | Status |
+|------|------|--------|
+| 3.1 | Create Notion-style reader layout (centered, max-width container) | Done |
+| 3.2 | Build typography styles (headings, paragraphs, lists, quotes) | Done |
+| 3.3 | Add metadata header section (customer, date, category) | Done |
+| 3.4 | Handle responsive behavior (full-width on mobile) | Done |
+| 3.5 | Add navigation back to cards view | Done |
+| 3.6 | Typography improvements (larger text, more spacing) | Done |
+
+### Phase 4: Polish & Enhancements - IN PROGRESS
+
+| Step | Task | Status |
+|------|------|--------|
+| 4.1 | Dark/light mode verified working | Done |
+| 4.2 | All documents displaying (4 total) | Done |
+| 4.3 | Add search/filter functionality on cards view | Pending |
+| 4.4 | Add "Refresh" button to manually sync with Drive | Pending |
+
+### Phase 5: Upload Feature - COMPLETE
+
+| Step | Task | Status |
+|------|------|--------|
+| 5.1 | Upgrade API scope from `drive.readonly` to `drive` (full access) | Done |
+| 5.2 | Create upload API endpoint (`/api/engagement-calls/upload`) | Done |
+| 5.3 | Auto-create folder in Google Drive with document name | Done |
+| 5.4 | Upload document to the new folder | Done |
+| 5.5 | Build upload UI (drag & drop or file picker) | Done |
+| 5.6 | Add "Create New Doc" card with dashed border | Done |
+| 5.7 | Show upload progress and success confirmation | Done |
+
+### Phase 6: Future Enhancements - BACKLOG
+
+| Step | Task | Status |
+|------|------|--------|
+| 6.1 | Real-time sync (Google Drive push notifications) | Backlog |
+| 6.2 | AI-powered insight extraction (Option 3) | Backlog |
+| 6.3 | Theme/pattern detection across documents | Backlog |
+| 6.4 | Search across all document content | Backlog |
+
+---
+
+## Required Items to Start Implementation
+
+| Item | Status | Notes |
+|------|--------|-------|
+| JSON key file | Configured | `credentials/google-drive-key.json` (gitignored) |
+| Folder ID | Configured | `1y0QT_u6zUIzZowqvqu_HiR4-MveBeFMH` in `.env.local` |
+| Sample .docx files | Ready | Will read directly from Drive |
+
+---
+
+## Answered Questions
+
+1. **Card information**: Cards should show a **preview of the document content**
+
+2. **Folder structure**: **No categories/filters for now** - display as a flat list of all documents
+
+3. **Document metadata**: Documents have **similar but not identical structure** - parser needs to be flexible
+
+---
+
 ## Technical Feasibility Summary
 
 | Component | Feasible? | Complexity |
@@ -159,11 +299,22 @@ Everything in Option 2, plus:
 
 ---
 
-## Next Steps (When Ready to Proceed)
+## Next Steps (Immediate)
 
-1. **Provide sample files**: 2-3 example Word documents (anonymized if needed) to understand the structure
-2. **Google Cloud access**: Determine if there's an existing Google Cloud project or create a new one
-3. **Choose starting option**: Manual upload (faster MVP) or Google Drive integration (more automated)
+### Ready Now
+- Core feature is **complete and usable**
+- All 4 documents display with cards and Notion-style reader
+- Auto-syncs with Google Drive on page load (5-min cache)
+- **Upload feature complete** - drag & drop .docx files to add new documents
+
+### Next Priority: Phase 4 Remaining Items
+- Search/filter functionality
+- Manual refresh button
+
+### Later: Phase 6 (Future Enhancements)
+- AI-powered insight extraction
+- Theme/pattern detection
+- Full-text search across documents
 
 ---
 
@@ -171,8 +322,37 @@ Everything in Option 2, plus:
 
 | Date | Decision | Notes |
 |------|----------|-------|
-| Feb 11, 2026 | Initial feasibility documented | Awaiting decision on implementation approach |
+| Feb 11, 2026 | Initial feasibility documented | Three options outlined |
+| Feb 13, 2026 | **Option 2 selected** (Google Drive Integration) | Service account created, JSON key downloaded, folder shared |
+| Feb 13, 2026 | UI specifications defined | Notion-style document reader, cards grid for navigation |
+| Feb 13, 2026 | Action plan created | 4 phases: Backend, Cards View, Reader View, Polish |
+| Feb 13, 2026 | Folder ID provided | `1y0QT_u6zUIzZowqvqu_HiR4-MveBeFMH` |
+| Feb 13, 2026 | Card design decided | Show document preview, no folder categories for now |
+| Feb 13, 2026 | Credentials configured | Key file at `credentials/google-drive-key.json`, env vars set |
+| Feb 13, 2026 | **Phase 1 Complete** | Backend API working - can list and read documents from Drive |
+| Feb 13, 2026 | **Phases 2-3 Complete** | Frontend MVP: navigation tab, cards view, Notion-style reader |
+| Feb 13, 2026 | **Google Docs support added** | Now supports both .docx AND native Google Docs |
+| Feb 13, 2026 | All 4 documents working | Fixed query to find docs in all subfolders |
+| Feb 13, 2026 | Card UI improvements | Vertical design, better contrast, main blue color |
+| Feb 13, 2026 | **Upload feature planned** | Added Phase 5 for document upload to Drive |
+| Feb 13, 2026 | **Phase 5 Complete** | Upload feature working with drag & drop UI, auto folder creation |
 
 ---
 
-*This document will be updated as decisions are made and implementation progresses.*
+## Files Created/Modified
+
+| File | Purpose |
+|------|---------|
+| `src/lib/google-drive.ts` | Google Drive API service (list, read, export) |
+| `src/app/api/engagement-calls/route.ts` | List documents endpoint |
+| `src/app/api/engagement-calls/[id]/route.ts` | Get document content endpoint |
+| `src/app/api/engagement-calls/debug/route.ts` | Debug endpoint (can be removed) |
+| `src/app/api/engagement-calls/upload/route.ts` | Upload document endpoint (Phase 5) |
+| `src/components/dashboard/EngagementCallsTab.tsx` | Full UI component (cards + reader) |
+| `src/app/page.tsx` | Added navigation tab |
+| `credentials/google-drive-key.json` | Service account key (gitignored) |
+| `.env.local` | Added Drive credentials and folder ID |
+
+---
+
+*Last updated: February 13, 2026*

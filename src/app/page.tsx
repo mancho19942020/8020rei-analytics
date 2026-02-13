@@ -16,6 +16,7 @@ import { TechnologyTab } from '@/components/dashboard/TechnologyTab';
 import { GeographyTab } from '@/components/dashboard/GeographyTab';
 import { EventsTab } from '@/components/dashboard/EventsTab';
 import { InsightsTab } from '@/components/dashboard/InsightsTab';
+import { EngagementCallsTab } from '@/components/dashboard/EngagementCallsTab';
 import { DEFAULT_LAYOUT, LAYOUT_STORAGE_KEY, OVERVIEW_WIDGET_CATALOG } from '@/lib/workspace/defaultLayouts';
 import {
   exportToCSV,
@@ -121,6 +122,15 @@ const MAIN_SECTION_TABS: AxisNavigationTabItem[] = [
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+      </svg>
+    ),
+  },
+  {
+    id: 'engagement-calls',
+    name: 'Engagement Calls',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
       </svg>
     ),
   },
@@ -900,8 +910,13 @@ export default function Dashboard() {
             />
           )}
 
+          {/* Engagement Calls Tab */}
+          {activeMainSection === 'engagement-calls' && (
+            <EngagementCallsTab />
+          )}
+
           {/* Under Construction placeholder for sections without content */}
-          {(activeMainSection !== 'analytics' || activeSubsection !== '8020rei-ga4') && (
+          {(activeMainSection !== 'analytics' || activeSubsection !== '8020rei-ga4') && activeMainSection !== 'engagement-calls' && (
             <div className="flex items-center justify-center min-h-[calc(100vh-320px)]">
               <div className="text-center">
                 {/* Construction Icon */}
