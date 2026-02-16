@@ -443,9 +443,9 @@ function CardsSkeleton() {
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {[1, 2, 3, 4, 5, 6].map((i) => (
         <div key={i} className="bg-white dark:bg-surface-raised border border-stroke rounded-lg p-5">
-          <AxisSkeleton variant="custom" width="60px" height="20px" rounded="md" className="mb-3" />
-          <AxisSkeleton variant="custom" width="100%" height="24px" rounded="md" className="mb-2" />
-          <AxisSkeleton variant="custom" width="120px" height="16px" rounded="md" className="mb-3" />
+          <div className="mb-3"><AxisSkeleton variant="custom" width="60px" height="20px" rounded="md" /></div>
+          <div className="mb-2"><AxisSkeleton variant="custom" width="100%" height="24px" rounded="md" /></div>
+          <div className="mb-3"><AxisSkeleton variant="custom" width="120px" height="16px" rounded="md" /></div>
           <AxisSkeleton variant="custom" width="100%" height="60px" rounded="md" />
         </div>
       ))}
@@ -457,10 +457,10 @@ function CardsSkeleton() {
 function ReaderSkeleton() {
   return (
     <div className="max-w-3xl mx-auto">
-      <AxisSkeleton variant="custom" width="120px" height="20px" rounded="md" className="mb-6" />
-      <AxisSkeleton variant="custom" width="80px" height="24px" rounded="md" className="mb-4" />
-      <AxisSkeleton variant="custom" width="100%" height="40px" rounded="md" className="mb-4" />
-      <AxisSkeleton variant="custom" width="200px" height="20px" rounded="md" className="mb-8" />
+      <div className="mb-6"><AxisSkeleton variant="custom" width="120px" height="20px" rounded="md" /></div>
+      <div className="mb-4"><AxisSkeleton variant="custom" width="80px" height="24px" rounded="md" /></div>
+      <div className="mb-4"><AxisSkeleton variant="custom" width="100%" height="40px" rounded="md" /></div>
+      <div className="mb-8"><AxisSkeleton variant="custom" width="200px" height="20px" rounded="md" /></div>
       <div className="space-y-4">
         <AxisSkeleton variant="custom" width="100%" height="20px" rounded="md" />
         <AxisSkeleton variant="custom" width="100%" height="20px" rounded="md" />
