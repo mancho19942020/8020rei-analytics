@@ -17,6 +17,8 @@ import { GeographyTab } from '@/components/dashboard/GeographyTab';
 import { EventsTab } from '@/components/dashboard/EventsTab';
 import { InsightsTab } from '@/components/dashboard/InsightsTab';
 import { EngagementCallsTab } from '@/components/dashboard/EngagementCallsTab';
+import { ClientDomainsTab } from '@/components/dashboard/ClientDomainsTab';
+import { ProductProjectsTab } from '@/components/dashboard/ProductProjectsTab';
 import { DEFAULT_LAYOUT, LAYOUT_STORAGE_KEY, OVERVIEW_WIDGET_CATALOG } from '@/lib/workspace/defaultLayouts';
 import {
   exportToCSV,
@@ -147,6 +149,32 @@ const ANALYTICS_SUBSECTION_TABS: AxisNavigationTabItem[] = [
     id: '8020roofing-ga4',
     name: '8020Roofing GA4',
     disabled: true,
+  },
+  {
+    id: 'product',
+    name: 'Product',
+  },
+];
+
+// Product detail tabs (Level 3 under Analytics > Product)
+const PRODUCT_DETAIL_TABS: AxisNavigationTabItem[] = [
+  {
+    id: 'client-domains',
+    name: 'Client Domains',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+      </svg>
+    ),
+  },
+  {
+    id: 'product-projects',
+    name: 'Product Projects',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+      </svg>
+    ),
   },
 ];
 
@@ -330,6 +358,8 @@ export default function Dashboard() {
   const geographyTabRef = useRef<TabHandle>(null);
   const eventsTabRef = useRef<TabHandle>(null);
   const insightsTabRef = useRef<TabHandle>(null);
+  const clientDomainsTabRef = useRef<TabHandle>(null);
+  const productProjectsTabRef = useRef<TabHandle>(null);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -377,6 +407,18 @@ export default function Dashboard() {
 
   // Reset layout to default (unified for all tabs)
   const handleResetLayout = () => {
+    // Handle Product subsection tabs
+    if (activeMainSection === 'analytics' && activeSubsection === 'product') {
+      switch (activeDetailTab) {
+        case 'client-domains':
+          clientDomainsTabRef.current?.resetLayout();
+          return;
+        case 'product-projects':
+          productProjectsTabRef.current?.resetLayout();
+          return;
+      }
+    }
+    // Handle GA4 detail tabs
     switch (activeDetailTab) {
       case 'overview':
         setLayout(DEFAULT_LAYOUT);
@@ -413,6 +455,18 @@ export default function Dashboard() {
 
   // Open widget catalog (unified for all tabs)
   const handleOpenWidgetCatalog = () => {
+    // Handle Product subsection tabs
+    if (activeMainSection === 'analytics' && activeSubsection === 'product') {
+      switch (activeDetailTab) {
+        case 'client-domains':
+          clientDomainsTabRef.current?.openWidgetCatalog();
+          return;
+        case 'product-projects':
+          productProjectsTabRef.current?.openWidgetCatalog();
+          return;
+      }
+    }
+    // Handle GA4 detail tabs
     switch (activeDetailTab) {
       case 'overview':
         setShowWidgetCatalog(true);
@@ -700,7 +754,15 @@ export default function Dashboard() {
           <nav className="px-6 border-b border-stroke light-gray-bg">
             <AxisNavigationTab
               activeTab={activeSubsection}
-              onTabChange={setActiveSubsection}
+              onTabChange={(sub) => {
+                setActiveSubsection(sub);
+                // Reset detail tab to first tab of the new subsection
+                if (sub === 'product') {
+                  setActiveDetailTab('client-domains');
+                } else if (sub === '8020rei-ga4' || sub === '8020roofing-ga4') {
+                  setActiveDetailTab('overview');
+                }
+              }}
               tabs={SUBSECTION_TABS_MAP[activeMainSection]}
               variant="line"
               size="sm"
@@ -708,13 +770,26 @@ export default function Dashboard() {
           </nav>
         )}
 
-        {/* Third-Level Navigation - Detail Tabs (only for GA4 analytics sections) */}
+        {/* Third-Level Navigation - Detail Tabs (for GA4 analytics sections) */}
         {activeMainSection === 'analytics' && (activeSubsection === '8020rei-ga4' || activeSubsection === '8020roofing-ga4') && (
           <nav className="px-6 border-b border-stroke light-gray-bg">
             <AxisNavigationTab
               activeTab={activeDetailTab}
               onTabChange={setActiveDetailTab}
               tabs={GA4_DETAIL_TABS}
+              variant="line"
+              size="sm"
+            />
+          </nav>
+        )}
+
+        {/* Third-Level Navigation - Detail Tabs (for Product subsection) */}
+        {activeMainSection === 'analytics' && activeSubsection === 'product' && (
+          <nav className="px-6 border-b border-stroke light-gray-bg">
+            <AxisNavigationTab
+              activeTab={activeDetailTab}
+              onTabChange={setActiveDetailTab}
+              tabs={PRODUCT_DETAIL_TABS}
               variant="line"
               size="sm"
             />
@@ -771,15 +846,17 @@ export default function Dashboard() {
 
             {/* Filters */}
             <div className="flex items-center gap-2">
-              {/* User Type Filter */}
-              <AxisSelect
-                value={userType}
-                onChange={(val) => setUserType(val as 'all' | 'internal' | 'external')}
-                options={USER_TYPE_OPTIONS}
-                size="sm"
-                fullWidth={false}
-                className="w-36"
-              />
+              {/* User Type Filter - hidden for Product subsection (not applicable) */}
+              {!(activeMainSection === 'analytics' && activeSubsection === 'product') && (
+                <AxisSelect
+                  value={userType}
+                  onChange={(val) => setUserType(val as 'all' | 'internal' | 'external')}
+                  options={USER_TYPE_OPTIONS}
+                  size="sm"
+                  fullWidth={false}
+                  className="w-36"
+                />
+              )}
 
               {/* Time Filter */}
               <AxisSelect
@@ -915,8 +992,28 @@ export default function Dashboard() {
             <EngagementCallsTab />
           )}
 
+          {/* Product > Client Domains Tab */}
+          {activeMainSection === 'analytics' && activeSubsection === 'product' && activeDetailTab === 'client-domains' && (
+            <ClientDomainsTab
+              ref={clientDomainsTabRef}
+              days={days}
+              editMode={editMode}
+              onEditModeChange={setEditMode}
+            />
+          )}
+
+          {/* Product > Product Projects Tab */}
+          {activeMainSection === 'analytics' && activeSubsection === 'product' && activeDetailTab === 'product-projects' && (
+            <ProductProjectsTab
+              ref={productProjectsTabRef}
+              days={days}
+              editMode={editMode}
+              onEditModeChange={setEditMode}
+            />
+          )}
+
           {/* Under Construction placeholder for sections without content */}
-          {(activeMainSection !== 'analytics' || activeSubsection !== '8020rei-ga4') && activeMainSection !== 'engagement-calls' && (
+          {(activeMainSection !== 'analytics' || (activeSubsection !== '8020rei-ga4' && activeSubsection !== 'product')) && activeMainSection !== 'engagement-calls' && (
             <div className="flex items-center justify-center min-h-[calc(100vh-320px)]">
               <div className="text-center">
                 {/* Construction Icon */}

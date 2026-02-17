@@ -66,7 +66,19 @@ export type WidgetType =
   // Insights tab widgets
   | 'insights-summary'
   | 'alerts-feed'
-  | 'alerts-by-category';
+  | 'alerts-by-category'
+  // Product > Client Domains tab widgets
+  | 'domain-activity-overview'
+  | 'domain-leaderboard'
+  | 'domain-activity-trend'
+  | 'revenue-by-domain'
+  | 'flagged-domains'
+  // Product > Product Projects tab widgets
+  | 'project-status-overview'
+  | 'projects-table'
+  | 'bug-tracking'
+  | 'team-workload'
+  | 'delivery-timeline';
 
 /**
  * Widget Configuration

@@ -57,3 +57,17 @@ export { ScrollDepthWidget } from './ScrollDepthWidget';
 export { InsightsSummaryWidget } from './InsightsSummaryWidget';
 export { AlertsByCategoryWidget } from './AlertsByCategoryWidget';
 export { AlertsFeedWidget } from './AlertsFeedWidget';
+
+// Product > Client Domains tab widgets
+export { DomainActivityOverviewWidget } from './DomainActivityOverviewWidget';
+export { DomainLeaderboardWidget } from './DomainLeaderboardWidget';
+export { DomainActivityTrendWidget } from './DomainActivityTrendWidget';
+export { RevenueByDomainWidget } from './RevenueByDomainWidget';
+export { FlaggedDomainsWidget } from './FlaggedDomainsWidget';
+
+// Product > Product Projects tab widgets
+export { ProjectStatusOverviewWidget } from './ProjectStatusOverviewWidget';
+export { ProjectsTableWidget } from './ProjectsTableWidget';
+export { BugTrackingWidget } from './BugTrackingWidget';
+export { TeamWorkloadWidget } from './TeamWorkloadWidget';
+export { DeliveryTimelineWidget } from './DeliveryTimelineWidget';

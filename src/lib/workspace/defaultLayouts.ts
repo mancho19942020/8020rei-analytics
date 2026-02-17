@@ -986,6 +986,194 @@ export const INSIGHTS_WIDGET_CATALOG: WidgetCatalogItem[] = [
   },
 ];
 
+// ============================================================================
+// PRODUCT TAB LAYOUTS & CATALOGS
+// ============================================================================
+
+/**
+ * Product > Client Domains Layout Storage Key
+ */
+export const PRODUCT_DOMAINS_LAYOUT_STORAGE_KEY = 'axis-product-domains-layout-v1';
+
+/**
+ * Product > Product Projects Layout Storage Key
+ */
+export const PRODUCT_PROJECTS_LAYOUT_STORAGE_KEY = 'axis-product-projects-layout-v1';
+
+/**
+ * Default Client Domains Tab Layout
+ */
+export const DEFAULT_PRODUCT_DOMAINS_LAYOUT: Widget[] = [
+  {
+    id: 'domain-activity-overview',
+    type: 'domain-activity-overview',
+    title: 'Domain Activity Overview',
+    x: 0, y: 0,
+    w: 12, h: 3,
+    minW: 6, minH: 3, maxH: 4,
+  },
+  {
+    id: 'domain-leaderboard',
+    type: 'domain-leaderboard',
+    title: 'Domain Leaderboard',
+    x: 0, y: 3,
+    w: 12, h: 6,
+    minW: 6, minH: 5, maxW: 12, maxH: 10,
+  },
+  {
+    id: 'domain-activity-trend',
+    type: 'domain-activity-trend',
+    title: 'Domain Activity Trend',
+    x: 0, y: 9,
+    w: 6, h: 5,
+    minW: 4, minH: 4, maxW: 12, maxH: 8,
+  },
+  {
+    id: 'revenue-by-domain',
+    type: 'revenue-by-domain',
+    title: 'Revenue by Domain',
+    x: 6, y: 9,
+    w: 6, h: 5,
+    minW: 4, minH: 4, maxW: 12, maxH: 8,
+  },
+  {
+    id: 'flagged-domains',
+    type: 'flagged-domains',
+    title: 'Flagged Domains',
+    x: 0, y: 14,
+    w: 12, h: 5,
+    minW: 6, minH: 4, maxW: 12, maxH: 8,
+  },
+];
+
+/**
+ * Default Product Projects Tab Layout
+ */
+export const DEFAULT_PRODUCT_PROJECTS_LAYOUT: Widget[] = [
+  {
+    id: 'project-status-overview',
+    type: 'project-status-overview',
+    title: 'Project Status',
+    x: 0, y: 0,
+    w: 12, h: 3,
+    minW: 6, minH: 3, maxH: 4,
+  },
+  {
+    id: 'projects-table',
+    type: 'projects-table',
+    title: 'Projects',
+    x: 0, y: 3,
+    w: 12, h: 6,
+    minW: 6, minH: 5, maxW: 12, maxH: 10,
+  },
+  {
+    id: 'bug-tracking',
+    type: 'bug-tracking',
+    title: 'Bug Tracking',
+    x: 0, y: 9,
+    w: 12, h: 6,
+    minW: 6, minH: 5, maxW: 12, maxH: 10,
+  },
+  {
+    id: 'team-workload',
+    type: 'team-workload',
+    title: 'Team Workload',
+    x: 0, y: 15,
+    w: 6, h: 5,
+    minW: 4, minH: 4, maxW: 12, maxH: 8,
+  },
+  {
+    id: 'delivery-timeline',
+    type: 'delivery-timeline',
+    title: 'Delivery Timeline',
+    x: 6, y: 15,
+    w: 6, h: 5,
+    minW: 4, minH: 4, maxW: 12, maxH: 8,
+  },
+];
+
+/**
+ * Client Domains Tab Widget Catalog
+ */
+export const PRODUCT_DOMAINS_WIDGET_CATALOG: WidgetCatalogItem[] = [
+  {
+    type: 'domain-activity-overview',
+    title: 'Domain Activity Overview',
+    description: 'KPI cards for active domains, properties, leads, appointments, deals, revenue',
+    iconKey: 'grid',
+    defaultSize: { w: 12, h: 3 },
+  },
+  {
+    type: 'domain-leaderboard',
+    title: 'Domain Leaderboard',
+    description: 'Ranked table of domains by activity with risk indicators',
+    iconKey: 'table',
+    defaultSize: { w: 12, h: 6 },
+  },
+  {
+    type: 'domain-activity-trend',
+    title: 'Domain Activity Trend',
+    description: 'Line chart showing properties uploaded over time',
+    iconKey: 'lineChart',
+    defaultSize: { w: 6, h: 5 },
+  },
+  {
+    type: 'revenue-by-domain',
+    title: 'Revenue by Domain',
+    description: 'Horizontal bar chart of top domains by revenue',
+    iconKey: 'barChart',
+    defaultSize: { w: 6, h: 5 },
+  },
+  {
+    type: 'flagged-domains',
+    title: 'Flagged Domains',
+    description: 'Table of domains with flag issues requiring attention',
+    iconKey: 'alert',
+    defaultSize: { w: 12, h: 5 },
+  },
+];
+
+/**
+ * Product Projects Tab Widget Catalog
+ */
+export const PRODUCT_PROJECTS_WIDGET_CATALOG: WidgetCatalogItem[] = [
+  {
+    type: 'project-status-overview',
+    title: 'Project Status Overview',
+    description: 'KPI cards for active, on-track, delayed, and completed projects',
+    iconKey: 'grid',
+    defaultSize: { w: 12, h: 3 },
+  },
+  {
+    type: 'projects-table',
+    title: 'Projects Table',
+    description: 'Detailed table of projects with status, story points, and delays',
+    iconKey: 'table',
+    defaultSize: { w: 12, h: 6 },
+  },
+  {
+    type: 'bug-tracking',
+    title: 'Bug Tracking',
+    description: 'Bug KPIs and weekly trend chart',
+    iconKey: 'events',
+    defaultSize: { w: 12, h: 6 },
+  },
+  {
+    type: 'team-workload',
+    title: 'Team Workload',
+    description: 'Table showing task distribution and delays by team member',
+    iconKey: 'users',
+    defaultSize: { w: 6, h: 5 },
+  },
+  {
+    type: 'delivery-timeline',
+    title: 'Delivery Timeline',
+    description: 'Table showing project delivery variance (early/on-time/late)',
+    iconKey: 'table',
+    defaultSize: { w: 6, h: 5 },
+  },
+];
+
 /**
  * Combined catalog lookup by tab name
  */
@@ -999,4 +1187,6 @@ export const TAB_WIDGET_CATALOGS: Record<string, WidgetCatalogItem[]> = {
   geography: GEOGRAPHY_WIDGET_CATALOG,
   events: EVENTS_WIDGET_CATALOG,
   insights: INSIGHTS_WIDGET_CATALOG,
+  'client-domains': PRODUCT_DOMAINS_WIDGET_CATALOG,
+  'product-projects': PRODUCT_PROJECTS_WIDGET_CATALOG,
 };

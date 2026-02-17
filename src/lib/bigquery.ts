@@ -48,3 +48,43 @@ export async function runQuery<T>(query: string): Promise<T[]> {
 }
 
 export default bigquery;
+
+// ============================================================================
+// PRODUCT DATA (opsHub BigQuery project)
+// ============================================================================
+
+export const PRODUCT_PROJECT = process.env.BIGQUERY_PRODUCT_PROJECT || 'bigquery-467404';
+export const PRODUCT_DATASET = process.env.BIGQUERY_PRODUCT_DATASET || 'domain';
+
+/**
+ * Creates a BigQuery client for the Product/opsHub project.
+ * Uses separate credentials from the GA4 project.
+ */
+function createProductBigQueryClient(): BigQuery {
+  const projectId = PRODUCT_PROJECT;
+
+  // Production: Separate service account for opsHub
+  if (process.env.GOOGLE_APPLICATION_CREDENTIALS_PRODUCT_JSON) {
+    try {
+      const credentials = JSON.parse(
+        process.env.GOOGLE_APPLICATION_CREDENTIALS_PRODUCT_JSON
+      );
+      console.log('[BigQuery/Product] Using Service Account credentials for production');
+      return new BigQuery({ projectId, credentials });
+    } catch (error) {
+      console.error('[BigQuery/Product] Failed to parse service account credentials:', error);
+      throw new Error('Invalid GOOGLE_APPLICATION_CREDENTIALS_PRODUCT_JSON');
+    }
+  }
+
+  // Local: uses Application Default Credentials (gcloud CLI)
+  console.log('[BigQuery/Product] Using Application Default Credentials (gcloud CLI) for local development');
+  return new BigQuery({ projectId });
+}
+
+export const productBigquery = createProductBigQueryClient();
+
+export async function runProductQuery<T>(query: string): Promise<T[]> {
+  const [rows] = await productBigquery.query({ query });
+  return rows as T[];
+}

@@ -816,3 +816,247 @@ export function formatAlertsByCategoryForExport(
     percentage: total > 0 ? ((item.count / total) * 100).toFixed(1) : '0',
   }));
 }
+
+// ============================================
+// PRODUCT > CLIENT DOMAINS EXPORT FORMATTERS
+// ============================================
+
+/**
+ * Format domain activity overview for export
+ */
+export function formatDomainActivityOverviewForExport(data: {
+  total_active_domains: number;
+  total_properties: number;
+  leads_count: number;
+  appointments_count: number;
+  deals_count: number;
+  total_revenue: number;
+  trends?: {
+    total_active_domains: { value: number; isPositive: boolean };
+    total_properties: { value: number; isPositive: boolean };
+    leads_count: { value: number; isPositive: boolean };
+    total_revenue: { value: number; isPositive: boolean };
+  };
+}): Record<string, any>[] {
+  return [
+    {
+      metric: 'Active Domains',
+      value: data.total_active_domains,
+      trend_percent: data.trends?.total_active_domains.value?.toFixed(1) || '0',
+      trend_direction: data.trends?.total_active_domains.isPositive ? 'Up' : 'Down',
+    },
+    {
+      metric: 'Total Properties',
+      value: data.total_properties,
+      trend_percent: data.trends?.total_properties.value?.toFixed(1) || '0',
+      trend_direction: data.trends?.total_properties.isPositive ? 'Up' : 'Down',
+    },
+    {
+      metric: 'Leads',
+      value: data.leads_count,
+      trend_percent: data.trends?.leads_count.value?.toFixed(1) || '0',
+      trend_direction: data.trends?.leads_count.isPositive ? 'Up' : 'Down',
+    },
+    { metric: 'Appointments', value: data.appointments_count },
+    { metric: 'Deals', value: data.deals_count },
+    {
+      metric: 'Total Revenue',
+      value: data.total_revenue,
+      trend_percent: data.trends?.total_revenue.value?.toFixed(1) || '0',
+      trend_direction: data.trends?.total_revenue.isPositive ? 'Up' : 'Down',
+    },
+  ];
+}
+
+/**
+ * Format domain leaderboard data for export
+ */
+export function formatDomainLeaderboardForExport(
+  data: {
+    domain_name: string;
+    total_properties: number;
+    leads_count: number;
+    appointments_count: number;
+    deals_count: number;
+    total_revenue: number;
+    last_activity_date: string;
+    days_since_activity: number;
+    risk_level: string;
+  }[]
+): Record<string, any>[] {
+  return data.map((item) => ({
+    domain: item.domain_name,
+    total_properties: item.total_properties,
+    leads: item.leads_count,
+    appointments: item.appointments_count,
+    deals: item.deals_count,
+    revenue: item.total_revenue,
+    last_activity: item.last_activity_date,
+    days_since_activity: item.days_since_activity,
+    risk_level: item.risk_level,
+  }));
+}
+
+/**
+ * Format domain activity trend data for export
+ */
+export function formatDomainActivityTrendForExport(
+  data: { date: string; properties_uploaded: number; domain_count: number }[]
+): Record<string, any>[] {
+  return data.map((item) => ({
+    date: item.date,
+    properties_uploaded: item.properties_uploaded,
+    active_domains: item.domain_count,
+  }));
+}
+
+/**
+ * Format revenue by domain data for export
+ */
+export function formatRevenueByDomainForExport(
+  data: { domain_name: string; revenue: number }[]
+): Record<string, any>[] {
+  return data.map((item) => ({
+    domain: item.domain_name,
+    revenue: item.revenue,
+  }));
+}
+
+/**
+ * Format flagged domains data for export
+ */
+export function formatFlaggedDomainsForExport(
+  data: { domain_id: number; domain_name: string; flag: string; flag_info: string; date: string }[]
+): Record<string, any>[] {
+  return data.map((item) => ({
+    domain_id: item.domain_id,
+    domain: item.domain_name,
+    flag: item.flag,
+    flag_info: item.flag_info,
+    date: item.date,
+  }));
+}
+
+// ============================================
+// PRODUCT > PRODUCT PROJECTS EXPORT FORMATTERS
+// ============================================
+
+/**
+ * Format project status overview for export
+ */
+export function formatProjectStatusOverviewForExport(data: {
+  active_projects: number;
+  on_track: number;
+  delayed: number;
+  completed: number;
+}): Record<string, any>[] {
+  return [
+    { metric: 'Active Projects', value: data.active_projects },
+    { metric: 'On Track', value: data.on_track },
+    { metric: 'Delayed', value: data.delayed },
+    { metric: 'Completed', value: data.completed },
+  ];
+}
+
+/**
+ * Format projects table data for export
+ */
+export function formatProjectsTableForExport(
+  data: {
+    issue_key: string;
+    summary: string;
+    status: string;
+    assignee: string;
+    due_date: string;
+    story_points_completed: number;
+    story_points_total: number;
+    days_of_delay: number;
+  }[]
+): Record<string, any>[] {
+  return data.map((item) => ({
+    issue_key: item.issue_key,
+    summary: item.summary,
+    status: item.status,
+    assignee: item.assignee,
+    due_date: item.due_date,
+    sp_completed: item.story_points_completed,
+    sp_total: item.story_points_total,
+    sp_progress: item.story_points_total > 0
+      ? `${((item.story_points_completed / item.story_points_total) * 100).toFixed(0)}%`
+      : '0%',
+    days_of_delay: item.days_of_delay,
+  }));
+}
+
+/**
+ * Format bug tracking data for export
+ */
+export function formatBugTrackingForExport(data: {
+  total_unique_bugs: number;
+  customer_bugs: number;
+  critical_bugs: number;
+  critical_open_bugs: number;
+  bug_origins: { origin: string; count: number }[];
+  weekly_trend: { week: string; count: number }[];
+}): Record<string, any>[] {
+  const summary: Record<string, any>[] = [
+    { type: 'Summary', label: 'Total Unique Bugs', value: data.total_unique_bugs },
+    { type: 'Summary', label: 'Customer Bugs', value: data.customer_bugs },
+    { type: 'Summary', label: 'Critical Bugs', value: data.critical_bugs },
+    { type: 'Summary', label: 'Critical Open Bugs', value: data.critical_open_bugs },
+  ];
+  const origins = data.bug_origins.map((item) => ({
+    type: 'Origin',
+    label: item.origin,
+    value: item.count,
+  }));
+  const trends = data.weekly_trend.map((item) => ({
+    type: 'Weekly Trend',
+    label: item.week,
+    value: item.count,
+  }));
+  return [...summary, ...origins, ...trends];
+}
+
+/**
+ * Format team workload data for export
+ */
+export function formatTeamWorkloadForExport(
+  data: {
+    assignee: string;
+    total_tasks: number;
+    completed_tasks: number;
+    in_progress_tasks: number;
+    delayed_tasks: number;
+  }[]
+): Record<string, any>[] {
+  return data.map((item) => ({
+    assignee: item.assignee,
+    total_tasks: item.total_tasks,
+    completed: item.completed_tasks,
+    in_progress: item.in_progress_tasks,
+    delayed: item.delayed_tasks,
+  }));
+}
+
+/**
+ * Format delivery timeline data for export
+ */
+export function formatDeliveryTimelineForExport(
+  data: {
+    issue_key: string;
+    summary: string;
+    due_date: string;
+    resolved_date: string | null;
+    days_of_delay: number;
+  }[]
+): Record<string, any>[] {
+  return data.map((item) => ({
+    issue_key: item.issue_key,
+    summary: item.summary,
+    due_date: item.due_date,
+    resolved_date: item.resolved_date || 'Not resolved',
+    days_of_delay: item.days_of_delay,
+    status: item.days_of_delay > 0 ? 'Late' : item.days_of_delay === 0 ? 'On Time' : 'Early',
+  }));
+}

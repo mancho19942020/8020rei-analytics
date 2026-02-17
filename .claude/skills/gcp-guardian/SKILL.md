@@ -151,7 +151,7 @@ Claude should WARN the user when:
 
 ## Project-Specific Safe Values
 
-**Project:** `web-app-production-451214`
+### Project 1: `web-app-production-451214` (GA4 Analytics)
 
 | Resource | Current Safe Config |
 |----------|---------------------|
@@ -163,7 +163,19 @@ Claude should WARN the user when:
 | Max instances | `10` (default) |
 | BigQuery dataset | `analytics_489035450` (READ-ONLY) |
 
+### Project 2: `bigquery-467404` (8020REI opsHub - Product Data)
+
+| Resource | Current Safe Config |
+|----------|---------------------|
+| Access | READ-ONLY via service account `id-020metricshub@bigquery-467404.iam.gserviceaccount.com` |
+| Allowed datasets | `domain` (feedback_clients_unique), `jira` (issues_unique, issues_bugs) |
+| FORBIDDEN datasets | `fulfillment_client`, `fulfillment_core`, `fulfillment_raw`, `fulfillment_meta`, `fulfillment_test` |
+| Query rules | Always use date filters, LIMIT clauses, specific columns (no SELECT *) |
+| Cache | 5-minute in-memory TTL |
+
+**CRITICAL: NEVER query fulfillment tables** (`fulfillment_client.*`, `fulfillment_core.*`, `fulfillment_raw.*`) without explicit user approval. These tables contain per-client data with hundreds of sub-tables and can be extremely expensive to scan.
+
 ---
 
-*Last updated: February 11, 2026*
+*Last updated: February 17, 2026*
 *Guardian advice from: John Berrio (Frontend Lead)*
