@@ -198,6 +198,7 @@ const TOOLS_SUBSECTION_TABS: AxisNavigationTabItem[] = [
   { id: 'rapid-response', name: 'Rapid Response' },
   { id: 'smart-drop', name: 'Smart Drop' },
   { id: 'api-token', name: 'API Token' },
+  { id: 'auto-export', name: 'Auto Export' },
 ];
 
 // Pipelines sub-sections
