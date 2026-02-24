@@ -13,7 +13,7 @@
 'use client';
 
 import { useMemo, useCallback } from 'react';
-import { AxisTable } from '@/components/axis';
+import { AxisTable, AxisButton } from '@/components/axis';
 import type { Column, RowData } from '@/types/table';
 
 interface ClientData {
@@ -102,12 +102,13 @@ export function ClientsTableWidget({ data, selectedClient, onClientSelect }: Cli
           <span className="text-sm text-main-700 dark:text-main-300">
             Viewing: <strong>{selectedClient}</strong>
           </span>
-          <button
+          <AxisButton
+            size="sm"
+            variant="ghost"
             onClick={() => onClientSelect?.(null)}
-            className="text-xs text-main-600 dark:text-main-400 hover:underline"
           >
             Clear selection
-          </button>
+          </AxisButton>
         </div>
       )}
 

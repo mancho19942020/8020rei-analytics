@@ -21,7 +21,7 @@ interface FeatureAdoptionWidgetProps {
 function AdoptionBar({ percentage }: { percentage: number }) {
   return (
     <div className="flex items-center gap-2">
-      <div className="flex-1 h-2 bg-neutral-200 dark:bg-neutral-700 rounded-full overflow-hidden">
+      <div className="flex-1 h-2 bg-surface-overlay rounded-full overflow-hidden">
         <div
           className="h-full bg-main-500 rounded-full transition-all duration-300"
           style={{ width: `${Math.min(percentage, 100)}%` }}

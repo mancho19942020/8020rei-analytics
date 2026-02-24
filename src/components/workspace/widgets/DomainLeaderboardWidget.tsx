@@ -13,10 +13,31 @@
 
 'use client';
 
-import { useMemo } from 'react';
-import { AxisTable } from '@/components/axis';
+import { useMemo, useState } from 'react';
+import { AxisTable, AxisTooltip, AxisInput, AxisButton } from '@/components/axis';
 import type { Column } from '@/types/table';
 import type { DomainLeaderboardEntry } from '@/types/product';
+
+type RiskFilter = 'all' | DomainLeaderboardEntry['risk_level'];
+
+/** Tooltip explanations for each risk state */
+const RISK_TOOLTIPS: Record<DomainLeaderboardEntry['risk_level'], { title: string; content: string }> = {
+  healthy: {
+    title: 'Healthy',
+    content:
+      'This domain had activity in the last 15 days. It is actively uploading properties and generating engagement. This status is independent of the time filter applied to the table.',
+  },
+  'at-risk': {
+    title: 'At Risk',
+    content:
+      'This domain had activity between 16 and 90 days ago. It has gone quiet recently and may need attention before it becomes fully inactive. This status is independent of the time filter applied to the table.',
+  },
+  inactive: {
+    title: 'Inactive',
+    content:
+      'This domain has had no recorded activity in the last 90+ days. Consider a re-activation outreach or review the domain status. This status is independent of the time filter applied to the table.',
+  },
+};
 
 interface DomainLeaderboardWidgetProps {
   data: DomainLeaderboardEntry[];
@@ -49,13 +70,24 @@ const RISK_CONFIG = {
 /**
  * Risk level badge component for inline display.
  */
-function RiskBadge({ level }: { level: DomainLeaderboardEntry['risk_level'] }) {
+function RiskBadge({
+  level,
+  active = true,
+  onClick,
+}: {
+  level: DomainLeaderboardEntry['risk_level'];
+  active?: boolean;
+  onClick?: () => void;
+}) {
   const config = RISK_CONFIG[level];
   const label = level === 'at-risk' ? 'At Risk' : level.charAt(0).toUpperCase() + level.slice(1);
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${config.bg} ${config.text} border ${config.border}`}
+      onClick={onClick}
+      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium border transition-opacity ${config.bg} ${config.text} ${config.border} ${
+        onClick ? 'cursor-pointer' : ''
+      } ${active ? 'opacity-100' : 'opacity-40'}`}
     >
       <span className={`w-1.5 h-1.5 rounded-full ${config.dot}`} />
       {label}
@@ -64,6 +96,27 @@ function RiskBadge({ level }: { level: DomainLeaderboardEntry['risk_level'] }) {
 }
 
 export function DomainLeaderboardWidget({ data }: DomainLeaderboardWidgetProps) {
+  const [riskFilter, setRiskFilter] = useState<RiskFilter>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Toggle filter: clicking the active filter resets to 'all'
+  const handleFilterClick = (level: DomainLeaderboardEntry['risk_level']) => {
+    setRiskFilter((prev) => (prev === level ? 'all' : level));
+  };
+
+  // Filtered data based on search query and risk level (both applied)
+  const filteredData = useMemo(() => {
+    let result = data;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter((d) => d.domain_name.toLowerCase().includes(q));
+    }
+    if (riskFilter !== 'all') {
+      result = result.filter((d) => d.risk_level === riskFilter);
+    }
+    return result;
+  }, [data, riskFilter, searchQuery]);
+
   // Define table columns
   const columns: Column[] = useMemo(
     () => [
@@ -73,6 +126,16 @@ export function DomainLeaderboardWidget({ data }: DomainLeaderboardWidgetProps) 
         type: 'text',
         width: 180,
         sortable: true,
+      },
+      {
+        field: 'risk_level',
+        header: 'Risk',
+        type: 'text',
+        width: 120,
+        sortable: true,
+        render: (value) => (
+          <RiskBadge level={value as DomainLeaderboardEntry['risk_level']} />
+        ),
       },
       {
         field: 'total_properties',
@@ -116,13 +179,6 @@ export function DomainLeaderboardWidget({ data }: DomainLeaderboardWidgetProps) 
         width: 120,
         sortable: true,
       },
-      {
-        field: 'risk_level',
-        header: 'Risk',
-        type: 'text',
-        width: 110,
-        sortable: true,
-      },
     ],
     []
   );
@@ -141,20 +197,56 @@ export function DomainLeaderboardWidget({ data }: DomainLeaderboardWidgetProps) 
   }
 
   return (
-    <div className="h-full flex flex-col">
-      {/* Risk level legend */}
-      <div className="flex items-center gap-3 mb-3 px-1">
+    <div className="h-full flex flex-col gap-3">
+      {/* Search input */}
+      <AxisInput
+        type="search"
+        placeholder="Search domains..."
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        size="sm"
+        fullWidth
+      />
+
+      {/* Risk filter legend + result count */}
+      <div className="flex items-center gap-3 px-1">
         <span className="text-xs text-content-tertiary">Risk:</span>
-        <RiskBadge level="healthy" />
-        <RiskBadge level="at-risk" />
-        <RiskBadge level="inactive" />
+        {(['healthy', 'at-risk', 'inactive'] as const).map((level) => (
+          <AxisTooltip
+            key={level}
+            title={RISK_TOOLTIPS[level].title}
+            content={RISK_TOOLTIPS[level].content}
+            placement="top"
+            maxWidth={260}
+          >
+            <RiskBadge
+              level={level}
+              active={riskFilter === 'all' || riskFilter === level}
+              onClick={() => handleFilterClick(level)}
+            />
+          </AxisTooltip>
+        ))}
+        {riskFilter !== 'all' && (
+          <AxisButton
+            size="sm"
+            variant="ghost"
+            onClick={() => setRiskFilter('all')}
+          >
+            Clear
+          </AxisButton>
+        )}
+        {(searchQuery.trim() || riskFilter !== 'all') && (
+          <span className="ml-auto text-xs text-content-tertiary">
+            {filteredData.length} of {data.length} domains
+          </span>
+        )}
       </div>
 
       {/* Table */}
       <div className="flex-1 min-h-0">
         <AxisTable
           columns={columns}
-          data={data as unknown as Record<string, unknown>[]}
+          data={filteredData as unknown as Record<string, unknown>[]}
           rowKey="domain_name"
           sortable
           paginated

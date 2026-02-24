@@ -8,6 +8,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { AxisButton } from '@/components/axis';
 import {
   LineChart,
   Line,
@@ -130,26 +131,20 @@ export function ClientActivityTrendWidget({ data, selectedClient }: ClientActivi
           )}
         </div>
         <div className="flex items-center gap-1">
-          <button
+          <AxisButton
+            size="sm"
+            variant={metric === 'users' ? 'filled' : 'outlined'}
             onClick={() => setMetric('users')}
-            className={`px-3 py-1 text-xs rounded-md transition-colors ${
-              metric === 'users'
-                ? 'bg-main-600 text-white'
-                : 'bg-surface-raised border border-stroke text-content-secondary hover:bg-surface-base'
-            }`}
           >
             Users
-          </button>
-          <button
+          </AxisButton>
+          <AxisButton
+            size="sm"
+            variant={metric === 'events' ? 'filled' : 'outlined'}
             onClick={() => setMetric('events')}
-            className={`px-3 py-1 text-xs rounded-md transition-colors ${
-              metric === 'events'
-                ? 'bg-main-600 text-white'
-                : 'bg-surface-raised border border-stroke text-content-secondary hover:bg-surface-base'
-            }`}
           >
             Events
-          </button>
+          </AxisButton>
         </div>
       </div>
 

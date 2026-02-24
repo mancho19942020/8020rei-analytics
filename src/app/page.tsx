@@ -61,151 +61,51 @@ const USER_TYPE_OPTIONS: AxisSelectOption[] = [
 // Level 3: Detail tabs (Overview, Users, Features, etc.) - only for applicable sections
 // ============================================================================
 
-// First-level navigation - Main Sections
+// First-level navigation - Main Sections (no icons)
 const MAIN_SECTION_TABS: AxisNavigationTabItem[] = [
-  {
-    id: 'analytics',
-    name: 'Analytics',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-      </svg>
-    ),
-  },
-  {
-    id: 'salesforce',
-    name: 'Salesforce',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-      </svg>
-    ),
-  },
-  {
-    id: 'data-silos',
-    name: 'Data Silos',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
-      </svg>
-    ),
-  },
-  {
-    id: 'tools',
-    name: 'Tools',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-      </svg>
-    ),
-  },
-  {
-    id: 'pipelines',
-    name: 'Pipelines',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-      </svg>
-    ),
-  },
-  {
-    id: 'qa',
-    name: 'QA',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    ),
-  },
-  {
-    id: 'ml-models',
-    name: 'ML Models',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-      </svg>
-    ),
-  },
-  {
-    id: 'engagement-calls',
-    name: 'Engagement Calls',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-      </svg>
-    ),
-  },
+  { id: 'product', name: 'Product' },
+  { id: 'analytics', name: 'Analytics' },
+  { id: 'feedback-loop', name: 'Feedback Loop' },
+  { id: 'features', name: 'Features' },
+  { id: 'pipelines', name: 'Pipelines' },
+  { id: 'qa', name: 'QA' },
+  { id: 'ml-models', name: 'ML Models' },
+  { id: 'engagement-calls', name: 'Engagement Calls' },
 ];
 
 // Second-level navigation - Sub-sections per Main Section
-// Analytics sub-sections
+
+// Product sub-sections (Level 2 — Product is now a top-level section)
+const PRODUCT_SUBSECTION_TABS: AxisNavigationTabItem[] = [
+  { id: 'client-domains', name: 'Client Domains' },
+  { id: 'product-jira-projects', name: 'Jira & Projects' },
+];
+
+// Analytics sub-sections (Product removed — it is now its own top-level section)
 const ANALYTICS_SUBSECTION_TABS: AxisNavigationTabItem[] = [
-  {
-    id: '8020rei-ga4',
-    name: '8020REI GA4',
-  },
-  {
-    id: '8020roofing-ga4',
-    name: '8020Roofing GA4',
-    disabled: true,
-  },
-  {
-    id: 'product',
-    name: 'Product',
-  },
+  { id: '8020rei-ga4', name: '8020REI GA4' },
+  { id: '8020roofing-ga4', name: '8020Roofing GA4', disabled: true },
 ];
 
-// Product detail tabs (Level 3 under Analytics > Product)
-const PRODUCT_DETAIL_TABS: AxisNavigationTabItem[] = [
-  {
-    id: 'client-domains',
-    name: 'Client Domains',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
-      </svg>
-    ),
-  },
-  {
-    id: 'product-projects',
-    name: 'Product Projects',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-      </svg>
-    ),
-  },
-];
-
-// Salesforce sub-sections
-const SALESFORCE_SUBSECTION_TABS: AxisNavigationTabItem[] = [
+// Feedback Loop sub-sections (renamed from Salesforce; Feedback Loop sub-tab renamed to Salesforce)
+const FEEDBACK_LOOP_SUBSECTION_TABS: AxisNavigationTabItem[] = [
+  { id: 'salesforce', name: 'Salesforce' },
+  { id: 'import', name: 'Import' },
   { id: 'integrations', name: 'Integrations' },
   { id: 'leads-funnel', name: 'Leads Funnel' },
   { id: 'delivery-audit', name: 'Delivery Audit' },
-  { id: 'feedback-loop', name: 'Feedback Loop' },
 ];
 
-// Data Silos sub-sections
-const DATA_SILOS_SUBSECTION_TABS: AxisNavigationTabItem[] = [
-  { id: 'silo-scraping', name: 'SILO (Scraping)' },
-  { id: 'zillow', name: 'Zillow' },
+// Features vertical sub-sections (renamed from Tools; each vertical exposes Level 3 detail tabs)
+const FEATURES_SUBSECTION_TABS: AxisNavigationTabItem[] = [
+  { id: 'features-rei', name: '8020REI' },
+  { id: 'features-roofing', name: '8020Roofing' },
 ];
 
-// Tools sub-sections
-const TOOLS_SUBSECTION_TABS: AxisNavigationTabItem[] = [
-  { id: 'skiptrace', name: 'Skip Trace' },
-  { id: 'rapid-response', name: 'Rapid Response' },
-  { id: 'smart-drop', name: 'Smart Drop' },
-  { id: 'api-token', name: 'API Token' },
-  { id: 'auto-export', name: 'Auto Export' },
-];
-
-// Pipelines sub-sections
+// Pipelines vertical sub-sections
 const PIPELINES_SUBSECTION_TABS: AxisNavigationTabItem[] = [
-  { id: 'pipeline-overview', name: 'Overview' },
-  { id: 'bronze-silver-gold', name: 'Bronze → Silver → Gold' },
-  { id: 'buyers-list', name: 'Buyers List' },
+  { id: 'pipelines-rei', name: '8020REI' },
+  { id: 'pipelines-roofing', name: '8020Roofing' },
 ];
 
 // QA sub-sections
@@ -213,6 +113,7 @@ const QA_SUBSECTION_TABS: AxisNavigationTabItem[] = [
   { id: 'axiom-validation', name: 'Axiom Validation' },
   { id: 'buybox-columns', name: 'BuyBox Columns' },
   { id: 'smoke-sanity', name: 'Smoke & Sanity' },
+  { id: 'marketing-counter-reliability', name: 'Marketing Counter Reliability' },
 ];
 
 // ML Models sub-sections
@@ -224,98 +125,55 @@ const ML_MODELS_SUBSECTION_TABS: AxisNavigationTabItem[] = [
 
 // Map main section to its sub-section tabs
 const SUBSECTION_TABS_MAP: Record<string, AxisNavigationTabItem[]> = {
+  'product': PRODUCT_SUBSECTION_TABS,
   'analytics': ANALYTICS_SUBSECTION_TABS,
-  'salesforce': SALESFORCE_SUBSECTION_TABS,
-  'data-silos': DATA_SILOS_SUBSECTION_TABS,
-  'tools': TOOLS_SUBSECTION_TABS,
+  'feedback-loop': FEEDBACK_LOOP_SUBSECTION_TABS,
+  'features': FEATURES_SUBSECTION_TABS,
   'pipelines': PIPELINES_SUBSECTION_TABS,
   'qa': QA_SUBSECTION_TABS,
   'ml-models': ML_MODELS_SUBSECTION_TABS,
 };
 
-// Third-level navigation - Detail tabs (for GA4 analytics sections)
+// Third-level navigation - Detail tabs (for GA4 analytics sections, no icons)
 const GA4_DETAIL_TABS: AxisNavigationTabItem[] = [
-  {
-    id: 'overview',
-    name: 'Overview',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-      </svg>
-    ),
-  },
-  {
-    id: 'users',
-    name: 'Users',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-      </svg>
-    ),
-  },
-  {
-    id: 'features',
-    name: 'Features',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
-      </svg>
-    ),
-  },
-  {
-    id: 'clients',
-    name: 'Clients',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-      </svg>
-    ),
-  },
-  {
-    id: 'traffic',
-    name: 'Traffic',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-      </svg>
-    ),
-  },
-  {
-    id: 'technology',
-    name: 'Technology',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-      </svg>
-    ),
-  },
-  {
-    id: 'geography',
-    name: 'Geography',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    ),
-  },
-  {
-    id: 'events',
-    name: 'Events',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-      </svg>
-    ),
-  },
-  {
-    id: 'insights',
-    name: 'Insights',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-      </svg>
-    ),
-  },
+  { id: 'overview', name: 'Overview' },
+  { id: 'users', name: 'Users' },
+  { id: 'features', name: 'Features' },
+  { id: 'clients', name: 'Clients' },
+  { id: 'traffic', name: 'Traffic' },
+  { id: 'technology', name: 'Technology' },
+  { id: 'geography', name: 'Geography' },
+  { id: 'events', name: 'Events' },
+  { id: 'insights', name: 'Insights' },
+];
+
+// Third-level navigation - Detail tabs for Features > 8020REI
+const FEATURES_REI_DETAIL_TABS: AxisNavigationTabItem[] = [
+  { id: 'skiptrace', name: 'Skip Trace' },
+  { id: 'rapid-response', name: 'Rapid Response' },
+  { id: 'smart-drop', name: 'Smart Drop' },
+  { id: 'api-token', name: 'API Token' },
+  { id: 'auto-export', name: 'Auto Export' },
+  { id: 'zillow', name: 'Zillow' },
+  { id: 'roi', name: 'ROI' },
+  { id: 'buyers-list', name: 'Buyers List' },
+];
+
+// Third-level navigation - Detail tabs for Features > 8020Roofing
+const FEATURES_ROOFING_DETAIL_TABS: AxisNavigationTabItem[] = [
+  { id: 'zillow', name: 'Zillow' },
+  { id: 'upcoming-features', name: 'Upcoming Features' },
+];
+
+// Third-level navigation - Detail tabs for Pipelines > 8020 REI
+const PIPELINES_REI_DETAIL_TABS: AxisNavigationTabItem[] = [
+  { id: 'eda-etl', name: 'EDA ETL' },
+  { id: 'etl-rei', name: 'ETL REI' },
+];
+
+// Third-level navigation - Detail tabs for Pipelines > 8020 Roofing
+const PIPELINES_ROOFING_DETAIL_TABS: AxisNavigationTabItem[] = [
+  { id: 'etl-roofing', name: 'ETL Roofing' },
 ];
 
 export default function Dashboard() {
@@ -329,10 +187,11 @@ export default function Dashboard() {
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [isCached, setIsCached] = useState(false);
   // Navigation state (3 levels)
-  const [activeMainSection, setActiveMainSection] = useState('analytics');
-  const [activeSubsection, setActiveSubsection] = useState('8020rei-ga4');
+  const [activeMainSection, setActiveMainSection] = useState('product');
+  const [activeSubsection, setActiveSubsection] = useState('client-domains');
   const [activeDetailTab, setActiveDetailTab] = useState('overview');
   const [editMode, setEditMode] = useState(false);
+  const [showEditCallout, setShowEditCallout] = useState(false);
   const [showWidgetCatalog, setShowWidgetCatalog] = useState(false);
   const [selectedWidgetForSettings, setSelectedWidgetForSettings] = useState<Widget | null>(null);
   const [layout, setLayout] = useState<Widget[]>(() => {
@@ -375,6 +234,10 @@ export default function Dashboard() {
     }
   }, [days, userType, user]);
 
+  useEffect(() => {
+    if (editMode) setShowEditCallout(true);
+  }, [editMode]);
+
   async function fetchData() {
     setLoading(true);
     setError(null);
@@ -408,13 +271,13 @@ export default function Dashboard() {
 
   // Reset layout to default (unified for all tabs)
   const handleResetLayout = () => {
-    // Handle Product subsection tabs
-    if (activeMainSection === 'analytics' && activeSubsection === 'product') {
-      switch (activeDetailTab) {
+    // Handle Product section tabs
+    if (activeMainSection === 'product') {
+      switch (activeSubsection) {
         case 'client-domains':
           clientDomainsTabRef.current?.resetLayout();
           return;
-        case 'product-projects':
+        case 'product-jira-projects':
           productProjectsTabRef.current?.resetLayout();
           return;
       }
@@ -456,13 +319,13 @@ export default function Dashboard() {
 
   // Open widget catalog (unified for all tabs)
   const handleOpenWidgetCatalog = () => {
-    // Handle Product subsection tabs
-    if (activeMainSection === 'analytics' && activeSubsection === 'product') {
-      switch (activeDetailTab) {
+    // Handle Product section tabs
+    if (activeMainSection === 'product') {
+      switch (activeSubsection) {
         case 'client-domains':
           clientDomainsTabRef.current?.openWidgetCatalog();
           return;
-        case 'product-projects':
+        case 'product-jira-projects':
           productProjectsTabRef.current?.openWidgetCatalog();
           return;
       }
@@ -595,7 +458,7 @@ export default function Dashboard() {
     return (
       <div className="min-h-screen bg-surface-base flex items-center justify-center p-6">
         <div className="text-center max-w-md w-full">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-main-700 mx-auto mb-4"></div>
+          <div className="mx-auto mb-4 w-fit"><AxisSkeleton variant="custom" width="48px" height="48px" rounded="full" /></div>
           <p className="text-body-large text-content-secondary">Checking authentication...</p>
         </div>
       </div>
@@ -692,6 +555,56 @@ export default function Dashboard() {
 
             {/* Right side actions - consistent height */}
             <div className="flex items-center gap-2">
+
+              {/* Global Tools */}
+              <div className="flex items-center gap-2">
+                {/* Updated timestamp */}
+                {lastUpdated && (
+                  <span className="text-xs text-content-tertiary whitespace-nowrap">
+                    Updated: {new Date(lastUpdated).toLocaleString('en-US', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric'
+                    })}
+                    {isCached && ' (cached)'}
+                  </span>
+                )}
+
+                {/* Edit Layout Toggle */}
+                <AxisToggle
+                  checked={editMode}
+                  onChange={setEditMode}
+                  label="Edit Layout"
+                />
+
+                {/* User Type Filter */}
+                {activeMainSection !== 'product' && (
+                  <AxisSelect
+                    value={userType}
+                    onChange={(val) => setUserType(val as 'all' | 'internal' | 'external')}
+                    options={USER_TYPE_OPTIONS}
+                    size="sm"
+                    fullWidth={false}
+                    className="w-36"
+                  />
+                )}
+
+                {/* Time Filter */}
+                <AxisSelect
+                  value={days}
+                  onChange={(val) => setDays(Number(val))}
+                  options={TIME_RANGE_OPTIONS}
+                  size="sm"
+                  fullWidth={false}
+                  className="w-36"
+                />
+              </div>
+
+              {/* Divider */}
+              <div className="h-5 w-px bg-stroke mx-1" />
+
               {/* Design Kit */}
               <div className="h-9 flex items-center">
                 <DesignKitButton />
@@ -741,6 +654,14 @@ export default function Dashboard() {
                 const firstEnabled = subsections.find(s => !s.disabled);
                 if (firstEnabled) {
                   setActiveSubsection(firstEnabled.id);
+                  // Reset detail tab based on first subsection of new section
+                  if (firstEnabled.id === '8020rei-ga4' || firstEnabled.id === '8020roofing-ga4') {
+                    setActiveDetailTab('overview');
+                  } else if (firstEnabled.id === 'features-rei') {
+                    setActiveDetailTab('skiptrace');
+                  } else if (firstEnabled.id === 'pipelines-rei') {
+                    setActiveDetailTab('eda-etl');
+                  }
                 }
               }
             }}
@@ -757,11 +678,17 @@ export default function Dashboard() {
               activeTab={activeSubsection}
               onTabChange={(sub) => {
                 setActiveSubsection(sub);
-                // Reset detail tab to first tab of the new subsection
-                if (sub === 'product') {
-                  setActiveDetailTab('client-domains');
-                } else if (sub === '8020rei-ga4' || sub === '8020roofing-ga4') {
+                // Reset detail tab based on new subsection
+                if (sub === '8020rei-ga4' || sub === '8020roofing-ga4') {
                   setActiveDetailTab('overview');
+                } else if (sub === 'features-rei') {
+                  setActiveDetailTab('skiptrace');
+                } else if (sub === 'features-roofing') {
+                  setActiveDetailTab('upcoming-features');
+                } else if (sub === 'pipelines-rei') {
+                  setActiveDetailTab('eda-etl');
+                } else if (sub === 'pipelines-roofing') {
+                  setActiveDetailTab('etl-roofing');
                 }
               }}
               tabs={SUBSECTION_TABS_MAP[activeMainSection]}
@@ -784,93 +711,80 @@ export default function Dashboard() {
           </nav>
         )}
 
-        {/* Third-Level Navigation - Detail Tabs (for Product subsection) */}
-        {activeMainSection === 'analytics' && activeSubsection === 'product' && (
+        {/* Third-Level Navigation - Detail Tabs for Features > 8020 REI */}
+        {activeMainSection === 'features' && activeSubsection === 'features-rei' && (
           <nav className="px-6 border-b border-stroke light-gray-bg">
             <AxisNavigationTab
               activeTab={activeDetailTab}
               onTabChange={setActiveDetailTab}
-              tabs={PRODUCT_DETAIL_TABS}
+              tabs={FEATURES_REI_DETAIL_TABS}
               variant="line"
               size="sm"
             />
           </nav>
         )}
 
-        {/* Toolbar */}
-        <div className="px-6 py-2 border-b border-stroke light-gray-bg">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              {lastUpdated && (
-                <span className="text-xs text-content-tertiary">
-                  Updated: {new Date(lastUpdated).toLocaleString('en-US', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    day: '2-digit',
-                    month: '2-digit',
-                    year: 'numeric'
-                  })}
-                  {isCached && ' (cached)'}
-                </span>
-              )}
+        {/* Third-Level Navigation - Detail Tabs for Features > 8020 Roofing */}
+        {activeMainSection === 'features' && activeSubsection === 'features-roofing' && (
+          <nav className="px-6 border-b border-stroke light-gray-bg">
+            <AxisNavigationTab
+              activeTab={activeDetailTab}
+              onTabChange={setActiveDetailTab}
+              tabs={FEATURES_ROOFING_DETAIL_TABS}
+              variant="line"
+              size="sm"
+            />
+          </nav>
+        )}
 
-              {/* Edit Mode Toggle */}
-              <div className="flex items-center gap-2">
-                <AxisToggle
-                  checked={editMode}
-                  onChange={setEditMode}
-                  label="Edit Layout"
-                />
+        {/* Third-Level Navigation - Detail Tabs for Pipelines > 8020 REI */}
+        {activeMainSection === 'pipelines' && activeSubsection === 'pipelines-rei' && (
+          <nav className="px-6 border-b border-stroke light-gray-bg">
+            <AxisNavigationTab
+              activeTab={activeDetailTab}
+              onTabChange={setActiveDetailTab}
+              tabs={PIPELINES_REI_DETAIL_TABS}
+              variant="line"
+              size="sm"
+            />
+          </nav>
+        )}
 
-                {/* Edit Mode Actions - Available for all tabs */}
-                {editMode && (
-                  <>
-                    <button
-                      onClick={handleOpenWidgetCatalog}
-                      className="px-2 py-1 text-xs bg-main-600 hover:bg-main-700 text-white rounded-md transition-colors duration-200 font-medium flex items-center gap-1"
-                    >
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                      </svg>
-                      Add Widget
-                    </button>
-                    <button
-                      onClick={handleResetLayout}
-                      className="px-2 py-1 text-xs bg-surface-base border border-stroke text-content-secondary hover:bg-surface-raised hover:text-content-primary hover:border-stroke-strong rounded-md transition-colors duration-200 font-medium"
-                    >
-                      Reset Layout
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
+        {/* Third-Level Navigation - Detail Tabs for Pipelines > 8020 Roofing */}
+        {activeMainSection === 'pipelines' && activeSubsection === 'pipelines-roofing' && (
+          <nav className="px-6 border-b border-stroke light-gray-bg">
+            <AxisNavigationTab
+              activeTab={activeDetailTab}
+              onTabChange={setActiveDetailTab}
+              tabs={PIPELINES_ROOFING_DETAIL_TABS}
+              variant="line"
+              size="sm"
+            />
+          </nav>
+        )}
 
-            {/* Filters */}
-            <div className="flex items-center gap-2">
-              {/* User Type Filter - hidden for Product subsection (not applicable) */}
-              {!(activeMainSection === 'analytics' && activeSubsection === 'product') && (
-                <AxisSelect
-                  value={userType}
-                  onChange={(val) => setUserType(val as 'all' | 'internal' | 'external')}
-                  options={USER_TYPE_OPTIONS}
-                  size="sm"
-                  fullWidth={false}
-                  className="w-36"
-                />
-              )}
-
-              {/* Time Filter */}
-              <AxisSelect
-                value={days}
-                onChange={(val) => setDays(Number(val))}
-                options={TIME_RANGE_OPTIONS}
-                size="sm"
-                fullWidth={false}
-                className="w-36"
-              />
+        {/* Edit Mode Action Bar */}
+        {editMode && (
+          <div className="px-6 py-2 border-b border-stroke bg-main-50 dark:bg-main-950/20">
+            <div className="flex items-center justify-end gap-2">
+              <button
+                onClick={handleOpenWidgetCatalog}
+                className="px-3 py-1.5 text-xs bg-main-700 hover:bg-main-900 dark:bg-main-500 dark:hover:bg-main-700 text-white rounded-md transition-colors duration-200 font-medium flex items-center gap-1.5"
+              >
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+                Add Widget
+              </button>
+              <button
+                onClick={handleResetLayout}
+                className="px-3 py-1.5 text-xs bg-surface-base border border-stroke text-content-secondary hover:bg-surface-raised hover:text-content-primary hover:border-stroke-strong rounded-md transition-colors duration-200 font-medium"
+              >
+                Reset Layout
+              </button>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Main Content */}
         <main className="px-6 py-4 min-h-[calc(100vh-180px)] light-gray-bg">
@@ -878,14 +792,23 @@ export default function Dashboard() {
           {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && activeDetailTab === 'overview' && (
             <>
               {/* Edit Mode Info */}
-              {editMode && (
-                <div className="mb-4">
+              {editMode && showEditCallout && (
+                <div className="mb-4 relative">
                   <AxisCallout type="info" title="Edit Mode Active">
                     <p className="text-body-regular">
                       Drag widgets by their handle icon to reposition them. Resize widgets by dragging their edges.
                       Your layout will be saved automatically.
                     </p>
                   </AxisCallout>
+                  <button
+                    onClick={() => setShowEditCallout(false)}
+                    className="absolute top-2 right-2 p-1 text-content-tertiary hover:text-content-primary transition-colors duration-200"
+                    aria-label="Dismiss"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
                 </div>
               )}
 
@@ -994,7 +917,7 @@ export default function Dashboard() {
           )}
 
           {/* Product > Client Domains Tab */}
-          {activeMainSection === 'analytics' && activeSubsection === 'product' && activeDetailTab === 'client-domains' && (
+          {activeMainSection === 'product' && activeSubsection === 'client-domains' && (
             <ClientDomainsTab
               ref={clientDomainsTabRef}
               days={days}
@@ -1003,8 +926,8 @@ export default function Dashboard() {
             />
           )}
 
-          {/* Product > Product Projects Tab */}
-          {activeMainSection === 'analytics' && activeSubsection === 'product' && activeDetailTab === 'product-projects' && (
+          {/* Product > Product Jira & Projects Tab */}
+          {activeMainSection === 'product' && activeSubsection === 'product-jira-projects' && (
             <ProductProjectsTab
               ref={productProjectsTabRef}
               days={days}
@@ -1013,8 +936,9 @@ export default function Dashboard() {
             />
           )}
 
-          {/* Under Construction placeholder for sections without content */}
-          {(activeMainSection !== 'analytics' || (activeSubsection !== '8020rei-ga4' && activeSubsection !== 'product')) && activeMainSection !== 'engagement-calls' && (
+          {/* Under Construction placeholder for sections without real content */}
+          {activeMainSection !== 'product' && activeMainSection !== 'engagement-calls' &&
+           !(activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4') && (
             <div className="flex items-center justify-center min-h-[calc(100vh-320px)]">
               <div className="text-center">
                 {/* Construction Icon */}

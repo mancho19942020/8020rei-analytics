@@ -10,6 +10,7 @@
 
 import { ReactNode, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { AxisButton } from '@/components/axis';
 
 // ============================================
 // Severity Information Data
@@ -270,12 +271,9 @@ function SeverityInfoModal({ isOpen, onClose, severity }: SeverityInfoModalProps
 
         {/* Footer */}
         <div className="px-6 py-4 border-t border-stroke bg-surface-raised">
-          <button
-            onClick={onClose}
-            className="w-full px-4 py-2 bg-main-600 hover:bg-main-700 text-white rounded-lg font-medium text-sm transition-colors duration-200"
-          >
+          <AxisButton variant="filled" onClick={onClose} className="w-full">
             Got it
-          </button>
+          </AxisButton>
         </div>
       </div>
     </div>

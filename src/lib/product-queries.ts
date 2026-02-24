@@ -53,30 +53,30 @@ export function getPreviousDomainOverviewQuery(days: number): string {
 }
 
 /**
- * Domain Leaderboard - ranked by activity
- * Includes risk_level based on days since last activity
+ * Domain Leaderboard - all domains ever recorded, ranked by activity in the selected period.
+ * The domain list is NOT date-filtered so every domain always appears.
+ * Metrics (properties, leads, etc.) are scoped to the selected period via conditional aggregates.
+ * Risk level is derived from all-time last activity date.
  */
 export function getDomainLeaderboardQuery(days: number): string {
   return `
     SELECT
       domain_name,
-      COUNT(*) as total_properties,
-      COUNTIF(LOWER(record_type) = 'lead') as leads_count,
-      COUNTIF(LOWER(record_type) = 'appointment') as appointments_count,
-      COUNTIF(LOWER(record_type) = 'deal') as deals_count,
-      COALESCE(SUM(revenue), 0) as total_revenue,
+      COUNTIF(date >= DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY)) as total_properties,
+      COUNTIF(LOWER(record_type) = 'lead' AND date >= DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY)) as leads_count,
+      COUNTIF(LOWER(record_type) = 'appointment' AND date >= DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY)) as appointments_count,
+      COUNTIF(LOWER(record_type) = 'deal' AND date >= DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY)) as deals_count,
+      COALESCE(SUM(CASE WHEN date >= DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY) THEN revenue ELSE NULL END), 0) as total_revenue,
       FORMAT_DATE('%Y-%m-%d', MAX(date)) as last_activity_date,
       DATE_DIFF(CURRENT_DATE(), MAX(date), DAY) as days_since_activity,
       CASE
-        WHEN DATE_DIFF(CURRENT_DATE(), MAX(date), DAY) <= 7 THEN 'healthy'
-        WHEN DATE_DIFF(CURRENT_DATE(), MAX(date), DAY) <= 30 THEN 'at-risk'
+        WHEN DATE_DIFF(CURRENT_DATE(), MAX(date), DAY) <= 15 THEN 'healthy'
+        WHEN DATE_DIFF(CURRENT_DATE(), MAX(date), DAY) <= 90 THEN 'at-risk'
         ELSE 'inactive'
       END as risk_level
     FROM ${TABLE}
-    WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY)
     GROUP BY domain_name
     ORDER BY total_properties DESC
-    LIMIT 50
   `;
 }
 
@@ -114,25 +114,6 @@ export function getRevenueByDomainQuery(days: number): string {
   `;
 }
 
-/**
- * Flagged Domains - domains with flag issues
- */
-export function getFlaggedDomainsQuery(days: number): string {
-  return `
-    SELECT
-      domain_id,
-      domain_name,
-      flag,
-      flag_info,
-      FORMAT_DATE('%Y-%m-%d', date) as date
-    FROM ${TABLE}
-    WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY)
-      AND flag IS NOT NULL
-      AND TRIM(flag) != ''
-    ORDER BY date DESC
-    LIMIT 100
-  `;
-}
 
 // ============================================================================
 // PRODUCT PROJECTS QUERIES (Jira)

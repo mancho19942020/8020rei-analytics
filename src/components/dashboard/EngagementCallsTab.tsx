@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import { AxisSkeleton, AxisCallout, AxisButton } from '@/components/axis';
+import { TabHandle } from '@/types/widget';
 
 // Types for engagement call documents
 interface EngagementDocument {
@@ -54,8 +55,8 @@ function DocumentCard({
   return (
     <button
       onClick={onClick}
-      className="w-full text-left bg-white dark:bg-[#1e1e24] rounded-2xl p-6
-                 shadow-sm hover:shadow-lg border border-gray-100 dark:border-gray-800
+      className="w-full text-left bg-surface-raised rounded-2xl p-6
+                 shadow-sm hover:shadow-lg border border-stroke
                  transition-all duration-300 group flex flex-col min-h-[280px]"
     >
       {/* Folder badge - Main blue color */}
@@ -70,20 +71,20 @@ function DocumentCard({
       )}
 
       {/* Title - Bold and prominent */}
-      <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-3 line-clamp-2 leading-snug">
+      <h3 className="text-lg font-bold text-content-primary mb-3 line-clamp-2 leading-snug">
         {extractTitle(document.name)}
       </h3>
 
       {/* Preview text - Takes up most of the card */}
       {document.preview && (
-        <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-6 leading-relaxed flex-grow">
+        <p className="text-sm text-content-secondary line-clamp-6 leading-relaxed flex-grow">
           {document.preview}
         </p>
       )}
 
       {/* Footer - Date and hover indicator */}
-      <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between">
-        <span className="text-xs text-gray-400 dark:text-gray-500">
+      <div className="mt-4 pt-4 border-t border-stroke flex items-center justify-between">
+        <span className="text-xs text-content-tertiary">
           {formatDate(document.modifiedTime)}
         </span>
         <span className="text-xs font-medium text-main-600 dark:text-main-400 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
@@ -151,7 +152,7 @@ function UploadCard({
                  border-2 border-dashed transition-all duration-300
                  ${isDragging
                    ? 'border-main-500 bg-main-50 dark:bg-main-900/20'
-                   : 'border-gray-300 dark:border-gray-700 hover:border-main-400 dark:hover:border-main-500'
+                   : 'border-stroke hover:border-main-400 dark:hover:border-main-500'
                  }
                  ${isUploading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
                  group`}
@@ -168,7 +169,7 @@ function UploadCard({
         <>
           {/* Uploading state */}
           <div className="w-12 h-12 rounded-full border-2 border-main-500 border-t-transparent animate-spin mb-4" />
-          <span className="text-base font-medium text-gray-600 dark:text-gray-300">
+          <span className="text-base font-medium text-content-secondary">
             Uploading...
           </span>
         </>
@@ -178,13 +179,13 @@ function UploadCard({
           <div className={`w-14 h-14 rounded-full flex items-center justify-center mb-4 transition-colors
                          ${isDragging
                            ? 'bg-main-100 dark:bg-main-800'
-                           : 'bg-gray-100 dark:bg-gray-800 group-hover:bg-main-100 dark:group-hover:bg-main-800'
+                           : 'light-gray-bg group-hover:bg-main-100 dark:group-hover:bg-main-800'
                          }`}>
             <svg
               className={`w-7 h-7 transition-colors
                         ${isDragging
                           ? 'text-main-600 dark:text-main-400'
-                          : 'text-gray-400 dark:text-gray-500 group-hover:text-main-600 dark:group-hover:text-main-400'
+                          : 'text-content-tertiary group-hover:text-main-600 dark:group-hover:text-main-400'
                         }`}
               fill="none"
               viewBox="0 0 24 24"
@@ -199,11 +200,11 @@ function UploadCard({
           <span className={`text-base font-medium transition-colors
                           ${isDragging
                             ? 'text-main-600 dark:text-main-400'
-                            : 'text-gray-600 dark:text-gray-300 group-hover:text-main-600 dark:group-hover:text-main-400'
+                            : 'text-content-secondary group-hover:text-main-600 dark:group-hover:text-main-400'
                           }`}>
             {isDragging ? 'Drop file here' : 'Create New Doc'}
           </span>
-          <span className="text-xs text-gray-400 dark:text-gray-500 mt-2">
+          <span className="text-xs text-content-tertiary mt-2">
             Drop a .docx file or click to upload
           </span>
         </>
@@ -442,7 +443,7 @@ function CardsSkeleton() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {[1, 2, 3, 4, 5, 6].map((i) => (
-        <div key={i} className="bg-white dark:bg-surface-raised border border-stroke rounded-lg p-5">
+        <div key={i} className="bg-surface-raised border border-stroke rounded-lg p-5">
           <div className="mb-3"><AxisSkeleton variant="custom" width="60px" height="20px" rounded="md" /></div>
           <div className="mb-2"><AxisSkeleton variant="custom" width="100%" height="24px" rounded="md" /></div>
           <div className="mb-3"><AxisSkeleton variant="custom" width="120px" height="16px" rounded="md" /></div>
@@ -473,7 +474,11 @@ function ReaderSkeleton() {
 }
 
 // Main component
-export function EngagementCallsTab() {
+export const EngagementCallsTab = forwardRef<TabHandle>(function EngagementCallsTab(_, ref) {
+  useImperativeHandle(ref, () => ({
+    resetLayout: () => {}, // no-op: this tab is a document viewer, not a widget grid
+    openWidgetCatalog: () => {}, // no-op: no widget catalog for this tab
+  }), []);
   const [documents, setDocuments] = useState<EngagementDocument[]>([]);
   const [selectedDocument, setSelectedDocument] = useState<DocumentContent | null>(null);
   const [loading, setLoading] = useState(true);
@@ -674,4 +679,4 @@ export function EngagementCallsTab() {
       </div>
     </div>
   );
-}
+})

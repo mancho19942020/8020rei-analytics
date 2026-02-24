@@ -475,9 +475,15 @@ export function AxisTable({
                           align === 'center' ? 'text-center' : 'text-left'
                         } ${isSelected ? 'bg-main-50 dark:bg-main-950/30' : 'bg-surface-base'}`}
                       >
-                        <div className="text-body-regular text-content-primary truncate" title={formatCellValue(value, column)}>
-                          {formatCellValue(value, column)}
-                        </div>
+                        {column.render ? (
+                          <div className="text-body-regular text-content-primary">
+                            {column.render(value, row)}
+                          </div>
+                        ) : (
+                          <div className="text-body-regular text-content-primary truncate" title={formatCellValue(value, column)}>
+                            {formatCellValue(value, column)}
+                          </div>
+                        )}
                       </td>
                     );
                   })}

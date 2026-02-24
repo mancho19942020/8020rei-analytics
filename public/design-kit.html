@@ -453,6 +453,14 @@
       background: var(--main-900);
     }
 
+    .dark .btn-filled {
+      background: var(--main-500);
+    }
+
+    .dark .btn-filled:hover {
+      background: var(--main-700);
+    }
+
     .btn-outlined {
       background: transparent;
       border: 1px solid var(--main-700);
@@ -1015,6 +1023,99 @@
       padding: 24px 0;
       border-top: 1px solid var(--border-default);
       text-align: center;
+    }
+
+    /* AxisTooltip — demo styles for design kit preview */
+    .tooltip-demo {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 28px;
+      padding: 16px 8px;
+    }
+    .tooltip-demo-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 32px;
+      flex-wrap: wrap;
+    }
+    .tooltip-demo-label {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      margin-bottom: 6px;
+    }
+    /* The static tooltip preview (always visible, no hover needed) */
+    .tooltip-preview {
+      position: relative;
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .tooltip-box {
+      background: #111827;
+      color: #fff;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 12px;
+      line-height: 1.55;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+      max-width: 220px;
+      text-align: left;
+      white-space: normal;
+    }
+    .tooltip-box-title {
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 4px;
+      display: block;
+    }
+    .tooltip-box-content {
+      color: rgba(255,255,255,0.82);
+      display: block;
+    }
+    .tooltip-arrow-down {
+      width: 0; height: 0;
+      border-left: 5px solid transparent;
+      border-right: 5px solid transparent;
+      border-top: 5px solid #111827;
+    }
+    .tooltip-arrow-up {
+      width: 0; height: 0;
+      border-left: 5px solid transparent;
+      border-right: 5px solid transparent;
+      border-bottom: 5px solid #111827;
+    }
+    .tooltip-trigger-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 10px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 500;
+      border: 1px solid;
+      cursor: default;
+    }
+    .tooltip-trigger-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+    }
+    .tooltip-placement-row {
+      display: flex;
+      align-items: center;
+      gap: 48px;
+      flex-wrap: wrap;
+    }
+    .tooltip-placement-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    .tooltip-placement-left-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
   </style>
 </head>
@@ -1694,7 +1795,7 @@
       <!-- Components Section -->
       <section id="components">
         <h2 class="section-title">Component Library</h2>
-        <p class="section-subtitle">12 production-ready Axis components with full dark mode support.</p>
+        <p class="section-subtitle">13 production-ready Axis components with full dark mode support.</p>
 
         <div class="component-grid">
           <!-- AxisButton -->
@@ -1707,7 +1808,7 @@
             </div>
             <div class="component-info">
               <div class="component-name">AxisButton</div>
-              <div class="component-desc">Versatile button with 3 variants, 3 sizes, loading state, and icon support.</div>
+              <div class="component-desc">Versatile button with 3 variants, 3 sizes, loading state, and icon support. Dark mode aware: filled uses <code>main-500</code> base in dark mode for vibrant contrast, <code>main-700</code> in light mode. Never use non-existent token steps (600, 400, 200) — valid steps are 50, 100, 300, 500, 700, 900, 950.</div>
               <div class="component-props">
                 <span class="prop-tag">variant</span>
                 <span class="prop-tag">size</span>
@@ -2010,6 +2111,101 @@
               </div>
             </div>
           </div>
+          <!-- AxisTooltip -->
+          <div class="component-card" style="grid-column: span 2;">
+            <div class="component-preview" style="flex-direction: column; align-items: flex-start; gap: 0; padding: 20px 24px;">
+
+              <!-- Row 1: Text-only tooltip (top) -->
+              <div class="tooltip-demo-label">Text only</div>
+              <div class="tooltip-demo-row" style="margin-bottom: 24px;">
+                <div class="tooltip-preview">
+                  <div class="tooltip-box" style="margin-bottom: 5px;">
+                    <span class="tooltip-box-content">Hover over an element to see the tooltip.</span>
+                  </div>
+                  <div class="tooltip-arrow-down"></div>
+                  <div style="margin-top: 6px;">
+                    <span style="font-size: 12px; padding: 4px 10px; border-radius: 6px; background: var(--surface-raised); border: 1px solid var(--border-default); color: var(--text-primary);">Trigger</span>
+                  </div>
+                </div>
+
+                <!-- With title -->
+                <div>
+                  <div class="tooltip-demo-label">With title</div>
+                  <div class="tooltip-preview">
+                    <div class="tooltip-box" style="margin-bottom: 5px;">
+                      <span class="tooltip-box-title">Healthy</span>
+                      <span class="tooltip-box-content">Active in the last 30 days with consistent lead flow and engagement metrics in normal range.</span>
+                    </div>
+                    <div class="tooltip-arrow-down"></div>
+                    <div style="margin-top: 6px;">
+                      <span class="tooltip-trigger-pill" style="background: rgba(220,252,231,0.25); color: #16a34a; border-color: rgba(187,247,208,0.5);">
+                        <span class="tooltip-trigger-dot" style="background: #22c55e;"></span>
+                        Healthy
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Row 2: Placement variants -->
+              <div class="tooltip-demo-label">Placement variants</div>
+              <div class="tooltip-placement-row">
+                <!-- Top -->
+                <div class="tooltip-placement-item">
+                  <div class="tooltip-box" style="margin-bottom: 4px; max-width: 120px; text-align: center;">
+                    <span class="tooltip-box-content">placement="top"</span>
+                  </div>
+                  <div class="tooltip-arrow-down"></div>
+                  <div style="width: 8px; height: 6px;"></div>
+                  <span style="font-size: 11px; color: var(--text-tertiary);">top</span>
+                </div>
+                <!-- Bottom -->
+                <div class="tooltip-placement-item">
+                  <span style="font-size: 11px; color: var(--text-tertiary);">bottom</span>
+                  <div style="width: 8px; height: 6px;"></div>
+                  <div class="tooltip-arrow-up"></div>
+                  <div class="tooltip-box" style="margin-top: 4px; max-width: 130px; text-align: center;">
+                    <span class="tooltip-box-content">placement="bottom"</span>
+                  </div>
+                </div>
+                <!-- Left -->
+                <div class="tooltip-placement-item">
+                  <span style="font-size: 11px; color: var(--text-tertiary); margin-bottom: 4px;">left</span>
+                  <div class="tooltip-placement-left-right">
+                    <div class="tooltip-box" style="max-width: 120px;">
+                      <span class="tooltip-box-content">placement= "left"</span>
+                    </div>
+                    <div style="width: 0; height: 0; border-top: 5px solid transparent; border-bottom: 5px solid transparent; border-left: 5px solid #111827;"></div>
+                    <div style="width: 32px; height: 2px; background: var(--border-default);"></div>
+                  </div>
+                </div>
+                <!-- Right -->
+                <div class="tooltip-placement-item">
+                  <span style="font-size: 11px; color: var(--text-tertiary); margin-bottom: 4px;">right</span>
+                  <div class="tooltip-placement-left-right">
+                    <div style="width: 32px; height: 2px; background: var(--border-default);"></div>
+                    <div style="width: 0; height: 0; border-top: 5px solid transparent; border-bottom: 5px solid transparent; border-right: 5px solid #111827;"></div>
+                    <div class="tooltip-box" style="max-width: 120px;">
+                      <span class="tooltip-box-content">placement= "right"</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="component-info">
+              <div class="component-name">AxisTooltip</div>
+              <div class="component-desc">Dark tooltip that appears on hover. Features a directional arrow, optional bold title, and configurable placement. Used to explain UI states — e.g. risk levels in the Domain Leaderboard.</div>
+              <div class="component-props">
+                <span class="prop-tag">content: ReactNode</span>
+                <span class="prop-tag">title?: string</span>
+                <span class="prop-tag">placement: top | bottom | left | right</span>
+                <span class="prop-tag">maxWidth?: number (default 240)</span>
+                <span class="prop-tag">children: ReactNode (trigger)</span>
+              </div>
+            </div>
+          </div>
+
         </div>
       </section>
 

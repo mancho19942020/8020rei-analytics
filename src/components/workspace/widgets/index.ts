@@ -63,7 +63,6 @@ export { DomainActivityOverviewWidget } from './DomainActivityOverviewWidget';
 export { DomainLeaderboardWidget } from './DomainLeaderboardWidget';
 export { DomainActivityTrendWidget } from './DomainActivityTrendWidget';
 export { RevenueByDomainWidget } from './RevenueByDomainWidget';
-export { FlaggedDomainsWidget } from './FlaggedDomainsWidget';
 
 // Product > Product Projects tab widgets
 export { ProjectStatusOverviewWidget } from './ProjectStatusOverviewWidget';

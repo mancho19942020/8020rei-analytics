@@ -7,7 +7,6 @@ import {
   getDomainLeaderboardQuery,
   getDomainActivityTrendQuery,
   getRevenueByDomainQuery,
-  getFlaggedDomainsQuery,
 } from '@/lib/product-queries';
 import type {
   ClientDomainsData,
@@ -15,7 +14,6 @@ import type {
   DomainLeaderboardEntry,
   DomainActivityTrendEntry,
   RevenueByDomainEntry,
-  FlaggedDomainEntry,
   TrendData,
 } from '@/types/product';
 
@@ -38,7 +36,7 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const days = parseInt(searchParams.get('days') || '30');
 
-  const cacheKey = `product-domains-v1:${days}`;
+  const cacheKey = `product-domains-v2:${days}`;
   const cached = getCached<ClientDomainsData>(cacheKey);
 
   if (cached) {
@@ -60,14 +58,12 @@ export async function GET(request: NextRequest) {
       leaderboardResult,
       trendResult,
       revenueResult,
-      flaggedResult,
     ] = await Promise.all([
       runProductQuery<DomainActivityOverview>(getDomainActivityOverviewQuery(days)),
       runProductQuery<PreviousDomainOverview>(getPreviousDomainOverviewQuery(days)),
       runProductQuery<DomainLeaderboardEntry>(getDomainLeaderboardQuery(days)),
       runProductQuery<DomainActivityTrendEntry>(getDomainActivityTrendQuery(days)),
       runProductQuery<RevenueByDomainEntry>(getRevenueByDomainQuery(days)),
-      runProductQuery<FlaggedDomainEntry>(getFlaggedDomainsQuery(days)),
     ]);
 
     const current = overviewResult[0] || {
@@ -99,7 +95,6 @@ export async function GET(request: NextRequest) {
       leaderboard: leaderboardResult,
       activityTrend: trendResult,
       revenueByDomain: revenueResult,
-      flaggedDomains: flaggedResult,
     };
 
     setCache(cacheKey, data);

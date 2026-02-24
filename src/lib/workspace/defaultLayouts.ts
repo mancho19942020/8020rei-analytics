@@ -993,7 +993,7 @@ export const INSIGHTS_WIDGET_CATALOG: WidgetCatalogItem[] = [
 /**
  * Product > Client Domains Layout Storage Key
  */
-export const PRODUCT_DOMAINS_LAYOUT_STORAGE_KEY = 'axis-product-domains-layout-v1';
+export const PRODUCT_DOMAINS_LAYOUT_STORAGE_KEY = 'axis-product-domains-layout-v2';
 
 /**
  * Product > Product Projects Layout Storage Key
@@ -1035,14 +1035,6 @@ export const DEFAULT_PRODUCT_DOMAINS_LAYOUT: Widget[] = [
     x: 6, y: 9,
     w: 6, h: 5,
     minW: 4, minH: 4, maxW: 12, maxH: 8,
-  },
-  {
-    id: 'flagged-domains',
-    type: 'flagged-domains',
-    title: 'Flagged Domains',
-    x: 0, y: 14,
-    w: 12, h: 5,
-    minW: 6, minH: 4, maxW: 12, maxH: 8,
   },
 ];
 
@@ -1123,13 +1115,6 @@ export const PRODUCT_DOMAINS_WIDGET_CATALOG: WidgetCatalogItem[] = [
     description: 'Horizontal bar chart of top domains by revenue',
     iconKey: 'barChart',
     defaultSize: { w: 6, h: 5 },
-  },
-  {
-    type: 'flagged-domains',
-    title: 'Flagged Domains',
-    description: 'Table of domains with flag issues requiring attention',
-    iconKey: 'alert',
-    defaultSize: { w: 12, h: 5 },
   },
 ];
 

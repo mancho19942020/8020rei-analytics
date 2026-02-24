@@ -137,6 +137,7 @@ export function AxisButton({
           bg-main-700 text-white
           hover:bg-main-900
           active:bg-main-950
+          dark:bg-main-500 dark:hover:bg-main-700 dark:active:bg-main-900
           disabled:bg-neutral-200 disabled:text-neutral-400
           dark:disabled:bg-neutral-800 dark:disabled:text-neutral-500
         `,

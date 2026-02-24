@@ -14,6 +14,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { AxisButton } from '@/components/axis';
 import {
   LineChart,
   Line,
@@ -101,26 +102,20 @@ export function DomainActivityTrendWidget({ data }: DomainActivityTrendWidgetPro
           Domain Activity Over Time
         </span>
         <div className="flex items-center gap-1">
-          <button
+          <AxisButton
+            size="sm"
+            variant={metric === 'properties_uploaded' ? 'filled' : 'outlined'}
             onClick={() => setMetric('properties_uploaded')}
-            className={`px-3 py-1 text-xs rounded-md transition-colors ${
-              metric === 'properties_uploaded'
-                ? 'bg-main-600 text-white'
-                : 'bg-surface-raised border border-stroke text-content-secondary hover:bg-surface-base'
-            }`}
           >
             Properties
-          </button>
-          <button
+          </AxisButton>
+          <AxisButton
+            size="sm"
+            variant={metric === 'domain_count' ? 'filled' : 'outlined'}
             onClick={() => setMetric('domain_count')}
-            className={`px-3 py-1 text-xs rounded-md transition-colors ${
-              metric === 'domain_count'
-                ? 'bg-main-600 text-white'
-                : 'bg-surface-raised border border-stroke text-content-secondary hover:bg-surface-base'
-            }`}
           >
             Domains
-          </button>
+          </AxisButton>
         </div>
       </div>
 

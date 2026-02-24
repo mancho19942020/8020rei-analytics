@@ -20,7 +20,7 @@ interface ProjectsTableWidgetProps {
 /** Renders a colored status badge based on status text */
 function StatusBadge({ status }: { status: string }) {
   const normalized = status.toUpperCase();
-  let colorClasses = 'bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300';
+  let colorClasses = 'light-gray-bg text-content-secondary';
 
   if (normalized === 'ON TRACK') {
     colorClasses = 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300';
@@ -42,7 +42,7 @@ function SPProgress({ completed, total }: { completed: number; total: number }) 
   const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
   return (
     <div className="flex items-center gap-2">
-      <div className="flex-1 h-1.5 bg-neutral-200 dark:bg-neutral-700 rounded-full overflow-hidden">
+      <div className="flex-1 h-1.5 bg-surface-overlay rounded-full overflow-hidden">
         <div
           className="h-full bg-main-600 dark:bg-main-500 rounded-full transition-all"
           style={{ width: `${pct}%` }}

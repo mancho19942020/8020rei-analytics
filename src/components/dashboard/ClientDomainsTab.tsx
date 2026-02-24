@@ -18,7 +18,6 @@ import {
   DomainLeaderboardWidget,
   DomainActivityTrendWidget,
   RevenueByDomainWidget,
-  FlaggedDomainsWidget,
 } from '@/components/workspace/widgets';
 import {
   DEFAULT_PRODUCT_DOMAINS_LAYOUT,
@@ -33,7 +32,6 @@ import {
   formatDomainLeaderboardForExport,
   formatDomainActivityTrendForExport,
   formatRevenueByDomainForExport,
-  formatFlaggedDomainsForExport,
 } from '@/lib/export';
 
 interface ClientDomainsTabProps {
@@ -186,12 +184,6 @@ export const ClientDomainsTab = forwardRef<TabHandle, ClientDomainsTabProps>(fun
           `revenue-by-domain-${timestamp}`
         );
         break;
-      case 'flagged-domains':
-        exportToCSV(
-          formatFlaggedDomainsForExport(data.flaggedDomains),
-          `flagged-domains-${timestamp}`
-        );
-        break;
       default:
         console.warn(`No export handler for widget: ${widgetId}`);
     }
@@ -205,7 +197,6 @@ export const ClientDomainsTab = forwardRef<TabHandle, ClientDomainsTabProps>(fun
       'domain-leaderboard': <DomainLeaderboardWidget data={data.leaderboard} />,
       'domain-activity-trend': <DomainActivityTrendWidget data={data.activityTrend} />,
       'revenue-by-domain': <RevenueByDomainWidget data={data.revenueByDomain} />,
-      'flagged-domains': <FlaggedDomainsWidget data={data.flaggedDomains} />,
     };
   }, [data]);
 

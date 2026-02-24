@@ -4,6 +4,8 @@
  * Type system for the Axis table component.
  */
 
+import type { ReactNode } from 'react';
+
 export type ColumnType = 'text' | 'number' | 'currency' | 'percentage' | 'date' | 'boolean';
 export type ColumnAlign = 'left' | 'center';
 export type SortOrder = 'asc' | 'desc' | null;
@@ -27,6 +29,8 @@ export interface Column {
   sortable?: boolean;
   /** Hide column */
   hidden?: boolean;
+  /** Custom cell renderer — when provided, overrides default formatting */
+  render?: (value: CellValue, row: RowData) => ReactNode;
 }
 
 export interface SortModel {

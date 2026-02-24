@@ -6,20 +6,7 @@
 
 'use client';
 
-import { ReactNode, useMemo } from 'react';
-
-interface TrendData {
-  value: number;
-  isPositive: boolean;
-}
-
-interface MetricCardProps {
-  label: string;
-  value: number;
-  icon: ReactNode;
-  subtitle?: string;
-  trend?: TrendData;
-}
+import { MetricCard, TrendData } from '@/components/workspace/MetricCard';
 
 interface SessionSummaryWidgetProps {
   data: {
@@ -30,98 +17,6 @@ interface SessionSummaryWidgetProps {
       unique_users: TrendData;
     };
   };
-}
-
-// Mini Sparkline component
-function MiniSparkline({ isPositive }: { isPositive: boolean }) {
-  const data = useMemo(() => {
-    // Generate data based on trend direction
-    return Array.from({ length: 7 }, (_, i) =>
-      50 + (Math.random() * 20) + (isPositive ? (i * 5) : (-i * 5))
-    );
-  }, [isPositive]);
-
-  const max = Math.max(...data);
-  const min = Math.min(...data);
-  const range = max - min || 1;
-  const height = 24;
-  const width = 48;
-
-  const points = data.map((value, index) => {
-    const x = (index / (data.length - 1)) * width;
-    const y = height - ((value - min) / range) * height;
-    return `${x},${y}`;
-  }).join(' ');
-
-  return (
-    <svg width={width} height={height} className="flex-shrink-0">
-      <polyline
-        fill="none"
-        stroke={isPositive ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)'}
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        points={points}
-      />
-    </svg>
-  );
-}
-
-// Trend Badge component
-function TrendBadge({ trend }: { trend: TrendData }) {
-  const { value, isPositive } = trend;
-
-  if (value === 0) return null;
-
-  return (
-    <div className={[
-      'flex items-center gap-0.5 text-xs font-medium',
-      isPositive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400',
-    ].join(' ')}>
-      {isPositive ? (
-        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" />
-        </svg>
-      ) : (
-        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-        </svg>
-      )}
-      <span>{value.toFixed(1)}%</span>
-    </div>
-  );
-}
-
-function MetricCard({ label, value, icon, subtitle, trend }: MetricCardProps) {
-  const isPositive = trend?.isPositive ?? true;
-
-  return (
-    <div className="flex flex-col p-3 bg-surface-raised rounded-xl border border-stroke hover:border-stroke-strong hover:shadow-sm transition-all duration-200 h-full">
-      {/* Header: Icon + Label */}
-      <div className="flex items-center gap-2 mb-1">
-        <div className="flex-shrink-0 w-6 h-6 rounded-md bg-neutral-500 dark:bg-neutral-600 flex items-center justify-center text-white">
-          {icon}
-        </div>
-        <span className="text-xs font-medium text-content-secondary truncate">{label}</span>
-      </div>
-
-      {/* Main Value */}
-      <div className="text-2xl font-bold text-content-primary tabular-nums flex-1">
-        {value?.toLocaleString() ?? 0}
-      </div>
-
-      {/* Footer: Trend + Subtitle + Sparkline */}
-      <div className="flex items-end justify-between">
-        <div className="flex flex-col gap-0.5">
-          {trend && <TrendBadge trend={trend} />}
-          {subtitle && (
-            <span className="text-xs text-content-tertiary">{subtitle}</span>
-          )}
-        </div>
-        <MiniSparkline isPositive={isPositive} />
-      </div>
-    </div>
-  );
 }
 
 // Icons
@@ -146,6 +41,8 @@ export function SessionSummaryWidget({ data }: SessionSummaryWidgetProps) {
         value={data.total_sessions}
         icon={<SessionIcon />}
         subtitle="vs. previous period"
+        iconBgClass="bg-surface-overlay"
+        iconTextClass="text-content-tertiary"
         trend={data.trends?.total_sessions}
       />
 
@@ -155,6 +52,8 @@ export function SessionSummaryWidget({ data }: SessionSummaryWidgetProps) {
         value={data.unique_users}
         icon={<UsersIcon />}
         subtitle="vs. previous period"
+        iconBgClass="bg-surface-overlay"
+        iconTextClass="text-content-tertiary"
         trend={data.trends?.unique_users}
       />
     </div>
