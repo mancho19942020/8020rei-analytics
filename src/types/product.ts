@@ -57,6 +57,14 @@ export interface RevenueByDomainEntry {
   revenue: number;
 }
 
+export interface FlaggedDomainEntry {
+  domain_id: string;
+  domain_name: string;
+  flag: string;
+  flag_info: string;
+  date: string;
+}
+
 export interface ClientDomainsData {
   overview: DomainActivityOverview;
   leaderboard: DomainLeaderboardEntry[];
