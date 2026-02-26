@@ -100,11 +100,18 @@ Before each deployment, you must package those secrets into a temporary file tha
 ```bash
 cd /Users/work/Documents/Vibecoding/8020_metrics_hub/8020rei-analytics
 
-PRODUCT_CREDS=$(grep "^GOOGLE_APPLICATION_CREDENTIALS_PRODUCT_JSON=" .env.local | cut -d'=' -f2-)
+grep "^GOOGLE_APPLICATION_CREDENTIALS_PRODUCT_JSON=" .env.local | cut -d'=' -f2- | python3 -c "
+import sys, json
 
-python3 -c "
-import json, sys
-creds = sys.argv[1]
+creds = sys.stdin.read().strip()
+
+try:
+    j = json.loads(creds)
+    print('Credentials valid — type:', j.get('type'), '| project:', j.get('project_id'))
+except Exception as e:
+    print('ERROR: credentials JSON is invalid:', e)
+    sys.exit(1)
+
 env_vars = {
     'GOOGLE_CLOUD_PROJECT': 'web-app-production-451214',
     'BIGQUERY_DATASET': 'analytics_489035450',
@@ -119,15 +126,16 @@ with open('/tmp/env-vars.yaml', 'w') as f:
         escaped = v.replace('\\\\', '\\\\\\\\').replace('\"', '\\\\\"')
         f.write(f'{k}: \"{escaped}\"\n')
 print(f'Written {len(env_vars)} env vars to /tmp/env-vars.yaml')
-" "\$PRODUCT_CREDS"
+"
 ```
 
-**Expected output:**
+**Expected output — both lines must appear:**
 ```
+Credentials valid — type: service_account | project: bigquery-467404
 Written 7 env vars to /tmp/env-vars.yaml
 ```
 
-If you see that message, Step 2 is done. If you see an error, check that the `.env.local` file exists and contains the `GOOGLE_APPLICATION_CREDENTIALS_PRODUCT_JSON` variable.
+If you see `ERROR:` or only one line, **stop — do not deploy**. Check that `.env.local` exists and contains a valid `GOOGLE_APPLICATION_CREDENTIALS_PRODUCT_JSON` value.
 
 > **Note:** The file created at `/tmp/env-vars.yaml` is temporary. It gets erased when your computer restarts, which is why you must run this step before every deployment.
 

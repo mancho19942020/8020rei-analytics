@@ -438,18 +438,54 @@ function DocumentReader({
   );
 }
 
-// Loading skeleton for cards
+// Loading skeleton for cards — mirrors actual card grid layout faithfully
 function CardsSkeleton() {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {[1, 2, 3, 4, 5, 6].map((i) => (
-        <div key={i} className="bg-surface-raised border border-stroke rounded-lg p-5">
-          <div className="mb-3"><AxisSkeleton variant="custom" width="60px" height="20px" rounded="md" /></div>
-          <div className="mb-2"><AxisSkeleton variant="custom" width="100%" height="24px" rounded="md" /></div>
-          <div className="mb-3"><AxisSkeleton variant="custom" width="120px" height="16px" rounded="md" /></div>
-          <AxisSkeleton variant="custom" width="100%" height="60px" rounded="md" />
+    <div>
+      {/* Header skeleton */}
+      <div className="mb-6">
+        <AxisSkeleton variant="custom" width="200px" height="22px" rounded="md" />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        {/* Upload card placeholder — dashed outline */}
+        <div
+          className="border-2 border-dashed border-stroke rounded-2xl"
+          style={{ minHeight: 280, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 }}
+        >
+          <AxisSkeleton variant="custom" width="56px" height="56px" rounded="full" />
+          <AxisSkeleton variant="custom" width="120px" height="14px" rounded="md" />
+          <AxisSkeleton variant="custom" width="180px" height="12px" rounded="md" />
         </div>
-      ))}
+
+        {/* Document card skeletons — 5 cards mimicking: badge + title (2 lines) + preview (6 lines) + footer */}
+        {[1, 2, 3, 4, 5].map((i) => (
+          <div key={i} className="bg-surface-raised border border-stroke rounded-2xl p-6" style={{ minHeight: 280, display: 'flex', flexDirection: 'column' }}>
+            {/* Folder badge */}
+            <div className="mb-4">
+              <AxisSkeleton variant="custom" width="64px" height="20px" rounded="md" />
+            </div>
+
+            {/* Title — 2 lines */}
+            <div className="mb-4" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <AxisSkeleton variant="custom" width="100%" height="20px" rounded="md" />
+              <AxisSkeleton variant="custom" width="72%" height="20px" rounded="md" />
+            </div>
+
+            {/* Preview text — 5 lines, last one shorter */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 7 }}>
+              {['100%', '100%', '95%', '100%', '60%'].map((w, j) => (
+                <AxisSkeleton key={j} variant="custom" width={w} height="13px" rounded="md" />
+              ))}
+            </div>
+
+            {/* Footer — date */}
+            <div className="mt-4 pt-4 border-t border-stroke">
+              <AxisSkeleton variant="custom" width="110px" height="12px" rounded="md" />
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -488,11 +524,6 @@ export const EngagementCallsTab = forwardRef<TabHandle>(function EngagementCalls
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
-  // Fetch documents list
-  useEffect(() => {
-    fetchDocuments();
-  }, []);
-
   async function fetchDocuments() {
     setLoading(true);
     setError(null);
@@ -506,7 +537,7 @@ export const EngagementCallsTab = forwardRef<TabHandle>(function EngagementCalls
       } else {
         setError(json.error || 'Failed to fetch documents');
       }
-    } catch (err) {
+    } catch {
       setError('Failed to connect to API');
     }
 
@@ -526,12 +557,17 @@ export const EngagementCallsTab = forwardRef<TabHandle>(function EngagementCalls
       } else {
         setError(json.error || 'Failed to fetch document');
       }
-    } catch (err) {
+    } catch {
       setError('Failed to connect to API');
     }
 
     setLoadingDocument(false);
   }
+
+  // Fetch documents list on mount
+  useEffect(() => {
+    void fetchDocuments(); // eslint-disable-line react-hooks/set-state-in-effect
+  }, []);
 
   // Handle card click
   function handleCardClick(document: EngagementDocument) {
@@ -570,7 +606,7 @@ export const EngagementCallsTab = forwardRef<TabHandle>(function EngagementCalls
         setUploadError(json.error || 'Upload failed');
         setTimeout(() => setUploadError(null), 5000);
       }
-    } catch (err) {
+    } catch {
       setUploadError('Failed to upload file');
       setTimeout(() => setUploadError(null), 5000);
     }
@@ -588,7 +624,7 @@ export const EngagementCallsTab = forwardRef<TabHandle>(function EngagementCalls
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="max-w-md w-full">
-          <AxisCallout type="error" title="Failed to Load Documents">
+          <AxisCallout type="error" title="Failed to load documents">
             <p className="mb-4">{error}</p>
             <AxisButton onClick={fetchDocuments} variant="filled">
               Retry
@@ -619,7 +655,7 @@ export const EngagementCallsTab = forwardRef<TabHandle>(function EngagementCalls
               <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
             </svg>
           </div>
-          <h3 className="text-lg font-semibold text-content-primary mb-2">No Documents Found</h3>
+          <h3 className="text-lg font-semibold text-content-primary mb-2">No documents found</h3>
           <p className="text-sm text-content-secondary max-w-sm">
             No engagement call documents were found in the connected Google Drive folder.
           </p>
@@ -632,34 +668,21 @@ export const EngagementCallsTab = forwardRef<TabHandle>(function EngagementCalls
   return (
     <div>
       {/* Header */}
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold text-content-primary mb-2">
-          Engagement Call Reports
+      <div className="mb-6">
+        <h2 className="text-xl font-semibold text-content-primary" style={{ margin: 0 }}>
+          Engagement call reports
         </h2>
-        <p className="text-base text-content-secondary">
-          {documents.length} document{documents.length !== 1 ? 's' : ''} from customer engagement calls
-        </p>
       </div>
 
       {/* Upload feedback messages */}
       {uploadSuccess && (
-        <div className="mb-6 p-4 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
-          <div className="flex items-center gap-3">
-            <svg className="w-5 h-5 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
-            <span className="text-sm font-medium text-green-800 dark:text-green-200">{uploadSuccess}</span>
-          </div>
+        <div className="mb-6">
+          <AxisCallout type="success">{uploadSuccess}</AxisCallout>
         </div>
       )}
       {uploadError && (
-        <div className="mb-6 p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
-          <div className="flex items-center gap-3">
-            <svg className="w-5 h-5 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-            <span className="text-sm font-medium text-red-800 dark:text-red-200">{uploadError}</span>
-          </div>
+        <div className="mb-6">
+          <AxisCallout type="error">{uploadError}</AxisCallout>
         </div>
       )}
 

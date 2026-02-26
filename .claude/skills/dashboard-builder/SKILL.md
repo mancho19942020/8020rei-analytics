@@ -410,31 +410,33 @@ export const MyTab = forwardRef<TabHandle>(function MyTab(_, ref) {
 
 ### Standard Page Header
 
-Always use this exact pattern (matches EngagementCallsTab):
+Always use this exact pattern for non-widget tabs:
 
 ```tsx
-<div className="mb-8">
-  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
-    <div>
-      <h2 className="text-2xl font-bold text-content-primary mb-2">
-        Section Title
-      </h2>
-      <p className="text-base text-content-secondary">
-        Brief description of this section.
-      </p>
-    </div>
-    <AxisButton variant="filled" size="md">
-      Primary Action
+<div className="mb-6">
+  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+    <h2 className="text-xl font-semibold text-content-primary" style={{ margin: 0 }}>
+      Section title
+    </h2>
+    <AxisButton variant="filled" size="sm">
+      Primary action
     </AxisButton>
   </div>
 </div>
 ```
 
 **Typography rules:**
-- Page title: `text-2xl font-bold text-content-primary` — NOT `text-h3`, NOT `text-3xl`
-- Description: `text-base text-content-secondary` — NOT `text-body-regular`, NOT `text-sm`
+- Page title: `text-xl font-semibold text-content-primary` — NOT `text-2xl` (too large), NOT `text-h3`, NOT `text-3xl`
+- No description subtitle under the title — keep the header minimal
 - Section sub-labels: `text-sm text-content-secondary`
-- Header bottom margin: `mb-8` (32px) — not `mb-4` (too tight) or `marginBottom: 28` inline
+- Header bottom margin: `mb-6` — not `mb-8` (too much space) or `mb-4` (too tight)
+- Button: `size="sm"` in the header row — NOT `size="md"` (makes the header too tall)
+
+**Capitalization rules (sentence case throughout):**
+- Titles: "Grafana dashboards" — only first word capitalized, NOT "Grafana Dashboards"
+- Buttons: "View dashboards", "Add your dashboards", "Edit your profile" — NOT title case
+- Field labels: "Display name", "Title / role" — NOT "Display Name", "Title / Role"
+- Exception: proper nouns and abbreviations keep their casing (e.g. "Grafana URL", "Firebase")
 
 ### Standard Card Grid
 

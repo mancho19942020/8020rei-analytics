@@ -8,6 +8,7 @@ import {
   doc,
   getDocs,
   setDoc,
+  deleteDoc,
   serverTimestamp,
   query,
   orderBy,
@@ -108,6 +109,19 @@ export const GrafanaTab = forwardRef<TabHandle>(function GrafanaTab(_, ref) {
   }
 
   // -------------------------------------------------------------------
+  // Delete the current user's contributor profile
+  // -------------------------------------------------------------------
+  async function handleDelete() {
+    if (!user) throw new Error('Not authenticated');
+    const db = getFirestoreDb();
+    const ref = doc(db, COLLECTION, user.uid);
+    await deleteDoc(ref);
+    setContributors(prev => prev.filter(c => c.id !== user.uid));
+    setSelectedId(null);
+    setModalOpen(false);
+  }
+
+  // -------------------------------------------------------------------
   // Derived values
   // -------------------------------------------------------------------
   const ownContributor = user ? contributors.find(c => c.id === user.uid) : undefined;
@@ -119,19 +133,37 @@ export const GrafanaTab = forwardRef<TabHandle>(function GrafanaTab(_, ref) {
   if (loading) {
     return (
       <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <AxisSkeleton variant="text" size="lg" width="200px" />
-          <AxisSkeleton variant="button" size="md" width="180px" />
+        {/* Header skeleton — mirrors actual header layout */}
+        <div className="mb-6">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
+            <AxisSkeleton variant="custom" width="168px" height="22px" rounded="md" />
+            <AxisSkeleton variant="custom" width="148px" height="30px" rounded="md" />
+          </div>
         </div>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
-            gap: 20,
-          }}
-        >
+
+        {/* Row skeletons — mirror actual contributor card layout */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {[1, 2, 3, 4].map(i => (
-            <AxisSkeleton key={i} variant="card" size="lg" />
+            <div
+              key={i}
+              className="bg-surface-raised border border-stroke"
+              style={{ borderRadius: 10, display: 'flex', alignItems: 'center', gap: 16, padding: '12px 16px' }}
+            >
+              {/* Avatar circle */}
+              <AxisSkeleton variant="custom" width="36px" height="36px" rounded="full" />
+
+              {/* Name + title stacked */}
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <AxisSkeleton variant="custom" width="130px" height="13px" rounded="md" />
+                <AxisSkeleton variant="custom" width="86px" height="11px" rounded="md" />
+              </div>
+
+              {/* Tag block */}
+              <AxisSkeleton variant="custom" width="96px" height="22px" rounded="full" />
+
+              {/* Button block */}
+              <AxisSkeleton variant="custom" width="120px" height="30px" rounded="md" />
+            </div>
           ))}
         </div>
       </div>
@@ -144,16 +176,8 @@ export const GrafanaTab = forwardRef<TabHandle>(function GrafanaTab(_, ref) {
   if (selectedContributor) {
     return (
       <div>
-        {/* Back + header row */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 16,
-            marginBottom: 20,
-            flexWrap: 'wrap',
-          }}
-        >
+        {/* Back button — standalone row */}
+        <div style={{ marginBottom: 20 }}>
           <AxisButton
             variant="ghost"
             size="sm"
@@ -166,9 +190,21 @@ export const GrafanaTab = forwardRef<TabHandle>(function GrafanaTab(_, ref) {
           >
             Back
           </AxisButton>
+        </div>
 
-          <div style={{ flex: 1 }}>
-            <h2 className="text-2xl font-bold text-content-primary" style={{ margin: 0 }}>
+        {/* Profile header block */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'space-between',
+            marginBottom: 24,
+            flexWrap: 'wrap',
+            gap: 12,
+          }}
+        >
+          <div>
+            <h2 className="text-xl font-semibold text-content-primary" style={{ margin: '0 0 4px 0' }}>
               {selectedContributor.name}
             </h2>
             <p className="text-sm text-content-secondary" style={{ margin: 0 }}>
@@ -187,7 +223,7 @@ export const GrafanaTab = forwardRef<TabHandle>(function GrafanaTab(_, ref) {
                 </svg>
               }
             >
-              Edit Profile
+              Edit dashboards
             </AxisButton>
           )}
         </div>
@@ -205,8 +241,8 @@ export const GrafanaTab = forwardRef<TabHandle>(function GrafanaTab(_, ref) {
             }}
           >
             <svg
-              width="48"
-              height="48"
+              width="40"
+              height="40"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -215,16 +251,10 @@ export const GrafanaTab = forwardRef<TabHandle>(function GrafanaTab(_, ref) {
             >
               <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5" />
             </svg>
-            <p className="text-body-regular text-content-secondary">No dashboards added yet.</p>
+            <p className="text-sm text-content-secondary">No dashboards added yet.</p>
           </div>
         ) : (
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
-              gap: 20,
-            }}
-          >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {selectedContributor.dashboards.map(dashboard => (
               <GrafanaDashboardCard key={dashboard.id} dashboard={dashboard} />
             ))}
@@ -239,6 +269,7 @@ export const GrafanaTab = forwardRef<TabHandle>(function GrafanaTab(_, ref) {
           defaultName={user?.displayName ?? user?.email ?? ''}
           defaultEmail={user?.email ?? ''}
           onSave={handleSave}
+          onDelete={ownContributor ? handleDelete : undefined}
         />
       </div>
     );
@@ -250,111 +281,76 @@ export const GrafanaTab = forwardRef<TabHandle>(function GrafanaTab(_, ref) {
   return (
     <div>
       {/* Page header */}
-      <div className="mb-8">
+      <div className="mb-6">
         <div
           style={{
             display: 'flex',
             justifyContent: 'space-between',
-            alignItems: 'flex-start',
+            alignItems: 'center',
             gap: 16,
             flexWrap: 'wrap',
           }}
         >
-          <div>
-            <h2 className="text-2xl font-bold text-content-primary mb-2">
-              Grafana Dashboards
-            </h2>
-            <p className="text-base text-content-secondary">
-              Team-linked Grafana boards — click a profile to explore dashboards.
-            </p>
-          </div>
+          <h2 className="text-xl font-semibold text-content-primary" style={{ margin: 0 }}>
+            Grafana dashboards
+          </h2>
 
           <AxisButton
             variant={ownContributor ? 'outlined' : 'filled'}
-            size="md"
+            size="sm"
             onClick={() => setModalOpen(true)}
             iconLeft={
               ownContributor ? (
-                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
                 </svg>
               ) : (
-                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                 </svg>
               )
             }
           >
-            {ownContributor ? 'Edit Your Profile' : 'Add Your Dashboards'}
+            {ownContributor ? 'Edit your dashboards' : 'Add your dashboards'}
           </AxisButton>
         </div>
       </div>
 
       {/* Fetch error */}
       {fetchError && (
-        <div className="mb-6">
+        <div className="mb-4">
           <AxisCallout type="error">{fetchError}</AxisCallout>
         </div>
       )}
 
       {/* Empty state */}
       {!fetchError && contributors.length === 0 && (
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            minHeight: 320,
-            gap: 16,
-            textAlign: 'center',
-          }}
-        >
-          <div
-            style={{
-              width: 72,
-              height: 72,
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-            className="bg-surface-raised border border-stroke"
-          >
-            <svg width="36" height="36" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} className="text-content-tertiary">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5" />
-            </svg>
-          </div>
-          <div>
-            <p className="text-body-large font-semibold text-content-primary" style={{ marginBottom: 6 }}>
-              No Grafana profiles yet
-            </p>
-            <p className="text-body-regular text-content-secondary">
+        <div className="flex items-center justify-center" style={{ minHeight: 320 }}>
+          <div className="text-center">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-surface-raised border border-stroke mb-4">
+              <svg className="w-8 h-8 text-content-tertiary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold text-content-primary mb-2">No Grafana profiles yet</h3>
+            <p className="text-sm text-content-secondary" style={{ marginBottom: 20 }}>
               Be the first to add your dashboards.
             </p>
+            <AxisButton variant="filled" size="sm" onClick={() => setModalOpen(true)}>
+              Add your dashboards
+            </AxisButton>
           </div>
-          <AxisButton variant="filled" size="md" onClick={() => setModalOpen(true)}>
-            Add Your Dashboards
-          </AxisButton>
         </div>
       )}
 
-      {/* Contributor grid */}
+      {/* Contributor list */}
       {contributors.length > 0 && (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
-            gap: 20,
-          }}
-        >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {contributors.map(contributor => (
             <GrafanaContributorCard
               key={contributor.id}
               contributor={contributor}
-              isOwnCard={user?.uid === contributor.id}
               onView={() => setSelectedId(contributor.id)}
-              onEdit={() => setModalOpen(true)}
             />
           ))}
         </div>

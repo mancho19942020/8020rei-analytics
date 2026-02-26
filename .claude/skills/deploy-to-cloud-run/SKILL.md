@@ -36,14 +36,24 @@ gcloud run deploy analytics8020 \
 
 The env vars file must be regenerated every time because it uses credentials from `.env.local`. Run this **before** the deploy command:
 
+**IMPORTANT:** Credentials are piped via stdin — do NOT pass them as a shell argument (`"\$VAR"` syntax silently passes the literal string `$VAR` instead of the value, which causes `Invalid credentials` errors in production).
+
 ```bash
 cd /Users/work/Documents/Vibecoding/8020_metrics_hub/8020rei-analytics
 
-PRODUCT_CREDS=$(grep "^GOOGLE_APPLICATION_CREDENTIALS_PRODUCT_JSON=" .env.local | cut -d'=' -f2-)
+grep "^GOOGLE_APPLICATION_CREDENTIALS_PRODUCT_JSON=" .env.local | cut -d'=' -f2- | python3 -c "
+import sys, json
 
-python3 -c "
-import json, sys
-creds = sys.argv[1]
+creds = sys.stdin.read().strip()
+
+# Validate credentials before writing
+try:
+    j = json.loads(creds)
+    print('Credentials valid — type:', j.get('type'), '| project:', j.get('project_id'))
+except Exception as e:
+    print('ERROR: credentials JSON is invalid:', e)
+    sys.exit(1)
+
 env_vars = {
     'GOOGLE_CLOUD_PROJECT': 'web-app-production-451214',
     'BIGQUERY_DATASET': 'analytics_489035450',
@@ -58,8 +68,16 @@ with open('/tmp/env-vars.yaml', 'w') as f:
         escaped = v.replace('\\\\', '\\\\\\\\').replace('\"', '\\\\\"')
         f.write(f'{k}: \"{escaped}\"\n')
 print(f'Written {len(env_vars)} env vars to /tmp/env-vars.yaml')
-" "\$PRODUCT_CREDS"
+"
 ```
+
+**Expected output (both lines must appear before proceeding):**
+```
+Credentials valid — type: service_account | project: bigquery-467404
+Written 7 env vars to /tmp/env-vars.yaml
+```
+
+If you see `ERROR:` or only one line of output, stop — do not deploy. The credentials were not read correctly.
 
 ### 4. Verify deployment
 
@@ -106,6 +124,11 @@ When a new feature requires new environment variables:
 - Check that the env vars file includes the correct credentials JSON
 - The Product BigQuery project (`bigquery-467404`) requires its own service account key
 - The GA4 project uses the Cloud Run default service account
+
+### "Invalid GOOGLE_APPLICATION_CREDENTIALS_PRODUCT_JSON" on the live site
+- **Root cause:** The env vars file was generated with the literal string `$PRODUCT_CREDS` instead of the actual JSON value. This happens when credentials are passed as a shell argument with `"\$VAR"` syntax — the `\$` escapes the dollar sign and prevents variable expansion.
+- **Fix:** Always use the stdin pipe method (`... | python3 -c "creds = sys.stdin.read()"`). Never pass credentials as `sys.argv[1]`.
+- **How to confirm before deploying:** The generation script must print `Credentials valid — type: service_account` before the "Written N env vars" line. If it doesn't, stop and fix before deploying.
 
 ### Deploy fails with YAML parsing error
 - The credentials JSON contains special characters — ensure the Python script is used to generate the YAML

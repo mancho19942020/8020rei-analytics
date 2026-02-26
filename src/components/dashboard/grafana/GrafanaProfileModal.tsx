@@ -21,6 +21,8 @@ interface GrafanaProfileModalProps {
   /** Pre-filled email from Firebase Auth */
   defaultEmail: string;
   onSave: (data: { name: string; title: string; dashboards: GrafanaDashboard[] }) => Promise<void>;
+  /** Delete own profile entirely; only passed when a profile exists */
+  onDelete?: () => Promise<void>;
 }
 
 function emptyDashboard(): DashboardDraft {
@@ -34,6 +36,7 @@ export function GrafanaProfileModal({
   defaultName,
   defaultEmail,
   onSave,
+  onDelete,
 }: GrafanaProfileModalProps) {
   const isEdit = !!existing;
 
@@ -41,6 +44,8 @@ export function GrafanaProfileModal({
   const [title, setTitle] = useState('');
   const [dashboards, setDashboards] = useState<DashboardDraft[]>([emptyDashboard()]);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Populate fields when editing
@@ -60,6 +65,7 @@ export function GrafanaProfileModal({
         setDashboards([emptyDashboard()]);
       }
       setError(null);
+      setConfirmDelete(false);
     }
   }, [open, existing, defaultName]);
 
@@ -127,13 +133,25 @@ export function GrafanaProfileModal({
     }
   }
 
+  async function handleDeleteConfirm() {
+    if (!onDelete) return;
+    setDeleting(true);
+    try {
+      await onDelete();
+    } catch (err) {
+      setError('Failed to delete. Please try again.');
+      console.error('[GrafanaProfileModal] delete error:', err);
+      setDeleting(false);
+    }
+  }
+
   const footer = (
     <>
       <AxisButton variant="ghost" size="md" onClick={onClose} disabled={saving}>
         Cancel
       </AxisButton>
       <AxisButton variant="filled" size="md" onClick={handleSubmit} loading={saving}>
-        {isEdit ? 'Save Changes' : 'Create Profile'}
+        {isEdit ? 'Save changes' : 'Create profile'}
       </AxisButton>
     </>
   );
@@ -142,7 +160,7 @@ export function GrafanaProfileModal({
     <AxisModal
       open={open}
       onClose={onClose}
-      title={isEdit ? 'Edit Your Profile' : 'Add Your Dashboards'}
+      title={isEdit ? 'Edit your dashboards' : 'Add your dashboards'}
       size="md"
       footer={footer}
       disableBackdropClose={saving}
@@ -161,14 +179,14 @@ export function GrafanaProfileModal({
             Your Info
           </p>
           <AxisInput
-            label="Display Name"
+            label="Display name"
             value={name}
             onChange={e => setName(e.target.value)}
             placeholder="e.g. Johan Doe"
             required
           />
           <AxisInput
-            label="Title / Role"
+            label="Title / role"
             value={title}
             onChange={e => setTitle(e.target.value)}
             placeholder="e.g. Backend Lead"
@@ -217,7 +235,7 @@ export function GrafanaProfileModal({
               </div>
 
               <AxisInput
-                label="Dashboard Name"
+                label="Dashboard name"
                 value={dash.name}
                 onChange={e => updateDashboard(dash.id, 'name', e.target.value)}
                 placeholder="e.g. API Monitoring"
@@ -257,9 +275,68 @@ export function GrafanaProfileModal({
             <svg width="16" height="16" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
             </svg>
-            Add Another Dashboard
+            Add another dashboard
           </button>
         </div>
+
+        {/* Delete zone — only in edit mode */}
+        {isEdit && onDelete && (
+          <>
+            <div className="border-t border-stroke" />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <p className="text-label font-semibold text-content-secondary" style={{ margin: 0, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Danger zone
+              </p>
+              {confirmDelete ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <p className="text-sm text-content-secondary" style={{ margin: 0 }}>
+                    This will permanently delete your profile and all linked dashboards. This cannot be undone.
+                  </p>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <AxisButton
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setConfirmDelete(false)}
+                      disabled={deleting}
+                    >
+                      Cancel
+                    </AxisButton>
+                    <AxisButton
+                      variant="filled"
+                      size="sm"
+                      onClick={handleDeleteConfirm}
+                      loading={deleting}
+                      style={{ backgroundColor: 'var(--error-600)', borderColor: 'var(--error-600)' }}
+                    >
+                      Yes, delete my profile
+                    </AxisButton>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setConfirmDelete(true)}
+                  className="text-error-500 hover:text-error-700 transition-colors text-label font-medium"
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: 0,
+                    alignSelf: 'flex-start',
+                  }}
+                >
+                  <svg width="15" height="15" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                  </svg>
+                  Delete my profile
+                </button>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </AxisModal>
   );

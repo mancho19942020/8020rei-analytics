@@ -1,13 +1,11 @@
 'use client';
 
-import { AxisCard, AxisTag, AxisButton } from '@/components/axis';
+import { AxisTag, AxisButton } from '@/components/axis';
 import type { GrafanaContributor } from './types';
 
 interface GrafanaContributorCardProps {
   contributor: GrafanaContributor;
-  isOwnCard: boolean;
   onView: () => void;
-  onEdit: () => void;
 }
 
 /** Generates initials from a display name (e.g. "Johan Doe" → "JD") */
@@ -37,96 +35,82 @@ function avatarColor(name: string) {
 
 export function GrafanaContributorCard({
   contributor,
-  isOwnCard,
   onView,
-  onEdit,
 }: GrafanaContributorCardProps) {
   const initials = getInitials(contributor.name);
   const { bg, text } = avatarColor(contributor.name);
   const dashCount = contributor.dashboards.length;
 
   return (
-    <AxisCard variant="default" padding="none" className="flex flex-col">
-      <div style={{ padding: '24px 20px 16px' }}>
-        {/* Avatar */}
-        <div
-          style={{
-            width: 52,
-            height: 52,
-            borderRadius: '50%',
-            backgroundColor: bg,
-            color: text,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 18,
-            fontWeight: 700,
-            letterSpacing: '0.02em',
-            marginBottom: 14,
-            flexShrink: 0,
-          }}
-          aria-hidden="true"
-        >
-          {initials}
-        </div>
-
-        {/* Name & title */}
-        <p className="text-body-regular font-semibold text-content-primary" style={{ marginBottom: 2 }}>
-          {contributor.name}
-        </p>
-        <p className="text-label text-content-secondary" style={{ marginBottom: 12 }}>
-          {contributor.title}
-        </p>
-
-        {/* Dashboard count badge */}
-        <AxisTag
-          color={dashCount > 0 ? 'info' : 'neutral'}
-          size="sm"
-          variant="filled"
-          dot={dashCount > 0}
-        >
-          {dashCount === 0
-            ? 'No dashboards yet'
-            : dashCount === 1
-            ? '1 dashboard'
-            : `${dashCount} dashboards`}
-        </AxisTag>
+    <div
+      className="bg-surface-raised border border-stroke"
+      style={{
+        borderRadius: 10,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 16,
+        padding: '12px 16px',
+      }}
+    >
+      {/* Avatar */}
+      <div
+        style={{
+          width: 36,
+          height: 36,
+          borderRadius: '50%',
+          backgroundColor: bg,
+          color: text,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: 13,
+          fontWeight: 700,
+          letterSpacing: '0.04em',
+          flexShrink: 0,
+        }}
+        aria-hidden="true"
+      >
+        {initials}
       </div>
 
-      {/* Footer actions */}
-      <div
-        className="border-t border-stroke"
-        style={{
-          padding: '12px 16px',
-          display: 'flex',
-          gap: 8,
-          marginTop: 'auto',
-        }}
+      {/* Name + role */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p
+          className="text-sm font-semibold text-content-primary"
+          style={{ margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+        >
+          {contributor.name}
+        </p>
+        <p className="text-xs text-content-secondary" style={{ margin: 0 }}>
+          {contributor.title}
+        </p>
+      </div>
+
+      {/* Dashboard count */}
+      <AxisTag
+        color={dashCount > 0 ? 'info' : 'neutral'}
+        size="sm"
+        variant="filled"
+        dot={dashCount > 0}
       >
+        {dashCount === 0
+          ? 'No dashboards'
+          : dashCount === 1
+          ? '1 dashboard'
+          : `${dashCount} dashboards`}
+      </AxisTag>
+
+      {/* Actions */}
+      <div style={{ flexShrink: 0 }}>
         <AxisButton
-          variant="ghost"
+          variant="filled"
           size="sm"
           onClick={onView}
           disabled={dashCount === 0}
-          style={{ flex: 1 }}
         >
-          View Dashboards
+          View dashboards
         </AxisButton>
-        {isOwnCard && (
-          <AxisButton
-            variant="outlined"
-            size="sm"
-            onClick={onEdit}
-            iconLeft={
-              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
-              </svg>
-            }
-          >
-            Edit
-          </AxisButton>
-        )}
       </div>
-    </AxisCard>
+    </div>
   );
 }
