@@ -17,6 +17,7 @@ import { GeographyTab } from '@/components/dashboard/GeographyTab';
 import { EventsTab } from '@/components/dashboard/EventsTab';
 import { InsightsTab } from '@/components/dashboard/InsightsTab';
 import { EngagementCallsTab } from '@/components/dashboard/EngagementCallsTab';
+import { GrafanaTab } from '@/components/dashboard/GrafanaTab';
 import { ClientDomainsTab } from '@/components/dashboard/ClientDomainsTab';
 import { ProductProjectsTab } from '@/components/dashboard/ProductProjectsTab';
 import { DEFAULT_LAYOUT, LAYOUT_STORAGE_KEY, OVERVIEW_WIDGET_CATALOG } from '@/lib/workspace/defaultLayouts';
@@ -71,6 +72,7 @@ const MAIN_SECTION_TABS: AxisNavigationTabItem[] = [
   { id: 'qa', name: 'QA' },
   { id: 'ml-models', name: 'ML Models' },
   { id: 'engagement-calls', name: 'Engagement Calls' },
+  { id: 'grafana', name: 'Grafana' },
 ];
 
 // Second-level navigation - Sub-sections per Main Section
@@ -916,6 +918,11 @@ export default function Dashboard() {
             <EngagementCallsTab />
           )}
 
+          {/* Grafana Tab */}
+          {activeMainSection === 'grafana' && (
+            <GrafanaTab />
+          )}
+
           {/* Product > Client Domains Tab */}
           {activeMainSection === 'product' && activeSubsection === 'client-domains' && (
             <ClientDomainsTab
@@ -937,7 +944,7 @@ export default function Dashboard() {
           )}
 
           {/* Under Construction placeholder for sections without real content */}
-          {activeMainSection !== 'product' && activeMainSection !== 'engagement-calls' &&
+          {activeMainSection !== 'product' && activeMainSection !== 'engagement-calls' && activeMainSection !== 'grafana' &&
            !(activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4') && (
             <div className="flex items-center justify-center min-h-[calc(100vh-320px)]">
               <div className="text-center">

@@ -44,6 +44,9 @@ export type { AxisNavigationTabProps, AxisNavigationTabItem } from './AxisNaviga
 export { AxisTooltip } from './AxisTooltip';
 export type { AxisTooltipProps, TooltipPlacement } from './AxisTooltip';
 
+export { AxisModal } from './AxisModal';
+export type { AxisModalProps } from './AxisModal';
+
 // Export type definitions
 export * from '@/types/axis';
 export * from '@/types/table';

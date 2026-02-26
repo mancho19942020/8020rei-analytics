@@ -380,6 +380,120 @@ Use the pattern from `MetricsOverviewWidget`:
 
 ---
 
+## Non-Widget Tab Layout — CRITICAL RULES
+
+Non-widget tabs (document viewers, card galleries, profile pages) have strict spacing rules to stay visually consistent with Engagement Calls. Violating these creates the "flying / too much whitespace" problem.
+
+### Golden Rule: NO outer padding on the tab wrapper
+
+The parent `<main>` in `page.tsx` already applies `px-6 py-4`. Adding padding to the tab's outer div creates **double padding** and pushes everything away from the edges.
+
+```tsx
+// ✅ CORRECT — no padding on outer wrapper
+export const MyTab = forwardRef<TabHandle>(function MyTab(_, ref) {
+  return (
+    <div>
+      {/* header, grid, etc. */}
+    </div>
+  );
+});
+
+// ❌ WRONG — extra padding stacks on parent's px-6 py-4
+export const MyTab = forwardRef<TabHandle>(function MyTab(_, ref) {
+  return (
+    <div style={{ padding: '32px 24px' }}>
+      ...
+    </div>
+  );
+});
+```
+
+### Standard Page Header
+
+Always use this exact pattern (matches EngagementCallsTab):
+
+```tsx
+<div className="mb-8">
+  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
+    <div>
+      <h2 className="text-2xl font-bold text-content-primary mb-2">
+        Section Title
+      </h2>
+      <p className="text-base text-content-secondary">
+        Brief description of this section.
+      </p>
+    </div>
+    <AxisButton variant="filled" size="md">
+      Primary Action
+    </AxisButton>
+  </div>
+</div>
+```
+
+**Typography rules:**
+- Page title: `text-2xl font-bold text-content-primary` — NOT `text-h3`, NOT `text-3xl`
+- Description: `text-base text-content-secondary` — NOT `text-body-regular`, NOT `text-sm`
+- Section sub-labels: `text-sm text-content-secondary`
+- Header bottom margin: `mb-8` (32px) — not `mb-4` (too tight) or `marginBottom: 28` inline
+
+### Standard Card Grid
+
+```tsx
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+  {items.map(item => (
+    <MyCard key={item.id} item={item} />
+  ))}
+</div>
+```
+
+For auto-fit grids with a min card width:
+```tsx
+<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 16 }}>
+```
+Use `gap: 16` (not 20 or 24) to keep cards dense.
+
+### Standard Empty State
+
+```tsx
+<div className="flex items-center justify-center min-h-[400px]">
+  <div className="text-center">
+    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-surface-raised border border-stroke mb-4">
+      <svg className="w-8 h-8 text-content-tertiary" .../>
+    </div>
+    <h3 className="text-lg font-semibold text-content-primary mb-2">Nothing here yet</h3>
+    <p className="text-sm text-content-secondary max-w-sm">
+      Descriptive help text.
+    </p>
+  </div>
+</div>
+```
+Icon size: `w-16 h-16` container, `w-8 h-8` icon — NOT `72px/36px` inline.
+
+### Detail / Back View
+
+```tsx
+<div>
+  {/* Back nav */}
+  <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20, flexWrap: 'wrap' }}>
+    <button className="inline-flex items-center gap-2 text-sm font-medium text-content-secondary hover:text-content-primary transition-colors">
+      ← Back
+    </button>
+    <div style={{ flex: 1 }}>
+      <h2 className="text-2xl font-bold text-content-primary" style={{ margin: 0 }}>
+        Item Name
+      </h2>
+      <p className="text-sm text-content-secondary" style={{ margin: 0 }}>
+        Sub-label
+      </p>
+    </div>
+    <AxisButton variant="outlined" size="sm">Action</AxisButton>
+  </div>
+  {/* Content */}
+</div>
+```
+
+---
+
 ## Page Structure Template
 
 ```tsx
