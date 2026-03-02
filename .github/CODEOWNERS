@@ -1,0 +1,36 @@
+# CODEOWNERS - 8020METRICS HUB
+# These owners are automatically requested for review when PRs touch these paths.
+# Requires branch protection rules to be enabled on GitHub for enforcement.
+
+# Design System - Core tokens and styles (CRITICAL)
+src/app/globals.css                          @mancho19942020
+public/design-kit.html                       @mancho19942020
+
+# Axis Design System Components
+src/components/axis/                         @mancho19942020
+
+# Chart Components
+src/components/charts/                       @mancho19942020
+
+# Dashboard Layout and Workspace
+src/components/workspace/Widget.tsx          @mancho19942020
+src/components/workspace/GridWorkspace.tsx   @mancho19942020
+src/components/workspace/widgets/index.ts    @mancho19942020
+src/lib/workspace/defaultLayouts.ts          @mancho19942020
+
+# Shared Types
+types/                                       @mancho19942020
+shared-types/                                @mancho19942020
+
+# CI/CD and Project Configuration
+.github/                                     @mancho19942020
+package.json                                 @mancho19942020
+tsconfig.json                                @mancho19942020
+next.config.ts                               @mancho19942020
+
+# Environment and Credentials (should never be in PRs, but flag if touched)
+.env*                                        @mancho19942020
+credentials/                                 @mancho19942020
+
+# Design Documentation
+Design\ docs/design-system/                  @mancho19942020
