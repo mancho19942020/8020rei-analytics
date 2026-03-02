@@ -76,10 +76,12 @@ interface GeographyTabProps {
   userType: 'all' | 'internal' | 'external';
   editMode: boolean;
   onEditModeChange?: (editMode: boolean) => void;
+  startDate?: string;
+  endDate?: string;
 }
 
 export const GeographyTab = forwardRef<TabHandle, GeographyTabProps>(function GeographyTab(
-  { days, userType, editMode },
+  { days, userType, editMode, startDate, endDate },
   ref
 ) {
   const [data, setData] = useState<GeographyData | null>(null);
@@ -111,14 +113,18 @@ export const GeographyTab = forwardRef<TabHandle, GeographyTabProps>(function Ge
 
   useEffect(() => {
     fetchData();
-  }, [days, userType]);
+  }, [days, userType, startDate, endDate]);
 
   async function fetchData() {
     setLoading(true);
     setError(null);
 
+    const dateParams = startDate && endDate
+      ? `startDate=${startDate}&endDate=${endDate}`
+      : `days=${days}`;
+
     try {
-      const res = await fetch(`/api/metrics/geography?days=${days}&userType=${userType}`);
+      const res = await fetch(`/api/metrics/geography?${dateParams}&userType=${userType}`);
       const json = await res.json();
 
       if (json.success) {

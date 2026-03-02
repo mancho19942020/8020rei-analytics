@@ -92,11 +92,16 @@ function calculateTrend(current: number, previous: number, invertPositive = fals
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
-  const days = parseInt(searchParams.get('days') || '30');
+  const startDate = searchParams.get('startDate') ?? undefined;
+  const endDate = searchParams.get('endDate') ?? undefined;
+  const rawDays = parseInt(searchParams.get('days') || '30');
+  const days = startDate && endDate
+    ? Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / 86400000) || rawDays
+    : rawDays;
   const userType = (searchParams.get('userType') || 'all') as UserType;
 
   // Create a unique cache key based on the query parameters
-  const cacheKey = `users-metrics-v2:${days}:${userType}`;
+  const cacheKey = `users-metrics-v2:${startDate && endDate ? `${startDate}:${endDate}` : days}:${userType}`;
 
   // Check if we have cached data
   const cached = getCached<UsersMetricsData>(cacheKey);
@@ -122,11 +127,11 @@ export async function GET(request: NextRequest) {
       engagementMetrics,
       prevEngagementMetrics
     ] = await Promise.all([
-      runQuery<UserActivityMetrics>(getUserActivityMetricsQuery(days, userType)),
-      runQuery<PreviousUserActivityMetrics>(getPreviousUserActivityMetricsQuery(userType)),
-      runQuery<NewVsReturningData>(getNewVsReturningUsersQuery(days, userType)),
-      runQuery<EngagementMetrics>(getEngagementMetricsQuery(days, userType)),
-      runQuery<PreviousEngagementMetrics>(getPreviousEngagementMetricsQuery(days, userType)),
+      runQuery<UserActivityMetrics>(getUserActivityMetricsQuery(days, userType, startDate, endDate)),
+      runQuery<PreviousUserActivityMetrics>(getPreviousUserActivityMetricsQuery(userType, startDate, endDate)),
+      runQuery<NewVsReturningData>(getNewVsReturningUsersQuery(days, userType, startDate, endDate)),
+      runQuery<EngagementMetrics>(getEngagementMetricsQuery(days, userType, startDate, endDate)),
+      runQuery<PreviousEngagementMetrics>(getPreviousEngagementMetricsQuery(days, userType, startDate, endDate)),
     ]);
 
     const currentActivity = activityMetrics[0] || { dau: 0, wau: 0, mau: 0 };

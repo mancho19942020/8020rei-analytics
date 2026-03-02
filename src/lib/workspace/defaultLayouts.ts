@@ -115,6 +115,19 @@ export const DEFAULT_LAYOUT: Widget[] = [
     maxW: 12,
     maxH: 10,
   },
+  {
+    id: 'top-pages',
+    type: 'top-pages',
+    title: 'Pages & Screens',
+    x: 0,
+    y: 14,  // After clients-table (8 + 6)
+    w: 12,
+    h: 7,
+    minW: 6,
+    minH: 5,
+    maxW: 12,
+    maxH: 12,
+  },
 ];
 
 /**

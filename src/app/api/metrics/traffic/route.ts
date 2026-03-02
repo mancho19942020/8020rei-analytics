@@ -48,11 +48,16 @@ interface TrafficMetricsData {
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
-  const days = parseInt(searchParams.get('days') || '30');
+  const startDate = searchParams.get('startDate') ?? undefined;
+  const endDate = searchParams.get('endDate') ?? undefined;
+  const rawDays = parseInt(searchParams.get('days') || '30');
+  const days = startDate && endDate
+    ? Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / 86400000) || rawDays
+    : rawDays;
   const userType = (searchParams.get('userType') || 'all') as UserType;
 
   // Create a unique cache key based on the query parameters
-  const cacheKey = `traffic-metrics-v3:${days}:${userType}`;
+  const cacheKey = `traffic-metrics-v3:${startDate && endDate ? `${startDate}:${endDate}` : days}:${userType}`;
 
   // Check if we have cached data
   const cached = getCached<TrafficMetricsData>(cacheKey);
@@ -78,11 +83,11 @@ export async function GET(request: NextRequest) {
       sessionsByDayOfWeek,
       firstVisitsTrend
     ] = await Promise.all([
-      runQuery<TrafficBySource>(getTrafficBySourceQuery(days, userType)),
-      runQuery<TrafficByMedium>(getTrafficByMediumQuery(days, userType)),
-      runQuery<TopReferrer>(getTopReferrersQuery(days, userType)),
-      runQuery<SessionsByDayOfWeek>(getSessionsByDayOfWeekQuery(days, userType)),
-      runQuery<FirstVisitsTrend>(getFirstVisitsTrendQuery(days, userType)),
+      runQuery<TrafficBySource>(getTrafficBySourceQuery(days, userType, startDate, endDate)),
+      runQuery<TrafficByMedium>(getTrafficByMediumQuery(days, userType, startDate, endDate)),
+      runQuery<TopReferrer>(getTopReferrersQuery(days, userType, startDate, endDate)),
+      runQuery<SessionsByDayOfWeek>(getSessionsByDayOfWeekQuery(days, userType, startDate, endDate)),
+      runQuery<FirstVisitsTrend>(getFirstVisitsTrendQuery(days, userType, startDate, endDate)),
     ]);
 
     const data: TrafficMetricsData = {

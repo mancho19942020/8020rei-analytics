@@ -74,11 +74,16 @@ function calculateTrend(current: number, previous: number, invertPositive = fals
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
-  const days = parseInt(searchParams.get('days') || '30');
+  const startDate = searchParams.get('startDate') ?? undefined;
+  const endDate = searchParams.get('endDate') ?? undefined;
+  const rawDays = parseInt(searchParams.get('days') || '30');
+  const days = startDate && endDate
+    ? Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / 86400000) || rawDays
+    : rawDays;
   const userType = (searchParams.get('userType') || 'all') as UserType;
 
   // Create a unique cache key based on the query parameters
-  const cacheKey = `clients-metrics-v1:${days}:${userType}`;
+  const cacheKey = `clients-metrics-v1:${startDate && endDate ? `${startDate}:${endDate}` : days}:${userType}`;
 
   // Check if we have cached data
   const cached = getCached<ClientsMetricsData>(cacheKey);
@@ -103,10 +108,10 @@ export async function GET(request: NextRequest) {
       topClientsResult,
       activityTrendResult
     ] = await Promise.all([
-      runQuery<ClientsOverview>(getClientsOverviewQuery(days, userType)),
-      runQuery<PreviousClientsOverview>(getPreviousClientsOverviewQuery(days, userType)),
-      runQuery<ClientData>(getTopClientsDetailedQuery(days, userType)),
-      runQuery<ClientActivityData>(getClientActivityTrendQuery(days, userType)),
+      runQuery<ClientsOverview>(getClientsOverviewQuery(days, userType, startDate, endDate)),
+      runQuery<PreviousClientsOverview>(getPreviousClientsOverviewQuery(days, userType, startDate, endDate)),
+      runQuery<ClientData>(getTopClientsDetailedQuery(days, userType, startDate, endDate)),
+      runQuery<ClientActivityData>(getClientActivityTrendQuery(days, userType, startDate, endDate)),
     ]);
 
     const currentOverview = overviewResult[0] || {

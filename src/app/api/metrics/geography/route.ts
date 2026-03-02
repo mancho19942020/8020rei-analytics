@@ -63,11 +63,16 @@ function calculateTrend(current: number, previous: number): TrendData {
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
-  const days = parseInt(searchParams.get('days') || '30');
+  const startDate = searchParams.get('startDate') ?? undefined;
+  const endDate = searchParams.get('endDate') ?? undefined;
+  const rawDays = parseInt(searchParams.get('days') || '30');
+  const days = startDate && endDate
+    ? Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / 86400000) || rawDays
+    : rawDays;
   const userType = (searchParams.get('userType') || 'all') as UserType;
 
   // Create a unique cache key based on the query parameters
-  const cacheKey = `geography-metrics-v1:${days}:${userType}`;
+  const cacheKey = `geography-metrics-v1:${startDate && endDate ? `${startDate}:${endDate}` : days}:${userType}`;
 
   // Check if we have cached data
   const cached = getCached<GeographyMetricsData>(cacheKey);
@@ -93,11 +98,11 @@ export async function GET(request: NextRequest) {
       byContinent,
       prevCountry
     ] = await Promise.all([
-      runQuery<CountryData>(getCountryQuery(days, userType)),
-      runQuery<RegionData>(getRegionQuery(days, userType)),
-      runQuery<CityData>(getCityQuery(days, userType)),
-      runQuery<ContinentData>(getContinentQuery(days, userType)),
-      runQuery<CountryData>(getPreviousCountryQuery(days, userType)),
+      runQuery<CountryData>(getCountryQuery(days, userType, startDate, endDate)),
+      runQuery<RegionData>(getRegionQuery(days, userType, startDate, endDate)),
+      runQuery<CityData>(getCityQuery(days, userType, startDate, endDate)),
+      runQuery<ContinentData>(getContinentQuery(days, userType, startDate, endDate)),
+      runQuery<CountryData>(getPreviousCountryQuery(days, userType, startDate, endDate)),
     ]);
 
     // Create a map of previous period data for trend calculation

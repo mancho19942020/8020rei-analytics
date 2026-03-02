@@ -86,10 +86,12 @@ interface UsersTabProps {
   userType: 'all' | 'internal' | 'external';
   editMode: boolean;
   onEditModeChange?: (editMode: boolean) => void;
+  startDate?: string;
+  endDate?: string;
 }
 
 export const UsersTab = forwardRef<TabHandle, UsersTabProps>(function UsersTab(
-  { days, userType, editMode },
+  { days, userType, editMode, startDate, endDate },
   ref
 ) {
   const [data, setData] = useState<UsersData | null>(null);
@@ -121,14 +123,18 @@ export const UsersTab = forwardRef<TabHandle, UsersTabProps>(function UsersTab(
 
   useEffect(() => {
     fetchData();
-  }, [days, userType]);
+  }, [days, userType, startDate, endDate]);
 
   async function fetchData() {
     setLoading(true);
     setError(null);
 
+    const dateParams = startDate && endDate
+      ? `startDate=${startDate}&endDate=${endDate}`
+      : `days=${days}`;
+
     try {
-      const res = await fetch(`/api/metrics/users?days=${days}&userType=${userType}`);
+      const res = await fetch(`/api/metrics/users?${dateParams}&userType=${userType}`);
       const json = await res.json();
 
       if (json.success) {

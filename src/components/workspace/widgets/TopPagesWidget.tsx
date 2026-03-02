@@ -1,11 +1,14 @@
 /**
  * Top Pages Widget
  *
- * Table showing the most viewed pages in the application.
- * Displays page path, client, views, and unique users.
+ * Table showing the most viewed pages (Pages & Screens) with page path,
+ * client subdomain, total views, and unique users.
+ * Self-contained: fetches its own data from /api/metrics/pages.
  */
 
 'use client';
+
+import { useState, useEffect } from 'react';
 
 interface TopPageData {
   page_url: string;
@@ -16,27 +19,76 @@ interface TopPageData {
 }
 
 interface TopPagesWidgetProps {
-  data: TopPageData[];
+  days: number;
+  userType: 'all' | 'internal' | 'external';
+  startDate?: string;
+  endDate?: string;
 }
 
-// Format path for display (truncate long paths)
 function formatPath(path: string | null): string {
   if (!path) return '/';
-  // Truncate if too long
-  if (path.length > 40) {
-    return path.slice(0, 37) + '...';
-  }
+  if (path.length > 40) return path.slice(0, 37) + '...';
   return path;
 }
 
-export function TopPagesWidget({ data }: TopPagesWidgetProps) {
+export function TopPagesWidget({ days, userType, startDate, endDate }: TopPagesWidgetProps) {
+  const [data, setData] = useState<TopPageData[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchPages() {
+      if (!days || isNaN(days) || !userType) return;
+      setLoading(true);
+      try {
+        const dateParams = startDate && endDate
+          ? `startDate=${startDate}&endDate=${endDate}`
+          : `days=${days}`;
+        const res = await fetch(`/api/metrics/pages?${dateParams}&userType=${userType}`);
+        const json = await res.json();
+        if (!cancelled && json.success) {
+          setData(json.data);
+        }
+      } catch {
+        // keep previous data on error
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    fetchPages();
+    return () => { cancelled = true; };
+  }, [days, userType, startDate, endDate]);
+
+  if (loading) {
+    return (
+      <div className="h-full overflow-hidden">
+        <div className="flex items-center gap-3 py-2 px-3 border-b border-stroke mb-1">
+          <div className="h-3 bg-stroke rounded flex-1 animate-pulse" />
+          <div className="h-3 bg-stroke rounded w-20 animate-pulse" />
+          <div className="h-3 bg-stroke rounded w-16 animate-pulse" />
+          <div className="h-3 bg-stroke rounded w-16 animate-pulse" />
+        </div>
+        {[...Array(8)].map((_, i) => (
+          <div key={i} className="flex items-center gap-3 py-2.5 px-3 border-b border-stroke">
+            <div className="h-3 bg-stroke rounded flex-1 animate-pulse" style={{ opacity: 1 - i * 0.1 }} />
+            <div className="h-3 bg-stroke rounded w-20 animate-pulse" style={{ opacity: 1 - i * 0.1 }} />
+            <div className="h-3 bg-stroke rounded w-16 animate-pulse" style={{ opacity: 1 - i * 0.1 }} />
+            <div className="h-3 bg-stroke rounded w-16 animate-pulse" style={{ opacity: 1 - i * 0.1 }} />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className="h-full overflow-auto">
       <table className="w-full">
         <thead className="sticky top-0 bg-surface-raised z-10">
           <tr className="border-b border-stroke">
             <th className="text-left py-2 px-3 text-xs font-medium text-content-tertiary uppercase tracking-wider">
-              Page
+              Page Path
             </th>
             <th className="text-left py-2 px-3 text-xs font-medium text-content-tertiary uppercase tracking-wider w-32">
               Client
@@ -58,14 +110,12 @@ export function TopPagesWidget({ data }: TopPagesWidgetProps) {
               }`}
             >
               <td className="py-2.5 px-3">
-                <div className="flex flex-col">
-                  <span
-                    className="text-sm font-medium text-content-primary font-mono"
-                    title={item.path || '/'}
-                  >
-                    {formatPath(item.path)}
-                  </span>
-                </div>
+                <span
+                  className="text-sm font-medium text-content-primary font-mono"
+                  title={item.path || '/'}
+                >
+                  {formatPath(item.path)}
+                </span>
               </td>
               <td className="py-2.5 px-3">
                 <span className="text-sm text-content-secondary">

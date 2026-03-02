@@ -62,11 +62,16 @@ function calculateTrend(current: number, previous: number): TrendData {
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
-  const days = parseInt(searchParams.get('days') || '30');
+  const startDate = searchParams.get('startDate') ?? undefined;
+  const endDate = searchParams.get('endDate') ?? undefined;
+  const rawDays = parseInt(searchParams.get('days') || '30');
+  const days = startDate && endDate
+    ? Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / 86400000) || rawDays
+    : rawDays;
   const userType = (searchParams.get('userType') || 'all') as UserType;
 
   // Create a unique cache key based on the query parameters
-  const cacheKey = `technology-metrics-v1:${days}:${userType}`;
+  const cacheKey = `technology-metrics-v1:${startDate && endDate ? `${startDate}:${endDate}` : days}:${userType}`;
 
   // Check if we have cached data
   const cached = getCached<TechnologyMetricsData>(cacheKey);
@@ -92,11 +97,11 @@ export async function GET(request: NextRequest) {
       deviceLanguage,
       prevDeviceCategory
     ] = await Promise.all([
-      runQuery<DeviceCategoryData>(getDeviceCategoryQuery(days, userType)),
-      runQuery<BrowserData>(getBrowserDistributionQuery(days, userType)),
-      runQuery<OperatingSystemData>(getOperatingSystemQuery(days, userType)),
-      runQuery<LanguageData>(getDeviceLanguageQuery(days, userType)),
-      runQuery<DeviceCategoryData>(getPreviousDeviceCategoryQuery(days, userType)),
+      runQuery<DeviceCategoryData>(getDeviceCategoryQuery(days, userType, startDate, endDate)),
+      runQuery<BrowserData>(getBrowserDistributionQuery(days, userType, startDate, endDate)),
+      runQuery<OperatingSystemData>(getOperatingSystemQuery(days, userType, startDate, endDate)),
+      runQuery<LanguageData>(getDeviceLanguageQuery(days, userType, startDate, endDate)),
+      runQuery<DeviceCategoryData>(getPreviousDeviceCategoryQuery(days, userType, startDate, endDate)),
     ]);
 
     // Create a map of previous period data for trend calculation

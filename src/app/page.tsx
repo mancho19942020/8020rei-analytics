@@ -7,7 +7,7 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { DesignKitButton } from '@/components/DesignKitButton';
 import { Logo } from '@/components/Logo';
 import { AxisSelect, AxisSelectOption, AxisSkeleton, AxisCallout, AxisButton, AxisNavigationTab, AxisNavigationTabItem, AxisToggle } from '@/components/axis';
-import { GridWorkspace, MetricsOverviewWidget, TimeSeriesWidget, BarChartWidget, DataTableWidget, WidgetCatalog, WidgetSettings } from '@/components/workspace';
+import { GridWorkspace, MetricsOverviewWidget, TimeSeriesWidget, BarChartWidget, DataTableWidget, TopPagesWidget, WidgetCatalog, WidgetSettings } from '@/components/workspace';
 import { UsersTab } from '@/components/dashboard/UsersTab';
 import { FeaturesTab } from '@/components/dashboard/FeaturesTab';
 import { ClientsTab } from '@/components/dashboard/ClientsTab';
@@ -41,11 +41,6 @@ interface DashboardData {
   topClients: { client: string; events: number; users: number; page_views: number }[];
 }
 
-const TIME_RANGE_OPTIONS: AxisSelectOption[] = [
-  { value: 7, label: 'Last 7 days' },
-  { value: 30, label: 'Last 30 days' },
-  { value: 90, label: 'Last 90 days' },
-];
 
 const USER_TYPE_OPTIONS: AxisSelectOption[] = [
   { value: 'all', label: 'All Users' },
@@ -181,6 +176,9 @@ export default function Dashboard() {
   const router = useRouter();
   const [data, setData] = useState<DashboardData | null>(null);
   const [days, setDays] = useState(30);
+  const [dateMode, setDateMode] = useState<'preset' | 'custom'>('preset');
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
   const [userType, setUserType] = useState<'all' | 'internal' | 'external'>('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -191,6 +189,7 @@ export default function Dashboard() {
   const [activeSubsection, setActiveSubsection] = useState('client-domains');
   const [activeDetailTab, setActiveDetailTab] = useState('overview');
   const [editMode, setEditMode] = useState(false);
+  const [metricsWidgetUserType, setMetricsWidgetUserType] = useState<'all' | 'internal' | 'external'>('all');
   const [showEditCallout, setShowEditCallout] = useState(false);
   const [showWidgetCatalog, setShowWidgetCatalog] = useState(false);
   const [selectedWidgetForSettings, setSelectedWidgetForSettings] = useState<Widget | null>(null);
@@ -228,11 +227,14 @@ export default function Dashboard() {
     }
   }, [user, authLoading, router]);
 
+  const effectiveStartDate = dateMode === 'custom' && customStartDate && customEndDate ? customStartDate : undefined;
+  const effectiveEndDate = dateMode === 'custom' && customStartDate && customEndDate ? customEndDate : undefined;
+
   useEffect(() => {
     if (user) {
       fetchData();
     }
-  }, [days, userType, user]);
+  }, [days, userType, user, dateMode, customStartDate, customEndDate]);
 
   useEffect(() => {
     if (editMode) setShowEditCallout(true);
@@ -242,8 +244,12 @@ export default function Dashboard() {
     setLoading(true);
     setError(null);
 
+    const dateParams = dateMode === 'custom' && customStartDate && customEndDate
+      ? `startDate=${customStartDate}&endDate=${customEndDate}`
+      : `days=${days}`;
+
     try {
-      const res = await fetch(`/api/metrics?days=${days}&userType=${userType}`);
+      const res = await fetch(`/api/metrics?${dateParams}&userType=${userType}`);
       const json = await res.json();
 
       if (json.success) {
@@ -446,12 +452,13 @@ export default function Dashboard() {
 
     // Keys must match widget TYPE (not id) since GridWorkspace looks up by type
     return {
-      'metrics': <MetricsOverviewWidget data={data.metrics} />,
+      'metrics': <MetricsOverviewWidget days={days} widgetUserType={metricsWidgetUserType} startDate={effectiveStartDate} endDate={effectiveEndDate} />,
       'timeseries': <TimeSeriesWidget data={data.usersByDay} />,
       'barchart': <BarChartWidget data={data.featureUsage} />,
       'table': <DataTableWidget data={data.topClients} />,
+      'top-pages': <TopPagesWidget days={days} userType={userType} startDate={effectiveStartDate} endDate={effectiveEndDate} />,
     };
-  }, [data]);
+  }, [data, days, metricsWidgetUserType, userType, effectiveStartDate, effectiveEndDate]);
 
   // Show loading while checking authentication
   if (authLoading) {
@@ -590,16 +597,6 @@ export default function Dashboard() {
                     className="w-36"
                   />
                 )}
-
-                {/* Time Filter */}
-                <AxisSelect
-                  value={days}
-                  onChange={(val) => setDays(Number(val))}
-                  options={TIME_RANGE_OPTIONS}
-                  size="sm"
-                  fullWidth={false}
-                  className="w-36"
-                />
               </div>
 
               {/* Divider */}
@@ -763,6 +760,57 @@ export default function Dashboard() {
           </nav>
         )}
 
+        {/* Analytics Filter Bar — Date Range */}
+        {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && (
+          <div className="px-6 py-2 border-b border-stroke light-gray-bg flex items-center gap-3">
+            <span className="text-xs text-content-tertiary font-medium">Date range</span>
+            <div className="flex items-center rounded-md border border-stroke overflow-hidden bg-surface-base">
+              {([7, 30, 90] as const).map((d) => (
+                <button
+                  key={d}
+                  onClick={() => { setDays(d); setDateMode('preset'); }}
+                  className={[
+                    'px-2.5 py-1 text-xs font-medium transition-colors duration-150 whitespace-nowrap',
+                    dateMode === 'preset' && days === d
+                      ? 'bg-main-700 dark:bg-main-500 text-white'
+                      : 'text-content-secondary hover:text-content-primary',
+                  ].join(' ')}
+                >
+                  {d}D
+                </button>
+              ))}
+              <button
+                onClick={() => setDateMode('custom')}
+                className={[
+                  'px-2.5 py-1 text-xs font-medium transition-colors duration-150 whitespace-nowrap',
+                  dateMode === 'custom'
+                    ? 'bg-main-700 dark:bg-main-500 text-white'
+                    : 'text-content-secondary hover:text-content-primary',
+                ].join(' ')}
+              >
+                Custom
+              </button>
+            </div>
+            {dateMode === 'custom' && (
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="date"
+                  value={customStartDate}
+                  onChange={(e) => setCustomStartDate(e.target.value)}
+                  className="bg-surface-base border border-stroke rounded-md px-2 py-1 text-xs text-content-primary focus:outline-none focus:border-main-500"
+                />
+                <span className="text-xs text-content-tertiary">→</span>
+                <input
+                  type="date"
+                  value={customEndDate}
+                  onChange={(e) => setCustomEndDate(e.target.value)}
+                  className="bg-surface-base border border-stroke rounded-md px-2 py-1 text-xs text-content-primary focus:outline-none focus:border-main-500"
+                />
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Edit Mode Action Bar */}
         {editMode && (
           <div className="px-6 py-2 border-b border-stroke bg-main-50 dark:bg-main-950/20">
@@ -819,6 +867,26 @@ export default function Dashboard() {
                 widgets={widgets}
                 onWidgetSettings={handleOpenWidgetSettings}
                 onWidgetExport={handleExportWidget}
+                widgetHeaderContent={{
+                  metrics: (
+                    <div className="flex items-center rounded-md border border-stroke overflow-hidden bg-surface-base">
+                      {(['all', 'internal', 'external'] as const).map((type) => (
+                        <button
+                          key={type}
+                          onClick={() => setMetricsWidgetUserType(type)}
+                          className={[
+                            'px-2.5 py-0.5 text-xs font-medium transition-colors duration-150 whitespace-nowrap',
+                            metricsWidgetUserType === type
+                              ? 'bg-main-700 dark:bg-main-500 text-white'
+                              : 'text-content-secondary hover:text-content-primary',
+                          ].join(' ')}
+                        >
+                          {type === 'all' ? 'All' : type === 'internal' ? 'Internal' : 'External'}
+                        </button>
+                      ))}
+                    </div>
+                  ),
+                }}
               />
             </>
           )}
@@ -831,6 +899,8 @@ export default function Dashboard() {
               userType={userType}
               editMode={editMode}
               onEditModeChange={setEditMode}
+              startDate={effectiveStartDate}
+              endDate={effectiveEndDate}
             />
           )}
 
@@ -842,6 +912,8 @@ export default function Dashboard() {
               userType={userType}
               editMode={editMode}
               onEditModeChange={setEditMode}
+              startDate={effectiveStartDate}
+              endDate={effectiveEndDate}
             />
           )}
 
@@ -853,6 +925,8 @@ export default function Dashboard() {
               userType={userType}
               editMode={editMode}
               onEditModeChange={setEditMode}
+              startDate={effectiveStartDate}
+              endDate={effectiveEndDate}
             />
           )}
 
@@ -864,6 +938,8 @@ export default function Dashboard() {
               userType={userType}
               editMode={editMode}
               onEditModeChange={setEditMode}
+              startDate={effectiveStartDate}
+              endDate={effectiveEndDate}
             />
           )}
 
@@ -875,6 +951,8 @@ export default function Dashboard() {
               userType={userType}
               editMode={editMode}
               onEditModeChange={setEditMode}
+              startDate={effectiveStartDate}
+              endDate={effectiveEndDate}
             />
           )}
 
@@ -886,6 +964,8 @@ export default function Dashboard() {
               userType={userType}
               editMode={editMode}
               onEditModeChange={setEditMode}
+              startDate={effectiveStartDate}
+              endDate={effectiveEndDate}
             />
           )}
 
@@ -897,6 +977,8 @@ export default function Dashboard() {
               userType={userType}
               editMode={editMode}
               onEditModeChange={setEditMode}
+              startDate={effectiveStartDate}
+              endDate={effectiveEndDate}
             />
           )}
 
@@ -908,6 +990,8 @@ export default function Dashboard() {
               userType={userType}
               editMode={editMode}
               onEditModeChange={setEditMode}
+              startDate={effectiveStartDate}
+              endDate={effectiveEndDate}
             />
           )}
 

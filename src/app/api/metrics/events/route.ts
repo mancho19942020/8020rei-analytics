@@ -80,11 +80,16 @@ function calculateTrend(current: number, previous: number): TrendData {
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
-  const days = parseInt(searchParams.get('days') || '30');
+  const startDate = searchParams.get('startDate') ?? undefined;
+  const endDate = searchParams.get('endDate') ?? undefined;
+  const rawDays = parseInt(searchParams.get('days') || '30');
+  const days = startDate && endDate
+    ? Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / 86400000) || rawDays
+    : rawDays;
   const userType = (searchParams.get('userType') || 'all') as UserType;
 
   // Create a unique cache key based on the query parameters
-  const cacheKey = `events-metrics-v1:${days}:${userType}`;
+  const cacheKey = `events-metrics-v1:${startDate && endDate ? `${startDate}:${endDate}` : days}:${userType}`;
 
   // Check if we have cached data
   const cached = getCached<EventsMetricsResponse>(cacheKey);
@@ -111,12 +116,12 @@ export async function GET(request: NextRequest) {
       prevEventMetrics,
       scrollDepthByPage
     ] = await Promise.all([
-      runQuery<EventBreakdownData>(getEventBreakdownQuery(days, userType)),
-      runQuery<EventBreakdownData>(getPreviousEventBreakdownQuery(days, userType)),
-      runQuery<EventVolumeTrendData>(getEventVolumeTrendQuery(days, userType)),
-      runQuery<EventMetricsData>(getEventMetricsQuery(days, userType)),
-      runQuery<EventMetricsData>(getPreviousEventMetricsQuery(days, userType)),
-      runQuery<ScrollDepthData>(getScrollDepthByPageQuery(days, userType)),
+      runQuery<EventBreakdownData>(getEventBreakdownQuery(days, userType, startDate, endDate)),
+      runQuery<EventBreakdownData>(getPreviousEventBreakdownQuery(days, userType, startDate, endDate)),
+      runQuery<EventVolumeTrendData>(getEventVolumeTrendQuery(days, userType, startDate, endDate)),
+      runQuery<EventMetricsData>(getEventMetricsQuery(days, userType, startDate, endDate)),
+      runQuery<EventMetricsData>(getPreviousEventMetricsQuery(days, userType, startDate, endDate)),
+      runQuery<ScrollDepthData>(getScrollDepthByPageQuery(days, userType, startDate, endDate)),
     ]);
 
     // Create a map of previous period data for trend calculation

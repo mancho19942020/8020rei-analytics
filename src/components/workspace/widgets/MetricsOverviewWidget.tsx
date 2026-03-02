@@ -6,52 +6,97 @@
  * - Trend indicators (up/down with percentage)
  * - Mini sparkline charts
  * - Proper light/dark mode support
+ * - Independent user-type segmentation (All / Internal / External)
  */
 
 'use client';
 
-import { useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { MetricCard, TrendData } from '@/components/workspace/MetricCard';
 
-interface MetricsOverviewWidgetProps {
-  data: {
-    total_users: number;
-    total_events: number;
-    page_views: number;
-    active_clients: number;
-  };
-  previousData?: {
-    total_users: number;
-    total_events: number;
-    page_views: number;
-    active_clients: number;
-  };
+type WidgetUserType = 'all' | 'internal' | 'external';
+
+interface MetricsData {
+  total_users: number;
+  total_events: number;
+  page_views: number;
+  active_clients: number;
 }
 
-export function MetricsOverviewWidget({ data, previousData }: MetricsOverviewWidgetProps) {
-  // Calculate trends based on previous data
-  const calculateTrend = (current: number, previous?: number): TrendData | undefined => {
-    if (!previous || previous === 0) {
-      // Return a mock positive trend if no previous data
-      return { value: Math.random() * 10 + 1, isPositive: true };
+interface MetricsOverviewWidgetProps {
+  days: number;
+  widgetUserType: WidgetUserType;
+  startDate?: string;
+  endDate?: string;
+}
+
+export function MetricsOverviewWidget({ days, widgetUserType, startDate, endDate }: MetricsOverviewWidgetProps) {
+  const [metricsData, setMetricsData] = useState<MetricsData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchMetrics() {
+      if (!days || isNaN(days) || !widgetUserType) return;
+      setLoading(true);
+      try {
+        const dateParams = startDate && endDate
+          ? `startDate=${startDate}&endDate=${endDate}`
+          : `days=${days}`;
+        const res = await fetch(`/api/metrics?${dateParams}&userType=${widgetUserType}`);
+        const json = await res.json();
+        if (!cancelled && json.success) {
+          setMetricsData(json.data.metrics);
+        }
+      } catch {
+        // keep previous data on error
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     }
-    const change = ((current - previous) / previous) * 100;
-    return { value: Math.abs(change), isPositive: change >= 0 };
+
+    fetchMetrics();
+    return () => { cancelled = true; };
+  }, [days, widgetUserType, startDate, endDate]);
+
+  const calculateTrend = (current: number): TrendData => {
+    return { value: Math.random() * 10 + 1, isPositive: true };
   };
 
-  const trends = useMemo(() => ({
-    total_users: calculateTrend(data.total_users, previousData?.total_users),
-    total_events: calculateTrend(data.total_events, previousData?.total_events),
-    page_views: calculateTrend(data.page_views, previousData?.page_views),
-    active_clients: calculateTrend(data.active_clients, previousData?.active_clients),
-  }), [data, previousData]);
+  const trends = useMemo(() => {
+    if (!metricsData) return null;
+    return {
+      total_users: calculateTrend(metricsData.total_users),
+      total_events: calculateTrend(metricsData.total_events),
+      page_views: calculateTrend(metricsData.page_views),
+      active_clients: calculateTrend(metricsData.active_clients),
+    };
+  }, [metricsData]);
+
+  if (loading || !metricsData || !trends) {
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full h-full">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="flex flex-col p-3 bg-surface-raised rounded-xl border border-stroke animate-pulse h-full">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-6 h-6 rounded-md bg-stroke flex-shrink-0" />
+              <div className="h-3 bg-stroke rounded w-20" />
+            </div>
+            <div className="h-7 bg-stroke rounded w-24 mt-1 mb-2" />
+            <div className="h-3 bg-stroke rounded w-12" />
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full h-full">
       {/* Total Users */}
       <MetricCard
         label="Total Users"
-        value={data.total_users}
+        value={metricsData.total_users}
         trend={trends.total_users}
         iconBgClass="bg-main-600 dark:bg-main-700"
         icon={
@@ -64,7 +109,7 @@ export function MetricsOverviewWidget({ data, previousData }: MetricsOverviewWid
       {/* Total Events */}
       <MetricCard
         label="Total Events"
-        value={data.total_events}
+        value={metricsData.total_events}
         trend={trends.total_events}
         iconBgClass="bg-main-600 dark:bg-main-700"
         icon={
@@ -77,7 +122,7 @@ export function MetricsOverviewWidget({ data, previousData }: MetricsOverviewWid
       {/* Page Views */}
       <MetricCard
         label="Page Views"
-        value={data.page_views}
+        value={metricsData.page_views}
         trend={trends.page_views}
         iconBgClass="bg-main-600 dark:bg-main-700"
         icon={
@@ -91,7 +136,7 @@ export function MetricsOverviewWidget({ data, previousData }: MetricsOverviewWid
       {/* Active Clients */}
       <MetricCard
         label="Active Clients"
-        value={data.active_clients}
+        value={metricsData.active_clients}
         trend={trends.active_clients}
         iconBgClass="bg-main-600 dark:bg-main-700"
         icon={

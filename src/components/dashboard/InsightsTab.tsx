@@ -63,6 +63,8 @@ interface InsightsTabProps {
   userType: 'all' | 'internal' | 'external';
   editMode: boolean;
   onEditModeChange?: (editMode: boolean) => void;
+  startDate?: string;
+  endDate?: string;
 }
 
 export const InsightsTab = forwardRef<TabHandle, InsightsTabProps>(function InsightsTab(

@@ -34,6 +34,9 @@ export interface GridWorkspaceProps {
 
   /** Callback when widget export button is clicked */
   onWidgetExport?: (widgetId: string) => void;
+
+  /** Optional ReactNode content for widget headers, keyed by widget type */
+  widgetHeaderContent?: Record<string, React.ReactNode>;
 }
 
 export function GridWorkspace({
@@ -43,6 +46,7 @@ export function GridWorkspace({
   widgets,
   onWidgetSettings,
   onWidgetExport,
+  widgetHeaderContent,
 }: GridWorkspaceProps) {
   const [currentLayout, setCurrentLayout] = useState<WidgetConfig[]>(layout);
   const [width, setWidth] = useState(1200);
@@ -139,6 +143,7 @@ export function GridWorkspace({
           <div key={widgetConfig.id} className="transition-shadow duration-200">
             <Widget
               title={widgetConfig.title}
+              headerContent={widgetHeaderContent?.[widgetConfig.type]}
               editMode={editMode}
               onRemove={() => handleRemoveWidget(widgetConfig.id)}
               onSettings={onWidgetSettings ? () => onWidgetSettings(widgetConfig.id) : undefined}

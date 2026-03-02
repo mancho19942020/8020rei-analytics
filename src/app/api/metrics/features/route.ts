@@ -70,11 +70,16 @@ function calculateTrend(current: number, previous: number): TrendData {
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
-  const days = parseInt(searchParams.get('days') || '30');
+  const startDate = searchParams.get('startDate') ?? undefined;
+  const endDate = searchParams.get('endDate') ?? undefined;
+  const rawDays = parseInt(searchParams.get('days') || '30');
+  const days = startDate && endDate
+    ? Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / 86400000) || rawDays
+    : rawDays;
   const userType = (searchParams.get('userType') || 'all') as UserType;
 
   // Create a unique cache key based on the query parameters
-  const cacheKey = `features-metrics-v1:${days}:${userType}`;
+  const cacheKey = `features-metrics-v1:${startDate && endDate ? `${startDate}:${endDate}` : days}:${userType}`;
 
   // Check if we have cached data
   const cached = getCached<FeaturesMetricsData>(cacheKey);
@@ -100,11 +105,11 @@ export async function GET(request: NextRequest) {
       featureTrend,
       topPages,
     ] = await Promise.all([
-      runQuery<FeatureViewData>(getFeatureViewsQuery(days, userType)),
-      runQuery<PreviousFeatureViewData>(getPreviousFeatureViewsQuery(days, userType)),
-      runQuery<FeatureAdoptionData>(getFeatureAdoptionQuery(days, userType)),
-      runQuery<FeatureTrendData>(getFeatureTrendQuery(days, userType)),
-      runQuery<TopPageData>(getTopPagesQuery(days, userType)),
+      runQuery<FeatureViewData>(getFeatureViewsQuery(days, userType, startDate, endDate)),
+      runQuery<PreviousFeatureViewData>(getPreviousFeatureViewsQuery(days, userType, startDate, endDate)),
+      runQuery<FeatureAdoptionData>(getFeatureAdoptionQuery(days, userType, startDate, endDate)),
+      runQuery<FeatureTrendData>(getFeatureTrendQuery(days, userType, startDate, endDate)),
+      runQuery<TopPageData>(getTopPagesQuery(days, userType, startDate, endDate)),
     ]);
 
     // Create a map of previous views by feature for trend calculation

@@ -16,6 +16,9 @@ export interface WidgetComponentProps {
   /** Widget content */
   children: ReactNode;
 
+  /** Optional content rendered in the header between the title and action buttons */
+  headerContent?: ReactNode;
+
   /** Whether workspace is in edit mode */
   editMode?: boolean;
 
@@ -35,6 +38,7 @@ export interface WidgetComponentProps {
 export function Widget({
   title,
   children,
+  headerContent,
   editMode = false,
   onRemove,
   onSettings,
@@ -84,6 +88,11 @@ export function Widget({
           <h3 className="text-h4 font-semibold text-content-primary truncate">
             {title}
           </h3>
+
+          {/* Optional header content (e.g. segmented toggles) */}
+          {headerContent && (
+            <div className="flex items-center ml-2 flex-shrink-0">{headerContent}</div>
+          )}
         </div>
 
         {/* Right side: Actions */}

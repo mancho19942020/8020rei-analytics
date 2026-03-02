@@ -43,11 +43,15 @@ interface MetricsData {
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
-  const days = parseInt(searchParams.get('days') || '30');
+  const startDate = searchParams.get('startDate') ?? undefined;
+  const endDate = searchParams.get('endDate') ?? undefined;
+  const rawDays = parseInt(searchParams.get('days') || '30');
+  const days = startDate && endDate
+    ? Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / 86400000) || rawDays
+    : rawDays;
   const userType = (searchParams.get('userType') || 'all') as UserType;
 
-  // Create a unique cache key based on the query parameters
-  const cacheKey = `metrics:${days}:${userType}`;
+  const cacheKey = `metrics:${startDate && endDate ? `${startDate}:${endDate}` : days}:${userType}`;
 
   // Check if we have cached data
   const cached = getCached<MetricsData>(cacheKey);
@@ -67,10 +71,10 @@ export async function GET(request: NextRequest) {
   try {
     // Execute 4 queries in parallel
     const [metrics, usersByDay, featureUsage, topClients] = await Promise.all([
-      runQuery<Metrics>(getMetricsQuery(days, userType)),
-      runQuery<DailyData>(getUsersByDayQuery(days, userType)),
-      runQuery<FeatureData>(getFeatureUsageQuery(days, userType)),
-      runQuery<ClientData>(getTopClientsQuery(days, userType)),
+      runQuery<Metrics>(getMetricsQuery(days, userType, startDate, endDate)),
+      runQuery<DailyData>(getUsersByDayQuery(days, userType, startDate, endDate)),
+      runQuery<FeatureData>(getFeatureUsageQuery(days, userType, startDate, endDate)),
+      runQuery<ClientData>(getTopClientsQuery(days, userType, startDate, endDate)),
     ]);
 
     const data: MetricsData = {
