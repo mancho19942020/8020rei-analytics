@@ -1,14 +1,17 @@
 import { NextResponse } from 'next/server';
-import { listDocuments, getDocumentPreview, DriveDocument } from '@/lib/google-drive';
-import { getCached, setCache } from '@/lib/cache';
+import { listDocuments, getDocumentContent, DriveDocument } from '@/lib/google-drive';
+import { parseDocumentInsights, getDriveViewUrl } from '@/lib/document-parser';
+import { getCached, setCache, clearCache } from '@/lib/cache';
 
-// Extended document type with preview
-interface DocumentWithPreview extends DriveDocument {
+// Extended document type with client insights
+interface DocumentWithInsights extends DriveDocument {
   preview?: string;
+  clientNames?: string[];
+  driveUrl?: string;
 }
 
 interface EngagementCallsResponse {
-  documents: DocumentWithPreview[];
+  documents: DocumentWithInsights[];
   totalCount: number;
 }
 
@@ -23,10 +26,16 @@ export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
     const includePreview = url.searchParams.get('includePreview') !== 'false';
+    const refresh = url.searchParams.get('refresh') === 'true';
+
+    // Clear engagement-calls cache entries when refresh is requested
+    if (refresh) {
+      clearCache();
+    }
 
     // Check cache (5 minute TTL)
     const cacheKey = `engagement-calls:list:${includePreview}`;
-    const cached = getCached<EngagementCallsResponse>(cacheKey);
+    const cached = !refresh ? getCached<EngagementCallsResponse>(cacheKey) : null;
 
     if (cached) {
       return NextResponse.json({
@@ -40,26 +49,37 @@ export async function GET(request: Request) {
     // Fetch documents from Google Drive
     const documents = await listDocuments(true);
 
-    // Optionally fetch previews for each document
-    let documentsWithPreview: DocumentWithPreview[] = documents;
+    // Fetch document content and extract client names for card previews
+    let documentsWithInsights: DocumentWithInsights[] = documents.map((doc) => ({
+      ...doc,
+      driveUrl: getDriveViewUrl(doc.id, doc.mimeType),
+    }));
 
     if (includePreview) {
-      documentsWithPreview = await Promise.all(
+      documentsWithInsights = await Promise.all(
         documents.map(async (doc) => {
           try {
-            // Longer preview (400 chars) for taller cards
-            const preview = await getDocumentPreview(doc.id, 400);
-            return { ...doc, preview };
+            const content = await getDocumentContent(doc.id);
+            const parsed = parseDocumentInsights(content.html, content.text);
+            return {
+              ...doc,
+              clientNames: parsed.clientNames,
+              driveUrl: getDriveViewUrl(doc.id, doc.mimeType),
+            };
           } catch (error) {
-            console.error(`Failed to get preview for ${doc.name}:`, error);
-            return { ...doc, preview: undefined };
+            console.error(`Failed to parse insights for ${doc.name}:`, error);
+            return {
+              ...doc,
+              clientNames: [],
+              driveUrl: getDriveViewUrl(doc.id, doc.mimeType),
+            };
           }
         })
       );
     }
 
     const responseData: EngagementCallsResponse = {
-      documents: documentsWithPreview,
+      documents: documentsWithInsights,
       totalCount: documents.length,
     };
 

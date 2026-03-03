@@ -13,10 +13,10 @@
 import { MetricCard, TrendData } from '@/components/workspace/MetricCard';
 
 const colorMap = {
-  main: 'bg-main-600 dark:bg-main-700',
-  success: 'bg-success-600 dark:bg-success-700',
-  error: 'bg-error-600 dark:bg-error-700',
-  'accent-3': 'bg-accent-3-600 dark:bg-accent-3-700',
+  main: 'bg-main-700',
+  success: 'bg-success-700',
+  error: 'bg-error-700',
+  'accent-3': 'bg-accent-3-700',
 };
 
 interface EngagementMetricsWidgetProps {

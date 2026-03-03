@@ -12,15 +12,15 @@ import { MetricCard, TrendData } from '@/components/workspace/MetricCard';
 
 const colorMap = {
   blue: {
-    bg: 'bg-blue-600 dark:bg-blue-700',
+    bg: 'bg-blue-700',
     stroke: 'rgb(59, 130, 246)',
   },
   green: {
-    bg: 'bg-green-600 dark:bg-green-700',
+    bg: 'bg-green-700',
     stroke: 'rgb(34, 197, 94)',
   },
   orange: {
-    bg: 'bg-orange-600 dark:bg-orange-700',
+    bg: 'bg-orange-700',
     stroke: 'rgb(249, 115, 22)',
   },
 };

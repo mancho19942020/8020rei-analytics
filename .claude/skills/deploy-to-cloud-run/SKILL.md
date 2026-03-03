@@ -41,27 +41,53 @@ The env vars file must be regenerated every time because it uses credentials fro
 ```bash
 cd /Users/work/Documents/Vibecoding/8020_metrics_hub/8020rei-analytics
 
-grep "^GOOGLE_APPLICATION_CREDENTIALS_PRODUCT_JSON=" .env.local | cut -d'=' -f2- | python3 -c "
-import sys, json
+python3 -c "
+import json, sys, os
 
-creds = sys.stdin.read().strip()
+os.chdir('/Users/work/Documents/Vibecoding/8020_metrics_hub/8020rei-analytics')
 
-# Validate credentials before writing
-try:
-    j = json.loads(creds)
-    print('Credentials valid — type:', j.get('type'), '| project:', j.get('project_id'))
-except Exception as e:
-    print('ERROR: credentials JSON is invalid:', e)
+# --- Read BigQuery Product credentials from .env.local ---
+bq_creds = None
+with open('.env.local') as f:
+    for line in f:
+        if line.startswith('GOOGLE_APPLICATION_CREDENTIALS_PRODUCT_JSON='):
+            bq_creds = line.split('=', 1)[1].strip()
+            break
+
+if not bq_creds:
+    print('ERROR: GOOGLE_APPLICATION_CREDENTIALS_PRODUCT_JSON not found in .env.local')
     sys.exit(1)
 
+try:
+    j = json.loads(bq_creds)
+    print('BigQuery creds valid — type:', j.get('type'), '| project:', j.get('project_id'))
+except Exception as e:
+    print('ERROR: BigQuery credentials JSON is invalid:', e)
+    sys.exit(1)
+
+# --- Read Google Drive credentials from JSON key file ---
+drive_creds = None
+try:
+    with open('credentials/google-drive-key.json') as f:
+        drive_creds = f.read().strip()
+    j2 = json.loads(drive_creds)
+    print('Drive creds valid — type:', j2.get('type'), '| project:', j2.get('project_id'))
+except FileNotFoundError:
+    print('ERROR: credentials/google-drive-key.json not found')
+    sys.exit(1)
+except Exception as e:
+    print('ERROR: Drive credentials JSON is invalid:', e)
+    sys.exit(1)
+
+# --- Build env vars ---
 env_vars = {
     'GOOGLE_CLOUD_PROJECT': 'web-app-production-451214',
     'BIGQUERY_DATASET': 'analytics_489035450',
     'BIGQUERY_PRODUCT_PROJECT': 'bigquery-467404',
     'BIGQUERY_PRODUCT_DATASET': 'domain',
     'GOOGLE_DRIVE_FOLDER_ID': '1y0QT_u6zUIzZowqvqu_HiR4-MveBeFMH',
-    'GOOGLE_DRIVE_CREDENTIALS_PATH': '/app/credentials/google-drive-key.json',
-    'GOOGLE_APPLICATION_CREDENTIALS_PRODUCT_JSON': creds
+    'GOOGLE_DRIVE_CREDENTIALS_JSON': drive_creds,
+    'GOOGLE_APPLICATION_CREDENTIALS_PRODUCT_JSON': bq_creds,
 }
 with open('/tmp/env-vars.yaml', 'w') as f:
     for k, v in env_vars.items():
@@ -71,9 +97,10 @@ print(f'Written {len(env_vars)} env vars to /tmp/env-vars.yaml')
 "
 ```
 
-**Expected output (both lines must appear before proceeding):**
+**Expected output (all three lines must appear before proceeding):**
 ```
-Credentials valid — type: service_account | project: bigquery-467404
+BigQuery creds valid — type: service_account | project: bigquery-467404
+Drive creds valid — type: service_account | project: <project-id>
 Written 7 env vars to /tmp/env-vars.yaml
 ```
 
@@ -129,6 +156,11 @@ When a new feature requires new environment variables:
 - **Root cause:** The env vars file was generated with the literal string `$PRODUCT_CREDS` instead of the actual JSON value. This happens when credentials are passed as a shell argument with `"\$VAR"` syntax — the `\$` escapes the dollar sign and prevents variable expansion.
 - **Fix:** Always use the stdin pipe method (`... | python3 -c "creds = sys.stdin.read()"`). Never pass credentials as `sys.argv[1]`.
 - **How to confirm before deploying:** The generation script must print `Credentials valid — type: service_account` before the "Written N env vars" line. If it doesn't, stop and fix before deploying.
+
+### Engagement Calls / Google Drive errors in production
+- The Google Drive credentials are passed via `GOOGLE_DRIVE_CREDENTIALS_JSON` env var (not a file path)
+- `google-drive.ts` checks for the JSON env var first, then falls back to file path for local dev
+- If the Drive credentials are missing, the deploy script will fail with a clear error message
 
 ### Deploy fails with YAML parsing error
 - The credentials JSON contains special characters — ensure the Python script is used to generate the YAML

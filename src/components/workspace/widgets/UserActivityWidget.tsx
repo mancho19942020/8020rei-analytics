@@ -13,15 +13,15 @@ import { MetricCard, TrendData } from '@/components/workspace/MetricCard';
 
 const colorMap = {
   main: {
-    bg: 'bg-main-600 dark:bg-main-700',
+    bg: 'bg-main-700',
     stroke: 'rgb(29, 78, 216)',
   },
   'accent-1': {
-    bg: 'bg-accent-1-600 dark:bg-accent-1-700',
+    bg: 'bg-accent-1-700',
     stroke: 'rgb(59, 130, 246)',
   },
   'accent-2': {
-    bg: 'bg-accent-2-600 dark:bg-accent-2-700',
+    bg: 'bg-accent-2-700',
     stroke: 'rgb(99, 102, 241)',
   },
 };

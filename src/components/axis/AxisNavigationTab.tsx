@@ -199,7 +199,7 @@ export function AxisNavigationTab({
       aria-label={ariaLabel}
       className={[
         'flex items-center',
-        variant === 'line' ? 'border-b border-stroke' : 'gap-1 p-1 bg-surface-raised rounded-lg',
+        variant === 'line' ? '-mb-px' : 'gap-1 p-1 bg-surface-raised rounded-lg',
         fullWidth ? 'w-full' : '',
       ].filter(Boolean).join(' ')}
     >

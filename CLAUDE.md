@@ -43,18 +43,30 @@ cd backend && npm run dev
 
 ## Key Patterns
 
+### Sticky Header Layout (MANDATORY — Global Rule)
+
+The header and all navigation tab rows are **always fixed at the top** of the viewport. Only the `<main>` content area scrolls. This applies to every tab, every screen size, and every section of the platform.
+
+- Outer container: `h-screen flex flex-col` (NOT `min-h-screen`)
+- Inner wrapper: `flex flex-col flex-1 min-h-0`
+- Header + all nav bars: `flex-shrink-0`
+- Main content: `flex-1 overflow-y-auto` (NOT `min-h-[calc(100vh-Npx)]`)
+
+See the dashboard-builder skill (`SKILL.md`) for the full page structure template.
+
 ### Styling: Custom CSS over Tailwind
 
 Tailwind color classes (e.g. `bg-neutral-100`, `text-main-500`) **do not work reliably** in this project. Always use the custom CSS classes from `globals.css`:
 
-- `light-gray-bg` — gray background for nav/toolbar/content areas (light mode)
+- `chrome-bg` — header + nav tabs background (white in light, slightly darker than base in dark)
+- `light-gray-bg` — scrollable content area background (gray `#f3f4f6` in light, `surface-base` in dark)
 - `selected-tab-line` / `selected-tab-contained` — tab selection states
 - Widget cards: `bg-surface-base` with `shadow-xs` (hover: `shadow-sm`)
 
 ### Light/Dark Mode
 
-- Light: header white, nav/toolbar/content use `light-gray-bg`, cards white
-- Dark: everything uses `var(--surface-base)` (#111827), no pure black
+- Light: header + nav tabs are white (`chrome-bg`), content area is gray (`light-gray-bg`), cards white
+- Dark: header + nav tabs use `--surface-chrome` (#0d1321, slightly darker), content uses `--surface-base` (#111827), no pure black
 
 ### Design System Tokens
 

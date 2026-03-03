@@ -37,16 +37,18 @@ Many Tailwind color classes don't apply correctly in this project. **Always use 
 ### 2. Light/Dark Mode Backgrounds
 
 **Light Mode:**
-- Header: White (default `bg-surface-base`)
-- Navigation tabs: Gray (`light-gray-bg` class = `#f3f4f6`)
-- Toolbar: Gray (`light-gray-bg` class)
-- Main content area: Gray (`light-gray-bg` class)
+- Header: White (`chrome-bg` class = `#ffffff`)
+- Navigation tabs: White (`chrome-bg` class = `#ffffff`)
+- Main content area: Gray (`light-gray-bg` class = `#f3f4f6`)
 - Widget cards: White (`bg-surface-base`)
 
 **Dark Mode:**
-- Everything uses `var(--surface-base)` = `#111827`
-- Widget cards use `bg-surface-base`
+- Header + nav tabs: Slightly darker than base (`chrome-bg` = `#0d1321`)
+- Main content area: `var(--surface-base)` = `#111827`
+- Widget cards: `bg-surface-base`
 - NO pure black backgrounds ever
+
+**Key distinction:** `chrome-bg` is for the fixed header/nav chrome area. `light-gray-bg` is for the scrollable content area.
 
 ### 3. Selected Tab Styling
 
@@ -496,34 +498,46 @@ Icon size: `w-16 h-16` container, `w-8 h-8` icon — NOT `72px/36px` inline.
 
 ---
 
-## Page Structure Template
+## Page Structure Template — Sticky Header Layout (MANDATORY)
+
+The header and all navigation tab rows are **fixed at the top** of the viewport. Only the `<main>` content area scrolls. This is enforced globally across every tab and screen size.
+
+**How it works:**
+- Outer container: `h-screen flex flex-col` — locks to viewport height, no page-level scroll
+- Inner wrapper: `flex flex-col flex-1 min-h-0` — enables flex children to share space
+- Header + all navs: `flex-shrink-0` — they never collapse or scroll away
+- Main content: `flex-1 overflow-y-auto` — takes remaining space, scrolls internally
+
+**NEVER use `min-h-screen`** on the outer container — that allows the document to grow beyond the viewport and defeats the sticky layout. Use `h-screen flex flex-col` instead.
+
+**NEVER use `min-h-[calc(100vh-Npx)]`** on `<main>` — the flex layout handles height automatically. Use `flex-1 overflow-y-auto` instead.
 
 ```tsx
 return (
-  <div className="min-h-screen bg-surface-base">
-    <div className="w-full">
-      {/* Header - WHITE background */}
-      <header className="px-6 py-3 border-b border-stroke">
+  <div className="h-screen flex flex-col bg-surface-base">
+    <div className="w-full flex flex-col flex-1 min-h-0">
+      {/* Header - chrome background, FIXED */}
+      <header className="flex-shrink-0 px-6 py-3 border-b border-stroke chrome-bg">
         {/* ... */}
       </header>
 
-      {/* First-Level Navigation - GRAY background */}
-      <nav className="px-6 border-b border-stroke light-gray-bg">
+      {/* First-Level Navigation - chrome background, FIXED */}
+      <nav className="flex-shrink-0 px-6 border-b border-stroke chrome-bg">
         <AxisNavigationTab ... />
       </nav>
 
-      {/* Second-Level Navigation - GRAY background */}
-      <nav className="px-6 border-b border-stroke light-gray-bg">
+      {/* Second-Level Navigation - chrome background, FIXED */}
+      <nav className="flex-shrink-0 px-6 border-b border-stroke chrome-bg">
         <AxisNavigationTab ... />
       </nav>
 
-      {/* Toolbar - GRAY background */}
-      <div className="px-6 py-2 border-b border-stroke light-gray-bg">
+      {/* Toolbar - chrome background, FIXED */}
+      <div className="flex-shrink-0 px-6 py-2 border-b border-stroke chrome-bg">
         {/* Filters, toggles, etc. */}
       </div>
 
-      {/* Main Content - GRAY background */}
-      <main className="px-6 py-4 min-h-[calc(100vh-180px)] light-gray-bg">
+      {/* Main Content - GRAY background, SCROLLABLE */}
+      <main className="flex-1 overflow-y-auto px-6 py-4 light-gray-bg">
         <GridWorkspace ... />
       </main>
     </div>
@@ -768,6 +782,12 @@ The app defaults to **dark mode** for new users. The theme is stored in localSto
 - [ ] **Cases added** in `handleResetLayout` and `handleOpenWidgetCatalog` in page.tsx
 - [ ] **Ref passed** to tab component in page.tsx
 - [ ] **NO Reset Layout or Add Widget buttons** inside the tab component
+
+### Layout (Sticky Header — MANDATORY)
+- [ ] Outer container uses `h-screen flex flex-col` (NOT `min-h-screen`)
+- [ ] Header and all nav bars use `flex-shrink-0`
+- [ ] Main content uses `flex-1 overflow-y-auto` (NOT `min-h-[calc(100vh-Npx)]`)
+- [ ] Header + all tab rows stay fixed; only content scrolls
 
 ### Styling
 - [ ] Uses `light-gray-bg` class for navigation, toolbar, main content (NOT Tailwind bg classes)

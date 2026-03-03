@@ -12,10 +12,10 @@ import { MetricCard } from '@/components/workspace/MetricCard';
 import type { ProjectStatusOverview, TrendData } from '@/types/product';
 
 const colorMap = {
-  main: { bg: 'bg-main-600 dark:bg-main-700', stroke: 'rgb(29, 78, 216)' },
-  'accent-1': { bg: 'bg-accent-1-600 dark:bg-accent-1-700', stroke: 'rgb(34, 197, 94)' },
-  'accent-2': { bg: 'bg-accent-2-600 dark:bg-accent-2-700', stroke: 'rgb(239, 68, 68)' },
-  'accent-3': { bg: 'bg-accent-3-600 dark:bg-accent-3-700', stroke: 'rgb(168, 85, 247)' },
+  main: { bg: 'bg-main-700', stroke: 'rgb(29, 78, 216)' },
+  'accent-1': { bg: 'bg-accent-1-700', stroke: 'rgb(34, 197, 94)' },
+  'accent-2': { bg: 'bg-accent-2-700', stroke: 'rgb(239, 68, 68)' },
+  'accent-3': { bg: 'bg-accent-3-700', stroke: 'rgb(168, 85, 247)' },
 };
 
 const ClipboardIcon = () => (

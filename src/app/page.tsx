@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useMemo, useRef, useCallback, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/firebase/AuthContext';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { DesignKitButton } from '@/components/DesignKitButton';
@@ -178,7 +178,17 @@ const PIPELINES_ROOFING_DETAIL_TABS: AxisNavigationTabItem[] = [
   { id: 'etl-roofing', name: 'ETL Roofing' },
 ];
 
-export default function Dashboard() {
+// Helper: get detail tabs for a given main section + subsection
+function getDetailTabsForSubsection(section: string, sub: string): AxisNavigationTabItem[] | null {
+  if (section === 'analytics' && (sub === '8020rei-ga4' || sub === '8020roofing-ga4')) return GA4_DETAIL_TABS;
+  if (section === 'features' && sub === 'features-rei') return FEATURES_REI_DETAIL_TABS;
+  if (section === 'features' && sub === 'features-roofing') return FEATURES_ROOFING_DETAIL_TABS;
+  if (section === 'pipelines' && sub === 'pipelines-rei') return PIPELINES_REI_DETAIL_TABS;
+  if (section === 'pipelines' && sub === 'pipelines-roofing') return PIPELINES_ROOFING_DETAIL_TABS;
+  return null;
+}
+
+function Dashboard() {
   const { user, loading: authLoading, signOut } = useAuth();
   const router = useRouter();
   const [data, setData] = useState<DashboardData | null>(null);
@@ -188,10 +198,41 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [isCached, setIsCached] = useState(false);
-  // Navigation state (3 levels)
-  const [activeMainSection, setActiveMainSection] = useState('product');
-  const [activeSubsection, setActiveSubsection] = useState('client-domains');
-  const [activeDetailTab, setActiveDetailTab] = useState('overview');
+  // URL search params for deep linking
+  const searchParams = useSearchParams();
+
+  // Helper: resolve initial tab state from URL params
+  const getInitialNavState = useCallback(() => {
+    const section = searchParams.get('section') || 'product';
+    // Validate section exists
+    const validSection = MAIN_SECTION_TABS.find(t => t.id === section) ? section : 'product';
+
+    // Resolve subsection
+    const subParam = searchParams.get('sub');
+    const subsections = SUBSECTION_TABS_MAP[validSection];
+    let validSub = '';
+    if (subsections && subsections.length > 0) {
+      const matchedSub = subParam ? subsections.find(t => t.id === subParam && !t.disabled) : null;
+      validSub = matchedSub ? matchedSub.id : (subsections.find(s => !s.disabled)?.id || subsections[0].id);
+    }
+
+    // Resolve detail tab
+    const tabParam = searchParams.get('tab');
+    let validTab = '';
+    const detailTabs = getDetailTabsForSubsection(validSection, validSub);
+    if (detailTabs) {
+      const matchedTab = tabParam ? detailTabs.find(t => t.id === tabParam && !t.disabled) : null;
+      validTab = matchedTab ? matchedTab.id : (detailTabs.find(t => !t.disabled)?.id || detailTabs[0].id);
+    }
+
+    return { section: validSection, sub: validSub, tab: validTab };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Navigation state (3 levels) — initialized from URL
+  const initialNav = useMemo(() => getInitialNavState(), [getInitialNavState]);
+  const [activeMainSection, setActiveMainSection] = useState(initialNav.section);
+  const [activeSubsection, setActiveSubsection] = useState(initialNav.sub);
+  const [activeDetailTab, setActiveDetailTab] = useState(initialNav.tab);
   const [editMode, setEditMode] = useState(false);
   const [showEditCallout, setShowEditCallout] = useState(false);
   const [showWidgetCatalog, setShowWidgetCatalog] = useState(false);
@@ -210,6 +251,22 @@ export default function Dashboard() {
     }
     return DEFAULT_LAYOUT;
   });
+
+  // Sync navigation state → URL search params (replaceState to avoid history spam)
+  useEffect(() => {
+    const params = new URLSearchParams();
+    params.set('section', activeMainSection);
+    // Only include sub if this section has subsections
+    if (activeSubsection && SUBSECTION_TABS_MAP[activeMainSection]) {
+      params.set('sub', activeSubsection);
+    }
+    // Only include tab if this section+sub has detail tabs
+    if (activeDetailTab && getDetailTabsForSubsection(activeMainSection, activeSubsection)) {
+      params.set('tab', activeDetailTab);
+    }
+    const newUrl = `${window.location.pathname}?${params.toString()}`;
+    window.history.replaceState(null, '', newUrl);
+  }, [activeMainSection, activeSubsection, activeDetailTab]);
 
   // Refs for tab components to enable toolbar actions
   const usersTabRef = useRef<TabHandle>(null);
@@ -474,10 +531,10 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-surface-base">
-        <div className="w-full">
+      <div className="h-screen flex flex-col bg-surface-base">
+        <div className="w-full flex flex-col flex-1 min-h-0">
           {/* Header Skeleton - minimal bar */}
-          <div className="px-6 py-3 border-b border-stroke">
+          <div className="flex-shrink-0 px-6 py-3 border-b border-stroke chrome-bg">
             <div className="flex justify-between items-center">
               <AxisSkeleton variant="custom" width="120px" height="24px" rounded="md" />
               <div className="flex gap-2">
@@ -488,17 +545,17 @@ export default function Dashboard() {
           </div>
 
           {/* Navigation Skeleton - simple horizontal bar */}
-          <div className="px-6 py-3 border-b border-stroke light-gray-bg">
+          <div className="flex-shrink-0 px-6 py-3 border-b border-stroke chrome-bg">
             <AxisSkeleton variant="custom" width="100%" height="32px" rounded="md" />
           </div>
 
           {/* Second Navigation Skeleton */}
-          <div className="px-6 py-3 border-b border-stroke light-gray-bg">
+          <div className="flex-shrink-0 px-6 py-3 border-b border-stroke chrome-bg">
             <AxisSkeleton variant="custom" width="60%" height="32px" rounded="md" />
           </div>
 
           {/* Toolbar Skeleton - simple bar */}
-          <div className="px-6 py-2 border-b border-stroke light-gray-bg">
+          <div className="flex-shrink-0 px-6 py-2 border-b border-stroke chrome-bg">
             <div className="flex justify-between items-center">
               <AxisSkeleton variant="custom" width="180px" height="24px" rounded="md" />
               <div className="flex gap-2">
@@ -509,7 +566,7 @@ export default function Dashboard() {
           </div>
 
           {/* Main Content - Minimalistic widget blocks */}
-          <div className="px-6 py-4 min-h-[calc(100vh-180px)] light-gray-bg">
+          <div className="flex-1 overflow-y-auto px-6 py-4 light-gray-bg">
             {/* Top row - metrics widgets */}
             <div className="mb-4">
               <AxisSkeleton variant="widget" height="120px" fullWidth />
@@ -547,10 +604,10 @@ export default function Dashboard() {
   if (!data) return null;
 
   return (
-    <div className="min-h-screen bg-surface-base">
-      <div className="w-full">
+    <div className="h-screen flex flex-col bg-surface-base">
+      <div className="w-full flex flex-col flex-1 min-h-0">
         {/* Header */}
-        <header className="px-6 py-3 border-b border-stroke">
+        <header className="flex-shrink-0 px-6 py-3 border-b border-stroke chrome-bg">
           <div className="flex justify-between items-center gap-4">
             {/* Logo */}
             <Logo className="h-4 w-auto" />
@@ -645,7 +702,7 @@ export default function Dashboard() {
         </header>
 
         {/* First-Level Navigation - Main Sections */}
-        <nav className="px-6 border-b border-stroke light-gray-bg">
+        <nav className="flex-shrink-0 px-6 border-b border-stroke chrome-bg">
           <AxisNavigationTab
             activeTab={activeMainSection}
             onTabChange={(section) => {
@@ -675,7 +732,7 @@ export default function Dashboard() {
 
         {/* Second-Level Navigation - Sub-sections (show for all main sections) */}
         {SUBSECTION_TABS_MAP[activeMainSection] && (
-          <nav className="px-6 border-b border-stroke light-gray-bg">
+          <nav className="flex-shrink-0 px-6 border-b border-stroke chrome-bg">
             <AxisNavigationTab
               activeTab={activeSubsection}
               onTabChange={(sub) => {
@@ -702,7 +759,7 @@ export default function Dashboard() {
 
         {/* Third-Level Navigation - Detail Tabs (for GA4 analytics sections) */}
         {activeMainSection === 'analytics' && (activeSubsection === '8020rei-ga4' || activeSubsection === '8020roofing-ga4') && (
-          <nav className="px-6 border-b border-stroke light-gray-bg">
+          <nav className="flex-shrink-0 px-6 border-b border-stroke chrome-bg">
             <AxisNavigationTab
               activeTab={activeDetailTab}
               onTabChange={setActiveDetailTab}
@@ -715,7 +772,7 @@ export default function Dashboard() {
 
         {/* Third-Level Navigation - Detail Tabs for Features > 8020 REI */}
         {activeMainSection === 'features' && activeSubsection === 'features-rei' && (
-          <nav className="px-6 border-b border-stroke light-gray-bg">
+          <nav className="flex-shrink-0 px-6 border-b border-stroke chrome-bg">
             <AxisNavigationTab
               activeTab={activeDetailTab}
               onTabChange={setActiveDetailTab}
@@ -728,7 +785,7 @@ export default function Dashboard() {
 
         {/* Third-Level Navigation - Detail Tabs for Features > 8020 Roofing */}
         {activeMainSection === 'features' && activeSubsection === 'features-roofing' && (
-          <nav className="px-6 border-b border-stroke light-gray-bg">
+          <nav className="flex-shrink-0 px-6 border-b border-stroke chrome-bg">
             <AxisNavigationTab
               activeTab={activeDetailTab}
               onTabChange={setActiveDetailTab}
@@ -741,7 +798,7 @@ export default function Dashboard() {
 
         {/* Third-Level Navigation - Detail Tabs for Pipelines > 8020 REI */}
         {activeMainSection === 'pipelines' && activeSubsection === 'pipelines-rei' && (
-          <nav className="px-6 border-b border-stroke light-gray-bg">
+          <nav className="flex-shrink-0 px-6 border-b border-stroke chrome-bg">
             <AxisNavigationTab
               activeTab={activeDetailTab}
               onTabChange={setActiveDetailTab}
@@ -754,7 +811,7 @@ export default function Dashboard() {
 
         {/* Third-Level Navigation - Detail Tabs for Pipelines > 8020 Roofing */}
         {activeMainSection === 'pipelines' && activeSubsection === 'pipelines-roofing' && (
-          <nav className="px-6 border-b border-stroke light-gray-bg">
+          <nav className="flex-shrink-0 px-6 border-b border-stroke chrome-bg">
             <AxisNavigationTab
               activeTab={activeDetailTab}
               onTabChange={setActiveDetailTab}
@@ -767,7 +824,7 @@ export default function Dashboard() {
 
         {/* Edit Mode Action Bar */}
         {editMode && (
-          <div className="px-6 py-2 border-b border-stroke bg-main-50 dark:bg-main-950/20">
+          <div className="flex-shrink-0 px-6 py-2 border-b border-stroke bg-main-50 dark:bg-main-950/20">
             <div className="flex items-center justify-end gap-2">
               <button
                 onClick={handleOpenWidgetCatalog}
@@ -789,7 +846,7 @@ export default function Dashboard() {
         )}
 
         {/* Main Content */}
-        <main className="px-6 py-4 min-h-[calc(100vh-180px)] light-gray-bg">
+        <main className="flex-1 overflow-y-auto px-6 py-4 light-gray-bg">
           {/* Overview Tab - Grid Workspace */}
           {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && activeDetailTab === 'overview' && (
             <>
@@ -946,7 +1003,7 @@ export default function Dashboard() {
           {/* Under Construction placeholder for sections without real content */}
           {activeMainSection !== 'product' && activeMainSection !== 'engagement-calls' && activeMainSection !== 'grafana' &&
            !(activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4') && (
-            <div className="flex items-center justify-center min-h-[calc(100vh-320px)]">
+            <div className="flex items-center justify-center min-h-full">
               <div className="text-center">
                 {/* Construction Icon */}
                 <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-surface-raised border-2 border-dashed border-stroke mb-6">
@@ -997,5 +1054,13 @@ export default function Dashboard() {
         onDelete={handleDeleteWidget}
       />
     </div>
+  );
+}
+
+export default function Page() {
+  return (
+    <Suspense>
+      <Dashboard />
+    </Suspense>
   );
 }

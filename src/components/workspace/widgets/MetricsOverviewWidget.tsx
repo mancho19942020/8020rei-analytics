@@ -53,7 +53,7 @@ export function MetricsOverviewWidget({ data, previousData }: MetricsOverviewWid
         label="Total Users"
         value={data.total_users}
         trend={trends.total_users}
-        iconBgClass="bg-main-600 dark:bg-main-700"
+        iconBgClass="bg-main-700"
         icon={
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -66,7 +66,7 @@ export function MetricsOverviewWidget({ data, previousData }: MetricsOverviewWid
         label="Total Events"
         value={data.total_events}
         trend={trends.total_events}
-        iconBgClass="bg-main-600 dark:bg-main-700"
+        iconBgClass="bg-main-700"
         icon={
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
@@ -79,7 +79,7 @@ export function MetricsOverviewWidget({ data, previousData }: MetricsOverviewWid
         label="Page Views"
         value={data.page_views}
         trend={trends.page_views}
-        iconBgClass="bg-main-600 dark:bg-main-700"
+        iconBgClass="bg-main-700"
         icon={
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -93,7 +93,7 @@ export function MetricsOverviewWidget({ data, previousData }: MetricsOverviewWid
         label="Active Clients"
         value={data.active_clients}
         trend={trends.active_clients}
-        iconBgClass="bg-main-600 dark:bg-main-700"
+        iconBgClass="bg-main-700"
         icon={
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />

@@ -28,27 +28,41 @@ export interface DocumentContent {
 let driveClient: drive_v3.Drive | null = null;
 
 /**
- * Get or create the Google Drive client using service account credentials
+ * Get or create the Google Drive client using service account credentials.
+ *
+ * Credential loading order:
+ *   1. GOOGLE_DRIVE_CREDENTIALS_JSON env var (JSON string — used in Cloud Run)
+ *   2. GOOGLE_DRIVE_CREDENTIALS_PATH env var (file path — used in local dev)
  */
 function getDriveClient(): drive_v3.Drive {
   if (driveClient) {
     return driveClient;
   }
 
-  const credentialsPath = process.env.GOOGLE_DRIVE_CREDENTIALS_PATH;
+  let credentials: Record<string, unknown>;
 
-  if (!credentialsPath) {
-    throw new Error('GOOGLE_DRIVE_CREDENTIALS_PATH environment variable is not set');
+  // Option 1: credentials passed as JSON string (Cloud Run)
+  const credentialsJson = process.env.GOOGLE_DRIVE_CREDENTIALS_JSON;
+  if (credentialsJson) {
+    credentials = JSON.parse(credentialsJson);
+  } else {
+    // Option 2: credentials loaded from file path (local dev)
+    const credentialsPath = process.env.GOOGLE_DRIVE_CREDENTIALS_PATH;
+
+    if (!credentialsPath) {
+      throw new Error(
+        'Neither GOOGLE_DRIVE_CREDENTIALS_JSON nor GOOGLE_DRIVE_CREDENTIALS_PATH is set'
+      );
+    }
+
+    const absolutePath = path.resolve(process.cwd(), credentialsPath);
+
+    if (!fs.existsSync(absolutePath)) {
+      throw new Error(`Credentials file not found at: ${absolutePath}`);
+    }
+
+    credentials = JSON.parse(fs.readFileSync(absolutePath, 'utf-8'));
   }
-
-  // Resolve the path relative to the project root
-  const absolutePath = path.resolve(process.cwd(), credentialsPath);
-
-  if (!fs.existsSync(absolutePath)) {
-    throw new Error(`Credentials file not found at: ${absolutePath}`);
-  }
-
-  const credentials = JSON.parse(fs.readFileSync(absolutePath, 'utf-8'));
 
   const auth = new google.auth.GoogleAuth({
     credentials,

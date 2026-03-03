@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server';
 import { getDocumentContent, DocumentContent } from '@/lib/google-drive';
-import { getCached, setCache } from '@/lib/cache';
+import { parseDocumentInsights, getDriveViewUrl, ClientInsight } from '@/lib/document-parser';
+import { getCached, setCache, clearCache } from '@/lib/cache';
+
+interface DocumentWithInsights extends DocumentContent {
+  clients: ClientInsight[];
+  driveUrl: string;
+}
 
 interface RouteParams {
   params: Promise<{
@@ -25,9 +31,13 @@ export async function GET(request: Request, { params }: RouteParams) {
       );
     }
 
+    const url = new URL(request.url);
+    const refresh = url.searchParams.get('refresh') === 'true';
+    if (refresh) clearCache();
+
     // Check cache (5 minute TTL)
     const cacheKey = `engagement-calls:doc:${id}`;
-    const cached = getCached<DocumentContent>(cacheKey);
+    const cached = !refresh ? getCached<DocumentWithInsights>(cacheKey) : null;
 
     if (cached) {
       return NextResponse.json({
@@ -41,12 +51,22 @@ export async function GET(request: Request, { params }: RouteParams) {
     // Fetch document content from Google Drive
     const document = await getDocumentContent(id);
 
+    // Parse document into structured client insights
+    const parsed = parseDocumentInsights(document.html, document.text);
+    const driveUrl = getDriveViewUrl(id, 'application/vnd.google-apps.document');
+
+    const enrichedDocument: DocumentWithInsights = {
+      ...document,
+      clients: parsed.clients,
+      driveUrl,
+    };
+
     // Cache the response
-    setCache(cacheKey, document);
+    setCache(cacheKey, enrichedDocument);
 
     return NextResponse.json({
       success: true,
-      data: document,
+      data: enrichedDocument,
       cached: false,
       timestamp: new Date().toISOString(),
     });

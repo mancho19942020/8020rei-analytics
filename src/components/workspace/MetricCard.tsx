@@ -23,7 +23,7 @@ export interface MetricCardProps {
   icon: ReactNode;
   /** Optional label rendered below the trend badge */
   subtitle?: string;
-  /** CSS class(es) applied to the icon container background. Defaults to 'bg-main-600 dark:bg-main-700' */
+  /** CSS class(es) applied to the icon container background. Defaults to 'bg-main-700' */
   iconBgClass?: string;
   /** CSS class(es) applied to the icon color. Defaults to 'text-white' */
   iconTextClass?: string;
@@ -102,7 +102,7 @@ export function MetricCard({
   value,
   icon,
   subtitle,
-  iconBgClass = 'bg-main-600 dark:bg-main-700',
+  iconBgClass = 'bg-main-700',
   iconTextClass = 'text-white',
   sparklineColor,
   sparklineData,

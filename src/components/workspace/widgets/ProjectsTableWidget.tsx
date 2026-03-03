@@ -44,7 +44,7 @@ function SPProgress({ completed, total }: { completed: number; total: number }) 
     <div className="flex items-center gap-2">
       <div className="flex-1 h-1.5 bg-surface-overlay rounded-full overflow-hidden">
         <div
-          className="h-full bg-main-600 dark:bg-main-500 rounded-full transition-all"
+          className="h-full bg-main-500 rounded-full transition-all"
           style={{ width: `${pct}%` }}
         />
       </div>

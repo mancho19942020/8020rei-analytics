@@ -163,7 +163,7 @@ export function WidgetSettings({ widget, isOpen, onClose, onSave, onDelete }: Wi
             </button>
             <button
               onClick={handleSave}
-              className="px-4 py-2 text-sm bg-main-600 hover:bg-main-700 text-white rounded-lg transition-colors duration-200 font-medium"
+              className="px-4 py-2 text-sm bg-main-700 hover:bg-main-900 text-white rounded-lg transition-colors duration-200 font-medium"
             >
               Save Changes
             </button>

@@ -10,6 +10,7 @@
   --surface-raised: #f9fafb;
   --surface-overlay: #f3f4f6;
   --surface-sunken: #f3f4f6;
+  --surface-chrome: #ffffff; /* Header + nav tabs background */
 
   /* Text Colors (Light Mode) */
   --text-primary: #111827;
@@ -37,6 +38,7 @@
   --surface-raised: #1f2937;
   --surface-overlay: #374151;
   --surface-sunken: #030712;
+  --surface-chrome: #0d1321; /* Header + nav tabs: slightly darker than base */
 
   /* Text Colors (Dark Mode) */
   --text-primary: #f9fafb;
@@ -388,6 +390,15 @@ body {
 
 .dark .light-gray-bg {
   background-color: var(--surface-base);
+}
+
+/* Chrome background — header + navigation tabs area */
+.chrome-bg {
+  background-color: var(--surface-chrome);
+}
+
+.dark .chrome-bg {
+  background-color: var(--surface-chrome);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
