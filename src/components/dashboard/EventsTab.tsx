@@ -64,6 +64,7 @@ interface EventMetricsData {
     events_per_session: TrendData;
     form_conversion_rate: TrendData;
     total_events: TrendData;
+    form_starts: TrendData;
   };
 }
 

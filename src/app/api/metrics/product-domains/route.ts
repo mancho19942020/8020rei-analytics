@@ -21,6 +21,8 @@ interface PreviousDomainOverview {
   prev_total_active_domains: number;
   prev_total_properties: number;
   prev_leads_count: number;
+  prev_appointments_count: number;
+  prev_deals_count: number;
   prev_total_revenue: number;
 }
 
@@ -79,6 +81,8 @@ export async function GET(request: NextRequest) {
       prev_total_active_domains: 0,
       prev_total_properties: 0,
       prev_leads_count: 0,
+      prev_appointments_count: 0,
+      prev_deals_count: 0,
       prev_total_revenue: 0,
     };
 
@@ -89,6 +93,8 @@ export async function GET(request: NextRequest) {
           total_active_domains: calculateTrend(current.total_active_domains, prev.prev_total_active_domains),
           total_properties: calculateTrend(current.total_properties, prev.prev_total_properties),
           leads_count: calculateTrend(current.leads_count, prev.prev_leads_count),
+          appointments_count: calculateTrend(current.appointments_count, prev.prev_appointments_count),
+          deals_count: calculateTrend(current.deals_count, prev.prev_deals_count),
           total_revenue: calculateTrend(current.total_revenue, prev.prev_total_revenue),
         },
       },

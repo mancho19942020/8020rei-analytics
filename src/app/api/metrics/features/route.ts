@@ -34,8 +34,6 @@ interface FeatureTrendData {
 }
 
 interface TopPageData {
-  page_url: string;
-  client: string;
   path: string;
   views: number;
   unique_users: number;

@@ -30,6 +30,8 @@ export interface DomainActivityOverview {
     total_active_domains: TrendData;
     total_properties: TrendData;
     leads_count: TrendData;
+    appointments_count: TrendData;
+    deals_count: TrendData;
     total_revenue: TrendData;
   };
 }
@@ -83,6 +85,8 @@ export interface ProjectStatusOverview {
   completed: number;
   trends?: {
     active_projects: TrendData;
+    on_track: TrendData;
+    delayed: TrendData;
     completed: TrendData;
   };
 }

@@ -305,14 +305,12 @@ export function formatFeatureTrendForExport(
  * Format top pages data for export
  */
 export function formatTopPagesForExport(
-  data: { page_url: string; client: string; path: string; views: number; unique_users: number }[]
+  data: { path: string; views: number; unique_users: number }[]
 ): Record<string, any>[] {
   return data.map((item) => ({
     path: item.path || '/',
-    client: item.client || '-',
     views: item.views,
     unique_users: item.unique_users,
-    full_url: item.page_url,
   }));
 }
 
@@ -470,10 +468,11 @@ export function formatTrafficBrowserForExport(
  * Format top referrers data for export
  */
 export function formatTopReferrersForExport(
-  data: { referrer_domain: string; users: number; events: number }[]
+  data: { referrer_domain: string; category?: string; users: number; events: number }[]
 ): Record<string, any>[] {
   return data.map((item) => ({
     referrer_domain: item.referrer_domain,
+    category: item.category || 'other',
     users: item.users,
     events: item.events,
   }));
@@ -1058,5 +1057,122 @@ export function formatDeliveryTimelineForExport(
     resolved_date: item.resolved_date || 'Not resolved',
     days_of_delay: item.days_of_delay,
     status: item.days_of_delay > 0 ? 'Late' : item.days_of_delay === 0 ? 'On Time' : 'Early',
+  }));
+}
+
+// ============================================
+// PROPERTIES API EXPORT FORMATTERS
+// ============================================
+
+/**
+ * Format Properties API overview for export
+ */
+export function formatApiOverviewForExport(data: {
+  totalCalls: number;
+  uniqueClients: number;
+  uniqueDomains: number;
+  uniqueTokens: number;
+  avgResponseMs: number;
+  p95ResponseMs: number;
+  totalErrors: number;
+  errorRate: number;
+  avgResultsReturned: number;
+}): Record<string, any>[] {
+  return [
+    { metric: 'Total API Calls', value: data.totalCalls },
+    { metric: 'Unique Domains', value: data.uniqueDomains },
+    { metric: 'Unique Clients', value: data.uniqueClients },
+    { metric: 'Unique Tokens', value: data.uniqueTokens },
+    { metric: 'Avg Response (ms)', value: data.avgResponseMs },
+    { metric: 'P95 Response (ms)', value: data.p95ResponseMs },
+    { metric: 'Total Errors', value: data.totalErrors },
+    { metric: 'Error Rate (%)', value: data.errorRate },
+    { metric: 'Avg Results Returned', value: data.avgResultsReturned },
+  ];
+}
+
+/**
+ * Format Properties API time series for export
+ */
+export function formatApiTimeSeriesForExport(
+  data: { date: string; calls: number; uniqueClients: number; avgResponseMs: number; errors: number; successes: number }[]
+): Record<string, any>[] {
+  return data.map((item) => ({
+    date: item.date,
+    calls: item.calls,
+    unique_clients: item.uniqueClients,
+    avg_response_ms: item.avgResponseMs,
+    errors: item.errors,
+    successes: item.successes,
+  }));
+}
+
+/**
+ * Format Properties API endpoint breakdown for export
+ */
+export function formatApiEndpointBreakdownForExport(
+  data: { endpoint: string; httpMethod: string; calls: number; avgResponseMs: number; p95Ms: number; avgResults: number; errors: number }[]
+): Record<string, any>[] {
+  return data.map((item) => ({
+    endpoint: item.endpoint,
+    method: item.httpMethod,
+    calls: item.calls,
+    avg_response_ms: item.avgResponseMs,
+    p95_ms: item.p95Ms,
+    avg_results: item.avgResults,
+    errors: item.errors,
+  }));
+}
+
+/**
+ * Format Properties API top clients for export
+ */
+export function formatApiTopClientsForExport(
+  data: { domain: string; totalCalls: number; tokensUsed: number; avgResponseMs: number; maxResponseMs: number; errors: number; firstCall: string; lastCall: string }[]
+): Record<string, any>[] {
+  return data.map((item) => ({
+    domain: item.domain,
+    total_calls: item.totalCalls,
+    tokens_used: item.tokensUsed,
+    avg_response_ms: item.avgResponseMs,
+    max_response_ms: item.maxResponseMs,
+    errors: item.errors,
+    first_call: item.firstCall,
+    last_call: item.lastCall,
+  }));
+}
+
+/**
+ * Format Properties API errors for export
+ */
+export function formatApiErrorsForExport(
+  data: { responseStatus: number; errorMessage: string | null; occurrences: number; firstSeen: string; lastSeen: string; affectedClients: number }[]
+): Record<string, any>[] {
+  return data.map((item) => ({
+    status: item.responseStatus,
+    error_message: item.errorMessage || '',
+    occurrences: item.occurrences,
+    affected_clients: item.affectedClients,
+    first_seen: item.firstSeen,
+    last_seen: item.lastSeen,
+  }));
+}
+
+/**
+ * Format Properties API recent logs for export
+ */
+export function formatApiRecentLogsForExport(
+  data: { id: number; clientId: number; domain: string; endpoint: string; httpMethod: string; responseStatus: number; resultsCount: number | null; responseTimeMs: number; ipAddress: string; createdAt: string }[]
+): Record<string, any>[] {
+  return data.map((item) => ({
+    id: item.id,
+    domain: item.domain,
+    endpoint: item.endpoint,
+    method: item.httpMethod,
+    status: item.responseStatus,
+    results: item.resultsCount ?? '',
+    response_ms: item.responseTimeMs,
+    ip: item.ipAddress,
+    timestamp: item.createdAt,
   }));
 }

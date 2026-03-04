@@ -49,6 +49,7 @@ interface TrafficByMediumData {
 
 interface TopReferrerData {
   referrer_domain: string;
+  category: 'oauth' | 'internal_tool' | 'search_engine' | 'other';
   users: number;
   events: number;
 }

@@ -45,6 +45,8 @@ export function getPreviousDomainOverviewQuery(days: number): string {
       COUNT(DISTINCT domain_name) as prev_total_active_domains,
       COUNT(*) as prev_total_properties,
       COUNTIF(LOWER(record_type) = 'lead') as prev_leads_count,
+      COUNTIF(LOWER(record_type) = 'appointment') as prev_appointments_count,
+      COUNTIF(LOWER(record_type) = 'deal') as prev_deals_count,
       COALESCE(SUM(revenue), 0) as prev_total_revenue
     FROM ${TABLE}
     WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL ${days * 2} DAY)
@@ -137,6 +139,23 @@ export function getProjectStatusOverviewQuery(days: number): string {
       COUNTIF(status_category = 'In Progress') as on_track,
       COUNTIF(status_category IN ('To Do', 'In Progress') AND due_date IS NOT NULL AND due_date < CURRENT_DATE()) as delayed,
       COUNTIF(status_category = 'Done' AND updated >= TIMESTAMP(DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))) as completed
+    FROM ${ISSUES_TABLE}
+    WHERE issue_type = 'Epic'
+  `;
+}
+
+/**
+ * Previous period project status for trend calculation.
+ * Snapshots the same counters but shifted back by ${days} days.
+ * active/on_track/delayed use the updated timestamp to approximate the previous window.
+ */
+export function getPreviousProjectStatusOverviewQuery(days: number): string {
+  return `
+    SELECT
+      COUNTIF(status_category IN ('To Do', 'In Progress') AND updated < TIMESTAMP(DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))) as prev_active_projects,
+      COUNTIF(status_category = 'In Progress' AND updated < TIMESTAMP(DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))) as prev_on_track,
+      COUNTIF(status_category IN ('To Do', 'In Progress') AND due_date IS NOT NULL AND due_date < DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY) AND updated < TIMESTAMP(DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))) as prev_delayed,
+      COUNTIF(status_category = 'Done' AND updated >= TIMESTAMP(DATE_SUB(CURRENT_DATE(), INTERVAL ${days * 2} DAY)) AND updated < TIMESTAMP(DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))) as prev_completed
     FROM ${ISSUES_TABLE}
     WHERE issue_type = 'Epic'
   `;

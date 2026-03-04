@@ -78,7 +78,15 @@ export type WidgetType =
   | 'projects-table'
   | 'bug-tracking'
   | 'team-workload'
-  | 'delivery-timeline';
+  | 'delivery-timeline'
+  // Features > 8020REI > Properties API tab widgets
+  | 'api-overview'
+  | 'api-calls-trend'
+  | 'api-response-trend'
+  | 'api-endpoint-breakdown'
+  | 'api-top-clients'
+  | 'api-error-tracker'
+  | 'api-recent-logs';
 
 /**
  * Widget Configuration

@@ -1,13 +1,21 @@
 /**
  * Top Referrers Widget
  *
- * Displays a table of top referrer domains with users and events.
+ * Displays a table of top referrer domains categorized by type using AxisTable.
+ * Categories: Internal Tool, OAuth, Search Engine, Other (External).
  */
 
 'use client';
 
+import { AxisTable } from '@/components/axis';
+import type { Column, CellValue, RowData } from '@/types/table';
+import type { ReactNode } from 'react';
+
+type ReferrerCategory = 'oauth' | 'internal_tool' | 'search_engine' | 'other';
+
 interface TopReferrerData {
   referrer_domain: string;
+  category: ReferrerCategory;
   users: number;
   events: number;
 }
@@ -16,52 +24,82 @@ interface TopReferrersWidgetProps {
   data: TopReferrerData[];
 }
 
-export function TopReferrersWidget({ data }: TopReferrersWidgetProps) {
-  if (!data || data.length === 0) {
-    return (
-      <div className="w-full h-full flex items-center justify-center">
-        <p className="text-content-tertiary text-sm">No referrer data available</p>
-      </div>
-    );
-  }
+const CATEGORY_CONFIG: Record<ReferrerCategory, { label: string; color: string; bgColor: string }> = {
+  internal_tool: {
+    label: 'Tool',
+    color: 'var(--color-main-700)',
+    bgColor: 'var(--color-main-100)',
+  },
+  oauth: {
+    label: 'OAuth',
+    color: 'var(--color-info-700)',
+    bgColor: 'var(--color-info-100)',
+  },
+  search_engine: {
+    label: 'Search',
+    color: 'var(--color-warning-700)',
+    bgColor: 'var(--color-warning-100)',
+  },
+  other: {
+    label: 'External',
+    color: 'var(--color-content-secondary)',
+    bgColor: 'var(--color-surface-raised)',
+  },
+};
 
+function CategoryBadge({ category }: { category: ReferrerCategory }) {
+  const config = CATEGORY_CONFIG[category] || CATEGORY_CONFIG.other;
   return (
-    <div className="w-full h-full overflow-auto">
-      <table className="w-full text-sm">
-        <thead className="sticky top-0 bg-surface-raised">
-          <tr className="border-b border-stroke">
-            <th className="text-left py-2 px-3 font-medium text-content-secondary">
-              Referrer Domain
-            </th>
-            <th className="text-right py-2 px-3 font-medium text-content-secondary">
-              Users
-            </th>
-            <th className="text-right py-2 px-3 font-medium text-content-secondary">
-              Events
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.map((item, index) => (
-            <tr
-              key={item.referrer_domain}
-              className={`border-b border-stroke hover:bg-surface-base transition-colors ${
-                index % 2 === 0 ? '' : 'bg-surface-base/50'
-              }`}
-            >
-              <td className="py-2 px-3 text-content-primary font-medium truncate max-w-[200px]">
-                {item.referrer_domain}
-              </td>
-              <td className="py-2 px-3 text-right text-content-primary tabular-nums">
-                {item.users.toLocaleString()}
-              </td>
-              <td className="py-2 px-3 text-right text-content-secondary tabular-nums">
-                {item.events.toLocaleString()}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <span
+      className="inline-block text-xs font-medium px-2 py-0.5 rounded-full"
+      style={{ color: config.color, backgroundColor: config.bgColor }}
+    >
+      {config.label}
+    </span>
+  );
+}
+
+const columns: Column[] = [
+  {
+    field: 'referrer_domain',
+    header: 'Referrer Domain',
+    render: (value: CellValue) => (
+      <span className="font-medium truncate block">{String(value)}</span>
+    ),
+  },
+  {
+    field: 'category',
+    header: 'Type',
+    width: 100,
+    render: (value: CellValue) => (
+      <CategoryBadge category={(value as ReferrerCategory) || 'other'} />
+    ),
+  },
+  {
+    field: 'users',
+    header: 'Users',
+    type: 'number',
+    align: 'center',
+    width: 90,
+  },
+  {
+    field: 'events',
+    header: 'Events',
+    type: 'number',
+    align: 'center',
+    width: 90,
+  },
+];
+
+export function TopReferrersWidget({ data }: TopReferrersWidgetProps) {
+  return (
+    <AxisTable
+      columns={columns}
+      data={data as unknown as RowData[]}
+      rowKey="referrer_domain"
+      sortable
+      paginated={false}
+      emptyMessage="No referrer data available"
+    />
   );
 }

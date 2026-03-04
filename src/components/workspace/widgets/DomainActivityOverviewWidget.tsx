@@ -63,8 +63,8 @@ export function DomainActivityOverviewWidget({ data }: DomainActivityOverviewWid
       <MetricCard label="Active Domains" value={data.total_active_domains} icon={<GlobeIcon />} subtitle="vs. previous period" iconBgClass={colorMap['main'].bg} sparklineColor={colorMap['main'].stroke} trend={data.trends?.total_active_domains} />
       <MetricCard label="Total Properties" value={data.total_properties} icon={<LayersIcon />} subtitle="vs. previous period" iconBgClass={colorMap['accent-1'].bg} sparklineColor={colorMap['accent-1'].stroke} trend={data.trends?.total_properties} />
       <MetricCard label="Leads" value={data.leads_count} icon={<UserPlusIcon />} subtitle="vs. previous period" iconBgClass={colorMap['accent-2'].bg} sparklineColor={colorMap['accent-2'].stroke} trend={data.trends?.leads_count} />
-      <MetricCard label="Appointments" value={data.appointments_count} icon={<CalendarIcon />} subtitle="current period" iconBgClass={colorMap['accent-3'].bg} sparklineColor={colorMap['accent-3'].stroke} />
-      <MetricCard label="Deals" value={data.deals_count} icon={<CheckCircleIcon />} subtitle="current period" iconBgClass={colorMap['main'].bg} sparklineColor={colorMap['main'].stroke} />
+      <MetricCard label="Appointments" value={data.appointments_count} icon={<CalendarIcon />} subtitle="vs. previous period" iconBgClass={colorMap['accent-3'].bg} sparklineColor={colorMap['accent-3'].stroke} trend={data.trends?.appointments_count} />
+      <MetricCard label="Deals" value={data.deals_count} icon={<CheckCircleIcon />} subtitle="vs. previous period" iconBgClass={colorMap['main'].bg} sparklineColor={colorMap['main'].stroke} trend={data.trends?.deals_count} />
       <MetricCard label="Revenue" value={data.total_revenue} icon={<DollarIcon />} subtitle="vs. previous period" iconBgClass={colorMap['accent-1'].bg} sparklineColor={colorMap['accent-1'].stroke} trend={data.trends?.total_revenue} format="currency" />
     </div>
   );

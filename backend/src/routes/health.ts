@@ -45,8 +45,8 @@ export async function healthRoutes(
           status: process.env.REDIS_URL ? 'connected' : 'not_configured',
         },
         {
-          name: 'aws',
-          status: 'not_configured', // Future implementation
+          name: 'aws-aurora',
+          status: process.env.DB_AURORA_RESOURCE_ARN ? 'connected' : 'not_configured',
         },
       ],
     };
@@ -107,9 +107,31 @@ export async function healthRoutes(
     }
 
     // Future services (marked as not configured)
+    // Check Aurora connectivity
+    if (process.env.DB_AURORA_RESOURCE_ARN) {
+      const start = Date.now();
+      try {
+        const { AuroraService } = await import('../services/aurora.service.js');
+        const aurora = new AuroraService();
+        const ok = await aurora.isConnected();
+        services.push({
+          name: 'aws-aurora',
+          status: ok ? 'connected' : 'disconnected',
+          latency: Date.now() - start,
+        });
+      } catch (error) {
+        services.push({
+          name: 'aws-aurora',
+          status: 'disconnected',
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    } else {
+      services.push({ name: 'aws-aurora', status: 'not_configured' });
+    }
+
     services.push(
       { name: 'salesforce', status: 'not_configured' },
-      { name: 'aws', status: 'not_configured' },
       { name: 'skiptrace-batch-elites', status: 'not_configured' },
       { name: 'skiptrace-direct-skip', status: 'not_configured' }
     );

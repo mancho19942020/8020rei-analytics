@@ -70,3 +70,12 @@ export { ProjectsTableWidget } from './ProjectsTableWidget';
 export { BugTrackingWidget } from './BugTrackingWidget';
 export { TeamWorkloadWidget } from './TeamWorkloadWidget';
 export { DeliveryTimelineWidget } from './DeliveryTimelineWidget';
+
+// Features > 8020REI > Properties API tab widgets
+export { ApiOverviewWidget } from './ApiOverviewWidget';
+export { ApiCallsTrendWidget } from './ApiCallsTrendWidget';
+export { ApiResponseTrendWidget } from './ApiResponseTrendWidget';
+export { ApiEndpointBreakdownWidget } from './ApiEndpointBreakdownWidget';
+export { ApiTopClientsWidget } from './ApiTopClientsWidget';
+export { ApiErrorTrackerWidget } from './ApiErrorTrackerWidget';
+export { ApiRecentLogsWidget } from './ApiRecentLogsWidget';

@@ -797,6 +797,13 @@ The app defaults to **dark mode** for new users. The theme is stored in localSto
 - [ ] All color tokens used are from the defined set (no 200, 400, 600, 800)
 - [ ] No inline styles for colors (use CSS classes instead)
 
+### Tables (MANDATORY)
+- [ ] **All tabular data uses `<AxisTable>` component** — NEVER raw HTML `<table>`, `<thead>`, `<tbody>`, `<tr>`, `<th>`, `<td>` elements
+- [ ] Column types set correctly (`'number'`, `'percentage'`, `'currency'`, `'date'`) for auto-formatting
+- [ ] Percentage columns pass decimal fractions (0–1), not whole numbers (0–100)
+- [ ] Custom rendering via column `render` prop, not data preprocessing
+- [ ] Tables inside widgets use `h-full flex flex-col` wrapper with `flex-1 min-h-0` inner div
+
 ### Functionality
 - [ ] Widgets support export and settings callbacks
 - [ ] Grid layout has proper min/max dimensions (minW, minH, maxW, maxH)

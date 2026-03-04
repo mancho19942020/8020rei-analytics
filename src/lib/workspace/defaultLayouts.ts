@@ -1159,6 +1159,123 @@ export const PRODUCT_PROJECTS_WIDGET_CATALOG: WidgetCatalogItem[] = [
   },
 ];
 
+// ---------------------------------------------------------------------------
+// Features > 8020REI > Properties API Tab
+// ---------------------------------------------------------------------------
+
+export const PROPERTIES_API_LAYOUT_STORAGE_KEY = 'properties-api-layout';
+
+export const DEFAULT_PROPERTIES_API_LAYOUT: Widget[] = [
+  {
+    id: 'api-overview',
+    type: 'api-overview',
+    title: 'API Overview',
+    x: 0, y: 0,
+    w: 12, h: 3,
+    minW: 6, minH: 3, maxH: 4,
+  },
+  {
+    id: 'api-calls-trend',
+    type: 'api-calls-trend',
+    title: 'API Calls Over Time',
+    x: 0, y: 3,
+    w: 6, h: 5,
+    minW: 4, minH: 3, maxW: 12, maxH: 8,
+  },
+  {
+    id: 'api-response-trend',
+    type: 'api-response-trend',
+    title: 'Response Time Trend',
+    x: 6, y: 3,
+    w: 6, h: 5,
+    minW: 4, minH: 3, maxW: 12, maxH: 8,
+  },
+  {
+    id: 'api-endpoint-breakdown',
+    type: 'api-endpoint-breakdown',
+    title: 'Usage by Endpoint',
+    x: 0, y: 8,
+    w: 6, h: 7,
+    minW: 4, minH: 5, maxW: 12, maxH: 10,
+  },
+  {
+    id: 'api-top-clients',
+    type: 'api-top-clients',
+    title: 'Top Clients',
+    x: 6, y: 8,
+    w: 6, h: 7,
+    minW: 4, minH: 5, maxW: 12, maxH: 10,
+  },
+  {
+    id: 'api-error-tracker',
+    type: 'api-error-tracker',
+    title: 'Error Tracker',
+    x: 0, y: 15,
+    w: 12, h: 5,
+    minW: 6, minH: 4, maxW: 12, maxH: 8,
+  },
+  {
+    id: 'api-recent-logs',
+    type: 'api-recent-logs',
+    title: 'Recent API Logs',
+    x: 0, y: 20,
+    w: 12, h: 7,
+    minW: 6, minH: 5, maxW: 12, maxH: 12,
+  },
+];
+
+export const PROPERTIES_API_WIDGET_CATALOG: WidgetCatalogItem[] = [
+  {
+    type: 'api-overview',
+    title: 'API Overview',
+    description: 'KPI cards for total calls, unique clients, response time, error rate',
+    iconKey: 'grid',
+    defaultSize: { w: 12, h: 3 },
+  },
+  {
+    type: 'api-calls-trend',
+    title: 'API Calls Over Time',
+    description: 'Line chart showing call volume and errors over time',
+    iconKey: 'lineChart',
+    defaultSize: { w: 6, h: 5 },
+  },
+  {
+    type: 'api-response-trend',
+    title: 'Response Time Trend',
+    description: 'Line chart showing average response time trend',
+    iconKey: 'lineChart',
+    defaultSize: { w: 6, h: 5 },
+  },
+  {
+    type: 'api-endpoint-breakdown',
+    title: 'Usage by Endpoint',
+    description: 'Horizontal bar chart and table of calls per endpoint',
+    iconKey: 'barChart',
+    defaultSize: { w: 6, h: 7 },
+  },
+  {
+    type: 'api-top-clients',
+    title: 'Top Clients',
+    description: 'Table of top API clients by call volume',
+    iconKey: 'table',
+    defaultSize: { w: 6, h: 7 },
+  },
+  {
+    type: 'api-error-tracker',
+    title: 'Error Tracker',
+    description: 'Table of errors grouped by status code and message',
+    iconKey: 'alert',
+    defaultSize: { w: 12, h: 5 },
+  },
+  {
+    type: 'api-recent-logs',
+    title: 'Recent API Logs',
+    description: 'Paginated table of recent API call logs',
+    iconKey: 'table',
+    defaultSize: { w: 12, h: 7 },
+  },
+];
+
 /**
  * Combined catalog lookup by tab name
  */
@@ -1174,4 +1291,5 @@ export const TAB_WIDGET_CATALOGS: Record<string, WidgetCatalogItem[]> = {
   insights: INSIGHTS_WIDGET_CATALOG,
   'client-domains': PRODUCT_DOMAINS_WIDGET_CATALOG,
   'product-projects': PRODUCT_PROJECTS_WIDGET_CATALOG,
+  'properties-api': PROPERTIES_API_WIDGET_CATALOG,
 };

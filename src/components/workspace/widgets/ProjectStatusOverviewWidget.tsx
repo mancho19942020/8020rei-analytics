@@ -62,17 +62,19 @@ export function ProjectStatusOverviewWidget({ data }: ProjectStatusOverviewWidge
         label="On Track"
         value={data.on_track}
         icon={<CheckCircleIcon />}
-        subtitle="current period"
+        subtitle="vs. previous period"
         iconBgClass={colorMap['accent-1'].bg}
         sparklineColor={colorMap['accent-1'].stroke}
+        trend={data.trends?.on_track}
       />
       <MetricCard
         label="Delayed"
         value={data.delayed}
         icon={<ExclamationTriangleIcon />}
-        subtitle="current period"
+        subtitle="Less is better"
         iconBgClass={colorMap['accent-2'].bg}
         sparklineColor={colorMap['accent-2'].stroke}
+        trend={data.trends?.delayed}
       />
       <MetricCard
         label="Completed"

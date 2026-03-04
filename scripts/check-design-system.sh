@@ -109,6 +109,17 @@ for FILE in $CHANGED_FILES; do
       fi
     fi
 
+    # --- RULE 7: Raw HTML table elements in components (must use AxisTable) ---
+    # Catches <table, <thead, <tbody, <tr, <th, <td in JSX — these should use AxisTable instead
+    if echo "$LINE" | grep -qE '<(table|thead|tbody|tfoot)\b' 2>/dev/null; then
+      # Exclude the AxisTable component itself and test files
+      if [[ "$FILE" != *"AxisTable"* ]] && [[ "$FILE" != *".test."* ]] && [[ "$FILE" != *"design-kit"* ]]; then
+        if ! echo "$LINE" | grep -qE '^\s*(//|/?\*|\*)' 2>/dev/null; then
+          log_violation "$FILE" "$LINE_NUM" "Raw HTML <table> element detected. Use the <AxisTable> component from @/components/axis instead."
+        fi
+      fi
+    fi
+
   done < "$FILE"
 done
 

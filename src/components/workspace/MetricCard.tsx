@@ -1,11 +1,14 @@
 /**
  * Shared MetricCard — Design System Component
  *
- * A reusable stat card used across all metric overview widgets. Displays a
- * labeled metric value with an icon, optional trend badge, optional subtitle,
- * and an auto-generated or externally-provided sparkline.
+ * Simplified Grafana-style stat card. Shows:
+ *   Row 1: Label (left) + trend badge with tooltip (right)
+ *   Row 2: Abbreviated hero value filling the card
  *
- * Previously duplicated across 9 widget files. Extracted per design-kit-guardian audit (2026-02-24).
+ * Number rule: max 3 significant digits with abbreviation (K, M, B).
+ * Examples: 29,457 → 29.5K  |  12,743,402 → $12.7M  |  612 → 612
+ *
+ * Sparklines removed. Subtitle shows as tooltip on the trend badge.
  */
 
 'use client';
@@ -21,78 +24,72 @@ export interface MetricCardProps {
   label: string;
   value: string | number;
   icon: ReactNode;
-  /** Optional label rendered below the trend badge */
+  /** Shown as tooltip when hovering the trend badge */
   subtitle?: string;
   /** CSS class(es) applied to the icon container background. Defaults to 'bg-main-700' */
   iconBgClass?: string;
   /** CSS class(es) applied to the icon color. Defaults to 'text-white' */
   iconTextClass?: string;
-  /** CSS color string for the sparkline stroke. Defaults to green/red based on trend.isPositive */
+  /** @deprecated Sparklines removed — kept for backward compatibility, ignored */
   sparklineColor?: string;
-  /** Pre-computed data points for sparkline. If omitted, auto-generated from value and trend */
+  /** @deprecated Sparklines removed — kept for backward compatibility, ignored */
   sparklineData?: number[];
   trend?: TrendData;
-  /** How to display the value. 'currency' prepends $ and strips decimals */
+  /** How to display the value. 'currency' prepends $ */
   format?: 'number' | 'currency';
 }
 
-function MiniSparkline({
-  data,
-  color,
-}: {
-  data: number[];
-  color: string;
-}) {
-  if (!data || data.length < 2) return null;
-
-  const max = Math.max(...data);
-  const min = Math.min(...data);
-  const range = max - min || 1;
-  const height = 24;
-  const width = 48;
-
-  const points = data
-    .map((value, index) => {
-      const x = (index / (data.length - 1)) * width;
-      const y = height - ((value - min) / range) * height;
-      return `${x},${y}`;
-    })
-    .join(' ');
-
-  return (
-    <svg width={width} height={height} className="flex-shrink-0">
-      <polyline
-        fill="none"
-        stroke={color}
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        points={points}
-      />
-    </svg>
-  );
+/** Abbreviate a number to max 3 significant digits + suffix */
+function abbreviate(num: number): string {
+  const abs = Math.abs(num);
+  if (abs >= 1_000_000_000) {
+    const val = num / 1_000_000_000;
+    return val % 1 === 0 ? `${val}B` : `${val.toFixed(1)}B`;
+  }
+  if (abs >= 1_000_000) {
+    const val = num / 1_000_000;
+    return val % 1 === 0 ? `${val}M` : `${val.toFixed(1)}M`;
+  }
+  if (abs >= 1_000) {
+    const val = num / 1_000;
+    return val % 1 === 0 ? `${val}K` : `${val.toFixed(1)}K`;
+  }
+  return num.toLocaleString();
 }
 
-function TrendBadge({ trend }: { trend: TrendData }) {
+function TrendBadge({ trend, tooltip }: { trend: TrendData; tooltip?: string }) {
   const { value, isPositive } = trend;
-  if (value === 0) return null;
+  const isNeutral = value === 0;
+  const tooltipText = tooltip || (isNeutral ? 'No change vs. previous period' : isPositive ? 'Up vs. previous period' : 'Down vs. previous period');
+
+  const colorClass = isNeutral
+    ? 'text-content-tertiary'
+    : isPositive
+      ? 'text-green-600 dark:text-green-400'
+      : 'text-red-600 dark:text-red-400';
+
   return (
-    <div
-      className={[
-        'flex items-center gap-0.5 text-xs font-medium',
-        isPositive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400',
-      ].join(' ')}
-    >
-      {isPositive ? (
-        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" />
-        </svg>
-      ) : (
-        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-        </svg>
-      )}
-      <span>{value.toFixed(1)}%</span>
+    <div className="relative group/trend flex-shrink-0">
+      <div className={`flex items-center gap-0.5 text-xs font-medium cursor-default ${colorClass}`}>
+        {isNeutral ? (
+          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14" />
+          </svg>
+        ) : isPositive ? (
+          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+          </svg>
+        ) : (
+          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+          </svg>
+        )}
+        <span>{value.toFixed(1)}%</span>
+      </div>
+      {/* Instant CSS tooltip */}
+      <div className="absolute right-0 top-full mt-1 px-2 py-1 rounded-md bg-gray-900 dark:bg-gray-700 text-white text-[11px] font-normal whitespace-nowrap opacity-0 group-hover/trend:opacity-100 transition-opacity duration-75 pointer-events-none z-10">
+        {tooltipText}
+      </div>
     </div>
   );
 }
@@ -100,54 +97,37 @@ function TrendBadge({ trend }: { trend: TrendData }) {
 export function MetricCard({
   label,
   value,
-  icon,
   subtitle,
-  iconBgClass = 'bg-main-700',
-  iconTextClass = 'text-white',
-  sparklineColor,
-  sparklineData,
   trend,
   format = 'number',
 }: MetricCardProps) {
-  const isPositive = trend?.isPositive ?? true;
-
-  const chartData = useMemo(() => {
-    if (sparklineData && sparklineData.length >= 2) return sparklineData;
-    const numValue = typeof value === 'number' ? value : parseFloat(String(value)) || 100;
-    const baseValue = numValue * 0.8;
-    const trendDirection = isPositive ? 1 : -1;
-    return Array.from({ length: 7 }, (_, i) =>
-      baseValue + Math.random() * numValue * 0.2 + trendDirection * numValue * 0.2 * (i / 6)
-    );
-  }, [sparklineData, value, isPositive]);
-
   const displayValue = useMemo(() => {
-    if (typeof value === 'string') return value;
-    if (format === 'currency') {
-      return `$${value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+    // If value is already a string (e.g. "812 ms", "45.2%"), pass through
+    if (typeof value === 'string') {
+      // Try to abbreviate if it's a pure number string
+      const parsed = parseFloat(value.replace(/[^0-9.-]/g, ''));
+      if (isNaN(parsed)) return value;
+      // Keep the non-numeric parts (like %, ms)
+      const suffix = value.replace(/[0-9.,\s$-]/g, '').trim();
+      if (suffix) return `${abbreviate(parsed)}${suffix ? ' ' + suffix : ''}`;
+      return abbreviate(parsed);
     }
-    return value?.toLocaleString() ?? '0';
+    if (format === 'currency') {
+      return `$${abbreviate(value)}`;
+    }
+    return abbreviate(value);
   }, [value, format]);
 
-  const strokeColor = sparklineColor ?? (isPositive ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)');
-
   return (
-    <div className="flex flex-col p-3 bg-surface-raised rounded-xl border border-stroke hover:border-stroke-strong hover:shadow-sm transition-all duration-200 h-full">
-      <div className="flex items-center gap-2 mb-1">
-        <div className={`flex-shrink-0 w-6 h-6 rounded-md ${iconBgClass} flex items-center justify-center ${iconTextClass}`}>
-          {icon}
-        </div>
-        <span className="text-xs font-medium text-content-secondary truncate">{label}</span>
+    <div className="flex flex-col justify-between p-4 bg-surface-raised rounded-2xl border border-stroke hover:border-stroke-strong hover:shadow-sm transition-all duration-200 h-full min-w-0">
+      {/* Header: label + trend */}
+      <div className="flex items-center justify-between gap-2 min-w-0">
+        <span className="text-sm font-medium text-content-secondary truncate">{label}</span>
+        {trend && <TrendBadge trend={trend} tooltip={subtitle} />}
       </div>
-      <div className="text-2xl font-bold text-content-primary tabular-nums flex-1">
+      {/* Hero value — anchored to bottom for equal visual weight */}
+      <div className="text-[2.5rem] font-bold text-content-primary tabular-nums leading-none tracking-tight mt-auto">
         {displayValue}
-      </div>
-      <div className="flex items-end justify-between">
-        <div className="flex flex-col gap-0.5">
-          {trend && <TrendBadge trend={trend} />}
-          {subtitle && <span className="text-xs text-content-tertiary">{subtitle}</span>}
-        </div>
-        <MiniSparkline data={chartData} color={strokeColor} />
       </div>
     </div>
   );

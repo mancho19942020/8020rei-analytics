@@ -3530,23 +3530,23 @@
           <!-- Scorecard -->
           <div class="component-card">
             <div class="component-preview" style="padding: 12px;">
-              <div style="background: var(--surface-raised); border: 1px solid var(--border-default); border-radius: 6px; padding: 10px; display: flex; align-items: center; gap: 8px;">
-                <div style="width: 28px; height: 28px; background: var(--main-100); border-radius: 6px; display: flex; align-items: center; justify-content: center;">
-                  <div style="width: 12px; height: 12px; background: var(--main-500); border-radius: 2px;"></div>
+              <div style="background: var(--surface-raised); border: 1px solid var(--border-default); border-radius: 16px; padding: 14px; display: flex; flex-direction: column; justify-content: space-between; min-height: 80px; min-width: 0;">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                  <div style="font-size: 10px; font-weight: 500; color: var(--text-secondary);">Active Domains</div>
+                  <div style="font-size: 8px; font-weight: 500; color: var(--success-500); cursor: default;" title="vs. previous period">↑ 13.1%</div>
                 </div>
-                <div>
-                  <div style="font-size: 8px; color: var(--text-tertiary);">Total Users</div>
-                  <div style="font-size: 16px; font-weight: 600;">1,234</div>
-                </div>
+                <div style="font-size: 36px; font-weight: 700; letter-spacing: -0.02em; line-height: 1;">29.5K</div>
               </div>
             </div>
             <div class="component-info">
-              <div class="component-name">Scorecard</div>
-              <div class="component-desc">Single metric display card with icon, label, and large value.</div>
+              <div class="component-name">MetricCard</div>
+              <div class="component-desc">Simplified stat card. Label + trend% header (subtitle as tooltip), hero abbreviated value (max 3 digits: K/M/B). No sparkline, no icon. Number fills the card.</div>
               <div class="component-props">
-                <span class="prop-tag">title</span>
+                <span class="prop-tag">label</span>
                 <span class="prop-tag">value</span>
-                <span class="prop-tag">icon</span>
+                <span class="prop-tag">trend</span>
+                <span class="prop-tag">subtitle</span>
+                <span class="prop-tag">format</span>
               </div>
             </div>
           </div>

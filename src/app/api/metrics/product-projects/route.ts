@@ -3,6 +3,7 @@ import { runProductQuery } from '@/lib/bigquery';
 import { getCached, setCache } from '@/lib/cache';
 import {
   getProjectStatusOverviewQuery,
+  getPreviousProjectStatusOverviewQuery,
   getProjectsTableQuery,
   getBugTrackingOverviewQuery,
   getBugOriginsQuery,
@@ -27,11 +28,32 @@ interface BugOverviewResult {
   critical_open_bugs: number;
 }
 
+interface PreviousProjectOverview {
+  prev_active_projects: number;
+  prev_on_track: number;
+  prev_delayed: number;
+  prev_completed: number;
+}
+
+interface TrendData {
+  value: number;
+  isPositive: boolean;
+}
+
+function calculateTrend(current: number, previous: number, invertPositive = false): TrendData {
+  if (!previous || previous === 0) {
+    return { value: 0, isPositive: true };
+  }
+  const change = ((current - previous) / previous) * 100;
+  const isPositive = invertPositive ? change <= 0 : change >= 0;
+  return { value: Math.abs(change), isPositive };
+}
+
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const days = parseInt(searchParams.get('days') || '30');
 
-  const cacheKey = `product-projects-v1:${days}`;
+  const cacheKey = `product-projects-v2:${days}`;
   const cached = getCached<ProductProjectsData>(cacheKey);
 
   if (cached) {
@@ -49,6 +71,7 @@ export async function GET(request: NextRequest) {
   try {
     const [
       overviewResult,
+      prevOverviewResult,
       projectsResult,
       bugOverviewResult,
       bugOriginsResult,
@@ -57,6 +80,7 @@ export async function GET(request: NextRequest) {
       timelineResult,
     ] = await Promise.all([
       runProductQuery<ProjectStatusOverview>(getProjectStatusOverviewQuery(days)),
+      runProductQuery<PreviousProjectOverview>(getPreviousProjectStatusOverviewQuery(days)),
       runProductQuery<ProjectEntry>(getProjectsTableQuery(days)),
       runProductQuery<BugOverviewResult>(getBugTrackingOverviewQuery(days)),
       runProductQuery<BugEntry>(getBugOriginsQuery(days)),
@@ -65,11 +89,28 @@ export async function GET(request: NextRequest) {
       runProductQuery<DeliveryTimelineEntry>(getDeliveryTimelineQuery(days)),
     ]);
 
-    const overview = overviewResult[0] || {
+    const current = overviewResult[0] || {
       active_projects: 0,
       on_track: 0,
       delayed: 0,
       completed: 0,
+    };
+
+    const prev = prevOverviewResult[0] || {
+      prev_active_projects: 0,
+      prev_on_track: 0,
+      prev_delayed: 0,
+      prev_completed: 0,
+    };
+
+    const overview: ProjectStatusOverview = {
+      ...current,
+      trends: {
+        active_projects: calculateTrend(current.active_projects, prev.prev_active_projects),
+        on_track: calculateTrend(current.on_track, prev.prev_on_track),
+        delayed: calculateTrend(current.delayed, prev.prev_delayed, true),
+        completed: calculateTrend(current.completed, prev.prev_completed),
+      },
     };
 
     const bugOverview = bugOverviewResult[0] || {

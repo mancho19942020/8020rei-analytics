@@ -44,6 +44,7 @@ interface EventMetricsData {
     events_per_session: TrendData;
     form_conversion_rate: TrendData;
     total_events: TrendData;
+    form_starts: TrendData;
   };
 }
 
@@ -109,7 +110,8 @@ export function EventMetricsWidget({ data }: EventMetricsWidgetProps) {
       <MetricCard
         label="Form Starts"
         value={data.form_starts}
-        subtitle={`${data.scrolls.toLocaleString()} scrolls`}
+        subtitle="vs. previous period"
+        trend={data.trends?.form_starts}
         icon={<FormStartsIcon />}
         iconBgClass={colorMap['orange'].bg}
         sparklineColor={colorMap['orange'].stroke}

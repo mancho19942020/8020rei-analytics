@@ -79,6 +79,20 @@ except Exception as e:
     print('ERROR: Drive credentials JSON is invalid:', e)
     sys.exit(1)
 
+# --- Read Aurora credentials from .env.local ---
+aurora_vars = {}
+aurora_keys = ['DB_AURORA_RESOURCE_ARN', 'DB_AURORA_SECRET_ARN', 'DB_AURORA_ACCESS_KEY_ID',
+               'DB_AURORA_SECRET_ACCESS_KEY', 'DB_AURORA_DEFAULT_REGION', 'AWS_AURORA_GRAFANA_DB']
+with open('.env.local') as f:
+    for line in f:
+        for key in aurora_keys:
+            if line.startswith(key + '='):
+                aurora_vars[key] = line.split('=', 1)[1].strip()
+if len(aurora_vars) == len(aurora_keys):
+    print(f'Aurora creds valid — {len(aurora_vars)} vars loaded')
+else:
+    print(f'WARNING: Only {len(aurora_vars)}/{len(aurora_keys)} Aurora vars found — Properties API will not work')
+
 # --- Build env vars ---
 env_vars = {
     'GOOGLE_CLOUD_PROJECT': 'web-app-production-451214',
@@ -88,6 +102,7 @@ env_vars = {
     'GOOGLE_DRIVE_FOLDER_ID': '1y0QT_u6zUIzZowqvqu_HiR4-MveBeFMH',
     'GOOGLE_DRIVE_CREDENTIALS_JSON': drive_creds,
     'GOOGLE_APPLICATION_CREDENTIALS_PRODUCT_JSON': bq_creds,
+    **aurora_vars,
 }
 with open('/tmp/env-vars.yaml', 'w') as f:
     for k, v in env_vars.items():
@@ -101,7 +116,8 @@ print(f'Written {len(env_vars)} env vars to /tmp/env-vars.yaml')
 ```
 BigQuery creds valid — type: service_account | project: bigquery-467404
 Drive creds valid — type: service_account | project: <project-id>
-Written 7 env vars to /tmp/env-vars.yaml
+Aurora creds valid — 6 vars loaded
+Written 13 env vars to /tmp/env-vars.yaml
 ```
 
 If you see `ERROR:` or only one line of output, stop — do not deploy. The credentials were not read correctly.
@@ -136,12 +152,13 @@ When a new feature requires new environment variables:
 | Auth | Unauthenticated (public) |
 | Port | 3000 (set in Dockerfile) |
 
-## BIGQUERY PROJECTS
+## DATA SOURCES
 
-| Purpose | GCP Project | Dataset | Credential Env Var |
-|---------|-------------|---------|-------------------|
-| GA4 Analytics | `web-app-production-451214` | `analytics_489035450` | Uses default service account |
-| Product/opsHub | `bigquery-467404` | `domain` | `GOOGLE_APPLICATION_CREDENTIALS_PRODUCT_JSON` |
+| Purpose | Platform | Target | Credential Env Vars |
+|---------|----------|--------|-------------------|
+| GA4 Analytics | BigQuery | `web-app-production-451214` / `analytics_489035450` | Uses default service account |
+| Product/opsHub | BigQuery | `bigquery-467404` / `domain` | `GOOGLE_APPLICATION_CREDENTIALS_PRODUCT_JSON` |
+| Properties API Metrics | AWS Aurora | `aurora-services-8020rei` / `grafana8020db` | `DB_AURORA_*` (6 vars) |
 
 ---
 

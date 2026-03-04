@@ -64,6 +64,7 @@ interface EventsMetricsResponse {
       events_per_session: TrendData;
       form_conversion_rate: TrendData;
       total_events: TrendData;
+      form_starts: TrendData;
     };
   };
   scrollDepthByPage: ScrollDepthData[];
@@ -84,7 +85,7 @@ export async function GET(request: NextRequest) {
   const userType = (searchParams.get('userType') || 'all') as UserType;
 
   // Create a unique cache key based on the query parameters
-  const cacheKey = `events-metrics-v1:${days}:${userType}`;
+  const cacheKey = `events-metrics-v2:${days}:${userType}`;
 
   // Check if we have cached data
   const cached = getCached<EventsMetricsResponse>(cacheKey);
@@ -189,6 +190,7 @@ export async function GET(request: NextRequest) {
           events_per_session: calculateTrend(eventsPerSession, prevEventsPerSession),
           form_conversion_rate: calculateTrend(formConversionRate, prevFormConversionRate),
           total_events: calculateTrend(currentMetrics.total_events, prevMetricsData.total_events),
+          form_starts: calculateTrend(currentMetrics.form_starts, prevMetricsData.form_starts),
         },
       },
       scrollDepthByPage,

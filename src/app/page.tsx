@@ -18,6 +18,7 @@ import { EventsTab } from '@/components/dashboard/EventsTab';
 import { InsightsTab } from '@/components/dashboard/InsightsTab';
 import { EngagementCallsTab } from '@/components/dashboard/EngagementCallsTab';
 import { GrafanaTab } from '@/components/dashboard/GrafanaTab';
+import { PropertiesApiTab } from '@/components/dashboard/PropertiesApiTab';
 import { ClientDomainsTab } from '@/components/dashboard/ClientDomainsTab';
 import { ProductProjectsTab } from '@/components/dashboard/ProductProjectsTab';
 import { DEFAULT_LAYOUT, LAYOUT_STORAGE_KEY, OVERVIEW_WIDGET_CATALOG } from '@/lib/workspace/defaultLayouts';
@@ -154,7 +155,7 @@ const FEATURES_REI_DETAIL_TABS: AxisNavigationTabItem[] = [
   { id: 'skiptrace', name: 'Skip Trace' },
   { id: 'rapid-response', name: 'Rapid Response' },
   { id: 'smart-drop', name: 'Smart Drop' },
-  { id: 'api-token', name: 'API Token' },
+  { id: 'properties-api', name: 'Properties API' },
   { id: 'auto-export', name: 'Auto Export' },
   { id: 'zillow', name: 'Zillow' },
   { id: 'roi', name: 'ROI' },
@@ -279,6 +280,7 @@ function Dashboard() {
   const insightsTabRef = useRef<TabHandle>(null);
   const clientDomainsTabRef = useRef<TabHandle>(null);
   const productProjectsTabRef = useRef<TabHandle>(null);
+  const propertiesApiTabRef = useRef<TabHandle>(null);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -341,6 +343,14 @@ function Dashboard() {
           return;
       }
     }
+    // Handle Features > 8020REI detail tabs
+    if (activeMainSection === 'features' && activeSubsection === 'features-rei') {
+      switch (activeDetailTab) {
+        case 'properties-api':
+          propertiesApiTabRef.current?.resetLayout();
+          return;
+      }
+    }
     // Handle GA4 detail tabs
     switch (activeDetailTab) {
       case 'overview':
@@ -386,6 +396,14 @@ function Dashboard() {
           return;
         case 'product-jira-projects':
           productProjectsTabRef.current?.openWidgetCatalog();
+          return;
+      }
+    }
+    // Handle Features > 8020REI detail tabs
+    if (activeMainSection === 'features' && activeSubsection === 'features-rei') {
+      switch (activeDetailTab) {
+        case 'properties-api':
+          propertiesApiTabRef.current?.openWidgetCatalog();
           return;
       }
     }
@@ -1000,9 +1018,20 @@ function Dashboard() {
             />
           )}
 
+          {/* Properties API Tab (Features > 8020REI > Properties API) */}
+          {activeMainSection === 'features' && activeSubsection === 'features-rei' && activeDetailTab === 'properties-api' && (
+            <PropertiesApiTab
+              ref={propertiesApiTabRef}
+              days={days}
+              editMode={editMode}
+              onEditModeChange={setEditMode}
+            />
+          )}
+
           {/* Under Construction placeholder for sections without real content */}
           {activeMainSection !== 'product' && activeMainSection !== 'engagement-calls' && activeMainSection !== 'grafana' &&
-           !(activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4') && (
+           !(activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4') &&
+           !(activeMainSection === 'features' && activeSubsection === 'features-rei' && activeDetailTab === 'properties-api') && (
             <div className="flex items-center justify-center min-h-full">
               <div className="text-center">
                 {/* Construction Icon */}

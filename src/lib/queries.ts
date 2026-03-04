@@ -997,9 +997,7 @@ export function getTopPagesQuery(days: number, userType: UserType = 'all'): stri
   if (userType === 'all') {
     return `
       SELECT
-        page_url,
-        REGEXP_EXTRACT(page_url, r'https://([^.]+)\\.8020rei\\.com') as client,
-        REGEXP_EXTRACT(page_url, r'https://[^/]+(/[^?#]*)') as path,
+        LOWER(RTRIM(REGEXP_EXTRACT(page_url, r'https://[^/]+(/[^?#]*)'), '/')) as path,
         COUNT(*) as views,
         COUNT(DISTINCT user_pseudo_id) as unique_users
       FROM (
@@ -1012,7 +1010,7 @@ export function getTopPagesQuery(days: number, userType: UserType = 'all'): stri
       )
       WHERE page_url IS NOT NULL
         AND REGEXP_CONTAINS(page_url, r'8020rei\\.com')
-      GROUP BY page_url, client, path
+      GROUP BY path
       ORDER BY views DESC
       LIMIT 20
     `;
@@ -1041,9 +1039,7 @@ export function getTopPagesQuery(days: number, userType: UserType = 'all'): stri
       WHERE final_affiliation = '${targetAffiliation}'
     )
     SELECT
-      page_url,
-      REGEXP_EXTRACT(page_url, r'https://([^.]+)\\.8020rei\\.com') as client,
-      REGEXP_EXTRACT(page_url, r'https://[^/]+(/[^?#]*)') as path,
+      LOWER(RTRIM(REGEXP_EXTRACT(page_url, r'https://[^/]+(/[^?#]*)'), '/')) as path,
       COUNT(*) as views,
       COUNT(DISTINCT e.user_pseudo_id) as unique_users
     FROM (
@@ -1057,7 +1053,7 @@ export function getTopPagesQuery(days: number, userType: UserType = 'all'): stri
     ) e
     WHERE page_url IS NOT NULL
       AND REGEXP_CONTAINS(page_url, r'8020rei\\.com')
-    GROUP BY page_url, client, path
+    GROUP BY path
     ORDER BY views DESC
     LIMIT 20
   `;
@@ -1881,29 +1877,53 @@ export function getTrafficBrowserQuery(days: number, userType: UserType = 'all')
 
 /**
  * Get top referrers from page_referrer event param.
- * Extracts domain from the full referrer URL.
+ * Extracts domain from the full referrer URL and categorizes each referrer:
+ * - oauth: Google/Microsoft login redirects (not real referrals)
+ * - internal_tool: Known team tools (salesmate, atlassian, podio, freshdesk, etc.)
+ * - search_engine: Google, Bing, etc. (suspicious for a private app)
+ * - other: Unknown external domains
  */
 export function getTopReferrersQuery(days: number, userType: UserType = 'all'): string {
+  const categoryCase = `
+    CASE
+      WHEN REGEXP_CONTAINS(referrer_domain, r'(?i)(accounts\\.google|googleapis|google\\.com/accounts)') THEN 'oauth'
+      WHEN REGEXP_CONTAINS(referrer_domain, r'(?i)(login\\.microsoftonline|login\\.live)') THEN 'oauth'
+      WHEN REGEXP_CONTAINS(referrer_domain, r'(?i)(salesmate\\.io|atlassian\\.net|podio\\.com|freshdesk\\.com|slack\\.com|notion\\.so|trello\\.com|asana\\.com|monday\\.com|hubspot\\.com|intercom\\.io|zendesk\\.com|jira)') THEN 'internal_tool'
+      WHEN REGEXP_CONTAINS(referrer_domain, r'(?i)(google\\.com|bing\\.com|yahoo\\.com|yandex\\.|baidu\\.com|duckduckgo)') THEN 'search_engine'
+      ELSE 'other'
+    END`;
+
   if (userType === 'all') {
     return `
-      SELECT
-        COALESCE(
-          REGEXP_EXTRACT(
-            (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'page_referrer'),
-            r'https?://([^/]+)'
-          ),
-          '(direct)'
-        ) as referrer_domain,
-        COUNT(DISTINCT user_pseudo_id) as users,
-        COUNT(*) as events
-      FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
-        AND event_name = 'page_view'
-      GROUP BY referrer_domain
-      HAVING referrer_domain != '(direct)'
-        AND NOT REGEXP_CONTAINS(referrer_domain, r'8020rei\\.com')
+      WITH raw_referrers AS (
+        SELECT
+          COALESCE(
+            REGEXP_EXTRACT(
+              (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'page_referrer'),
+              r'https?://([^/]+)'
+            ),
+            '(direct)'
+          ) as referrer_domain,
+          user_pseudo_id
+        FROM ${TABLE}
+        WHERE ${getDateFilter(days)}
+          AND event_name = 'page_view'
+      ),
+      categorized AS (
+        SELECT
+          referrer_domain,
+          ${categoryCase} as category,
+          COUNT(DISTINCT user_pseudo_id) as users,
+          COUNT(*) as events
+        FROM raw_referrers
+        WHERE referrer_domain != '(direct)'
+          AND NOT REGEXP_CONTAINS(referrer_domain, r'8020rei\\.com')
+        GROUP BY referrer_domain
+      )
+      SELECT referrer_domain, category, users, events
+      FROM categorized
       ORDER BY users DESC
-      LIMIT 10
+      LIMIT 15
     `;
   }
 
@@ -1928,26 +1948,37 @@ export function getTopReferrersQuery(days: number, userType: UserType = 'all'): 
       SELECT DISTINCT user_pseudo_id
       FROM session_affiliation
       WHERE final_affiliation = '${targetAffiliation}'
+    ),
+    raw_referrers AS (
+      SELECT
+        COALESCE(
+          REGEXP_EXTRACT(
+            (SELECT value.string_value FROM UNNEST(e.event_params) WHERE key = 'page_referrer'),
+            r'https?://([^/]+)'
+          ),
+          '(direct)'
+        ) as referrer_domain,
+        e.user_pseudo_id
+      FROM ${TABLE} e
+      INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
+      WHERE ${getDateFilter(days)}
+        AND e.event_name = 'page_view'
+    ),
+    categorized AS (
+      SELECT
+        referrer_domain,
+        ${categoryCase} as category,
+        COUNT(DISTINCT user_pseudo_id) as users,
+        COUNT(*) as events
+      FROM raw_referrers
+      WHERE referrer_domain != '(direct)'
+        AND NOT REGEXP_CONTAINS(referrer_domain, r'8020rei\\.com')
+      GROUP BY referrer_domain
     )
-    SELECT
-      COALESCE(
-        REGEXP_EXTRACT(
-          (SELECT value.string_value FROM UNNEST(e.event_params) WHERE key = 'page_referrer'),
-          r'https?://([^/]+)'
-        ),
-        '(direct)'
-      ) as referrer_domain,
-      COUNT(DISTINCT e.user_pseudo_id) as users,
-      COUNT(*) as events
-    FROM ${TABLE} e
-    INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
-    WHERE ${getDateFilter(days)}
-      AND e.event_name = 'page_view'
-    GROUP BY referrer_domain
-    HAVING referrer_domain != '(direct)'
-      AND NOT REGEXP_CONTAINS(referrer_domain, r'8020rei\\.com')
+    SELECT referrer_domain, category, users, events
+    FROM categorized
     ORDER BY users DESC
-    LIMIT 10
+    LIMIT 15
   `;
 }
 
