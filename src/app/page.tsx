@@ -6,7 +6,7 @@ import { useAuth } from '@/lib/firebase/AuthContext';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { DesignKitButton } from '@/components/DesignKitButton';
 import { Logo } from '@/components/Logo';
-import { AxisSelect, AxisSelectOption, AxisSkeleton, AxisCallout, AxisButton, AxisNavigationTab, AxisNavigationTabItem, AxisToggle } from '@/components/axis';
+import { AxisSelect, AxisSelectOption, AxisSkeleton, AxisCallout, AxisButton, AxisNavigationTab, AxisNavigationTabItem, AxisToggle, AxisDateRangePicker, DateRangeValue } from '@/components/axis';
 import { GridWorkspace, MetricsOverviewWidget, TimeSeriesWidget, BarChartWidget, DataTableWidget, WidgetCatalog, WidgetSettings } from '@/components/workspace';
 import { UsersTab } from '@/components/dashboard/UsersTab';
 import { FeaturesTab } from '@/components/dashboard/FeaturesTab';
@@ -43,16 +43,12 @@ interface DashboardData {
   topClients: { client: string; events: number; users: number; page_views: number }[];
 }
 
-const TIME_RANGE_OPTIONS: AxisSelectOption[] = [
-  { value: 7, label: 'Last 7 days' },
-  { value: 30, label: 'Last 30 days' },
-  { value: 90, label: 'Last 90 days' },
-];
 
 const USER_TYPE_OPTIONS: AxisSelectOption[] = [
   { value: 'all', label: 'All Users' },
   { value: 'internal', label: 'Internal Users' },
   { value: 'external', label: 'External Users' },
+  { value: 'unclassified', label: 'Unclassified' },
 ];
 
 // ============================================================================
@@ -193,8 +189,11 @@ function Dashboard() {
   const { user, loading: authLoading, signOut } = useAuth();
   const router = useRouter();
   const [data, setData] = useState<DashboardData | null>(null);
-  const [days, setDays] = useState(30);
-  const [userType, setUserType] = useState<'all' | 'internal' | 'external'>('all');
+  const [dateRange, setDateRange] = useState<DateRangeValue>({ type: 'preset', days: 30 });
+  const days = dateRange.type === 'preset' ? dateRange.days : 30;
+  const startDate = dateRange.type === 'custom' ? dateRange.startDate : undefined;
+  const endDate = dateRange.type === 'custom' ? dateRange.endDate : undefined;
+  const [userType, setUserType] = useState<'all' | 'internal' | 'external' | 'unclassified'>('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
@@ -293,7 +292,7 @@ function Dashboard() {
     if (user) {
       fetchData();
     }
-  }, [days, userType, user]);
+  }, [dateRange, userType, user]);
 
   useEffect(() => {
     if (editMode) setShowEditCallout(true);
@@ -303,8 +302,12 @@ function Dashboard() {
     setLoading(true);
     setError(null);
 
+    const dateParams = dateRange.type === 'custom'
+      ? `startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`
+      : `days=${dateRange.days}`;
+
     try {
-      const res = await fetch(`/api/metrics?days=${days}&userType=${userType}`);
+      const res = await fetch(`/api/metrics?${dateParams}&userType=${userType}`);
       const json = await res.json();
 
       if (json.success) {
@@ -659,8 +662,8 @@ function Dashboard() {
                 {/* User Type Filter */}
                 {activeMainSection !== 'product' && (
                   <AxisSelect
-                    value={userType}
-                    onChange={(val) => setUserType(val as 'all' | 'internal' | 'external')}
+                  value={userType}
+                  onChange={(val) => setUserType(val as 'all' | 'internal' | 'external' | 'unclassified')}
                     options={USER_TYPE_OPTIONS}
                     size="sm"
                     fullWidth={false}
@@ -669,13 +672,10 @@ function Dashboard() {
                 )}
 
                 {/* Time Filter */}
-                <AxisSelect
-                  value={days}
-                  onChange={(val) => setDays(Number(val))}
-                  options={TIME_RANGE_OPTIONS}
+                <AxisDateRangePicker
+                  value={dateRange}
+                  onChange={setDateRange}
                   size="sm"
-                  fullWidth={false}
-                  className="w-36"
                 />
               </div>
 
@@ -906,6 +906,8 @@ function Dashboard() {
               ref={usersTabRef}
               days={days}
               userType={userType}
+              startDate={startDate}
+              endDate={endDate}
               editMode={editMode}
               onEditModeChange={setEditMode}
             />
@@ -917,6 +919,8 @@ function Dashboard() {
               ref={featuresTabRef}
               days={days}
               userType={userType}
+              startDate={startDate}
+              endDate={endDate}
               editMode={editMode}
               onEditModeChange={setEditMode}
             />
@@ -928,6 +932,8 @@ function Dashboard() {
               ref={clientsTabRef}
               days={days}
               userType={userType}
+              startDate={startDate}
+              endDate={endDate}
               editMode={editMode}
               onEditModeChange={setEditMode}
             />
@@ -939,6 +945,8 @@ function Dashboard() {
               ref={trafficTabRef}
               days={days}
               userType={userType}
+              startDate={startDate}
+              endDate={endDate}
               editMode={editMode}
               onEditModeChange={setEditMode}
             />
@@ -950,6 +958,8 @@ function Dashboard() {
               ref={technologyTabRef}
               days={days}
               userType={userType}
+              startDate={startDate}
+              endDate={endDate}
               editMode={editMode}
               onEditModeChange={setEditMode}
             />
@@ -961,6 +971,8 @@ function Dashboard() {
               ref={geographyTabRef}
               days={days}
               userType={userType}
+              startDate={startDate}
+              endDate={endDate}
               editMode={editMode}
               onEditModeChange={setEditMode}
             />
@@ -972,6 +984,8 @@ function Dashboard() {
               ref={eventsTabRef}
               days={days}
               userType={userType}
+              startDate={startDate}
+              endDate={endDate}
               editMode={editMode}
               onEditModeChange={setEditMode}
             />
@@ -983,6 +997,8 @@ function Dashboard() {
               ref={insightsTabRef}
               days={days}
               userType={userType}
+              startDate={startDate}
+              endDate={endDate}
               editMode={editMode}
               onEditModeChange={setEditMode}
             />
@@ -1056,7 +1072,7 @@ function Dashboard() {
                 {/* Info box */}
                 <div className="inline-block bg-surface-raised border border-stroke rounded-lg px-6 py-4 max-w-md">
                   <p className="text-sm text-content-secondary">
-                    This section is being developed. The data integration and dashboard widgets for this area will be available soon.
+                    This section is currently under development. Data integration and dashboard widgets for this area will be available soon.
                   </p>
                 </div>
               </div>
