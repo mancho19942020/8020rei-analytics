@@ -8,7 +8,7 @@
 
 ## Overview
 
-This document outlines the best practices for handling light and dark mode in the 8020METRICS HUB analytics dashboard. Following these guidelines ensures smooth theme transitions without visual bugs.
+This document outlines the best practices for handling light and dark mode in the 8020 Lens analytics dashboard. Following these guidelines ensures smooth theme transitions without visual bugs.
 
 **Important:** When building dashboard components, always consult the Dashboard Builder Skill at `.claude/skills/dashboard-builder/SKILL.md` for complete patterns.
 

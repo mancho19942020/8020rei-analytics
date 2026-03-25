@@ -3,7 +3,7 @@
 /* Dark mode selector for Tailwind v4 */
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* 8020 Design System - Metrics Hub */
+/* 8020 Design System - Lens */
 :root {
   /* Surface Colors (Light Mode) */
   --surface-base: #ffffff;
@@ -67,7 +67,7 @@
   /* Font Family */
   --font-sans: 'Inter', system-ui, sans-serif;
 
-  /* Main Brand Color - BLUE for Metrics Hub */
+  /* Main Brand Color - BLUE for 8020 Lens */
   --color-main-50: #eff6ff;
   --color-main-100: #dbeafe;
   --color-main-300: #93c5fd;

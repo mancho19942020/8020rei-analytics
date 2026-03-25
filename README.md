@@ -1,4 +1,4 @@
-# 8020METRICS HUB
+# 8020 Lens
 
 A comprehensive analytics and operations dashboard for 8020REI. Built with Next.js 16, TypeScript, and the Axis Design System. Features multi-source data integration, Firebase Authentication, and a modular widget-based architecture.
 
@@ -8,7 +8,7 @@ A comprehensive analytics and operations dashboard for 8020REI. Built with Next.
 
 ## What is This?
 
-8020METRICS HUB is the central dashboard for monitoring all 8020REI operations:
+8020 Lens is the central dashboard for monitoring all 8020REI operations:
 
 - **Analytics** - Google Analytics 4 data for 8020REI and 8020Roofing platforms
 - **Salesforce** - CRM integrations, leads funnel, delivery tracking (coming soon)

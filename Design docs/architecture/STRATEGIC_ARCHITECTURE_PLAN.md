@@ -1,8 +1,8 @@
-# 8020METRICS HUB - Strategic Architecture Plan
+# 8020 Lens - Strategic Architecture Plan
 
 ## Executive Summary
 
-This document outlines the strategic plan to evolve the 8020METRICS HUB from its current state (single BigQuery GA4 data source) into a comprehensive Product Operations Dashboard capable of handling 6+ data sources, multiple stakeholder layers, and real-time operational data.
+This document outlines the strategic plan to evolve 8020 Lens from its current state (single BigQuery GA4 data source) into a comprehensive Product Operations Dashboard capable of handling 6+ data sources, multiple stakeholder layers, and real-time operational data.
 
 ---
 

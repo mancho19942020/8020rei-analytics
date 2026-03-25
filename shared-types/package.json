@@ -1,7 +1,7 @@
 {
-  "name": "@8020metrics/shared-types",
+  "name": "@8020lens/shared-types",
   "version": "1.0.0",
-  "description": "Shared TypeScript types for 8020METRICS HUB",
+  "description": "Shared TypeScript types for 8020 Lens",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {

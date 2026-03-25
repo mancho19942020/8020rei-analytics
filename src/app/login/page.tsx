@@ -65,7 +65,7 @@ export default function LoginPage() {
           <div className="text-center mb-10 pt-2">
             <img
               src="/logo/logo-dark.svg"
-              alt="8020 Metrics Hub"
+              alt="8020 Lens"
               className="h-5 md:h-6 mx-auto mb-8"
             />
             <p className="text-neutral-500 text-xs">

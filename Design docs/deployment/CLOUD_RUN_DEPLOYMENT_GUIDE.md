@@ -1,4 +1,4 @@
-# Deployment Guide — 8020METRICS HUB
+# Deployment Guide — 8020 Lens
 
 > **Last updated:** February 26, 2026
 > **Live URL:** https://analytics8020-798362859849.us-central1.run.app
@@ -7,7 +7,7 @@
 
 ## What Is This Document For?
 
-This guide explains how to deploy new code changes to the live version of the 8020METRICS HUB dashboard. It is written for anyone on the team, regardless of technical background.
+This guide explains how to deploy new code changes to the live version of the 8020 Lens dashboard. It is written for anyone on the team, regardless of technical background.
 
 **Important thing to understand upfront:**
 

@@ -1664,7 +1664,7 @@ App-wide utility components.
 
 ### Logo
 
-**Purpose:** 8020METRICS HUB brand logo with circular progress icon. Supports light/dark mode via separate SVG files.
+**Purpose:** 8020 Lens brand logo with circular progress icon. Supports light/dark mode via separate SVG files.
 
 **File:** `src/components/Logo.tsx`
 
@@ -1858,7 +1858,7 @@ className="focus-visible:ring-2 focus-visible:ring-main-500 focus-visible:ring-o
 **Layout/Theme Changes:**
 - Light mode main content area: `bg-neutral-100` (subtle gray #f3f4f6) - easier on the eyes
 - Dark mode main content area: `bg-surface-raised` (#1f2937) - consistent with navigation, not pure black
-- Header title changed from "8020 Analytics Hub" to "8020METRICS HUB"
+- Header title changed from "8020 Analytics Hub" to "8020LENS"
 - Header font size reduced from `text-2xl font-bold` to `text-lg font-semibold`
 
 **Design Principles Applied:**

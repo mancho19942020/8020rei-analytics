@@ -1,6 +1,6 @@
 # Design Documentation
 
-Documentation hub for the 8020REI Analytics Dashboard (Metrics Hub).
+Documentation hub for the 8020REI Analytics Dashboard (8020 Lens).
 
 ---
 

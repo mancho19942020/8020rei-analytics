@@ -1,5 +1,5 @@
 /**
- * 8020METRICS HUB - Backend API
+ * 8020 Lens - Backend API
  *
  * This is the main entry point for the backend API service.
  * It handles data integration from multiple sources:
@@ -83,7 +83,7 @@ async function start() {
 
     console.log(`
 ╔═══════════════════════════════════════════════════════════╗
-║           8020METRICS HUB - Backend API                   ║
+║              8020 Lens - Backend API                       ║
 ╠═══════════════════════════════════════════════════════════╣
 ║  Server running at: http://${host}:${port}                     ║
 ║  Health check: http://${host}:${port}/api/health               ║

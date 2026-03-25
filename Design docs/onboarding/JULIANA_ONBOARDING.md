@@ -1,4 +1,4 @@
-# 8020 Metrics Hub — Developer Onboarding Guide
+# 8020 Lens — Developer Onboarding Guide
 ## For: Juliana (juliana@8020rei.com)
 
 > **Note for AI assistant:** This document is designed to be pasted into Claude or any AI assistant. Follow the steps in order. Each step includes the exact commands to run. Ask the user to confirm after each major section before moving on.
@@ -7,7 +7,7 @@
 
 ## What This Project Is
 
-**8020 Metrics Hub** is an internal analytics dashboard for 8020REI. It shows Google Analytics 4 data, product usage metrics, user behavior, and engagement data.
+**8020 Lens** is an internal analytics dashboard for 8020REI. It shows Google Analytics 4 data, product usage metrics, user behavior, and engagement data.
 
 - **Frontend:** Next.js 14 (App Router) — runs on port 4000 locally
 - **Backend:** Fastify API — runs on port 4001 locally

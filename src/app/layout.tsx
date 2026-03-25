@@ -10,8 +10,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "8020 Metrics Hub",
-  description: "Usage metrics dashboard for 8020REI platform",
+  title: "8020LENS",
+  description: "Analytics dashboard for 8020REI platform",
 };
 
 // Inline script to prevent flash of wrong theme on initial load

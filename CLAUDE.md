@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-8020METRICS HUB — analytics dashboard for 8020REI. Next.js 16 (App Router) frontend with a Fastify backend. Uses the **Axis Design System**, Firebase Auth, BigQuery for data, and a widget-based drag-drop workspace (react-grid-layout).
+8020 Lens — analytics dashboard for 8020REI. Next.js 16 (App Router) frontend with a Fastify backend. Uses the **Axis Design System**, Firebase Auth, BigQuery for data, and a widget-based drag-drop workspace (react-grid-layout).
 
 ## Commands
 
