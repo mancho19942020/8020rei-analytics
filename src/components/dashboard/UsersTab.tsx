@@ -83,7 +83,9 @@ interface UsersData {
 
 interface UsersTabProps {
   days: number;
-  userType: 'all' | 'internal' | 'external';
+  userType: 'all' | 'internal' | 'external' | 'unclassified';
+  startDate?: string;
+  endDate?: string;
   editMode: boolean;
   onEditModeChange?: (editMode: boolean) => void;
 }

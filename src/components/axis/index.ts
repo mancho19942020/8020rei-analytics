@@ -47,6 +47,9 @@ export type { AxisTooltipProps, TooltipPlacement } from './AxisTooltip';
 export { AxisModal } from './AxisModal';
 export type { AxisModalProps } from './AxisModal';
 
+export { AxisDateRangePicker } from './AxisDateRangePicker';
+export type { AxisDateRangePickerProps, DateRangeValue } from './AxisDateRangePicker';
+
 // Export type definitions
 export * from '@/types/axis';
 export * from '@/types/table';
