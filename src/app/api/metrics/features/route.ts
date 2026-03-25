@@ -7,6 +7,7 @@ import {
   getFeatureTrendQuery,
   getTopPagesQuery,
   getPreviousFeatureViewsQuery,
+  parseDateRangeFromSearchParams,
   UserType
 } from '@/lib/queries';
 
@@ -68,17 +69,17 @@ function calculateTrend(current: number, previous: number): TrendData {
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
-  const days = parseInt(searchParams.get('days') || '30');
+  const dateRange = parseDateRangeFromSearchParams(searchParams);
   const userType = (searchParams.get('userType') || 'all') as UserType;
 
   // Create a unique cache key based on the query parameters
-  const cacheKey = `features-metrics-v1:${days}:${userType}`;
+  const cacheKey = `features-metrics-v1:${dateRange.startDate || dateRange.days || 30}:${dateRange.endDate || ''}:${userType}`;
 
   // Check if we have cached data
   const cached = getCached<FeaturesMetricsData>(cacheKey);
 
   if (cached) {
-    console.log(`[API/Features] Returning cached data for ${days} days`);
+    console.log(`[API/Features] Returning cached data for dateRange:`, dateRange);
     return NextResponse.json({
       success: true,
       data: cached,
@@ -87,7 +88,7 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  console.log(`[API/Features] Cache miss - fetching fresh data from BigQuery for ${days} days, userType: ${userType}`);
+  console.log(`[API/Features] Cache miss - fetching fresh data from BigQuery for dateRange:`, dateRange, `userType: ${userType}`);
 
   try {
     // Execute 5 queries in parallel
@@ -98,11 +99,11 @@ export async function GET(request: NextRequest) {
       featureTrend,
       topPages,
     ] = await Promise.all([
-      runQuery<FeatureViewData>(getFeatureViewsQuery(days, userType)),
-      runQuery<PreviousFeatureViewData>(getPreviousFeatureViewsQuery(days, userType)),
-      runQuery<FeatureAdoptionData>(getFeatureAdoptionQuery(days, userType)),
-      runQuery<FeatureTrendData>(getFeatureTrendQuery(days, userType)),
-      runQuery<TopPageData>(getTopPagesQuery(days, userType)),
+      runQuery<FeatureViewData>(getFeatureViewsQuery(dateRange, userType)),
+      runQuery<PreviousFeatureViewData>(getPreviousFeatureViewsQuery(dateRange, userType)),
+      runQuery<FeatureAdoptionData>(getFeatureAdoptionQuery(dateRange, userType)),
+      runQuery<FeatureTrendData>(getFeatureTrendQuery(dateRange, userType)),
+      runQuery<TopPageData>(getTopPagesQuery(dateRange, userType)),
     ]);
 
     // Create a map of previous views by feature for trend calculation
@@ -132,7 +133,7 @@ export async function GET(request: NextRequest) {
 
     // Store in cache for 5 minutes
     setCache(cacheKey, data);
-    console.log(`[API/Features] Data cached successfully for ${days} days`);
+    console.log(`[API/Features] Data cached successfully for dateRange:`, dateRange);
 
     return NextResponse.json({
       success: true,

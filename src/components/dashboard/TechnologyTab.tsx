@@ -31,6 +31,7 @@ import {
   formatOperatingSystemForExport,
   formatDeviceLanguageForExport,
 } from '@/lib/export';
+import { buildDateQueryString } from '@/lib/date-utils';
 
 interface TrendData {
   value: number;
@@ -80,7 +81,7 @@ interface TechnologyTabProps {
 }
 
 export const TechnologyTab = forwardRef<TabHandle, TechnologyTabProps>(function TechnologyTab(
-  { days, userType, editMode },
+  { days, userType, startDate, endDate, editMode },
   ref
 ) {
   const [data, setData] = useState<TechnologyData | null>(null);
@@ -112,14 +113,14 @@ export const TechnologyTab = forwardRef<TabHandle, TechnologyTabProps>(function 
 
   useEffect(() => {
     fetchData();
-  }, [days, userType]);
+  }, [days, userType, startDate, endDate]);
 
   async function fetchData() {
     setLoading(true);
     setError(null);
 
     try {
-      const res = await fetch(`/api/metrics/technology?days=${days}&userType=${userType}`);
+      const res = await fetch(`/api/metrics/technology?${buildDateQueryString(days, startDate, endDate)}&userType=${userType}`);
       const json = await res.json();
 
       if (json.success) {

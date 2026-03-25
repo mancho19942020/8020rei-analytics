@@ -6,6 +6,7 @@ import {
   getUsersByDayQuery,
   getFeatureUsageQuery,
   getTopClientsQuery,
+  parseDateRangeFromSearchParams,
   UserType
 } from '@/lib/queries';
 
@@ -43,17 +44,17 @@ interface MetricsData {
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
-  const days = parseInt(searchParams.get('days') || '30');
+  const dateRange = parseDateRangeFromSearchParams(searchParams);
   const userType = (searchParams.get('userType') || 'all') as UserType;
 
   // Create a unique cache key based on the query parameters
-  const cacheKey = `metrics:${days}:${userType}`;
+  const cacheKey = `metrics:${dateRange.startDate || dateRange.days || 30}:${dateRange.endDate || ''}:${userType}`;
 
   // Check if we have cached data
   const cached = getCached<MetricsData>(cacheKey);
 
   if (cached) {
-    console.log(`[API] Returning cached data for ${days} days`);
+    console.log(`[API] Returning cached data for dateRange:`, dateRange);
     return NextResponse.json({
       success: true,
       data: cached,
@@ -62,15 +63,15 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  console.log(`[API] Cache miss - fetching fresh data from BigQuery for ${days} days, userType: ${userType}`);
+  console.log(`[API] Cache miss - fetching fresh data from BigQuery for dateRange:`, dateRange, `userType: ${userType}`);
 
   try {
     // Execute 4 queries in parallel
     const [metrics, usersByDay, featureUsage, topClients] = await Promise.all([
-      runQuery<Metrics>(getMetricsQuery(days, userType)),
-      runQuery<DailyData>(getUsersByDayQuery(days, userType)),
-      runQuery<FeatureData>(getFeatureUsageQuery(days, userType)),
-      runQuery<ClientData>(getTopClientsQuery(days, userType)),
+      runQuery<Metrics>(getMetricsQuery(dateRange, userType)),
+      runQuery<DailyData>(getUsersByDayQuery(dateRange, userType)),
+      runQuery<FeatureData>(getFeatureUsageQuery(dateRange, userType)),
+      runQuery<ClientData>(getTopClientsQuery(dateRange, userType)),
     ]);
 
     const data: MetricsData = {
@@ -82,7 +83,7 @@ export async function GET(request: NextRequest) {
 
     // Store in cache for 5 minutes
     setCache(cacheKey, data);
-    console.log(`[API] Data cached successfully for ${days} days`);
+    console.log(`[API] Data cached successfully for dateRange:`, dateRange);
 
     return NextResponse.json({
       success: true,

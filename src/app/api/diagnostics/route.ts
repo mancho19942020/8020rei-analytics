@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
   console.log(`[Diagnostics] Fetching user affiliation data for last ${days} days`);
 
   try {
-    const data = await runQuery<DiagnosticData>(getDiagnosticUserDataQuery(days));
+    const data = await runQuery<DiagnosticData>(getDiagnosticUserDataQuery({ days }));
 
     // Calculate summary statistics
     const summary = {

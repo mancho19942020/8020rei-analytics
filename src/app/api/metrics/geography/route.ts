@@ -7,6 +7,7 @@ import {
   getCityQuery,
   getContinentQuery,
   getPreviousCountryQuery,
+  parseDateRangeFromSearchParams,
   UserType
 } from '@/lib/queries';
 
@@ -63,17 +64,17 @@ function calculateTrend(current: number, previous: number): TrendData {
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
-  const days = parseInt(searchParams.get('days') || '30');
+  const dateRange = parseDateRangeFromSearchParams(searchParams);
   const userType = (searchParams.get('userType') || 'all') as UserType;
 
   // Create a unique cache key based on the query parameters
-  const cacheKey = `geography-metrics-v1:${days}:${userType}`;
+  const cacheKey = `geography-metrics-v1:${dateRange.startDate || dateRange.days || 30}:${dateRange.endDate || ''}:${userType}`;
 
   // Check if we have cached data
   const cached = getCached<GeographyMetricsData>(cacheKey);
 
   if (cached) {
-    console.log(`[API/Geography] Returning cached data for ${days} days`);
+    console.log(`[API/Geography] Returning cached data for dateRange:`, dateRange);
     return NextResponse.json({
       success: true,
       data: cached,
@@ -82,7 +83,7 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  console.log(`[API/Geography] Cache miss - fetching fresh data from BigQuery for ${days} days, userType: ${userType}`);
+  console.log(`[API/Geography] Cache miss - fetching fresh data from BigQuery for dateRange:`, dateRange, `userType: ${userType}`);
 
   try {
     // Execute 5 queries in parallel (4 current + 1 previous period for trends)
@@ -93,11 +94,11 @@ export async function GET(request: NextRequest) {
       byContinent,
       prevCountry
     ] = await Promise.all([
-      runQuery<CountryData>(getCountryQuery(days, userType)),
-      runQuery<RegionData>(getRegionQuery(days, userType)),
-      runQuery<CityData>(getCityQuery(days, userType)),
-      runQuery<ContinentData>(getContinentQuery(days, userType)),
-      runQuery<CountryData>(getPreviousCountryQuery(days, userType)),
+      runQuery<CountryData>(getCountryQuery(dateRange, userType)),
+      runQuery<RegionData>(getRegionQuery(dateRange, userType)),
+      runQuery<CityData>(getCityQuery(dateRange, userType)),
+      runQuery<ContinentData>(getContinentQuery(dateRange, userType)),
+      runQuery<CountryData>(getPreviousCountryQuery(dateRange, userType)),
     ]);
 
     // Create a map of previous period data for trend calculation
@@ -128,7 +129,7 @@ export async function GET(request: NextRequest) {
 
     // Store in cache for 5 minutes
     setCache(cacheKey, data);
-    console.log(`[API/Geography] Data cached successfully for ${days} days`);
+    console.log(`[API/Geography] Data cached successfully for dateRange:`, dateRange);
 
     return NextResponse.json({
       success: true,

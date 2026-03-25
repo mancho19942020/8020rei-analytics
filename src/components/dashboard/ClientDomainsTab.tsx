@@ -33,15 +33,18 @@ import {
   formatDomainActivityTrendForExport,
   formatRevenueByDomainForExport,
 } from '@/lib/export';
+import { buildDateQueryString } from '@/lib/date-utils';
 
 interface ClientDomainsTabProps {
   days: number;
+  startDate?: string;
+  endDate?: string;
   editMode: boolean;
   onEditModeChange?: (editMode: boolean) => void;
 }
 
 export const ClientDomainsTab = forwardRef<TabHandle, ClientDomainsTabProps>(function ClientDomainsTab(
-  { days, editMode },
+  { days, startDate, endDate, editMode },
   ref
 ) {
   const [data, setData] = useState<ClientDomainsData | null>(null);
@@ -73,14 +76,14 @@ export const ClientDomainsTab = forwardRef<TabHandle, ClientDomainsTabProps>(fun
 
   useEffect(() => {
     fetchData();
-  }, [days]);
+  }, [days, startDate, endDate]);
 
   async function fetchData() {
     setLoading(true);
     setError(null);
 
     try {
-      const res = await fetch(`/api/metrics/product-domains?days=${days}`);
+      const res = await fetch(`/api/metrics/product-domains?${buildDateQueryString(days, startDate, endDate)}`);
       const json = await res.json();
 
       if (json.success) {

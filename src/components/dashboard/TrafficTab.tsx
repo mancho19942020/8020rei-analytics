@@ -34,6 +34,7 @@ import {
   formatSessionsByDayForExport,
   formatFirstVisitsTrendForExport,
 } from '@/lib/export';
+import { buildDateQueryString } from '@/lib/date-utils';
 
 interface TrafficBySourceData {
   source: string;
@@ -82,7 +83,7 @@ interface TrafficTabProps {
 }
 
 export const TrafficTab = forwardRef<TabHandle, TrafficTabProps>(function TrafficTab(
-  { days, userType, editMode },
+  { days, userType, startDate, endDate, editMode },
   ref
 ) {
   const [data, setData] = useState<TrafficData | null>(null);
@@ -114,14 +115,14 @@ export const TrafficTab = forwardRef<TabHandle, TrafficTabProps>(function Traffi
 
   useEffect(() => {
     fetchData();
-  }, [days, userType]);
+  }, [days, userType, startDate, endDate]);
 
   async function fetchData() {
     setLoading(true);
     setError(null);
 
     try {
-      const res = await fetch(`/api/metrics/traffic?days=${days}&userType=${userType}`);
+      const res = await fetch(`/api/metrics/traffic?${buildDateQueryString(days, startDate, endDate)}&userType=${userType}`);
       const json = await res.json();
 
       if (json.success) {

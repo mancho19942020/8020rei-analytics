@@ -1019,6 +1019,8 @@ function Dashboard() {
             <ClientDomainsTab
               ref={clientDomainsTabRef}
               days={days}
+              startDate={startDate}
+              endDate={endDate}
               editMode={editMode}
               onEditModeChange={setEditMode}
             />
@@ -1029,6 +1031,8 @@ function Dashboard() {
             <ProductProjectsTab
               ref={productProjectsTabRef}
               days={days}
+              startDate={startDate}
+              endDate={endDate}
               editMode={editMode}
               onEditModeChange={setEditMode}
             />
@@ -1039,6 +1043,8 @@ function Dashboard() {
             <PropertiesApiTab
               ref={propertiesApiTabRef}
               days={days}
+              startDate={startDate}
+              endDate={endDate}
               editMode={editMode}
               onEditModeChange={setEditMode}
             />

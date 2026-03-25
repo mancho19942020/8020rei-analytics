@@ -8,6 +8,7 @@ import {
   getEventMetricsQuery,
   getPreviousEventMetricsQuery,
   getScrollDepthByPageQuery,
+  parseDateRangeFromSearchParams,
   UserType
 } from '@/lib/queries';
 
@@ -81,17 +82,17 @@ function calculateTrend(current: number, previous: number): TrendData {
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
-  const days = parseInt(searchParams.get('days') || '30');
+  const dateRange = parseDateRangeFromSearchParams(searchParams);
   const userType = (searchParams.get('userType') || 'all') as UserType;
 
   // Create a unique cache key based on the query parameters
-  const cacheKey = `events-metrics-v2:${days}:${userType}`;
+  const cacheKey = `events-metrics-v2:${dateRange.startDate || dateRange.days || 30}:${dateRange.endDate || ''}:${userType}`;
 
   // Check if we have cached data
   const cached = getCached<EventsMetricsResponse>(cacheKey);
 
   if (cached) {
-    console.log(`[API/Events] Returning cached data for ${days} days`);
+    console.log(`[API/Events] Returning cached data for dateRange:`, dateRange);
     return NextResponse.json({
       success: true,
       data: cached,
@@ -100,7 +101,7 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  console.log(`[API/Events] Cache miss - fetching fresh data from BigQuery for ${days} days, userType: ${userType}`);
+  console.log(`[API/Events] Cache miss - fetching fresh data from BigQuery for dateRange:`, dateRange, `userType: ${userType}`);
 
   try {
     // Execute 6 queries in parallel
@@ -112,12 +113,12 @@ export async function GET(request: NextRequest) {
       prevEventMetrics,
       scrollDepthByPage
     ] = await Promise.all([
-      runQuery<EventBreakdownData>(getEventBreakdownQuery(days, userType)),
-      runQuery<EventBreakdownData>(getPreviousEventBreakdownQuery(days, userType)),
-      runQuery<EventVolumeTrendData>(getEventVolumeTrendQuery(days, userType)),
-      runQuery<EventMetricsData>(getEventMetricsQuery(days, userType)),
-      runQuery<EventMetricsData>(getPreviousEventMetricsQuery(days, userType)),
-      runQuery<ScrollDepthData>(getScrollDepthByPageQuery(days, userType)),
+      runQuery<EventBreakdownData>(getEventBreakdownQuery(dateRange, userType)),
+      runQuery<EventBreakdownData>(getPreviousEventBreakdownQuery(dateRange, userType)),
+      runQuery<EventVolumeTrendData>(getEventVolumeTrendQuery(dateRange, userType)),
+      runQuery<EventMetricsData>(getEventMetricsQuery(dateRange, userType)),
+      runQuery<EventMetricsData>(getPreviousEventMetricsQuery(dateRange, userType)),
+      runQuery<ScrollDepthData>(getScrollDepthByPageQuery(dateRange, userType)),
     ]);
 
     // Create a map of previous period data for trend calculation
@@ -198,7 +199,7 @@ export async function GET(request: NextRequest) {
 
     // Store in cache for 5 minutes
     setCache(cacheKey, data);
-    console.log(`[API/Events] Data cached successfully for ${days} days`);
+    console.log(`[API/Events] Data cached successfully for dateRange:`, dateRange);
 
     return NextResponse.json({
       success: true,

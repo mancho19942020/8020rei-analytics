@@ -28,6 +28,7 @@ import {
   formatTopClientsDetailedForExport,
   formatClientActivityTrendForExport,
 } from '@/lib/export';
+import { buildDateQueryString } from '@/lib/date-utils';
 
 interface TrendData {
   value: number;
@@ -80,7 +81,7 @@ interface ClientsTabProps {
 }
 
 export const ClientsTab = forwardRef<TabHandle, ClientsTabProps>(function ClientsTab(
-  { days, userType, editMode },
+  { days, userType, startDate, endDate, editMode },
   ref
 ) {
   const [data, setData] = useState<ClientsData | null>(null);
@@ -113,14 +114,14 @@ export const ClientsTab = forwardRef<TabHandle, ClientsTabProps>(function Client
 
   useEffect(() => {
     fetchData();
-  }, [days, userType]);
+  }, [days, userType, startDate, endDate]);
 
   async function fetchData() {
     setLoading(true);
     setError(null);
 
     try {
-      const res = await fetch(`/api/metrics/clients?days=${days}&userType=${userType}`);
+      const res = await fetch(`/api/metrics/clients?${buildDateQueryString(days, startDate, endDate)}&userType=${userType}`);
       const json = await res.json();
 
       if (json.success) {

@@ -4,15 +4,43 @@ const TABLE = `\`${PROJECT}.${DATASET}.events_*\``;
 
 export type UserType = 'all' | 'internal' | 'external';
 
-export function getDateFilter(days: number = 30): string {
+export interface DateRangeParams {
+  days?: number;
+  startDate?: string; // YYYY-MM-DD
+  endDate?: string;   // YYYY-MM-DD
+}
+
+export function parseDateRangeFromSearchParams(searchParams: URLSearchParams): DateRangeParams {
+  const startDate = searchParams.get('startDate');
+  const endDate = searchParams.get('endDate');
+  if (startDate && endDate && /^\d{4}-\d{2}-\d{2}$/.test(startDate) && /^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
+    return { startDate, endDate };
+  }
+  return { days: parseInt(searchParams.get('days') || '30') };
+}
+
+export function getDateFilter(dateRange: DateRangeParams = { days: 30 }): string {
+  if (dateRange.startDate && dateRange.endDate) {
+    return `_TABLE_SUFFIX >= '${dateRange.startDate.replace(/-/g, '')}' AND _TABLE_SUFFIX <= '${dateRange.endDate.replace(/-/g, '')}'`;
+  }
+  const days = dateRange.days || 30;
   return `_TABLE_SUFFIX >= FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))`;
 }
 
 /**
  * Returns a SQL filter for a specific date range (for previous period comparison).
- * Example: getPreviousPeriodDateFilter(30) returns filter for days 31-60 ago
+ * For custom ranges: calculates a previous period of the same length ending the day before startDate.
+ * For days-based: getPreviousPeriodDateFilter({ days: 30 }) returns filter for days 31-60 ago.
  */
-export function getPreviousPeriodDateFilter(days: number = 30): string {
+export function getPreviousPeriodDateFilter(dateRange: DateRangeParams = { days: 30 }): string {
+  if (dateRange.startDate && dateRange.endDate) {
+    const rangeDays = Math.ceil((new Date(dateRange.endDate).getTime() - new Date(dateRange.startDate).getTime()) / (86400000));
+    const prevEnd = new Date(new Date(dateRange.startDate).getTime() - 86400000);
+    const prevStart = new Date(prevEnd.getTime() - rangeDays * 86400000);
+    const formatDate = (d: Date) => d.toISOString().slice(0, 10).replace(/-/g, '');
+    return `_TABLE_SUFFIX >= '${formatDate(prevStart)}' AND _TABLE_SUFFIX <= '${formatDate(prevEnd)}'`;
+  }
+  const days = dateRange.days || 30;
   return `_TABLE_SUFFIX >= FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL ${days * 2} DAY))
     AND _TABLE_SUFFIX < FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))`;
 }
@@ -74,7 +102,7 @@ export function getSessionAffiliationSubquery(): string {
   `;
 }
 
-export function getMetricsQuery(days: number, userType: UserType = 'all'): string {
+export function getMetricsQuery(dateRange: DateRangeParams, userType: UserType = 'all'): string {
   // For 'all' users, we can use a simple query
   if (userType === 'all') {
     return `
@@ -89,7 +117,7 @@ export function getMetricsQuery(days: number, userType: UserType = 'all'): strin
           )
         ) as active_clients
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
     `;
   }
 
@@ -109,7 +137,7 @@ export function getMetricsQuery(days: number, userType: UserType = 'all'): strin
           ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
         ) as final_affiliation
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
     ),
     filtered_sessions AS (
       SELECT DISTINCT user_pseudo_id
@@ -128,11 +156,11 @@ export function getMetricsQuery(days: number, userType: UserType = 'all'): strin
       ) as active_clients
     FROM ${TABLE} e
     INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
-    WHERE ${getDateFilter(days)}
+    WHERE ${getDateFilter(dateRange)}
   `;
 }
 
-export function getUsersByDayQuery(days: number, userType: UserType = 'all'): string {
+export function getUsersByDayQuery(dateRange: DateRangeParams, userType: UserType = 'all'): string {
   if (userType === 'all') {
     return `
       SELECT
@@ -140,7 +168,7 @@ export function getUsersByDayQuery(days: number, userType: UserType = 'all'): st
         COUNT(DISTINCT user_pseudo_id) as users,
         COUNT(*) as events
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
       GROUP BY event_date
       ORDER BY event_date
     `;
@@ -161,7 +189,7 @@ export function getUsersByDayQuery(days: number, userType: UserType = 'all'): st
           ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
         ) as final_affiliation
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
     ),
     filtered_sessions AS (
       SELECT DISTINCT user_pseudo_id
@@ -174,13 +202,13 @@ export function getUsersByDayQuery(days: number, userType: UserType = 'all'): st
       COUNT(*) as events
     FROM ${TABLE} e
     INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
-    WHERE ${getDateFilter(days)}
+    WHERE ${getDateFilter(dateRange)}
     GROUP BY e.event_date
     ORDER BY e.event_date
   `;
 }
 
-export function getFeatureUsageQuery(days: number, userType: UserType = 'all'): string {
+export function getFeatureUsageQuery(dateRange: DateRangeParams, userType: UserType = 'all'): string {
   if (userType === 'all') {
     return `
       SELECT
@@ -200,7 +228,7 @@ export function getFeatureUsageQuery(days: number, userType: UserType = 'all'): 
         SELECT
           (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'page_location') as page_url
         FROM ${TABLE}
-        WHERE ${getDateFilter(days)}
+        WHERE ${getDateFilter(dateRange)}
           AND event_name = 'page_view'
       )
       WHERE page_url IS NOT NULL
@@ -225,7 +253,7 @@ export function getFeatureUsageQuery(days: number, userType: UserType = 'all'): 
           ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
         ) as final_affiliation
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
     ),
     filtered_sessions AS (
       SELECT DISTINCT user_pseudo_id
@@ -250,7 +278,7 @@ export function getFeatureUsageQuery(days: number, userType: UserType = 'all'): 
         (SELECT value.string_value FROM UNNEST(e.event_params) WHERE key = 'page_location') as page_url
       FROM ${TABLE} e
       INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
         AND e.event_name = 'page_view'
     )
     WHERE page_url IS NOT NULL
@@ -260,7 +288,7 @@ export function getFeatureUsageQuery(days: number, userType: UserType = 'all'): 
   `;
 }
 
-export function getTopClientsQuery(days: number, userType: UserType = 'all'): string {
+export function getTopClientsQuery(dateRange: DateRangeParams, userType: UserType = 'all'): string {
   if (userType === 'all') {
     return `
       SELECT
@@ -272,7 +300,7 @@ export function getTopClientsQuery(days: number, userType: UserType = 'all'): st
         COUNT(DISTINCT user_pseudo_id) as users,
         COUNT(CASE WHEN event_name = 'page_view' THEN 1 END) as page_views
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
       GROUP BY client
       HAVING client IS NOT NULL
       ORDER BY events DESC
@@ -295,7 +323,7 @@ export function getTopClientsQuery(days: number, userType: UserType = 'all'): st
           ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
         ) as final_affiliation
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
     ),
     filtered_sessions AS (
       SELECT DISTINCT user_pseudo_id
@@ -312,7 +340,7 @@ export function getTopClientsQuery(days: number, userType: UserType = 'all'): st
       COUNT(CASE WHEN e.event_name = 'page_view' THEN 1 END) as page_views
     FROM ${TABLE} e
     INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
-    WHERE ${getDateFilter(days)}
+    WHERE ${getDateFilter(dateRange)}
     GROUP BY client
     HAVING client IS NOT NULL
     ORDER BY events DESC
@@ -328,7 +356,7 @@ export function getTopClientsQuery(days: number, userType: UserType = 'all'): st
  * Get DAU, WAU, MAU (Daily/Weekly/Monthly Active Users)
  * Uses distinct user_pseudo_id counts over different time windows.
  */
-export function getUserActivityMetricsQuery(days: number, userType: UserType = 'all'): string {
+export function getUserActivityMetricsQuery(dateRange: DateRangeParams, userType: UserType = 'all'): string {
   if (userType === 'all') {
     return `
       SELECT
@@ -342,7 +370,7 @@ export function getUserActivityMetricsQuery(days: number, userType: UserType = '
           WHEN _TABLE_SUFFIX >= FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY))
           THEN user_pseudo_id END) as mau
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
     `;
   }
 
@@ -361,7 +389,7 @@ export function getUserActivityMetricsQuery(days: number, userType: UserType = '
           ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
         ) as final_affiliation
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
     ),
     filtered_sessions AS (
       SELECT DISTINCT user_pseudo_id
@@ -380,7 +408,7 @@ export function getUserActivityMetricsQuery(days: number, userType: UserType = '
         THEN e.user_pseudo_id END) as mau
     FROM ${TABLE} e
     INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
-    WHERE ${getDateFilter(days)}
+    WHERE ${getDateFilter(dateRange)}
   `;
 }
 
@@ -388,7 +416,7 @@ export function getUserActivityMetricsQuery(days: number, userType: UserType = '
  * Get New vs Returning users per day
  * New users are identified by the 'first_visit' event.
  */
-export function getNewVsReturningUsersQuery(days: number, userType: UserType = 'all'): string {
+export function getNewVsReturningUsersQuery(dateRange: DateRangeParams, userType: UserType = 'all'): string {
   if (userType === 'all') {
     return `
       SELECT
@@ -396,7 +424,7 @@ export function getNewVsReturningUsersQuery(days: number, userType: UserType = '
         COUNT(DISTINCT CASE WHEN event_name = 'first_visit' THEN user_pseudo_id END) as new_users,
         COUNT(DISTINCT user_pseudo_id) - COUNT(DISTINCT CASE WHEN event_name = 'first_visit' THEN user_pseudo_id END) as returning_users
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
       GROUP BY event_date
       ORDER BY event_date
     `;
@@ -417,7 +445,7 @@ export function getNewVsReturningUsersQuery(days: number, userType: UserType = '
           ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
         ) as final_affiliation
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
     ),
     filtered_sessions AS (
       SELECT DISTINCT user_pseudo_id
@@ -430,7 +458,7 @@ export function getNewVsReturningUsersQuery(days: number, userType: UserType = '
       COUNT(DISTINCT e.user_pseudo_id) - COUNT(DISTINCT CASE WHEN e.event_name = 'first_visit' THEN e.user_pseudo_id END) as returning_users
     FROM ${TABLE} e
     INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
-    WHERE ${getDateFilter(days)}
+    WHERE ${getDateFilter(dateRange)}
     GROUP BY e.event_date
     ORDER BY e.event_date
   `;
@@ -444,7 +472,7 @@ export function getNewVsReturningUsersQuery(days: number, userType: UserType = '
  * - Sessions per user
  * - Bounce rate (1 - engaged rate)
  */
-export function getEngagementMetricsQuery(days: number, userType: UserType = 'all'): string {
+export function getEngagementMetricsQuery(dateRange: DateRangeParams, userType: UserType = 'all'): string {
   if (userType === 'all') {
     return `
       WITH session_data AS (
@@ -456,7 +484,7 @@ export function getEngagementMetricsQuery(days: number, userType: UserType = 'al
             THEN COALESCE((SELECT value.int_value FROM UNNEST(event_params) WHERE key = 'engagement_time_msec'), 0)
             ELSE 0 END) as engagement_time_ms
         FROM ${TABLE}
-        WHERE ${getDateFilter(days)}
+        WHERE ${getDateFilter(dateRange)}
         GROUP BY user_pseudo_id, session_id
       )
       SELECT
@@ -493,7 +521,7 @@ export function getEngagementMetricsQuery(days: number, userType: UserType = 'al
           ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
         ) as final_affiliation
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
     ),
     filtered_sessions AS (
       SELECT DISTINCT user_pseudo_id
@@ -510,7 +538,7 @@ export function getEngagementMetricsQuery(days: number, userType: UserType = 'al
           ELSE 0 END) as engagement_time_ms
       FROM ${TABLE} e
       INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
       GROUP BY e.user_pseudo_id, session_id
     )
     SELECT
@@ -598,7 +626,7 @@ export function getPreviousUserActivityMetricsQuery(userType: UserType = 'all'):
 /**
  * Get previous period engagement metrics for trend calculation.
  */
-export function getPreviousEngagementMetricsQuery(days: number, userType: UserType = 'all'): string {
+export function getPreviousEngagementMetricsQuery(dateRange: DateRangeParams, userType: UserType = 'all'): string {
   if (userType === 'all') {
     return `
       WITH session_data AS (
@@ -610,7 +638,7 @@ export function getPreviousEngagementMetricsQuery(days: number, userType: UserTy
             THEN COALESCE((SELECT value.int_value FROM UNNEST(event_params) WHERE key = 'engagement_time_msec'), 0)
             ELSE 0 END) as engagement_time_ms
         FROM ${TABLE}
-        WHERE ${getPreviousPeriodDateFilter(days)}
+        WHERE ${getPreviousPeriodDateFilter(dateRange)}
         GROUP BY user_pseudo_id, session_id
       )
       SELECT
@@ -647,7 +675,7 @@ export function getPreviousEngagementMetricsQuery(days: number, userType: UserTy
           ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
         ) as final_affiliation
       FROM ${TABLE}
-      WHERE ${getPreviousPeriodDateFilter(days)}
+      WHERE ${getPreviousPeriodDateFilter(dateRange)}
     ),
     filtered_sessions AS (
       SELECT DISTINCT user_pseudo_id
@@ -664,7 +692,7 @@ export function getPreviousEngagementMetricsQuery(days: number, userType: UserTy
           ELSE 0 END) as engagement_time_ms
       FROM ${TABLE} e
       INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
-      WHERE ${getPreviousPeriodDateFilter(days)}
+      WHERE ${getPreviousPeriodDateFilter(dateRange)}
       GROUP BY e.user_pseudo_id, session_id
     )
     SELECT
@@ -694,7 +722,7 @@ export function getPreviousEngagementMetricsQuery(days: number, userType: UserTy
  * Get views per feature (horizontal bar chart data).
  * Groups page views by feature based on URL patterns.
  */
-export function getFeatureViewsQuery(days: number, userType: UserType = 'all'): string {
+export function getFeatureViewsQuery(dateRange: DateRangeParams, userType: UserType = 'all'): string {
   if (userType === 'all') {
     return `
       SELECT
@@ -720,7 +748,7 @@ export function getFeatureViewsQuery(days: number, userType: UserType = 'all'): 
           user_pseudo_id,
           (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'page_location') as page_url
         FROM ${TABLE}
-        WHERE ${getDateFilter(days)}
+        WHERE ${getDateFilter(dateRange)}
           AND event_name = 'page_view'
       )
       WHERE page_url IS NOT NULL
@@ -745,7 +773,7 @@ export function getFeatureViewsQuery(days: number, userType: UserType = 'all'): 
           ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
         ) as final_affiliation
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
     ),
     filtered_sessions AS (
       SELECT DISTINCT user_pseudo_id
@@ -776,7 +804,7 @@ export function getFeatureViewsQuery(days: number, userType: UserType = 'all'): 
         (SELECT value.string_value FROM UNNEST(e.event_params) WHERE key = 'page_location') as page_url
       FROM ${TABLE} e
       INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
         AND e.event_name = 'page_view'
     ) e
     WHERE page_url IS NOT NULL
@@ -790,7 +818,7 @@ export function getFeatureViewsQuery(days: number, userType: UserType = 'all'): 
  * Get feature adoption rate (% of clients that use each feature).
  * Shows how many clients have accessed each feature.
  */
-export function getFeatureAdoptionQuery(days: number, userType: UserType = 'all'): string {
+export function getFeatureAdoptionQuery(dateRange: DateRangeParams, userType: UserType = 'all'): string {
   if (userType === 'all') {
     return `
       WITH total_clients AS (
@@ -799,7 +827,7 @@ export function getFeatureAdoptionQuery(days: number, userType: UserType = 'all'
           r'https://([^.]+)\\.8020rei\\.com'
         )) as total
         FROM ${TABLE}
-        WHERE ${getDateFilter(days)}
+        WHERE ${getDateFilter(dateRange)}
           AND event_name = 'page_view'
       ),
       feature_clients AS (
@@ -822,7 +850,7 @@ export function getFeatureAdoptionQuery(days: number, userType: UserType = 'all'
         FROM (
           SELECT (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'page_location') as page_url
           FROM ${TABLE}
-          WHERE ${getDateFilter(days)}
+          WHERE ${getDateFilter(dateRange)}
             AND event_name = 'page_view'
         )
         WHERE page_url IS NOT NULL
@@ -853,7 +881,7 @@ export function getFeatureAdoptionQuery(days: number, userType: UserType = 'all'
           ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
         ) as final_affiliation
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
     ),
     filtered_sessions AS (
       SELECT DISTINCT user_pseudo_id
@@ -867,7 +895,7 @@ export function getFeatureAdoptionQuery(days: number, userType: UserType = 'all'
       )) as total
       FROM ${TABLE} e
       INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
         AND e.event_name = 'page_view'
     ),
     feature_clients AS (
@@ -891,7 +919,7 @@ export function getFeatureAdoptionQuery(days: number, userType: UserType = 'all'
         SELECT (SELECT value.string_value FROM UNNEST(e.event_params) WHERE key = 'page_location') as page_url
         FROM ${TABLE} e
         INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
-        WHERE ${getDateFilter(days)}
+        WHERE ${getDateFilter(dateRange)}
           AND e.event_name = 'page_view'
       )
       WHERE page_url IS NOT NULL
@@ -911,7 +939,7 @@ export function getFeatureAdoptionQuery(days: number, userType: UserType = 'all'
  * Get feature trend over time (for multi-line chart).
  * Returns daily views per feature.
  */
-export function getFeatureTrendQuery(days: number, userType: UserType = 'all'): string {
+export function getFeatureTrendQuery(dateRange: DateRangeParams, userType: UserType = 'all'): string {
   if (userType === 'all') {
     return `
       SELECT
@@ -930,7 +958,7 @@ export function getFeatureTrendQuery(days: number, userType: UserType = 'all'): 
           event_date,
           (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'page_location') as page_url
         FROM ${TABLE}
-        WHERE ${getDateFilter(days)}
+        WHERE ${getDateFilter(dateRange)}
           AND event_name = 'page_view'
       )
       WHERE page_url IS NOT NULL
@@ -955,7 +983,7 @@ export function getFeatureTrendQuery(days: number, userType: UserType = 'all'): 
           ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
         ) as final_affiliation
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
     ),
     filtered_sessions AS (
       SELECT DISTINCT user_pseudo_id
@@ -979,7 +1007,7 @@ export function getFeatureTrendQuery(days: number, userType: UserType = 'all'): 
         (SELECT value.string_value FROM UNNEST(e.event_params) WHERE key = 'page_location') as page_url
       FROM ${TABLE} e
       INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
         AND e.event_name = 'page_view'
     )
     WHERE page_url IS NOT NULL
@@ -993,7 +1021,7 @@ export function getFeatureTrendQuery(days: number, userType: UserType = 'all'): 
  * Get top 20 pages by views.
  * Returns the most viewed page URLs.
  */
-export function getTopPagesQuery(days: number, userType: UserType = 'all'): string {
+export function getTopPagesQuery(dateRange: DateRangeParams, userType: UserType = 'all'): string {
   if (userType === 'all') {
     return `
       SELECT
@@ -1005,7 +1033,7 @@ export function getTopPagesQuery(days: number, userType: UserType = 'all'): stri
           user_pseudo_id,
           (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'page_location') as page_url
         FROM ${TABLE}
-        WHERE ${getDateFilter(days)}
+        WHERE ${getDateFilter(dateRange)}
           AND event_name = 'page_view'
       )
       WHERE page_url IS NOT NULL
@@ -1031,7 +1059,7 @@ export function getTopPagesQuery(days: number, userType: UserType = 'all'): stri
           ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
         ) as final_affiliation
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
     ),
     filtered_sessions AS (
       SELECT DISTINCT user_pseudo_id
@@ -1048,7 +1076,7 @@ export function getTopPagesQuery(days: number, userType: UserType = 'all'): stri
         (SELECT value.string_value FROM UNNEST(e.event_params) WHERE key = 'page_location') as page_url
       FROM ${TABLE} e
       INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
         AND e.event_name = 'page_view'
     ) e
     WHERE page_url IS NOT NULL
@@ -1062,7 +1090,7 @@ export function getTopPagesQuery(days: number, userType: UserType = 'all'): stri
 /**
  * Get previous period feature views for trend comparison.
  */
-export function getPreviousFeatureViewsQuery(days: number, userType: UserType = 'all'): string {
+export function getPreviousFeatureViewsQuery(dateRange: DateRangeParams, userType: UserType = 'all'): string {
   if (userType === 'all') {
     return `
       SELECT
@@ -1082,7 +1110,7 @@ export function getPreviousFeatureViewsQuery(days: number, userType: UserType = 
         SELECT
           (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'page_location') as page_url
         FROM ${TABLE}
-        WHERE ${getPreviousPeriodDateFilter(days)}
+        WHERE ${getPreviousPeriodDateFilter(dateRange)}
           AND event_name = 'page_view'
       )
       WHERE page_url IS NOT NULL
@@ -1107,7 +1135,7 @@ export function getPreviousFeatureViewsQuery(days: number, userType: UserType = 
           ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
         ) as final_affiliation
       FROM ${TABLE}
-      WHERE ${getPreviousPeriodDateFilter(days)}
+      WHERE ${getPreviousPeriodDateFilter(dateRange)}
     ),
     filtered_sessions AS (
       SELECT DISTINCT user_pseudo_id
@@ -1132,7 +1160,7 @@ export function getPreviousFeatureViewsQuery(days: number, userType: UserType = 
         (SELECT value.string_value FROM UNNEST(e.event_params) WHERE key = 'page_location') as page_url
       FROM ${TABLE} e
       INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
-      WHERE ${getPreviousPeriodDateFilter(days)}
+      WHERE ${getPreviousPeriodDateFilter(dateRange)}
         AND e.event_name = 'page_view'
     )
     WHERE page_url IS NOT NULL
@@ -1150,7 +1178,7 @@ export function getPreviousFeatureViewsQuery(days: number, userType: UserType = 
  * Get client overview metrics (summary scorecards).
  * Returns total clients, total events across all clients, avg users per client.
  */
-export function getClientsOverviewQuery(days: number, userType: UserType = 'all'): string {
+export function getClientsOverviewQuery(dateRange: DateRangeParams, userType: UserType = 'all'): string {
   if (userType === 'all') {
     return `
       WITH client_data AS (
@@ -1163,7 +1191,7 @@ export function getClientsOverviewQuery(days: number, userType: UserType = 'all'
           COUNT(*) as events,
           COUNT(CASE WHEN event_name = 'page_view' THEN 1 END) as page_views
         FROM ${TABLE}
-        WHERE ${getDateFilter(days)}
+        WHERE ${getDateFilter(dateRange)}
         GROUP BY client, user_pseudo_id
       ),
       client_stats AS (
@@ -1202,7 +1230,7 @@ export function getClientsOverviewQuery(days: number, userType: UserType = 'all'
           ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
         ) as final_affiliation
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
     ),
     filtered_sessions AS (
       SELECT DISTINCT user_pseudo_id
@@ -1220,7 +1248,7 @@ export function getClientsOverviewQuery(days: number, userType: UserType = 'all'
         COUNT(CASE WHEN e.event_name = 'page_view' THEN 1 END) as page_views
       FROM ${TABLE} e
       INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
       GROUP BY client, e.user_pseudo_id
     ),
     client_stats AS (
@@ -1247,7 +1275,7 @@ export function getClientsOverviewQuery(days: number, userType: UserType = 'all'
 /**
  * Get previous period client overview metrics for trend calculation.
  */
-export function getPreviousClientsOverviewQuery(days: number, userType: UserType = 'all'): string {
+export function getPreviousClientsOverviewQuery(dateRange: DateRangeParams, userType: UserType = 'all'): string {
   if (userType === 'all') {
     return `
       WITH client_data AS (
@@ -1260,7 +1288,7 @@ export function getPreviousClientsOverviewQuery(days: number, userType: UserType
           COUNT(*) as events,
           COUNT(CASE WHEN event_name = 'page_view' THEN 1 END) as page_views
         FROM ${TABLE}
-        WHERE ${getPreviousPeriodDateFilter(days)}
+        WHERE ${getPreviousPeriodDateFilter(dateRange)}
         GROUP BY client, user_pseudo_id
       ),
       client_stats AS (
@@ -1299,7 +1327,7 @@ export function getPreviousClientsOverviewQuery(days: number, userType: UserType
           ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
         ) as final_affiliation
       FROM ${TABLE}
-      WHERE ${getPreviousPeriodDateFilter(days)}
+      WHERE ${getPreviousPeriodDateFilter(dateRange)}
     ),
     filtered_sessions AS (
       SELECT DISTINCT user_pseudo_id
@@ -1317,7 +1345,7 @@ export function getPreviousClientsOverviewQuery(days: number, userType: UserType
         COUNT(CASE WHEN e.event_name = 'page_view' THEN 1 END) as page_views
       FROM ${TABLE} e
       INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
-      WHERE ${getPreviousPeriodDateFilter(days)}
+      WHERE ${getPreviousPeriodDateFilter(dateRange)}
       GROUP BY client, e.user_pseudo_id
     ),
     client_stats AS (
@@ -1345,7 +1373,7 @@ export function getPreviousClientsOverviewQuery(days: number, userType: UserType
  * Get top clients with detailed metrics.
  * Returns clients ranked by events with users, page views, and features count.
  */
-export function getTopClientsDetailedQuery(days: number, userType: UserType = 'all'): string {
+export function getTopClientsDetailedQuery(dateRange: DateRangeParams, userType: UserType = 'all'): string {
   if (userType === 'all') {
     return `
       SELECT
@@ -1369,7 +1397,7 @@ export function getTopClientsDetailedQuery(days: number, userType: UserType = 'a
           ) as client,
           (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'page_location') as page_url
         FROM ${TABLE}
-        WHERE ${getDateFilter(days)}
+        WHERE ${getDateFilter(dateRange)}
       )
       WHERE client IS NOT NULL
       GROUP BY client
@@ -1393,7 +1421,7 @@ export function getTopClientsDetailedQuery(days: number, userType: UserType = 'a
           ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
         ) as final_affiliation
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
     ),
     filtered_sessions AS (
       SELECT DISTINCT user_pseudo_id
@@ -1422,7 +1450,7 @@ export function getTopClientsDetailedQuery(days: number, userType: UserType = 'a
         (SELECT value.string_value FROM UNNEST(e.event_params) WHERE key = 'page_location') as page_url
       FROM ${TABLE} e
       INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
     ) e
     WHERE client IS NOT NULL
     GROUP BY client
@@ -1435,7 +1463,7 @@ export function getTopClientsDetailedQuery(days: number, userType: UserType = 'a
  * Get client activity trend over time.
  * Returns daily users and events for all clients (for stacked or multi-line chart).
  */
-export function getClientActivityTrendQuery(days: number, userType: UserType = 'all'): string {
+export function getClientActivityTrendQuery(dateRange: DateRangeParams, userType: UserType = 'all'): string {
   if (userType === 'all') {
     return `
       SELECT
@@ -1450,7 +1478,7 @@ export function getClientActivityTrendQuery(days: number, userType: UserType = '
             r'https://([^.]+)\\.8020rei\\.com'
           ) as client
         FROM ${TABLE}
-        WHERE ${getDateFilter(days)}
+        WHERE ${getDateFilter(dateRange)}
       )
       WHERE client IS NOT NULL
       GROUP BY event_date, client
@@ -1473,7 +1501,7 @@ export function getClientActivityTrendQuery(days: number, userType: UserType = '
           ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
         ) as final_affiliation
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
     ),
     filtered_sessions AS (
       SELECT DISTINCT user_pseudo_id
@@ -1493,7 +1521,7 @@ export function getClientActivityTrendQuery(days: number, userType: UserType = '
         ) as client
       FROM ${TABLE} e
       INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
     ) e
     WHERE client IS NOT NULL
     GROUP BY event_date, client
@@ -1505,7 +1533,7 @@ export function getClientActivityTrendQuery(days: number, userType: UserType = '
  * Get single client activity trend (for drill-down view).
  * Returns daily users and events for a specific client.
  */
-export function getSingleClientActivityQuery(days: number, clientName: string, userType: UserType = 'all'): string {
+export function getSingleClientActivityQuery(dateRange: DateRangeParams, clientName: string, userType: UserType = 'all'): string {
   if (userType === 'all') {
     return `
       SELECT event_date, COUNT(DISTINCT user_pseudo_id) as users, COUNT(*) as events
@@ -1516,7 +1544,7 @@ export function getSingleClientActivityQuery(days: number, clientName: string, u
             r'https://([^.]+)\\.8020rei\\.com'
           ) as client
         FROM ${TABLE}
-        WHERE ${getDateFilter(days)}
+        WHERE ${getDateFilter(dateRange)}
       )
       WHERE client = '${clientName}'
       GROUP BY event_date
@@ -1539,7 +1567,7 @@ export function getSingleClientActivityQuery(days: number, clientName: string, u
           ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
         ) as final_affiliation
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
     ),
     filtered_sessions AS (
       SELECT DISTINCT user_pseudo_id
@@ -1555,7 +1583,7 @@ export function getSingleClientActivityQuery(days: number, clientName: string, u
         ) as client
       FROM ${TABLE} e
       INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
     ) e
     WHERE client = '${clientName}'
     GROUP BY event_date
@@ -1567,7 +1595,7 @@ export function getSingleClientActivityQuery(days: number, clientName: string, u
  * Get client feature breakdown (for drill-down view).
  * Returns features used by a specific client.
  */
-export function getClientFeaturesQuery(days: number, clientName: string, userType: UserType = 'all'): string {
+export function getClientFeaturesQuery(dateRange: DateRangeParams, clientName: string, userType: UserType = 'all'): string {
   if (userType === 'all') {
     return `
       SELECT
@@ -1591,7 +1619,7 @@ export function getClientFeaturesQuery(days: number, clientName: string, userTyp
           ) as client,
           (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'page_location') as page_url
         FROM ${TABLE}
-        WHERE ${getDateFilter(days)}
+        WHERE ${getDateFilter(dateRange)}
           AND event_name = 'page_view'
       )
       WHERE client = '${clientName}'
@@ -1616,7 +1644,7 @@ export function getClientFeaturesQuery(days: number, clientName: string, userTyp
           ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
         ) as final_affiliation
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
     ),
     filtered_sessions AS (
       SELECT DISTINCT user_pseudo_id
@@ -1645,7 +1673,7 @@ export function getClientFeaturesQuery(days: number, clientName: string, userTyp
         (SELECT value.string_value FROM UNNEST(e.event_params) WHERE key = 'page_location') as page_url
       FROM ${TABLE} e
       INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
         AND e.event_name = 'page_view'
     ) e
     WHERE client = '${clientName}'
@@ -1663,7 +1691,7 @@ export function getClientFeaturesQuery(days: number, clientName: string, userTyp
  * Get traffic by source (google, direct, etc.)
  * Uses first-touch attribution from traffic_source.source
  */
-export function getTrafficBySourceQuery(days: number, userType: UserType = 'all'): string {
+export function getTrafficBySourceQuery(dateRange: DateRangeParams, userType: UserType = 'all'): string {
   if (userType === 'all') {
     return `
       SELECT
@@ -1671,7 +1699,7 @@ export function getTrafficBySourceQuery(days: number, userType: UserType = 'all'
         COUNT(DISTINCT user_pseudo_id) as users,
         COUNT(*) as events
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
       GROUP BY source
       ORDER BY users DESC
       LIMIT 10
@@ -1693,7 +1721,7 @@ export function getTrafficBySourceQuery(days: number, userType: UserType = 'all'
           ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
         ) as final_affiliation
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
     ),
     filtered_sessions AS (
       SELECT DISTINCT user_pseudo_id
@@ -1706,7 +1734,7 @@ export function getTrafficBySourceQuery(days: number, userType: UserType = 'all'
       COUNT(*) as events
     FROM ${TABLE} e
     INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
-    WHERE ${getDateFilter(days)}
+    WHERE ${getDateFilter(dateRange)}
     GROUP BY source
     ORDER BY users DESC
     LIMIT 10
@@ -1717,7 +1745,7 @@ export function getTrafficBySourceQuery(days: number, userType: UserType = 'all'
  * Get traffic by medium (organic, cpc, referral, etc.)
  * Uses first-touch attribution from traffic_source.medium
  */
-export function getTrafficByMediumQuery(days: number, userType: UserType = 'all'): string {
+export function getTrafficByMediumQuery(dateRange: DateRangeParams, userType: UserType = 'all'): string {
   if (userType === 'all') {
     return `
       SELECT
@@ -1725,7 +1753,7 @@ export function getTrafficByMediumQuery(days: number, userType: UserType = 'all'
         COUNT(DISTINCT user_pseudo_id) as users,
         COUNT(*) as events
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
       GROUP BY medium
       ORDER BY users DESC
       LIMIT 10
@@ -1747,7 +1775,7 @@ export function getTrafficByMediumQuery(days: number, userType: UserType = 'all'
           ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
         ) as final_affiliation
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
     ),
     filtered_sessions AS (
       SELECT DISTINCT user_pseudo_id
@@ -1760,7 +1788,7 @@ export function getTrafficByMediumQuery(days: number, userType: UserType = 'all'
       COUNT(*) as events
     FROM ${TABLE} e
     INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
-    WHERE ${getDateFilter(days)}
+    WHERE ${getDateFilter(dateRange)}
     GROUP BY medium
     ORDER BY users DESC
     LIMIT 10
@@ -1771,7 +1799,7 @@ export function getTrafficByMediumQuery(days: number, userType: UserType = 'all'
  * Get users by screen resolution.
  * Uses device.screen_resolution from GA4.
  */
-export function getScreenResolutionQuery(days: number, userType: UserType = 'all'): string {
+export function getScreenResolutionQuery(dateRange: DateRangeParams, userType: UserType = 'all'): string {
   if (userType === 'all') {
     return `
       SELECT
@@ -1779,7 +1807,7 @@ export function getScreenResolutionQuery(days: number, userType: UserType = 'all
         COUNT(DISTINCT user_pseudo_id) as users,
         COUNT(*) as events
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
       GROUP BY resolution
       ORDER BY users DESC
       LIMIT 10
@@ -1801,7 +1829,7 @@ export function getScreenResolutionQuery(days: number, userType: UserType = 'all
           ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
         ) as final_affiliation
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
     ),
     filtered_sessions AS (
       SELECT DISTINCT user_pseudo_id
@@ -1814,7 +1842,7 @@ export function getScreenResolutionQuery(days: number, userType: UserType = 'all
       COUNT(*) as events
     FROM ${TABLE} e
     INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
-    WHERE ${getDateFilter(days)}
+    WHERE ${getDateFilter(dateRange)}
     GROUP BY resolution
     ORDER BY users DESC
     LIMIT 10
@@ -1825,7 +1853,7 @@ export function getScreenResolutionQuery(days: number, userType: UserType = 'all
  * Get users by browser.
  * Uses device.web_info.browser from GA4.
  */
-export function getTrafficBrowserQuery(days: number, userType: UserType = 'all'): string {
+export function getTrafficBrowserQuery(dateRange: DateRangeParams, userType: UserType = 'all'): string {
   if (userType === 'all') {
     return `
       SELECT
@@ -1833,7 +1861,7 @@ export function getTrafficBrowserQuery(days: number, userType: UserType = 'all')
         COUNT(DISTINCT user_pseudo_id) as users,
         COUNT(*) as events
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
       GROUP BY browser
       ORDER BY users DESC
       LIMIT 10
@@ -1855,7 +1883,7 @@ export function getTrafficBrowserQuery(days: number, userType: UserType = 'all')
           ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
         ) as final_affiliation
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
     ),
     filtered_sessions AS (
       SELECT DISTINCT user_pseudo_id
@@ -1868,7 +1896,7 @@ export function getTrafficBrowserQuery(days: number, userType: UserType = 'all')
       COUNT(*) as events
     FROM ${TABLE} e
     INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
-    WHERE ${getDateFilter(days)}
+    WHERE ${getDateFilter(dateRange)}
     GROUP BY browser
     ORDER BY users DESC
     LIMIT 10
@@ -1883,7 +1911,7 @@ export function getTrafficBrowserQuery(days: number, userType: UserType = 'all')
  * - search_engine: Google, Bing, etc. (suspicious for a private app)
  * - other: Unknown external domains
  */
-export function getTopReferrersQuery(days: number, userType: UserType = 'all'): string {
+export function getTopReferrersQuery(dateRange: DateRangeParams, userType: UserType = 'all'): string {
   const categoryCase = `
     CASE
       WHEN REGEXP_CONTAINS(referrer_domain, r'(?i)(accounts\\.google|googleapis|google\\.com/accounts)') THEN 'oauth'
@@ -1906,7 +1934,7 @@ export function getTopReferrersQuery(days: number, userType: UserType = 'all'): 
           ) as referrer_domain,
           user_pseudo_id
         FROM ${TABLE}
-        WHERE ${getDateFilter(days)}
+        WHERE ${getDateFilter(dateRange)}
           AND event_name = 'page_view'
       ),
       categorized AS (
@@ -1942,7 +1970,7 @@ export function getTopReferrersQuery(days: number, userType: UserType = 'all'): 
           ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
         ) as final_affiliation
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
     ),
     filtered_sessions AS (
       SELECT DISTINCT user_pseudo_id
@@ -1961,7 +1989,7 @@ export function getTopReferrersQuery(days: number, userType: UserType = 'all'): 
         e.user_pseudo_id
       FROM ${TABLE} e
       INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
         AND e.event_name = 'page_view'
     ),
     categorized AS (
@@ -1986,7 +2014,7 @@ export function getTopReferrersQuery(days: number, userType: UserType = 'all'): 
  * Get sessions by day of week.
  * Uses DAYOFWEEK: 1=Sunday, 2=Monday, ..., 7=Saturday
  */
-export function getSessionsByDayOfWeekQuery(days: number, userType: UserType = 'all'): string {
+export function getSessionsByDayOfWeekQuery(dateRange: DateRangeParams, userType: UserType = 'all'): string {
   if (userType === 'all') {
     return `
       SELECT
@@ -1995,7 +2023,7 @@ export function getSessionsByDayOfWeekQuery(days: number, userType: UserType = '
           CAST((SELECT value.int_value FROM UNNEST(event_params) WHERE key = 'ga_session_id') AS STRING)
         )) as sessions
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
       GROUP BY day_of_week
       ORDER BY day_of_week
     `;
@@ -2016,7 +2044,7 @@ export function getSessionsByDayOfWeekQuery(days: number, userType: UserType = '
           ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
         ) as final_affiliation
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
     ),
     filtered_sessions AS (
       SELECT DISTINCT user_pseudo_id
@@ -2030,7 +2058,7 @@ export function getSessionsByDayOfWeekQuery(days: number, userType: UserType = '
       )) as sessions
     FROM ${TABLE} e
     INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
-    WHERE ${getDateFilter(days)}
+    WHERE ${getDateFilter(dateRange)}
     GROUP BY day_of_week
     ORDER BY day_of_week
   `;
@@ -2040,14 +2068,14 @@ export function getSessionsByDayOfWeekQuery(days: number, userType: UserType = '
  * Get first visits trend over time.
  * Tracks new user acquisition by day.
  */
-export function getFirstVisitsTrendQuery(days: number, userType: UserType = 'all'): string {
+export function getFirstVisitsTrendQuery(dateRange: DateRangeParams, userType: UserType = 'all'): string {
   if (userType === 'all') {
     return `
       SELECT
         event_date,
         COUNT(*) as first_visits
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
         AND event_name = 'first_visit'
       GROUP BY event_date
       ORDER BY event_date
@@ -2069,7 +2097,7 @@ export function getFirstVisitsTrendQuery(days: number, userType: UserType = 'all
           ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
         ) as final_affiliation
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
     ),
     filtered_sessions AS (
       SELECT DISTINCT user_pseudo_id
@@ -2081,7 +2109,7 @@ export function getFirstVisitsTrendQuery(days: number, userType: UserType = 'all
       COUNT(*) as first_visits
     FROM ${TABLE} e
     INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
-    WHERE ${getDateFilter(days)}
+    WHERE ${getDateFilter(dateRange)}
       AND e.event_name = 'first_visit'
     GROUP BY e.event_date
     ORDER BY e.event_date
@@ -2091,7 +2119,7 @@ export function getFirstVisitsTrendQuery(days: number, userType: UserType = 'all
 /**
  * Get previous period traffic by source for trend calculation.
  */
-export function getPreviousTrafficBySourceQuery(days: number, userType: UserType = 'all'): string {
+export function getPreviousTrafficBySourceQuery(dateRange: DateRangeParams, userType: UserType = 'all'): string {
   if (userType === 'all') {
     return `
       SELECT
@@ -2099,7 +2127,7 @@ export function getPreviousTrafficBySourceQuery(days: number, userType: UserType
         COUNT(DISTINCT user_pseudo_id) as users,
         COUNT(*) as events
       FROM ${TABLE}
-      WHERE ${getPreviousPeriodDateFilter(days)}
+      WHERE ${getPreviousPeriodDateFilter(dateRange)}
       GROUP BY source
       ORDER BY users DESC
       LIMIT 10
@@ -2121,7 +2149,7 @@ export function getPreviousTrafficBySourceQuery(days: number, userType: UserType
           ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
         ) as final_affiliation
       FROM ${TABLE}
-      WHERE ${getPreviousPeriodDateFilter(days)}
+      WHERE ${getPreviousPeriodDateFilter(dateRange)}
     ),
     filtered_sessions AS (
       SELECT DISTINCT user_pseudo_id
@@ -2134,7 +2162,7 @@ export function getPreviousTrafficBySourceQuery(days: number, userType: UserType
       COUNT(*) as events
     FROM ${TABLE} e
     INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
-    WHERE ${getPreviousPeriodDateFilter(days)}
+    WHERE ${getPreviousPeriodDateFilter(dateRange)}
     GROUP BY source
     ORDER BY users DESC
     LIMIT 10
@@ -2149,7 +2177,7 @@ export function getPreviousTrafficBySourceQuery(days: number, userType: UserType
  * Get device category distribution (desktop, mobile, tablet).
  * Uses device.category field from GA4 BigQuery.
  */
-export function getDeviceCategoryQuery(days: number, userType: UserType = 'all'): string {
+export function getDeviceCategoryQuery(dateRange: DateRangeParams, userType: UserType = 'all'): string {
   if (userType === 'all') {
     return `
       SELECT
@@ -2157,7 +2185,7 @@ export function getDeviceCategoryQuery(days: number, userType: UserType = 'all')
         COUNT(DISTINCT user_pseudo_id) as users,
         COUNT(*) as events
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
       GROUP BY device_category
       ORDER BY users DESC
     `;
@@ -2178,7 +2206,7 @@ export function getDeviceCategoryQuery(days: number, userType: UserType = 'all')
           ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
         ) as final_affiliation
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
     ),
     filtered_sessions AS (
       SELECT DISTINCT user_pseudo_id
@@ -2191,7 +2219,7 @@ export function getDeviceCategoryQuery(days: number, userType: UserType = 'all')
       COUNT(*) as events
     FROM ${TABLE} e
     INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
-    WHERE ${getDateFilter(days)}
+    WHERE ${getDateFilter(dateRange)}
     GROUP BY device_category
     ORDER BY users DESC
   `;
@@ -2201,7 +2229,7 @@ export function getDeviceCategoryQuery(days: number, userType: UserType = 'all')
  * Get browser distribution (Chrome, Safari, Firefox, Edge, etc.).
  * Uses device.web_info.browser from GA4 BigQuery (device.browser is often null).
  */
-export function getBrowserDistributionQuery(days: number, userType: UserType = 'all'): string {
+export function getBrowserDistributionQuery(dateRange: DateRangeParams, userType: UserType = 'all'): string {
   if (userType === 'all') {
     return `
       SELECT
@@ -2209,7 +2237,7 @@ export function getBrowserDistributionQuery(days: number, userType: UserType = '
         COUNT(DISTINCT user_pseudo_id) as users,
         COUNT(*) as events
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
       GROUP BY browser
       ORDER BY users DESC
       LIMIT 10
@@ -2231,7 +2259,7 @@ export function getBrowserDistributionQuery(days: number, userType: UserType = '
           ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
         ) as final_affiliation
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
     ),
     filtered_sessions AS (
       SELECT DISTINCT user_pseudo_id
@@ -2244,7 +2272,7 @@ export function getBrowserDistributionQuery(days: number, userType: UserType = '
       COUNT(*) as events
     FROM ${TABLE} e
     INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
-    WHERE ${getDateFilter(days)}
+    WHERE ${getDateFilter(dateRange)}
     GROUP BY browser
     ORDER BY users DESC
     LIMIT 10
@@ -2255,7 +2283,7 @@ export function getBrowserDistributionQuery(days: number, userType: UserType = '
  * Get operating system distribution (Windows, macOS, iOS, Android, etc.).
  * Uses device.operating_system field from GA4 BigQuery.
  */
-export function getOperatingSystemQuery(days: number, userType: UserType = 'all'): string {
+export function getOperatingSystemQuery(dateRange: DateRangeParams, userType: UserType = 'all'): string {
   if (userType === 'all') {
     return `
       SELECT
@@ -2263,7 +2291,7 @@ export function getOperatingSystemQuery(days: number, userType: UserType = 'all'
         COUNT(DISTINCT user_pseudo_id) as users,
         COUNT(*) as events
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
       GROUP BY os
       ORDER BY users DESC
       LIMIT 10
@@ -2285,7 +2313,7 @@ export function getOperatingSystemQuery(days: number, userType: UserType = 'all'
           ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
         ) as final_affiliation
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
     ),
     filtered_sessions AS (
       SELECT DISTINCT user_pseudo_id
@@ -2298,7 +2326,7 @@ export function getOperatingSystemQuery(days: number, userType: UserType = 'all'
       COUNT(*) as events
     FROM ${TABLE} e
     INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
-    WHERE ${getDateFilter(days)}
+    WHERE ${getDateFilter(dateRange)}
     GROUP BY os
     ORDER BY users DESC
     LIMIT 10
@@ -2309,7 +2337,7 @@ export function getOperatingSystemQuery(days: number, userType: UserType = 'all'
  * Get device language distribution (en-us, es, etc.).
  * Uses device.language field from GA4 BigQuery.
  */
-export function getDeviceLanguageQuery(days: number, userType: UserType = 'all'): string {
+export function getDeviceLanguageQuery(dateRange: DateRangeParams, userType: UserType = 'all'): string {
   if (userType === 'all') {
     return `
       SELECT
@@ -2317,7 +2345,7 @@ export function getDeviceLanguageQuery(days: number, userType: UserType = 'all')
         COUNT(DISTINCT user_pseudo_id) as users,
         COUNT(*) as events
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
       GROUP BY language
       ORDER BY users DESC
       LIMIT 15
@@ -2339,7 +2367,7 @@ export function getDeviceLanguageQuery(days: number, userType: UserType = 'all')
           ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
         ) as final_affiliation
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
     ),
     filtered_sessions AS (
       SELECT DISTINCT user_pseudo_id
@@ -2352,7 +2380,7 @@ export function getDeviceLanguageQuery(days: number, userType: UserType = 'all')
       COUNT(*) as events
     FROM ${TABLE} e
     INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
-    WHERE ${getDateFilter(days)}
+    WHERE ${getDateFilter(dateRange)}
     GROUP BY language
     ORDER BY users DESC
     LIMIT 15
@@ -2362,7 +2390,7 @@ export function getDeviceLanguageQuery(days: number, userType: UserType = 'all')
 /**
  * Get previous period device category distribution for trend calculation.
  */
-export function getPreviousDeviceCategoryQuery(days: number, userType: UserType = 'all'): string {
+export function getPreviousDeviceCategoryQuery(dateRange: DateRangeParams, userType: UserType = 'all'): string {
   if (userType === 'all') {
     return `
       SELECT
@@ -2370,7 +2398,7 @@ export function getPreviousDeviceCategoryQuery(days: number, userType: UserType 
         COUNT(DISTINCT user_pseudo_id) as users,
         COUNT(*) as events
       FROM ${TABLE}
-      WHERE ${getPreviousPeriodDateFilter(days)}
+      WHERE ${getPreviousPeriodDateFilter(dateRange)}
       GROUP BY device_category
       ORDER BY users DESC
     `;
@@ -2391,7 +2419,7 @@ export function getPreviousDeviceCategoryQuery(days: number, userType: UserType 
           ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
         ) as final_affiliation
       FROM ${TABLE}
-      WHERE ${getPreviousPeriodDateFilter(days)}
+      WHERE ${getPreviousPeriodDateFilter(dateRange)}
     ),
     filtered_sessions AS (
       SELECT DISTINCT user_pseudo_id
@@ -2404,7 +2432,7 @@ export function getPreviousDeviceCategoryQuery(days: number, userType: UserType 
       COUNT(*) as events
     FROM ${TABLE} e
     INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
-    WHERE ${getPreviousPeriodDateFilter(days)}
+    WHERE ${getPreviousPeriodDateFilter(dateRange)}
     GROUP BY device_category
     ORDER BY users DESC
   `;
@@ -2418,7 +2446,7 @@ export function getPreviousDeviceCategoryQuery(days: number, userType: UserType 
  * IMPORTANT: Shows the LAST (final) user_affiliation per session, as users
  * may authenticate mid-session.
  */
-export function getDiagnosticUserDataQuery(days: number = 7): string {
+export function getDiagnosticUserDataQuery(dateRange: DateRangeParams = { days: 7 }): string {
   return `
     WITH session_data AS (
       SELECT
@@ -2437,7 +2465,7 @@ export function getDiagnosticUserDataQuery(days: number = 7): string {
         MIN(event_timestamp) as first_event,
         MAX(event_timestamp) as last_event
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
       GROUP BY user_pseudo_id, user_id, event_timestamp, user_properties
     )
     SELECT
@@ -2463,7 +2491,7 @@ export function getDiagnosticUserDataQuery(days: number = 7): string {
  * Get Users by Country
  * Returns top countries by user count.
  */
-export function getCountryQuery(days: number, userType: UserType = 'all'): string {
+export function getCountryQuery(dateRange: DateRangeParams, userType: UserType = 'all'): string {
   if (userType === 'all') {
     return `
       SELECT
@@ -2471,7 +2499,7 @@ export function getCountryQuery(days: number, userType: UserType = 'all'): strin
         COUNT(DISTINCT user_pseudo_id) as users,
         COUNT(*) as events
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
       GROUP BY country
       ORDER BY users DESC
       LIMIT 20
@@ -2493,7 +2521,7 @@ export function getCountryQuery(days: number, userType: UserType = 'all'): strin
           ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
         ) as final_affiliation
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
     ),
     filtered_sessions AS (
       SELECT DISTINCT user_pseudo_id
@@ -2506,7 +2534,7 @@ export function getCountryQuery(days: number, userType: UserType = 'all'): strin
       COUNT(*) as events
     FROM ${TABLE} e
     INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
-    WHERE ${getDateFilter(days)}
+    WHERE ${getDateFilter(dateRange)}
     GROUP BY country
     ORDER BY users DESC
     LIMIT 20
@@ -2517,7 +2545,7 @@ export function getCountryQuery(days: number, userType: UserType = 'all'): strin
  * Get Users by Region/State (filtered to US by default for relevance)
  * Returns top regions by user count.
  */
-export function getRegionQuery(days: number, userType: UserType = 'all'): string {
+export function getRegionQuery(dateRange: DateRangeParams, userType: UserType = 'all'): string {
   if (userType === 'all') {
     return `
       SELECT
@@ -2525,7 +2553,7 @@ export function getRegionQuery(days: number, userType: UserType = 'all'): string
         COUNT(DISTINCT user_pseudo_id) as users,
         COUNT(*) as events
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
         AND geo.country = 'United States'
       GROUP BY region
       ORDER BY users DESC
@@ -2548,7 +2576,7 @@ export function getRegionQuery(days: number, userType: UserType = 'all'): string
           ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
         ) as final_affiliation
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
     ),
     filtered_sessions AS (
       SELECT DISTINCT user_pseudo_id
@@ -2561,7 +2589,7 @@ export function getRegionQuery(days: number, userType: UserType = 'all'): string
       COUNT(*) as events
     FROM ${TABLE} e
     INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
-    WHERE ${getDateFilter(days)}
+    WHERE ${getDateFilter(dateRange)}
       AND e.geo.country = 'United States'
     GROUP BY region
     ORDER BY users DESC
@@ -2573,7 +2601,7 @@ export function getRegionQuery(days: number, userType: UserType = 'all'): string
  * Get Users by City (filtered to US by default for relevance)
  * Returns top cities by user count.
  */
-export function getCityQuery(days: number, userType: UserType = 'all'): string {
+export function getCityQuery(dateRange: DateRangeParams, userType: UserType = 'all'): string {
   if (userType === 'all') {
     return `
       SELECT
@@ -2582,7 +2610,7 @@ export function getCityQuery(days: number, userType: UserType = 'all'): string {
         COUNT(DISTINCT user_pseudo_id) as users,
         COUNT(*) as events
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
         AND geo.country = 'United States'
       GROUP BY city, region
       ORDER BY users DESC
@@ -2605,7 +2633,7 @@ export function getCityQuery(days: number, userType: UserType = 'all'): string {
           ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
         ) as final_affiliation
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
     ),
     filtered_sessions AS (
       SELECT DISTINCT user_pseudo_id
@@ -2619,7 +2647,7 @@ export function getCityQuery(days: number, userType: UserType = 'all'): string {
       COUNT(*) as events
     FROM ${TABLE} e
     INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
-    WHERE ${getDateFilter(days)}
+    WHERE ${getDateFilter(dateRange)}
       AND e.geo.country = 'United States'
     GROUP BY city, region
     ORDER BY users DESC
@@ -2631,7 +2659,7 @@ export function getCityQuery(days: number, userType: UserType = 'all'): string {
  * Get Users by Continent
  * Returns activity breakdown by continent.
  */
-export function getContinentQuery(days: number, userType: UserType = 'all'): string {
+export function getContinentQuery(dateRange: DateRangeParams, userType: UserType = 'all'): string {
   if (userType === 'all') {
     return `
       SELECT
@@ -2639,7 +2667,7 @@ export function getContinentQuery(days: number, userType: UserType = 'all'): str
         COUNT(DISTINCT user_pseudo_id) as users,
         COUNT(*) as events
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
       GROUP BY continent
       ORDER BY users DESC
     `;
@@ -2660,7 +2688,7 @@ export function getContinentQuery(days: number, userType: UserType = 'all'): str
           ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
         ) as final_affiliation
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
     ),
     filtered_sessions AS (
       SELECT DISTINCT user_pseudo_id
@@ -2673,7 +2701,7 @@ export function getContinentQuery(days: number, userType: UserType = 'all'): str
       COUNT(*) as events
     FROM ${TABLE} e
     INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
-    WHERE ${getDateFilter(days)}
+    WHERE ${getDateFilter(dateRange)}
     GROUP BY continent
     ORDER BY users DESC
   `;
@@ -2682,7 +2710,7 @@ export function getContinentQuery(days: number, userType: UserType = 'all'): str
 /**
  * Get Previous Period Users by Country (for trend calculation)
  */
-export function getPreviousCountryQuery(days: number, userType: UserType = 'all'): string {
+export function getPreviousCountryQuery(dateRange: DateRangeParams, userType: UserType = 'all'): string {
   if (userType === 'all') {
     return `
       SELECT
@@ -2690,7 +2718,7 @@ export function getPreviousCountryQuery(days: number, userType: UserType = 'all'
         COUNT(DISTINCT user_pseudo_id) as users,
         COUNT(*) as events
       FROM ${TABLE}
-      WHERE ${getPreviousPeriodDateFilter(days)}
+      WHERE ${getPreviousPeriodDateFilter(dateRange)}
       GROUP BY country
       ORDER BY users DESC
       LIMIT 20
@@ -2712,7 +2740,7 @@ export function getPreviousCountryQuery(days: number, userType: UserType = 'all'
           ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
         ) as final_affiliation
       FROM ${TABLE}
-      WHERE ${getPreviousPeriodDateFilter(days)}
+      WHERE ${getPreviousPeriodDateFilter(dateRange)}
     ),
     filtered_sessions AS (
       SELECT DISTINCT user_pseudo_id
@@ -2725,7 +2753,7 @@ export function getPreviousCountryQuery(days: number, userType: UserType = 'all'
       COUNT(*) as events
     FROM ${TABLE} e
     INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
-    WHERE ${getPreviousPeriodDateFilter(days)}
+    WHERE ${getPreviousPeriodDateFilter(dateRange)}
     GROUP BY country
     ORDER BY users DESC
     LIMIT 20
@@ -2740,7 +2768,7 @@ export function getPreviousCountryQuery(days: number, userType: UserType = 'all'
  * Get Event Breakdown
  * Returns count of each event type.
  */
-export function getEventBreakdownQuery(days: number, userType: UserType = 'all'): string {
+export function getEventBreakdownQuery(dateRange: DateRangeParams, userType: UserType = 'all'): string {
   if (userType === 'all') {
     return `
       SELECT
@@ -2748,7 +2776,7 @@ export function getEventBreakdownQuery(days: number, userType: UserType = 'all')
         COUNT(*) as count,
         COUNT(DISTINCT user_pseudo_id) as unique_users
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
       GROUP BY event_name
       ORDER BY count DESC
     `;
@@ -2769,7 +2797,7 @@ export function getEventBreakdownQuery(days: number, userType: UserType = 'all')
           ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
         ) as final_affiliation
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
     ),
     filtered_sessions AS (
       SELECT DISTINCT user_pseudo_id
@@ -2782,7 +2810,7 @@ export function getEventBreakdownQuery(days: number, userType: UserType = 'all')
       COUNT(DISTINCT e.user_pseudo_id) as unique_users
     FROM ${TABLE} e
     INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
-    WHERE ${getDateFilter(days)}
+    WHERE ${getDateFilter(dateRange)}
     GROUP BY e.event_name
     ORDER BY count DESC
   `;
@@ -2791,7 +2819,7 @@ export function getEventBreakdownQuery(days: number, userType: UserType = 'all')
 /**
  * Get Previous Period Event Breakdown (for trend calculation)
  */
-export function getPreviousEventBreakdownQuery(days: number, userType: UserType = 'all'): string {
+export function getPreviousEventBreakdownQuery(dateRange: DateRangeParams, userType: UserType = 'all'): string {
   if (userType === 'all') {
     return `
       SELECT
@@ -2799,7 +2827,7 @@ export function getPreviousEventBreakdownQuery(days: number, userType: UserType 
         COUNT(*) as count,
         COUNT(DISTINCT user_pseudo_id) as unique_users
       FROM ${TABLE}
-      WHERE ${getPreviousPeriodDateFilter(days)}
+      WHERE ${getPreviousPeriodDateFilter(dateRange)}
       GROUP BY event_name
       ORDER BY count DESC
     `;
@@ -2820,7 +2848,7 @@ export function getPreviousEventBreakdownQuery(days: number, userType: UserType 
           ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
         ) as final_affiliation
       FROM ${TABLE}
-      WHERE ${getPreviousPeriodDateFilter(days)}
+      WHERE ${getPreviousPeriodDateFilter(dateRange)}
     ),
     filtered_sessions AS (
       SELECT DISTINCT user_pseudo_id
@@ -2833,7 +2861,7 @@ export function getPreviousEventBreakdownQuery(days: number, userType: UserType 
       COUNT(DISTINCT e.user_pseudo_id) as unique_users
     FROM ${TABLE} e
     INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
-    WHERE ${getPreviousPeriodDateFilter(days)}
+    WHERE ${getPreviousPeriodDateFilter(dateRange)}
     GROUP BY e.event_name
     ORDER BY count DESC
   `;
@@ -2843,7 +2871,7 @@ export function getPreviousEventBreakdownQuery(days: number, userType: UserType 
  * Get Event Volume Trend (for stacked area chart)
  * Returns daily event counts by event type.
  */
-export function getEventVolumeTrendQuery(days: number, userType: UserType = 'all'): string {
+export function getEventVolumeTrendQuery(dateRange: DateRangeParams, userType: UserType = 'all'): string {
   if (userType === 'all') {
     return `
       SELECT
@@ -2851,7 +2879,7 @@ export function getEventVolumeTrendQuery(days: number, userType: UserType = 'all
         event_name,
         COUNT(*) as count
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
         AND event_name IN ('page_view', 'click', 'scroll', 'user_engagement', 'form_start', 'session_start')
       GROUP BY event_date, event_name
       ORDER BY event_date, count DESC
@@ -2873,7 +2901,7 @@ export function getEventVolumeTrendQuery(days: number, userType: UserType = 'all
           ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
         ) as final_affiliation
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
     ),
     filtered_sessions AS (
       SELECT DISTINCT user_pseudo_id
@@ -2886,7 +2914,7 @@ export function getEventVolumeTrendQuery(days: number, userType: UserType = 'all
       COUNT(*) as count
     FROM ${TABLE} e
     INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
-    WHERE ${getDateFilter(days)}
+    WHERE ${getDateFilter(dateRange)}
       AND e.event_name IN ('page_view', 'click', 'scroll', 'user_engagement', 'form_start', 'session_start')
     GROUP BY e.event_date, e.event_name
     ORDER BY e.event_date, count DESC
@@ -2896,7 +2924,7 @@ export function getEventVolumeTrendQuery(days: number, userType: UserType = 'all
 /**
  * Get Events per Session and Form Conversion metrics
  */
-export function getEventMetricsQuery(days: number, userType: UserType = 'all'): string {
+export function getEventMetricsQuery(dateRange: DateRangeParams, userType: UserType = 'all'): string {
   if (userType === 'all') {
     return `
       SELECT
@@ -2910,7 +2938,7 @@ export function getEventMetricsQuery(days: number, userType: UserType = 'all'): 
         COUNT(CASE WHEN event_name = 'click' THEN 1 END) as clicks,
         COUNT(CASE WHEN event_name = 'scroll' THEN 1 END) as scrolls
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
     `;
   }
 
@@ -2929,7 +2957,7 @@ export function getEventMetricsQuery(days: number, userType: UserType = 'all'): 
           ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
         ) as final_affiliation
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
     ),
     filtered_sessions AS (
       SELECT DISTINCT user_pseudo_id
@@ -2948,14 +2976,14 @@ export function getEventMetricsQuery(days: number, userType: UserType = 'all'): 
       COUNT(CASE WHEN e.event_name = 'scroll' THEN 1 END) as scrolls
     FROM ${TABLE} e
     INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
-    WHERE ${getDateFilter(days)}
+    WHERE ${getDateFilter(dateRange)}
   `;
 }
 
 /**
  * Get Previous Period Event Metrics (for trend calculation)
  */
-export function getPreviousEventMetricsQuery(days: number, userType: UserType = 'all'): string {
+export function getPreviousEventMetricsQuery(dateRange: DateRangeParams, userType: UserType = 'all'): string {
   if (userType === 'all') {
     return `
       SELECT
@@ -2969,7 +2997,7 @@ export function getPreviousEventMetricsQuery(days: number, userType: UserType = 
         COUNT(CASE WHEN event_name = 'click' THEN 1 END) as clicks,
         COUNT(CASE WHEN event_name = 'scroll' THEN 1 END) as scrolls
       FROM ${TABLE}
-      WHERE ${getPreviousPeriodDateFilter(days)}
+      WHERE ${getPreviousPeriodDateFilter(dateRange)}
     `;
   }
 
@@ -2988,7 +3016,7 @@ export function getPreviousEventMetricsQuery(days: number, userType: UserType = 
           ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
         ) as final_affiliation
       FROM ${TABLE}
-      WHERE ${getPreviousPeriodDateFilter(days)}
+      WHERE ${getPreviousPeriodDateFilter(dateRange)}
     ),
     filtered_sessions AS (
       SELECT DISTINCT user_pseudo_id
@@ -3007,7 +3035,7 @@ export function getPreviousEventMetricsQuery(days: number, userType: UserType = 
       COUNT(CASE WHEN e.event_name = 'scroll' THEN 1 END) as scrolls
     FROM ${TABLE} e
     INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
-    WHERE ${getPreviousPeriodDateFilter(days)}
+    WHERE ${getPreviousPeriodDateFilter(dateRange)}
   `;
 }
 
@@ -3015,7 +3043,7 @@ export function getPreviousEventMetricsQuery(days: number, userType: UserType = 
  * Get Scroll Depth by Page
  * Returns scroll events grouped by page/feature.
  */
-export function getScrollDepthByPageQuery(days: number, userType: UserType = 'all'): string {
+export function getScrollDepthByPageQuery(dateRange: DateRangeParams, userType: UserType = 'all'): string {
   if (userType === 'all') {
     return `
       SELECT
@@ -3035,7 +3063,7 @@ export function getScrollDepthByPageQuery(days: number, userType: UserType = 'al
           user_pseudo_id,
           (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'page_location') as page_url
         FROM ${TABLE}
-        WHERE ${getDateFilter(days)}
+        WHERE ${getDateFilter(dateRange)}
           AND event_name = 'scroll'
       )
       WHERE page_url IS NOT NULL
@@ -3060,7 +3088,7 @@ export function getScrollDepthByPageQuery(days: number, userType: UserType = 'al
           ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
         ) as final_affiliation
       FROM ${TABLE}
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
     ),
     filtered_sessions AS (
       SELECT DISTINCT user_pseudo_id
@@ -3085,7 +3113,7 @@ export function getScrollDepthByPageQuery(days: number, userType: UserType = 'al
         (SELECT value.string_value FROM UNNEST(e.event_params) WHERE key = 'page_location') as page_url
       FROM ${TABLE} e
       INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
-      WHERE ${getDateFilter(days)}
+      WHERE ${getDateFilter(dateRange)}
         AND e.event_name = 'scroll'
     ) e
     WHERE page_url IS NOT NULL

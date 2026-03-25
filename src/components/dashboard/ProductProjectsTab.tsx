@@ -35,15 +35,18 @@ import {
   formatTeamWorkloadForExport,
   formatDeliveryTimelineForExport,
 } from '@/lib/export';
+import { buildDateQueryString } from '@/lib/date-utils';
 
 interface ProductProjectsTabProps {
   days: number;
+  startDate?: string;
+  endDate?: string;
   editMode: boolean;
   onEditModeChange?: (editMode: boolean) => void;
 }
 
 export const ProductProjectsTab = forwardRef<TabHandle, ProductProjectsTabProps>(function ProductProjectsTab(
-  { days, editMode },
+  { days, startDate, endDate, editMode },
   ref
 ) {
   const [data, setData] = useState<ProductProjectsData | null>(null);
@@ -73,14 +76,14 @@ export const ProductProjectsTab = forwardRef<TabHandle, ProductProjectsTabProps>
 
   useEffect(() => {
     fetchData();
-  }, [days]);
+  }, [days, startDate, endDate]);
 
   async function fetchData() {
     setLoading(true);
     setError(null);
 
     try {
-      const res = await fetch(`/api/metrics/product-projects?days=${days}`);
+      const res = await fetch(`/api/metrics/product-projects?${buildDateQueryString(days, startDate, endDate)}`);
       const json = await res.json();
 
       if (json.success) {

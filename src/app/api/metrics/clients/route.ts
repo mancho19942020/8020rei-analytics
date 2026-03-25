@@ -6,6 +6,7 @@ import {
   getPreviousClientsOverviewQuery,
   getTopClientsDetailedQuery,
   getClientActivityTrendQuery,
+  parseDateRangeFromSearchParams,
   UserType
 } from '@/lib/queries';
 
@@ -74,17 +75,17 @@ function calculateTrend(current: number, previous: number, invertPositive = fals
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
-  const days = parseInt(searchParams.get('days') || '30');
+  const dateRange = parseDateRangeFromSearchParams(searchParams);
   const userType = (searchParams.get('userType') || 'all') as UserType;
 
   // Create a unique cache key based on the query parameters
-  const cacheKey = `clients-metrics-v1:${days}:${userType}`;
+  const cacheKey = `clients-metrics-v1:${dateRange.startDate || dateRange.days || 30}:${dateRange.endDate || ''}:${userType}`;
 
   // Check if we have cached data
   const cached = getCached<ClientsMetricsData>(cacheKey);
 
   if (cached) {
-    console.log(`[API/Clients] Returning cached data for ${days} days`);
+    console.log(`[API/Clients] Returning cached data for dateRange:`, dateRange);
     return NextResponse.json({
       success: true,
       data: cached,
@@ -93,7 +94,7 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  console.log(`[API/Clients] Cache miss - fetching fresh data from BigQuery for ${days} days, userType: ${userType}`);
+  console.log(`[API/Clients] Cache miss - fetching fresh data from BigQuery for dateRange:`, dateRange, `userType: ${userType}`);
 
   try {
     // Execute 4 queries in parallel (current + previous period data + top clients + trend)
@@ -103,10 +104,10 @@ export async function GET(request: NextRequest) {
       topClientsResult,
       activityTrendResult
     ] = await Promise.all([
-      runQuery<ClientsOverview>(getClientsOverviewQuery(days, userType)),
-      runQuery<PreviousClientsOverview>(getPreviousClientsOverviewQuery(days, userType)),
-      runQuery<ClientData>(getTopClientsDetailedQuery(days, userType)),
-      runQuery<ClientActivityData>(getClientActivityTrendQuery(days, userType)),
+      runQuery<ClientsOverview>(getClientsOverviewQuery(dateRange, userType)),
+      runQuery<PreviousClientsOverview>(getPreviousClientsOverviewQuery(dateRange, userType)),
+      runQuery<ClientData>(getTopClientsDetailedQuery(dateRange, userType)),
+      runQuery<ClientActivityData>(getClientActivityTrendQuery(dateRange, userType)),
     ]);
 
     const currentOverview = overviewResult[0] || {
@@ -142,7 +143,7 @@ export async function GET(request: NextRequest) {
 
     // Store in cache for 5 minutes
     setCache(cacheKey, data);
-    console.log(`[API/Clients] Data cached successfully for ${days} days`);
+    console.log(`[API/Clients] Data cached successfully for dateRange:`, dateRange);
 
     return NextResponse.json({
       success: true,

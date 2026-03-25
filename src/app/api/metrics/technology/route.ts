@@ -7,6 +7,7 @@ import {
   getOperatingSystemQuery,
   getDeviceLanguageQuery,
   getPreviousDeviceCategoryQuery,
+  parseDateRangeFromSearchParams,
   UserType
 } from '@/lib/queries';
 
@@ -62,17 +63,17 @@ function calculateTrend(current: number, previous: number): TrendData {
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
-  const days = parseInt(searchParams.get('days') || '30');
+  const dateRange = parseDateRangeFromSearchParams(searchParams);
   const userType = (searchParams.get('userType') || 'all') as UserType;
 
   // Create a unique cache key based on the query parameters
-  const cacheKey = `technology-metrics-v1:${days}:${userType}`;
+  const cacheKey = `technology-metrics-v1:${dateRange.startDate || dateRange.days || 30}:${dateRange.endDate || ''}:${userType}`;
 
   // Check if we have cached data
   const cached = getCached<TechnologyMetricsData>(cacheKey);
 
   if (cached) {
-    console.log(`[API/Technology] Returning cached data for ${days} days`);
+    console.log(`[API/Technology] Returning cached data for dateRange:`, dateRange);
     return NextResponse.json({
       success: true,
       data: cached,
@@ -81,7 +82,7 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  console.log(`[API/Technology] Cache miss - fetching fresh data from BigQuery for ${days} days, userType: ${userType}`);
+  console.log(`[API/Technology] Cache miss - fetching fresh data from BigQuery for dateRange:`, dateRange, `userType: ${userType}`);
 
   try {
     // Execute 5 queries in parallel (4 current + 1 previous period for trends)
@@ -92,11 +93,11 @@ export async function GET(request: NextRequest) {
       deviceLanguage,
       prevDeviceCategory
     ] = await Promise.all([
-      runQuery<DeviceCategoryData>(getDeviceCategoryQuery(days, userType)),
-      runQuery<BrowserData>(getBrowserDistributionQuery(days, userType)),
-      runQuery<OperatingSystemData>(getOperatingSystemQuery(days, userType)),
-      runQuery<LanguageData>(getDeviceLanguageQuery(days, userType)),
-      runQuery<DeviceCategoryData>(getPreviousDeviceCategoryQuery(days, userType)),
+      runQuery<DeviceCategoryData>(getDeviceCategoryQuery(dateRange, userType)),
+      runQuery<BrowserData>(getBrowserDistributionQuery(dateRange, userType)),
+      runQuery<OperatingSystemData>(getOperatingSystemQuery(dateRange, userType)),
+      runQuery<LanguageData>(getDeviceLanguageQuery(dateRange, userType)),
+      runQuery<DeviceCategoryData>(getPreviousDeviceCategoryQuery(dateRange, userType)),
     ]);
 
     // Create a map of previous period data for trend calculation
@@ -127,7 +128,7 @@ export async function GET(request: NextRequest) {
 
     // Store in cache for 5 minutes
     setCache(cacheKey, data);
-    console.log(`[API/Technology] Data cached successfully for ${days} days`);
+    console.log(`[API/Technology] Data cached successfully for dateRange:`, dateRange);
 
     return NextResponse.json({
       success: true,

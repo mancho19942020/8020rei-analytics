@@ -13,6 +13,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, forwardRef, useImperativeHandle } from 'react';
+import { buildDateQueryString } from '@/lib/date-utils';
 import { AxisSkeleton, AxisCallout, AxisButton } from '@/components/axis';
 import { GridWorkspace, WidgetCatalog, WidgetSettings } from '@/components/workspace';
 import {
@@ -123,6 +124,8 @@ interface PropertiesApiData {
 
 interface PropertiesApiTabProps {
   days: number;
+  startDate?: string;
+  endDate?: string;
   editMode: boolean;
   onEditModeChange?: (editMode: boolean) => void;
 }
@@ -132,7 +135,7 @@ interface PropertiesApiTabProps {
 // ---------------------------------------------------------------------------
 
 export const PropertiesApiTab = forwardRef<TabHandle, PropertiesApiTabProps>(
-  function PropertiesApiTab({ days, editMode }, ref) {
+  function PropertiesApiTab({ days, startDate, endDate, editMode }, ref) {
     const [data, setData] = useState<PropertiesApiData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -164,7 +167,7 @@ export const PropertiesApiTab = forwardRef<TabHandle, PropertiesApiTabProps>(
 
     useEffect(() => {
       fetchData();
-    }, [days]);
+    }, [days, startDate, endDate]);
 
     async function fetchData() {
       setLoading(true);
@@ -173,14 +176,15 @@ export const PropertiesApiTab = forwardRef<TabHandle, PropertiesApiTabProps>(
       try {
         const granularity = days <= 7 ? 'hour' : 'day';
 
+        const dp = buildDateQueryString(days, startDate, endDate);
         const [overviewRes, timeSeriesRes, clientsRes, endpointsRes, errorsRes, logsRes] =
           await Promise.all([
-            fetch(`/api/properties-api?type=overview&days=${days}`).then((r) => r.json()),
-            fetch(`/api/properties-api?type=usage-over-time&days=${days}&granularity=${granularity}`).then((r) => r.json()),
-            fetch(`/api/properties-api?type=by-client&days=${days}&limit=20`).then((r) => r.json()),
-            fetch(`/api/properties-api?type=by-endpoint&days=${days}`).then((r) => r.json()),
-            fetch(`/api/properties-api?type=errors&days=${days}`).then((r) => r.json()),
-            fetch(`/api/properties-api?type=recent-logs&days=${days}&page=1&pageSize=15`).then((r) => r.json()),
+            fetch(`/api/properties-api?type=overview&${dp}`).then((r) => r.json()),
+            fetch(`/api/properties-api?type=usage-over-time&${dp}&granularity=${granularity}`).then((r) => r.json()),
+            fetch(`/api/properties-api?type=by-client&${dp}&limit=20`).then((r) => r.json()),
+            fetch(`/api/properties-api?type=by-endpoint&${dp}`).then((r) => r.json()),
+            fetch(`/api/properties-api?type=errors&${dp}`).then((r) => r.json()),
+            fetch(`/api/properties-api?type=recent-logs&${dp}&page=1&pageSize=15`).then((r) => r.json()),
           ]);
 
         setData({
@@ -212,7 +216,7 @@ export const PropertiesApiTab = forwardRef<TabHandle, PropertiesApiTabProps>(
     // Load a different page of logs
     const fetchLogs = useCallback(async (page: number) => {
       try {
-        const res = await fetch(`/api/properties-api?type=recent-logs&days=${days}&page=${page}&pageSize=15`);
+        const res = await fetch(`/api/properties-api?type=recent-logs&${buildDateQueryString(days, startDate, endDate)}&page=${page}&pageSize=15`);
         const json = await res.json();
         if (json.success) {
           setData((prev) => prev ? { ...prev, recentLogs: json.data } : prev);
@@ -222,7 +226,7 @@ export const PropertiesApiTab = forwardRef<TabHandle, PropertiesApiTabProps>(
       } catch {
         // Silently fail pagination
       }
-    }, [days]);
+    }, [days, startDate, endDate]);
 
     // Layout handlers
     const handleLayoutChange = (newLayout: Widget[]) => {

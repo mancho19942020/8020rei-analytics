@@ -11,8 +11,83 @@
 
 import { PRODUCT_PROJECT, PRODUCT_DATASET } from './bigquery';
 
+/** Date range parameters for custom period filtering */
+export interface DateRangeParams {
+  days?: number;
+  startDate?: string; // YYYY-MM-DD
+  endDate?: string;   // YYYY-MM-DD
+}
+
 const TABLE = `\`${PRODUCT_PROJECT}.${PRODUCT_DATASET}.feedback_clients_unique\``;
 const JIRA_DATASET = 'jira';
+
+// ============================================================================
+// DATE FILTER HELPERS
+// ============================================================================
+
+/** Returns a SQL condition for the current period on a DATE column */
+function getProductDateFilter(dateRange: DateRangeParams, dateColumn: string = 'date'): string {
+  if (dateRange.startDate && dateRange.endDate) {
+    return `${dateColumn} >= '${dateRange.startDate}' AND ${dateColumn} <= '${dateRange.endDate}'`;
+  }
+  const days = dateRange.days || 30;
+  return `${dateColumn} >= DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY)`;
+}
+
+/** Returns a SQL condition for the previous period on a DATE column */
+function getProductPreviousDateFilter(dateRange: DateRangeParams, dateColumn: string = 'date'): string {
+  if (dateRange.startDate && dateRange.endDate) {
+    const rangeDays = Math.ceil((new Date(dateRange.endDate).getTime() - new Date(dateRange.startDate).getTime()) / 86400000);
+    const prevEnd = new Date(new Date(dateRange.startDate).getTime() - 86400000);
+    const prevStart = new Date(prevEnd.getTime() - rangeDays * 86400000);
+    const fmtStart = prevStart.toISOString().split('T')[0];
+    const fmtEnd = prevEnd.toISOString().split('T')[0];
+    return `${dateColumn} >= '${fmtStart}' AND ${dateColumn} <= '${fmtEnd}'`;
+  }
+  const days = dateRange.days || 30;
+  return `${dateColumn} >= DATE_SUB(CURRENT_DATE(), INTERVAL ${days * 2} DAY) AND ${dateColumn} < DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY)`;
+}
+
+/** Returns a SQL condition for the current period on a TIMESTAMP column */
+function getProductTimestampFilter(dateRange: DateRangeParams, tsColumn: string = 'updated'): string {
+  if (dateRange.startDate && dateRange.endDate) {
+    return `${tsColumn} >= TIMESTAMP('${dateRange.startDate}') AND ${tsColumn} <= TIMESTAMP('${dateRange.endDate} 23:59:59')`;
+  }
+  const days = dateRange.days || 30;
+  return `${tsColumn} >= TIMESTAMP(DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))`;
+}
+
+/** Returns a SQL condition for the previous period on a TIMESTAMP column */
+function getProductPreviousTimestampFilter(dateRange: DateRangeParams, tsColumn: string = 'updated'): string {
+  if (dateRange.startDate && dateRange.endDate) {
+    const rangeDays = Math.ceil((new Date(dateRange.endDate).getTime() - new Date(dateRange.startDate).getTime()) / 86400000);
+    const prevEnd = new Date(new Date(dateRange.startDate).getTime() - 86400000);
+    const prevStart = new Date(prevEnd.getTime() - rangeDays * 86400000);
+    const fmtStart = prevStart.toISOString().split('T')[0];
+    const fmtEnd = prevEnd.toISOString().split('T')[0];
+    return `${tsColumn} >= TIMESTAMP('${fmtStart}') AND ${tsColumn} <= TIMESTAMP('${fmtEnd} 23:59:59')`;
+  }
+  const days = dateRange.days || 30;
+  return `${tsColumn} >= TIMESTAMP(DATE_SUB(CURRENT_DATE(), INTERVAL ${days * 2} DAY)) AND ${tsColumn} < TIMESTAMP(DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))`;
+}
+
+/** Returns a SQL "before current period" boundary for TIMESTAMP columns (used in previous-period snapshots) */
+function getProductTimestampBefore(dateRange: DateRangeParams, tsColumn: string = 'updated'): string {
+  if (dateRange.startDate) {
+    return `${tsColumn} < TIMESTAMP('${dateRange.startDate}')`;
+  }
+  const days = dateRange.days || 30;
+  return `${tsColumn} < TIMESTAMP(DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))`;
+}
+
+/** Returns a SQL "before current period" boundary for DATE columns (used in previous-period snapshots) */
+function getProductDateBefore(dateRange: DateRangeParams, dateColumn: string = 'date'): string {
+  if (dateRange.startDate) {
+    return `${dateColumn} < '${dateRange.startDate}'`;
+  }
+  const days = dateRange.days || 30;
+  return `${dateColumn} < DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY)`;
+}
 
 // ============================================================================
 // CLIENT DOMAINS QUERIES
@@ -22,7 +97,7 @@ const JIRA_DATASET = 'jira';
  * Domain Activity Overview - KPI summary
  * Returns: total domains, properties, leads, appointments, deals, revenue
  */
-export function getDomainActivityOverviewQuery(days: number): string {
+export function getDomainActivityOverviewQuery(dateRange: DateRangeParams = {}): string {
   return `
     SELECT
       COUNT(DISTINCT domain_name) as total_active_domains,
@@ -32,14 +107,14 @@ export function getDomainActivityOverviewQuery(days: number): string {
       COUNTIF(LOWER(record_type) = 'deal') as deals_count,
       COALESCE(SUM(revenue), 0) as total_revenue
     FROM ${TABLE}
-    WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY)
+    WHERE ${getProductDateFilter(dateRange)}
   `;
 }
 
 /**
  * Previous period overview for trend calculation
  */
-export function getPreviousDomainOverviewQuery(days: number): string {
+export function getPreviousDomainOverviewQuery(dateRange: DateRangeParams = {}): string {
   return `
     SELECT
       COUNT(DISTINCT domain_name) as prev_total_active_domains,
@@ -49,8 +124,7 @@ export function getPreviousDomainOverviewQuery(days: number): string {
       COUNTIF(LOWER(record_type) = 'deal') as prev_deals_count,
       COALESCE(SUM(revenue), 0) as prev_total_revenue
     FROM ${TABLE}
-    WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL ${days * 2} DAY)
-      AND date < DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY)
+    WHERE ${getProductPreviousDateFilter(dateRange)}
   `;
 }
 
@@ -60,15 +134,18 @@ export function getPreviousDomainOverviewQuery(days: number): string {
  * Metrics (properties, leads, etc.) are scoped to the selected period via conditional aggregates.
  * Risk level is derived from all-time last activity date.
  */
-export function getDomainLeaderboardQuery(days: number): string {
+export function getDomainLeaderboardQuery(dateRange: DateRangeParams = {}): string {
+  const dateCondition = dateRange.startDate && dateRange.endDate
+    ? `date >= '${dateRange.startDate}' AND date <= '${dateRange.endDate}'`
+    : `date >= DATE_SUB(CURRENT_DATE(), INTERVAL ${dateRange.days || 30} DAY)`;
   return `
     SELECT
       domain_name,
-      COUNTIF(date >= DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY)) as total_properties,
-      COUNTIF(LOWER(record_type) = 'lead' AND date >= DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY)) as leads_count,
-      COUNTIF(LOWER(record_type) = 'appointment' AND date >= DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY)) as appointments_count,
-      COUNTIF(LOWER(record_type) = 'deal' AND date >= DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY)) as deals_count,
-      COALESCE(SUM(CASE WHEN date >= DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY) THEN revenue ELSE NULL END), 0) as total_revenue,
+      COUNTIF(${dateCondition}) as total_properties,
+      COUNTIF(LOWER(record_type) = 'lead' AND ${dateCondition}) as leads_count,
+      COUNTIF(LOWER(record_type) = 'appointment' AND ${dateCondition}) as appointments_count,
+      COUNTIF(LOWER(record_type) = 'deal' AND ${dateCondition}) as deals_count,
+      COALESCE(SUM(CASE WHEN ${dateCondition} THEN revenue ELSE NULL END), 0) as total_revenue,
       FORMAT_DATE('%Y-%m-%d', MAX(date)) as last_activity_date,
       DATE_DIFF(CURRENT_DATE(), MAX(date), DAY) as days_since_activity,
       CASE
@@ -85,14 +162,14 @@ export function getDomainLeaderboardQuery(days: number): string {
 /**
  * Domain Activity Trend - properties uploaded per day
  */
-export function getDomainActivityTrendQuery(days: number): string {
+export function getDomainActivityTrendQuery(dateRange: DateRangeParams = {}): string {
   return `
     SELECT
       FORMAT_DATE('%Y-%m-%d', date) as date,
       COUNT(*) as properties_uploaded,
       COUNT(DISTINCT domain_name) as domain_count
     FROM ${TABLE}
-    WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY)
+    WHERE ${getProductDateFilter(dateRange)}
     GROUP BY date
     ORDER BY date ASC
   `;
@@ -101,13 +178,13 @@ export function getDomainActivityTrendQuery(days: number): string {
 /**
  * Revenue by Domain - top 20 domains by revenue
  */
-export function getRevenueByDomainQuery(days: number): string {
+export function getRevenueByDomainQuery(dateRange: DateRangeParams = {}): string {
   return `
     SELECT
       domain_name,
       COALESCE(SUM(revenue), 0) as revenue
     FROM ${TABLE}
-    WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY)
+    WHERE ${getProductDateFilter(dateRange)}
       AND revenue IS NOT NULL
       AND revenue > 0
     GROUP BY domain_name
@@ -132,13 +209,13 @@ const BUGS_TABLE = `\`${PRODUCT_PROJECT}.${JIRA_DATASET}.issues_bugs\``;
  * Project Status Overview - counts by status category
  * Uses issues_unique filtered by updated date (Jira has no single "date" column)
  */
-export function getProjectStatusOverviewQuery(days: number): string {
+export function getProjectStatusOverviewQuery(dateRange: DateRangeParams = {}): string {
   return `
     SELECT
       COUNTIF(status_category IN ('To Do', 'In Progress')) as active_projects,
       COUNTIF(status_category = 'In Progress') as on_track,
       COUNTIF(status_category IN ('To Do', 'In Progress') AND due_date IS NOT NULL AND due_date < CURRENT_DATE()) as delayed,
-      COUNTIF(status_category = 'Done' AND updated >= TIMESTAMP(DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))) as completed
+      COUNTIF(status_category = 'Done' AND ${getProductTimestampFilter(dateRange)}) as completed
     FROM ${ISSUES_TABLE}
     WHERE issue_type = 'Epic'
   `;
@@ -146,16 +223,16 @@ export function getProjectStatusOverviewQuery(days: number): string {
 
 /**
  * Previous period project status for trend calculation.
- * Snapshots the same counters but shifted back by ${days} days.
+ * Snapshots the same counters but shifted back to the previous period.
  * active/on_track/delayed use the updated timestamp to approximate the previous window.
  */
-export function getPreviousProjectStatusOverviewQuery(days: number): string {
+export function getPreviousProjectStatusOverviewQuery(dateRange: DateRangeParams = {}): string {
   return `
     SELECT
-      COUNTIF(status_category IN ('To Do', 'In Progress') AND updated < TIMESTAMP(DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))) as prev_active_projects,
-      COUNTIF(status_category = 'In Progress' AND updated < TIMESTAMP(DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))) as prev_on_track,
-      COUNTIF(status_category IN ('To Do', 'In Progress') AND due_date IS NOT NULL AND due_date < DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY) AND updated < TIMESTAMP(DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))) as prev_delayed,
-      COUNTIF(status_category = 'Done' AND updated >= TIMESTAMP(DATE_SUB(CURRENT_DATE(), INTERVAL ${days * 2} DAY)) AND updated < TIMESTAMP(DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))) as prev_completed
+      COUNTIF(status_category IN ('To Do', 'In Progress') AND ${getProductTimestampBefore(dateRange)}) as prev_active_projects,
+      COUNTIF(status_category = 'In Progress' AND ${getProductTimestampBefore(dateRange)}) as prev_on_track,
+      COUNTIF(status_category IN ('To Do', 'In Progress') AND due_date IS NOT NULL AND ${getProductDateBefore(dateRange, 'due_date')} AND ${getProductTimestampBefore(dateRange)}) as prev_delayed,
+      COUNTIF(status_category = 'Done' AND ${getProductPreviousTimestampFilter(dateRange)}) as prev_completed
     FROM ${ISSUES_TABLE}
     WHERE issue_type = 'Epic'
   `;
@@ -164,7 +241,7 @@ export function getPreviousProjectStatusOverviewQuery(days: number): string {
 /**
  * Projects Table - Epics with progress and delay info
  */
-export function getProjectsTableQuery(days: number): string {
+export function getProjectsTableQuery(dateRange: DateRangeParams = {}): string {
   return `
     WITH epic_progress AS (
       SELECT
@@ -184,7 +261,7 @@ export function getProjectsTableQuery(days: number): string {
       LEFT JOIN ${ISSUES_TABLE} c ON c.epic_key = e.key
       WHERE e.issue_type = 'Epic'
         AND (e.status_category IN ('To Do', 'In Progress')
-             OR (e.status_category = 'Done' AND e.updated >= TIMESTAMP(DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))))
+             OR (e.status_category = 'Done' AND ${getProductTimestampFilter(dateRange, 'e.updated')}))
       GROUP BY e.key, e.summary, e.status, e.assignee_name, e.due_date, e.status_category
     )
     SELECT * FROM epic_progress
@@ -196,7 +273,7 @@ export function getProjectsTableQuery(days: number): string {
 /**
  * Bug Tracking Overview - KPI counts from issues_bugs
  */
-export function getBugTrackingOverviewQuery(days: number): string {
+export function getBugTrackingOverviewQuery(dateRange: DateRangeParams = {}): string {
   return `
     SELECT
       COUNT(*) as total_unique_bugs,
@@ -204,20 +281,20 @@ export function getBugTrackingOverviewQuery(days: number): string {
       COUNTIF(priority IN ('Highest', 'High')) as critical_bugs,
       COUNTIF(priority IN ('Highest', 'High') AND status_category != 'Done') as critical_open_bugs
     FROM ${BUGS_TABLE}
-    WHERE created >= DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY)
+    WHERE ${getProductDateFilter(dateRange, 'created')}
   `;
 }
 
 /**
  * Bug Origins - count by origin source
  */
-export function getBugOriginsQuery(days: number): string {
+export function getBugOriginsQuery(dateRange: DateRangeParams = {}): string {
   return `
     SELECT
       COALESCE(origin, 'Unknown') as origin,
       COUNT(*) as count
     FROM ${BUGS_TABLE}
-    WHERE created >= DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY)
+    WHERE ${getProductDateFilter(dateRange, 'created')}
     GROUP BY origin
     ORDER BY count DESC
   `;
@@ -226,13 +303,13 @@ export function getBugOriginsQuery(days: number): string {
 /**
  * Weekly Bug Trend - bugs created per week
  */
-export function getWeeklyBugTrendQuery(days: number): string {
+export function getWeeklyBugTrendQuery(dateRange: DateRangeParams = {}): string {
   return `
     SELECT
       FORMAT_DATE('%Y-W%V', created) as week,
       COUNT(*) as count
     FROM ${BUGS_TABLE}
-    WHERE created >= DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY)
+    WHERE ${getProductDateFilter(dateRange, 'created')}
     GROUP BY week
     ORDER BY week ASC
   `;
@@ -241,7 +318,7 @@ export function getWeeklyBugTrendQuery(days: number): string {
 /**
  * Team Workload - tasks per assignee with status breakdown
  */
-export function getTeamWorkloadQuery(days: number): string {
+export function getTeamWorkloadQuery(dateRange: DateRangeParams = {}): string {
   return `
     SELECT
       COALESCE(assignee_name, 'Unassigned') as assignee,
@@ -250,7 +327,7 @@ export function getTeamWorkloadQuery(days: number): string {
       COUNTIF(status_category = 'In Progress') as in_progress_tasks,
       COUNTIF(status_category != 'Done' AND due_date IS NOT NULL AND due_date < CURRENT_DATE()) as delayed_tasks
     FROM ${ISSUES_TABLE}
-    WHERE updated >= TIMESTAMP(DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))
+    WHERE ${getProductTimestampFilter(dateRange)}
       AND issue_type NOT IN ('Epic')
     GROUP BY assignee_name
     ORDER BY total_tasks DESC
@@ -261,7 +338,7 @@ export function getTeamWorkloadQuery(days: number): string {
 /**
  * Delivery Timeline - issues with due dates and delay
  */
-export function getDeliveryTimelineQuery(days: number): string {
+export function getDeliveryTimelineQuery(dateRange: DateRangeParams = {}): string {
   return `
     SELECT
       key as issue_key,
@@ -277,7 +354,7 @@ export function getDeliveryTimelineQuery(days: number): string {
       END as days_of_delay
     FROM ${ISSUES_TABLE}
     WHERE due_date IS NOT NULL
-      AND updated >= TIMESTAMP(DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))
+      AND ${getProductTimestampFilter(dateRange)}
     ORDER BY days_of_delay DESC
     LIMIT 50
   `;

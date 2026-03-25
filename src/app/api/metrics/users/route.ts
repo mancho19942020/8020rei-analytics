@@ -7,6 +7,7 @@ import {
   getEngagementMetricsQuery,
   getPreviousUserActivityMetricsQuery,
   getPreviousEngagementMetricsQuery,
+  parseDateRangeFromSearchParams,
   UserType
 } from '@/lib/queries';
 
@@ -92,17 +93,17 @@ function calculateTrend(current: number, previous: number, invertPositive = fals
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
-  const days = parseInt(searchParams.get('days') || '30');
+  const dateRange = parseDateRangeFromSearchParams(searchParams);
   const userType = (searchParams.get('userType') || 'all') as UserType;
 
   // Create a unique cache key based on the query parameters
-  const cacheKey = `users-metrics-v2:${days}:${userType}`;
+  const cacheKey = `users-metrics-v2:${dateRange.startDate || dateRange.days || 30}:${dateRange.endDate || ''}:${userType}`;
 
   // Check if we have cached data
   const cached = getCached<UsersMetricsData>(cacheKey);
 
   if (cached) {
-    console.log(`[API/Users] Returning cached data for ${days} days`);
+    console.log(`[API/Users] Returning cached data for dateRange:`, dateRange);
     return NextResponse.json({
       success: true,
       data: cached,
@@ -111,7 +112,7 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  console.log(`[API/Users] Cache miss - fetching fresh data from BigQuery for ${days} days, userType: ${userType}`);
+  console.log(`[API/Users] Cache miss - fetching fresh data from BigQuery for dateRange:`, dateRange, `userType: ${userType}`);
 
   try {
     // Execute 5 queries in parallel (current + previous period data)
@@ -122,11 +123,11 @@ export async function GET(request: NextRequest) {
       engagementMetrics,
       prevEngagementMetrics
     ] = await Promise.all([
-      runQuery<UserActivityMetrics>(getUserActivityMetricsQuery(days, userType)),
+      runQuery<UserActivityMetrics>(getUserActivityMetricsQuery(dateRange, userType)),
       runQuery<PreviousUserActivityMetrics>(getPreviousUserActivityMetricsQuery(userType)),
-      runQuery<NewVsReturningData>(getNewVsReturningUsersQuery(days, userType)),
-      runQuery<EngagementMetrics>(getEngagementMetricsQuery(days, userType)),
-      runQuery<PreviousEngagementMetrics>(getPreviousEngagementMetricsQuery(days, userType)),
+      runQuery<NewVsReturningData>(getNewVsReturningUsersQuery(dateRange, userType)),
+      runQuery<EngagementMetrics>(getEngagementMetricsQuery(dateRange, userType)),
+      runQuery<PreviousEngagementMetrics>(getPreviousEngagementMetricsQuery(dateRange, userType)),
     ]);
 
     const currentActivity = activityMetrics[0] || { dau: 0, wau: 0, mau: 0 };
@@ -179,7 +180,7 @@ export async function GET(request: NextRequest) {
 
     // Store in cache for 5 minutes
     setCache(cacheKey, data);
-    console.log(`[API/Users] Data cached successfully for ${days} days`);
+    console.log(`[API/Users] Data cached successfully for dateRange:`, dateRange);
 
     return NextResponse.json({
       success: true,

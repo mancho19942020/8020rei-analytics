@@ -31,6 +31,7 @@ import {
   formatRegionForExport,
   formatCityForExport,
 } from '@/lib/export';
+import { buildDateQueryString } from '@/lib/date-utils';
 
 interface TrendData {
   value: number;
@@ -81,7 +82,7 @@ interface GeographyTabProps {
 }
 
 export const GeographyTab = forwardRef<TabHandle, GeographyTabProps>(function GeographyTab(
-  { days, userType, editMode },
+  { days, userType, startDate, endDate, editMode },
   ref
 ) {
   const [data, setData] = useState<GeographyData | null>(null);
@@ -113,14 +114,14 @@ export const GeographyTab = forwardRef<TabHandle, GeographyTabProps>(function Ge
 
   useEffect(() => {
     fetchData();
-  }, [days, userType]);
+  }, [days, userType, startDate, endDate]);
 
   async function fetchData() {
     setLoading(true);
     setError(null);
 
     try {
-      const res = await fetch(`/api/metrics/geography?days=${days}&userType=${userType}`);
+      const res = await fetch(`/api/metrics/geography?${buildDateQueryString(days, startDate, endDate)}&userType=${userType}`);
       const json = await res.json();
 
       if (json.success) {

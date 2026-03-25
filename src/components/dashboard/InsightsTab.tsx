@@ -28,6 +28,7 @@ import {
   formatAlertsFeedForExport,
   formatAlertsByCategoryForExport,
 } from '@/lib/export';
+import { buildDateQueryString } from '@/lib/date-utils';
 
 interface Alert {
   id: string;
@@ -68,7 +69,7 @@ interface InsightsTabProps {
 }
 
 export const InsightsTab = forwardRef<TabHandle, InsightsTabProps>(function InsightsTab(
-  { days, userType, editMode },
+  { days, userType, startDate, endDate, editMode },
   ref
 ) {
   const [data, setData] = useState<InsightsData | null>(null);
@@ -100,14 +101,14 @@ export const InsightsTab = forwardRef<TabHandle, InsightsTabProps>(function Insi
 
   useEffect(() => {
     fetchData();
-  }, [userType]);
+  }, [userType, startDate, endDate]);
 
   async function fetchData() {
     setLoading(true);
     setError(null);
 
     try {
-      const res = await fetch(`/api/metrics/insights?userType=${userType}`);
+      const res = await fetch(`/api/metrics/insights?${buildDateQueryString(days, startDate, endDate)}&userType=${userType}`);
       const json = await res.json();
 
       if (json.success) {

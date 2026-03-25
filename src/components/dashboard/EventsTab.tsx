@@ -31,6 +31,7 @@ import {
   formatEventMetricsForExport,
   formatScrollDepthForExport,
 } from '@/lib/export';
+import { buildDateQueryString } from '@/lib/date-utils';
 
 interface TrendData {
   value: number;
@@ -91,7 +92,7 @@ interface EventsTabProps {
 }
 
 export const EventsTab = forwardRef<TabHandle, EventsTabProps>(function EventsTab(
-  { days, userType, editMode },
+  { days, userType, startDate, endDate, editMode },
   ref
 ) {
   const [data, setData] = useState<EventsData | null>(null);
@@ -123,14 +124,14 @@ export const EventsTab = forwardRef<TabHandle, EventsTabProps>(function EventsTa
 
   useEffect(() => {
     fetchData();
-  }, [days, userType]);
+  }, [days, userType, startDate, endDate]);
 
   async function fetchData() {
     setLoading(true);
     setError(null);
 
     try {
-      const res = await fetch(`/api/metrics/events?days=${days}&userType=${userType}`);
+      const res = await fetch(`/api/metrics/events?${buildDateQueryString(days, startDate, endDate)}&userType=${userType}`);
       const json = await res.json();
 
       if (json.success) {

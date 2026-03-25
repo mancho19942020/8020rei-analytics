@@ -36,6 +36,7 @@ import {
   formatFeatureTrendForExport,
   formatTopPagesForExport,
 } from '@/lib/export';
+import { buildDateQueryString } from '@/lib/date-utils';
 
 interface TrendData {
   value: number;
@@ -86,7 +87,7 @@ interface FeaturesTabProps {
 }
 
 export const FeaturesTab = forwardRef<TabHandle, FeaturesTabProps>(function FeaturesTab(
-  { days, userType, editMode },
+  { days, userType, startDate, endDate, editMode },
   ref
 ) {
   const [data, setData] = useState<FeaturesData | null>(null);
@@ -118,14 +119,14 @@ export const FeaturesTab = forwardRef<TabHandle, FeaturesTabProps>(function Feat
 
   useEffect(() => {
     fetchData();
-  }, [days, userType]);
+  }, [days, userType, startDate, endDate]);
 
   async function fetchData() {
     setLoading(true);
     setError(null);
 
     try {
-      const res = await fetch(`/api/metrics/features?days=${days}&userType=${userType}`);
+      const res = await fetch(`/api/metrics/features?${buildDateQueryString(days, startDate, endDate)}&userType=${userType}`);
       const json = await res.json();
 
       if (json.success) {

@@ -8,6 +8,7 @@ import {
   getDomainActivityTrendQuery,
   getRevenueByDomainQuery,
 } from '@/lib/product-queries';
+import type { DateRangeParams } from '@/lib/product-queries';
 import type {
   ClientDomainsData,
   DomainActivityOverview,
@@ -37,12 +38,17 @@ function calculateTrend(current: number, previous: number): TrendData {
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const days = parseInt(searchParams.get('days') || '30');
+  const startDate = searchParams.get('startDate') || undefined;
+  const endDate = searchParams.get('endDate') || undefined;
+  const dateRange: DateRangeParams = startDate && endDate ? { startDate, endDate } : { days };
 
-  const cacheKey = `product-domains-v2:${days}`;
+  const cacheKey = startDate && endDate
+    ? `product-domains-v2:${startDate}_${endDate}`
+    : `product-domains-v2:${days}`;
   const cached = getCached<ClientDomainsData>(cacheKey);
 
   if (cached) {
-    console.log(`[API/ProductDomains] Returning cached data for ${days} days`);
+    console.log(`[API/ProductDomains] Returning cached data for ${cacheKey}`);
     return NextResponse.json({
       success: true,
       data: cached,
@@ -51,7 +57,7 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  console.log(`[API/ProductDomains] Cache miss - fetching from BigQuery for ${days} days`);
+  console.log(`[API/ProductDomains] Cache miss - fetching from BigQuery for ${cacheKey}`);
 
   try {
     const [
@@ -61,11 +67,11 @@ export async function GET(request: NextRequest) {
       trendResult,
       revenueResult,
     ] = await Promise.all([
-      runProductQuery<DomainActivityOverview>(getDomainActivityOverviewQuery(days)),
-      runProductQuery<PreviousDomainOverview>(getPreviousDomainOverviewQuery(days)),
-      runProductQuery<DomainLeaderboardEntry>(getDomainLeaderboardQuery(days)),
-      runProductQuery<DomainActivityTrendEntry>(getDomainActivityTrendQuery(days)),
-      runProductQuery<RevenueByDomainEntry>(getRevenueByDomainQuery(days)),
+      runProductQuery<DomainActivityOverview>(getDomainActivityOverviewQuery(dateRange)),
+      runProductQuery<PreviousDomainOverview>(getPreviousDomainOverviewQuery(dateRange)),
+      runProductQuery<DomainLeaderboardEntry>(getDomainLeaderboardQuery(dateRange)),
+      runProductQuery<DomainActivityTrendEntry>(getDomainActivityTrendQuery(dateRange)),
+      runProductQuery<RevenueByDomainEntry>(getRevenueByDomainQuery(dateRange)),
     ]);
 
     const current = overviewResult[0] || {
@@ -104,7 +110,7 @@ export async function GET(request: NextRequest) {
     };
 
     setCache(cacheKey, data);
-    console.log(`[API/ProductDomains] Data cached for ${days} days`);
+    console.log(`[API/ProductDomains] Data cached for ${cacheKey}`);
 
     return NextResponse.json({
       success: true,

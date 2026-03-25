@@ -11,6 +11,7 @@ import {
   getTeamWorkloadQuery,
   getDeliveryTimelineQuery,
 } from '@/lib/product-queries';
+import type { DateRangeParams } from '@/lib/product-queries';
 import type {
   ProductProjectsData,
   ProjectStatusOverview,
@@ -52,12 +53,17 @@ function calculateTrend(current: number, previous: number, invertPositive = fals
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const days = parseInt(searchParams.get('days') || '30');
+  const startDate = searchParams.get('startDate') || undefined;
+  const endDate = searchParams.get('endDate') || undefined;
+  const dateRange: DateRangeParams = startDate && endDate ? { startDate, endDate } : { days };
 
-  const cacheKey = `product-projects-v2:${days}`;
+  const cacheKey = startDate && endDate
+    ? `product-projects-v2:${startDate}_${endDate}`
+    : `product-projects-v2:${days}`;
   const cached = getCached<ProductProjectsData>(cacheKey);
 
   if (cached) {
-    console.log(`[API/ProductProjects] Returning cached data for ${days} days`);
+    console.log(`[API/ProductProjects] Returning cached data for ${cacheKey}`);
     return NextResponse.json({
       success: true,
       data: cached,
@@ -66,7 +72,7 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  console.log(`[API/ProductProjects] Cache miss - fetching from BigQuery for ${days} days`);
+  console.log(`[API/ProductProjects] Cache miss - fetching from BigQuery for ${cacheKey}`);
 
   try {
     const [
@@ -79,14 +85,14 @@ export async function GET(request: NextRequest) {
       workloadResult,
       timelineResult,
     ] = await Promise.all([
-      runProductQuery<ProjectStatusOverview>(getProjectStatusOverviewQuery(days)),
-      runProductQuery<PreviousProjectOverview>(getPreviousProjectStatusOverviewQuery(days)),
-      runProductQuery<ProjectEntry>(getProjectsTableQuery(days)),
-      runProductQuery<BugOverviewResult>(getBugTrackingOverviewQuery(days)),
-      runProductQuery<BugEntry>(getBugOriginsQuery(days)),
-      runProductQuery<WeeklyBugTrend>(getWeeklyBugTrendQuery(days)),
-      runProductQuery<TeamWorkloadEntry>(getTeamWorkloadQuery(days)),
-      runProductQuery<DeliveryTimelineEntry>(getDeliveryTimelineQuery(days)),
+      runProductQuery<ProjectStatusOverview>(getProjectStatusOverviewQuery(dateRange)),
+      runProductQuery<PreviousProjectOverview>(getPreviousProjectStatusOverviewQuery(dateRange)),
+      runProductQuery<ProjectEntry>(getProjectsTableQuery(dateRange)),
+      runProductQuery<BugOverviewResult>(getBugTrackingOverviewQuery(dateRange)),
+      runProductQuery<BugEntry>(getBugOriginsQuery(dateRange)),
+      runProductQuery<WeeklyBugTrend>(getWeeklyBugTrendQuery(dateRange)),
+      runProductQuery<TeamWorkloadEntry>(getTeamWorkloadQuery(dateRange)),
+      runProductQuery<DeliveryTimelineEntry>(getDeliveryTimelineQuery(dateRange)),
     ]);
 
     const current = overviewResult[0] || {
@@ -133,7 +139,7 @@ export async function GET(request: NextRequest) {
     };
 
     setCache(cacheKey, data);
-    console.log(`[API/ProductProjects] Data cached for ${days} days`);
+    console.log(`[API/ProductProjects] Data cached for ${cacheKey}`);
 
     return NextResponse.json({
       success: true,
