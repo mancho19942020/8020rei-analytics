@@ -3,11 +3,12 @@ import { runQuery } from '@/lib/bigquery';
 import { getCached, setCache } from '@/lib/cache';
 import {
   getMetricsQuery,
+  getPreviousMetricsQuery,
   getUsersByDayQuery,
   getFeatureUsageQuery,
   getTopClientsQuery,
   parseDateRangeFromSearchParams,
-  UserType
+  UserType,
 } from '@/lib/queries';
 
 interface Metrics {
@@ -37,6 +38,7 @@ interface ClientData {
 
 interface MetricsData {
   metrics: Metrics;
+  previousMetrics: Metrics | null;
   usersByDay: DailyData[];
   featureUsage: FeatureData[];
   topClients: ClientData[];
@@ -66,9 +68,10 @@ export async function GET(request: NextRequest) {
   console.log(`[API] Cache miss - fetching fresh data from BigQuery for dateRange:`, dateRange, `userType: ${userType}`);
 
   try {
-    // Execute 4 queries in parallel
-    const [metrics, usersByDay, featureUsage, topClients] = await Promise.all([
+    // Execute 5 queries in parallel (includes previous period for trend comparison)
+    const [metrics, previousMetrics, usersByDay, featureUsage, topClients] = await Promise.all([
       runQuery<Metrics>(getMetricsQuery(dateRange, userType)),
+      runQuery<Metrics>(getPreviousMetricsQuery(dateRange, userType)),
       runQuery<DailyData>(getUsersByDayQuery(dateRange, userType)),
       runQuery<FeatureData>(getFeatureUsageQuery(dateRange, userType)),
       runQuery<ClientData>(getTopClientsQuery(dateRange, userType)),
@@ -76,6 +79,7 @@ export async function GET(request: NextRequest) {
 
     const data: MetricsData = {
       metrics: metrics[0],
+      previousMetrics: previousMetrics[0] || null,
       usersByDay,
       featureUsage,
       topClients,

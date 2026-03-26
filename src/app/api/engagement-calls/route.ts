@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { listDocuments, getDocumentContent, DriveDocument } from '@/lib/google-drive';
 import { parseDocumentInsights, getDriveViewUrl } from '@/lib/document-parser';
-import { getCached, setCache, clearCache } from '@/lib/cache';
+import { getCached, setCache, clearCacheByPrefix } from '@/lib/cache';
 
 // Extended document type with client insights
 interface DocumentWithInsights extends DriveDocument {
@@ -30,7 +30,7 @@ export async function GET(request: Request) {
 
     // Clear engagement-calls cache entries when refresh is requested
     if (refresh) {
-      clearCache();
+      clearCacheByPrefix('engagement-calls');
     }
 
     // Check cache (5 minute TTL)

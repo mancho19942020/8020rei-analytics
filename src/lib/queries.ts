@@ -2,7 +2,7 @@ import { PROJECT, DATASET } from './bigquery';
 
 const TABLE = `\`${PROJECT}.${DATASET}.events_*\``;
 
-export type UserType = 'all' | 'internal' | 'external';
+export type UserType = 'all' | 'internal' | 'external' | 'unclassified';
 
 export interface DateRangeParams {
   days?: number;
@@ -71,6 +71,20 @@ export function getUserTypeFilter(userType: UserType): string {
       FROM UNNEST(user_properties)
       WHERE key = 'user_affiliation'
     ) = 'internal'`;
+  }
+
+  if (userType === 'unclassified') {
+    // Unclassified: user_affiliation is NULL, empty, or not set
+    return `(
+      (SELECT value.string_value
+       FROM UNNEST(user_properties)
+       WHERE key = 'user_affiliation'
+      ) IS NULL
+      OR (SELECT value.string_value
+          FROM UNNEST(user_properties)
+          WHERE key = 'user_affiliation'
+      ) = ''
+    )`;
   }
 
   // External: last user_affiliation in session = 'external'
@@ -157,6 +171,68 @@ export function getMetricsQuery(dateRange: DateRangeParams, userType: UserType =
     FROM ${TABLE} e
     INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
     WHERE ${getDateFilter(dateRange)}
+  `;
+}
+
+/**
+ * Same as getMetricsQuery but for the previous period (for trend comparison).
+ * E.g., if current is last 30 days, previous is days 31-60 ago.
+ */
+export function getPreviousMetricsQuery(dateRange: DateRangeParams, userType: UserType = 'all'): string {
+  const prevFilter = getPreviousPeriodDateFilter(dateRange);
+
+  if (userType === 'all') {
+    return `
+      SELECT
+        COUNT(DISTINCT user_pseudo_id) as total_users,
+        COUNT(*) as total_events,
+        COUNT(CASE WHEN event_name = 'page_view' THEN 1 END) as page_views,
+        COUNT(DISTINCT
+          REGEXP_EXTRACT(
+            (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'page_location'),
+            r'https://([^.]+)\\.8020rei\\.com'
+          )
+        ) as active_clients
+      FROM ${TABLE}
+      WHERE ${prevFilter}
+    `;
+  }
+
+  const targetAffiliation = userType === 'internal' ? 'internal' : 'external';
+
+  return `
+    WITH session_affiliation AS (
+      SELECT
+        user_pseudo_id,
+        LAST_VALUE(
+          (SELECT value.string_value FROM UNNEST(user_properties) WHERE key = 'user_affiliation')
+          IGNORE NULLS
+        ) OVER (
+          PARTITION BY user_pseudo_id
+          ORDER BY event_timestamp
+          ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+        ) as final_affiliation
+      FROM ${TABLE}
+      WHERE ${prevFilter}
+    ),
+    filtered_sessions AS (
+      SELECT DISTINCT user_pseudo_id
+      FROM session_affiliation
+      WHERE final_affiliation = '${targetAffiliation}'
+    )
+    SELECT
+      COUNT(DISTINCT e.user_pseudo_id) as total_users,
+      COUNT(*) as total_events,
+      COUNT(CASE WHEN e.event_name = 'page_view' THEN 1 END) as page_views,
+      COUNT(DISTINCT
+        REGEXP_EXTRACT(
+          (SELECT value.string_value FROM UNNEST(e.event_params) WHERE key = 'page_location'),
+          r'https://([^.]+)\\.8020rei\\.com'
+        )
+      ) as active_clients
+    FROM ${TABLE} e
+    INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
+    WHERE ${prevFilter}
   `;
 }
 

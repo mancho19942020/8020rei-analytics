@@ -26,6 +26,7 @@ interface CacheEntry<T> {
 
 const cache = new Map<string, CacheEntry<unknown>>();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds
+const MAX_CACHE_SIZE = 500; // Maximum number of entries before eviction
 
 /**
  * Get cached data if it exists and hasn't expired
@@ -48,15 +49,42 @@ export function getCached<T>(key: string): T | null {
 }
 
 /**
- * Store data in cache with current timestamp
+ * Store data in cache with current timestamp.
+ * Evicts the oldest entry if the cache exceeds MAX_CACHE_SIZE.
  * @param key - Unique cache key
  * @param data - Data to cache
  */
 export function setCache<T>(key: string, data: T): void {
+  // Evict expired entries first if we're at capacity
+  if (cache.size >= MAX_CACHE_SIZE) {
+    evictExpired();
+  }
+
+  // If still at capacity after evicting expired, remove the oldest entry
+  if (cache.size >= MAX_CACHE_SIZE) {
+    const oldestKey = cache.keys().next().value;
+    if (oldestKey !== undefined) {
+      cache.delete(oldestKey);
+    }
+  }
+
   cache.set(key, {
     data,
     timestamp: Date.now(),
   });
+}
+
+/**
+ * Clear cache entries matching a prefix.
+ * Use this for targeted invalidation (e.g., clearCacheByPrefix('engagement-calls')
+ * won't nuke BigQuery caches).
+ */
+export function clearCacheByPrefix(prefix: string): void {
+  for (const key of cache.keys()) {
+    if (key.startsWith(prefix)) {
+      cache.delete(key);
+    }
+  }
 }
 
 /**
@@ -67,11 +95,24 @@ export function clearCache(): void {
 }
 
 /**
+ * Remove all expired entries from the cache.
+ */
+function evictExpired(): void {
+  const now = Date.now();
+  for (const [key, entry] of cache.entries()) {
+    if (now - entry.timestamp > CACHE_TTL) {
+      cache.delete(key);
+    }
+  }
+}
+
+/**
  * Get cache stats (useful for debugging)
  */
 export function getCacheStats() {
   return {
     size: cache.size,
+    maxSize: MAX_CACHE_SIZE,
     keys: Array.from(cache.keys()),
   };
 }

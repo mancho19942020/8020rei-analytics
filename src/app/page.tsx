@@ -1,27 +1,27 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef, useCallback, Suspense } from 'react';
+import { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { useAuth } from '@/lib/firebase/AuthContext';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { DesignKitButton } from '@/components/DesignKitButton';
 import { Logo } from '@/components/Logo';
-import { AxisSelect, AxisSelectOption, AxisSkeleton, AxisCallout, AxisButton, AxisNavigationTab, AxisNavigationTabItem, AxisToggle, AxisDateRangePicker, DateRangeValue } from '@/components/axis';
+import { AxisSelect, AxisSelectOption, AxisSkeleton, AxisCallout, AxisButton, AxisNavigationTab, AxisToggle, AxisDateRangePicker, DateRangeValue } from '@/components/axis';
 import { GridWorkspace, MetricsOverviewWidget, TimeSeriesWidget, BarChartWidget, DataTableWidget, WidgetCatalog, WidgetSettings } from '@/components/workspace';
-import { UsersTab } from '@/components/dashboard/UsersTab';
-import { FeaturesTab } from '@/components/dashboard/FeaturesTab';
-import { ClientsTab } from '@/components/dashboard/ClientsTab';
-import { TrafficTab } from '@/components/dashboard/TrafficTab';
-import { TechnologyTab } from '@/components/dashboard/TechnologyTab';
-import { GeographyTab } from '@/components/dashboard/GeographyTab';
-import { EventsTab } from '@/components/dashboard/EventsTab';
-import { InsightsTab } from '@/components/dashboard/InsightsTab';
-import { EngagementCallsTab } from '@/components/dashboard/EngagementCallsTab';
-import { GrafanaTab } from '@/components/dashboard/GrafanaTab';
-import { PropertiesApiTab } from '@/components/dashboard/PropertiesApiTab';
-import { ClientDomainsTab } from '@/components/dashboard/ClientDomainsTab';
-import { ProductProjectsTab } from '@/components/dashboard/ProductProjectsTab';
 import { DEFAULT_LAYOUT, LAYOUT_STORAGE_KEY, OVERVIEW_WIDGET_CATALOG } from '@/lib/workspace/defaultLayouts';
+import {
+  MAIN_SECTION_TABS,
+  SUBSECTION_TABS_MAP,
+  GA4_DETAIL_TABS,
+  FEATURES_REI_DETAIL_TABS,
+  FEATURES_ROOFING_DETAIL_TABS,
+  PIPELINES_REI_DETAIL_TABS,
+  PIPELINES_ROOFING_DETAIL_TABS,
+  getDetailTabsForSubsection,
+  getDefaultDetailTab,
+} from '@/lib/navigation';
+import { useTabRefs } from '@/hooks/useTabRefs';
 import {
   exportToCSV,
   formatMetricsForExport,
@@ -29,15 +29,35 @@ import {
   formatFeatureUsageForExport,
   formatClientsForExport,
 } from '@/lib/export';
-import { Widget, TabHandle } from '@/types/widget';
+import { Widget } from '@/types/widget';
+
+// Lazy-load tab components — only loaded when the user navigates to them
+const TabSkeleton = () => <div className="flex-1 flex items-center justify-center p-8"><AxisSkeleton variant="custom" width="100%" height="256px" /></div>;
+
+const UsersTab = dynamic(() => import('@/components/dashboard/UsersTab').then(m => m.UsersTab), { loading: TabSkeleton, ssr: false });
+const FeaturesTab = dynamic(() => import('@/components/dashboard/FeaturesTab').then(m => m.FeaturesTab), { loading: TabSkeleton, ssr: false });
+const ClientsTab = dynamic(() => import('@/components/dashboard/ClientsTab').then(m => m.ClientsTab), { loading: TabSkeleton, ssr: false });
+const TrafficTab = dynamic(() => import('@/components/dashboard/TrafficTab').then(m => m.TrafficTab), { loading: TabSkeleton, ssr: false });
+const TechnologyTab = dynamic(() => import('@/components/dashboard/TechnologyTab').then(m => m.TechnologyTab), { loading: TabSkeleton, ssr: false });
+const GeographyTab = dynamic(() => import('@/components/dashboard/GeographyTab').then(m => m.GeographyTab), { loading: TabSkeleton, ssr: false });
+const EventsTab = dynamic(() => import('@/components/dashboard/EventsTab').then(m => m.EventsTab), { loading: TabSkeleton, ssr: false });
+const InsightsTab = dynamic(() => import('@/components/dashboard/InsightsTab').then(m => m.InsightsTab), { loading: TabSkeleton, ssr: false });
+const EngagementCallsTab = dynamic(() => import('@/components/dashboard/EngagementCallsTab').then(m => m.EngagementCallsTab), { loading: TabSkeleton, ssr: false });
+const GrafanaTab = dynamic(() => import('@/components/dashboard/GrafanaTab').then(m => m.GrafanaTab), { loading: TabSkeleton, ssr: false });
+const PropertiesApiTab = dynamic(() => import('@/components/dashboard/PropertiesApiTab').then(m => m.PropertiesApiTab), { loading: TabSkeleton, ssr: false });
+const ClientDomainsTab = dynamic(() => import('@/components/dashboard/ClientDomainsTab').then(m => m.ClientDomainsTab), { loading: TabSkeleton, ssr: false });
+const ProductProjectsTab = dynamic(() => import('@/components/dashboard/ProductProjectsTab').then(m => m.ProductProjectsTab), { loading: TabSkeleton, ssr: false });
+
+interface MetricValues {
+  total_users: number;
+  total_events: number;
+  page_views: number;
+  active_clients: number;
+}
 
 interface DashboardData {
-  metrics: {
-    total_users: number;
-    total_events: number;
-    page_views: number;
-    active_clients: number;
-  };
+  metrics: MetricValues;
+  previousMetrics: MetricValues | null;
   usersByDay: { event_date: string; users: number; events: number }[];
   featureUsage: { feature: string; views: number }[];
   topClients: { client: string; events: number; users: number; page_views: number }[];
@@ -50,140 +70,6 @@ const USER_TYPE_OPTIONS: AxisSelectOption[] = [
   { value: 'external', label: 'External Users' },
   { value: 'unclassified', label: 'Unclassified' },
 ];
-
-// ============================================================================
-// NAVIGATION STRUCTURE (3 Levels)
-// ============================================================================
-// Level 1: Main Sections (Analytics, Salesforce, Data, Tools, etc.)
-// Level 2: Sub-sections within each main section
-// Level 3: Detail tabs (Overview, Users, Features, etc.) - only for applicable sections
-// ============================================================================
-
-// First-level navigation - Main Sections (no icons)
-const MAIN_SECTION_TABS: AxisNavigationTabItem[] = [
-  { id: 'product', name: 'Product' },
-  { id: 'analytics', name: 'Analytics' },
-  { id: 'feedback-loop', name: 'Feedback Loop' },
-  { id: 'features', name: 'Features' },
-  { id: 'pipelines', name: 'Pipelines' },
-  { id: 'qa', name: 'QA' },
-  { id: 'ml-models', name: 'ML Models' },
-  { id: 'engagement-calls', name: 'Engagement Calls' },
-  { id: 'grafana', name: 'Grafana' },
-];
-
-// Second-level navigation - Sub-sections per Main Section
-
-// Product sub-sections (Level 2 — Product is now a top-level section)
-const PRODUCT_SUBSECTION_TABS: AxisNavigationTabItem[] = [
-  { id: 'client-domains', name: 'Client Domains' },
-  { id: 'product-jira-projects', name: 'Jira & Projects' },
-];
-
-// Analytics sub-sections (Product removed — it is now its own top-level section)
-const ANALYTICS_SUBSECTION_TABS: AxisNavigationTabItem[] = [
-  { id: '8020rei-ga4', name: '8020REI GA4' },
-  { id: '8020roofing-ga4', name: '8020Roofing GA4', disabled: true },
-];
-
-// Feedback Loop sub-sections (renamed from Salesforce; Feedback Loop sub-tab renamed to Salesforce)
-const FEEDBACK_LOOP_SUBSECTION_TABS: AxisNavigationTabItem[] = [
-  { id: 'salesforce', name: 'Salesforce' },
-  { id: 'import', name: 'Import' },
-  { id: 'integrations', name: 'Integrations' },
-  { id: 'leads-funnel', name: 'Leads Funnel' },
-  { id: 'delivery-audit', name: 'Delivery Audit' },
-];
-
-// Features vertical sub-sections (renamed from Tools; each vertical exposes Level 3 detail tabs)
-const FEATURES_SUBSECTION_TABS: AxisNavigationTabItem[] = [
-  { id: 'features-rei', name: '8020REI' },
-  { id: 'features-roofing', name: '8020Roofing' },
-];
-
-// Pipelines vertical sub-sections
-const PIPELINES_SUBSECTION_TABS: AxisNavigationTabItem[] = [
-  { id: 'pipelines-rei', name: '8020REI' },
-  { id: 'pipelines-roofing', name: '8020Roofing' },
-];
-
-// QA sub-sections
-const QA_SUBSECTION_TABS: AxisNavigationTabItem[] = [
-  { id: 'axiom-validation', name: 'Axiom Validation' },
-  { id: 'buybox-columns', name: 'BuyBox Columns' },
-  { id: 'smoke-sanity', name: 'Smoke & Sanity' },
-  { id: 'marketing-counter-reliability', name: 'Marketing Counter Reliability' },
-];
-
-// ML Models sub-sections
-const ML_MODELS_SUBSECTION_TABS: AxisNavigationTabItem[] = [
-  { id: 'deal-scoring', name: 'Deal Scoring' },
-  { id: 'model-performance', name: 'Model Performance' },
-  { id: 'drift-detection', name: 'Drift Detection' },
-];
-
-// Map main section to its sub-section tabs
-const SUBSECTION_TABS_MAP: Record<string, AxisNavigationTabItem[]> = {
-  'product': PRODUCT_SUBSECTION_TABS,
-  'analytics': ANALYTICS_SUBSECTION_TABS,
-  'feedback-loop': FEEDBACK_LOOP_SUBSECTION_TABS,
-  'features': FEATURES_SUBSECTION_TABS,
-  'pipelines': PIPELINES_SUBSECTION_TABS,
-  'qa': QA_SUBSECTION_TABS,
-  'ml-models': ML_MODELS_SUBSECTION_TABS,
-};
-
-// Third-level navigation - Detail tabs (for GA4 analytics sections, no icons)
-const GA4_DETAIL_TABS: AxisNavigationTabItem[] = [
-  { id: 'overview', name: 'Overview' },
-  { id: 'users', name: 'Users' },
-  { id: 'features', name: 'Features' },
-  { id: 'clients', name: 'Clients' },
-  { id: 'traffic', name: 'Traffic' },
-  { id: 'technology', name: 'Technology' },
-  { id: 'geography', name: 'Geography' },
-  { id: 'events', name: 'Events' },
-  { id: 'insights', name: 'Insights' },
-];
-
-// Third-level navigation - Detail tabs for Features > 8020REI
-const FEATURES_REI_DETAIL_TABS: AxisNavigationTabItem[] = [
-  { id: 'skiptrace', name: 'Skip Trace' },
-  { id: 'rapid-response', name: 'Rapid Response' },
-  { id: 'smart-drop', name: 'Smart Drop' },
-  { id: 'properties-api', name: 'Properties API' },
-  { id: 'auto-export', name: 'Auto Export' },
-  { id: 'zillow', name: 'Zillow' },
-  { id: 'roi', name: 'ROI' },
-  { id: 'buyers-list', name: 'Buyers List' },
-];
-
-// Third-level navigation - Detail tabs for Features > 8020Roofing
-const FEATURES_ROOFING_DETAIL_TABS: AxisNavigationTabItem[] = [
-  { id: 'zillow', name: 'Zillow' },
-  { id: 'upcoming-features', name: 'Upcoming Features' },
-];
-
-// Third-level navigation - Detail tabs for Pipelines > 8020 REI
-const PIPELINES_REI_DETAIL_TABS: AxisNavigationTabItem[] = [
-  { id: 'eda-etl', name: 'EDA ETL' },
-  { id: 'etl-rei', name: 'ETL REI' },
-];
-
-// Third-level navigation - Detail tabs for Pipelines > 8020 Roofing
-const PIPELINES_ROOFING_DETAIL_TABS: AxisNavigationTabItem[] = [
-  { id: 'etl-roofing', name: 'ETL Roofing' },
-];
-
-// Helper: get detail tabs for a given main section + subsection
-function getDetailTabsForSubsection(section: string, sub: string): AxisNavigationTabItem[] | null {
-  if (section === 'analytics' && (sub === '8020rei-ga4' || sub === '8020roofing-ga4')) return GA4_DETAIL_TABS;
-  if (section === 'features' && sub === 'features-rei') return FEATURES_REI_DETAIL_TABS;
-  if (section === 'features' && sub === 'features-roofing') return FEATURES_ROOFING_DETAIL_TABS;
-  if (section === 'pipelines' && sub === 'pipelines-rei') return PIPELINES_REI_DETAIL_TABS;
-  if (section === 'pipelines' && sub === 'pipelines-roofing') return PIPELINES_ROOFING_DETAIL_TABS;
-  return null;
-}
 
 function Dashboard() {
   const { user, loading: authLoading, signOut } = useAuth();
@@ -268,18 +154,8 @@ function Dashboard() {
     window.history.replaceState(null, '', newUrl);
   }, [activeMainSection, activeSubsection, activeDetailTab]);
 
-  // Refs for tab components to enable toolbar actions
-  const usersTabRef = useRef<TabHandle>(null);
-  const featuresTabRef = useRef<TabHandle>(null);
-  const clientsTabRef = useRef<TabHandle>(null);
-  const trafficTabRef = useRef<TabHandle>(null);
-  const technologyTabRef = useRef<TabHandle>(null);
-  const geographyTabRef = useRef<TabHandle>(null);
-  const eventsTabRef = useRef<TabHandle>(null);
-  const insightsTabRef = useRef<TabHandle>(null);
-  const clientDomainsTabRef = useRef<TabHandle>(null);
-  const productProjectsTabRef = useRef<TabHandle>(null);
-  const propertiesApiTabRef = useRef<TabHandle>(null);
+  // Tab refs for imperative actions (resetLayout, openWidgetCatalog)
+  const tabRefs = useTabRefs();
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -335,111 +211,25 @@ function Dashboard() {
 
   // Reset layout to default (unified for all tabs)
   const handleResetLayout = () => {
-    // Handle Product section tabs
-    if (activeMainSection === 'product') {
-      switch (activeSubsection) {
-        case 'client-domains':
-          clientDomainsTabRef.current?.resetLayout();
-          return;
-        case 'product-jira-projects':
-          productProjectsTabRef.current?.resetLayout();
-          return;
+    // Overview tab has its own layout state (not in a ref)
+    if (activeDetailTab === 'overview' && activeMainSection === 'analytics') {
+      setLayout(DEFAULT_LAYOUT);
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(LAYOUT_STORAGE_KEY);
       }
+      return;
     }
-    // Handle Features > 8020REI detail tabs
-    if (activeMainSection === 'features' && activeSubsection === 'features-rei') {
-      switch (activeDetailTab) {
-        case 'properties-api':
-          propertiesApiTabRef.current?.resetLayout();
-          return;
-      }
-    }
-    // Handle GA4 detail tabs
-    switch (activeDetailTab) {
-      case 'overview':
-        setLayout(DEFAULT_LAYOUT);
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem(LAYOUT_STORAGE_KEY);
-        }
-        break;
-      case 'users':
-        usersTabRef.current?.resetLayout();
-        break;
-      case 'features':
-        featuresTabRef.current?.resetLayout();
-        break;
-      case 'clients':
-        clientsTabRef.current?.resetLayout();
-        break;
-      case 'traffic':
-        trafficTabRef.current?.resetLayout();
-        break;
-      case 'technology':
-        technologyTabRef.current?.resetLayout();
-        break;
-      case 'geography':
-        geographyTabRef.current?.resetLayout();
-        break;
-      case 'events':
-        eventsTabRef.current?.resetLayout();
-        break;
-      case 'insights':
-        insightsTabRef.current?.resetLayout();
-        break;
-    }
+    tabRefs.resetLayout(activeMainSection, activeSubsection, activeDetailTab);
   };
 
   // Open widget catalog (unified for all tabs)
   const handleOpenWidgetCatalog = () => {
-    // Handle Product section tabs
-    if (activeMainSection === 'product') {
-      switch (activeSubsection) {
-        case 'client-domains':
-          clientDomainsTabRef.current?.openWidgetCatalog();
-          return;
-        case 'product-jira-projects':
-          productProjectsTabRef.current?.openWidgetCatalog();
-          return;
-      }
+    // Overview tab has its own catalog state (not in a ref)
+    if (activeDetailTab === 'overview' && activeMainSection === 'analytics') {
+      setShowWidgetCatalog(true);
+      return;
     }
-    // Handle Features > 8020REI detail tabs
-    if (activeMainSection === 'features' && activeSubsection === 'features-rei') {
-      switch (activeDetailTab) {
-        case 'properties-api':
-          propertiesApiTabRef.current?.openWidgetCatalog();
-          return;
-      }
-    }
-    // Handle GA4 detail tabs
-    switch (activeDetailTab) {
-      case 'overview':
-        setShowWidgetCatalog(true);
-        break;
-      case 'users':
-        usersTabRef.current?.openWidgetCatalog();
-        break;
-      case 'features':
-        featuresTabRef.current?.openWidgetCatalog();
-        break;
-      case 'clients':
-        clientsTabRef.current?.openWidgetCatalog();
-        break;
-      case 'traffic':
-        trafficTabRef.current?.openWidgetCatalog();
-        break;
-      case 'technology':
-        technologyTabRef.current?.openWidgetCatalog();
-        break;
-      case 'geography':
-        geographyTabRef.current?.openWidgetCatalog();
-        break;
-      case 'events':
-        eventsTabRef.current?.openWidgetCatalog();
-        break;
-      case 'insights':
-        insightsTabRef.current?.openWidgetCatalog();
-        break;
-    }
+    tabRefs.openWidgetCatalog(activeMainSection, activeSubsection, activeDetailTab);
   };
 
   // Add a new widget
@@ -526,7 +316,7 @@ function Dashboard() {
 
     // Keys must match widget TYPE (not id) since GridWorkspace looks up by type
     return {
-      'metrics': <MetricsOverviewWidget data={data.metrics} />,
+      'metrics': <MetricsOverviewWidget data={data.metrics} previousData={data.previousMetrics ?? undefined} />,
       'timeseries': <TimeSeriesWidget data={data.usersByDay} />,
       'barchart': <BarChartWidget data={data.featureUsage} />,
       'table': <DataTableWidget data={data.topClients} />,
@@ -731,14 +521,8 @@ function Dashboard() {
                 const firstEnabled = subsections.find(s => !s.disabled);
                 if (firstEnabled) {
                   setActiveSubsection(firstEnabled.id);
-                  // Reset detail tab based on first subsection of new section
-                  if (firstEnabled.id === '8020rei-ga4' || firstEnabled.id === '8020roofing-ga4') {
-                    setActiveDetailTab('overview');
-                  } else if (firstEnabled.id === 'features-rei') {
-                    setActiveDetailTab('skiptrace');
-                  } else if (firstEnabled.id === 'pipelines-rei') {
-                    setActiveDetailTab('eda-etl');
-                  }
+                  const defaultTab = getDefaultDetailTab(firstEnabled.id);
+                  if (defaultTab) setActiveDetailTab(defaultTab);
                 }
               }
             }}
@@ -755,18 +539,8 @@ function Dashboard() {
               activeTab={activeSubsection}
               onTabChange={(sub) => {
                 setActiveSubsection(sub);
-                // Reset detail tab based on new subsection
-                if (sub === '8020rei-ga4' || sub === '8020roofing-ga4') {
-                  setActiveDetailTab('overview');
-                } else if (sub === 'features-rei') {
-                  setActiveDetailTab('skiptrace');
-                } else if (sub === 'features-roofing') {
-                  setActiveDetailTab('upcoming-features');
-                } else if (sub === 'pipelines-rei') {
-                  setActiveDetailTab('eda-etl');
-                } else if (sub === 'pipelines-roofing') {
-                  setActiveDetailTab('etl-roofing');
-                }
+                const defaultTab = getDefaultDetailTab(sub);
+                if (defaultTab) setActiveDetailTab(defaultTab);
               }}
               tabs={SUBSECTION_TABS_MAP[activeMainSection]}
               variant="line"
@@ -903,7 +677,7 @@ function Dashboard() {
           {/* Users Tab */}
           {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && activeDetailTab === 'users' && (
             <UsersTab
-              ref={usersTabRef}
+              ref={tabRefs.refs['users']}
               days={days}
               userType={userType}
               startDate={startDate}
@@ -916,7 +690,7 @@ function Dashboard() {
           {/* Features Tab */}
           {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && activeDetailTab === 'features' && (
             <FeaturesTab
-              ref={featuresTabRef}
+              ref={tabRefs.refs['features']}
               days={days}
               userType={userType}
               startDate={startDate}
@@ -929,7 +703,7 @@ function Dashboard() {
           {/* Clients Tab */}
           {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && activeDetailTab === 'clients' && (
             <ClientsTab
-              ref={clientsTabRef}
+              ref={tabRefs.refs['clients']}
               days={days}
               userType={userType}
               startDate={startDate}
@@ -942,7 +716,7 @@ function Dashboard() {
           {/* Traffic Tab */}
           {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && activeDetailTab === 'traffic' && (
             <TrafficTab
-              ref={trafficTabRef}
+              ref={tabRefs.refs['traffic']}
               days={days}
               userType={userType}
               startDate={startDate}
@@ -955,7 +729,7 @@ function Dashboard() {
           {/* Technology Tab */}
           {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && activeDetailTab === 'technology' && (
             <TechnologyTab
-              ref={technologyTabRef}
+              ref={tabRefs.refs['technology']}
               days={days}
               userType={userType}
               startDate={startDate}
@@ -968,7 +742,7 @@ function Dashboard() {
           {/* Geography Tab */}
           {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && activeDetailTab === 'geography' && (
             <GeographyTab
-              ref={geographyTabRef}
+              ref={tabRefs.refs['geography']}
               days={days}
               userType={userType}
               startDate={startDate}
@@ -981,7 +755,7 @@ function Dashboard() {
           {/* Events Tab */}
           {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && activeDetailTab === 'events' && (
             <EventsTab
-              ref={eventsTabRef}
+              ref={tabRefs.refs['events']}
               days={days}
               userType={userType}
               startDate={startDate}
@@ -994,7 +768,7 @@ function Dashboard() {
           {/* Insights Tab */}
           {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && activeDetailTab === 'insights' && (
             <InsightsTab
-              ref={insightsTabRef}
+              ref={tabRefs.refs['insights']}
               days={days}
               userType={userType}
               startDate={startDate}
@@ -1017,7 +791,7 @@ function Dashboard() {
           {/* Product > Client Domains Tab */}
           {activeMainSection === 'product' && activeSubsection === 'client-domains' && (
             <ClientDomainsTab
-              ref={clientDomainsTabRef}
+              ref={tabRefs.refs['client-domains']}
               days={days}
               startDate={startDate}
               endDate={endDate}
@@ -1029,7 +803,7 @@ function Dashboard() {
           {/* Product > Product Jira & Projects Tab */}
           {activeMainSection === 'product' && activeSubsection === 'product-jira-projects' && (
             <ProductProjectsTab
-              ref={productProjectsTabRef}
+              ref={tabRefs.refs['product-jira-projects']}
               days={days}
               startDate={startDate}
               endDate={endDate}
@@ -1041,7 +815,7 @@ function Dashboard() {
           {/* Properties API Tab (Features > 8020REI > Properties API) */}
           {activeMainSection === 'features' && activeSubsection === 'features-rei' && activeDetailTab === 'properties-api' && (
             <PropertiesApiTab
-              ref={propertiesApiTabRef}
+              ref={tabRefs.refs['properties-api']}
               days={days}
               startDate={startDate}
               endDate={endDate}

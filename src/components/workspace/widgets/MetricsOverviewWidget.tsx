@@ -32,8 +32,7 @@ export function MetricsOverviewWidget({ data, previousData }: MetricsOverviewWid
   // Calculate trends based on previous data
   const calculateTrend = (current: number, previous?: number): TrendData | undefined => {
     if (!previous || previous === 0) {
-      // Return a mock positive trend if no previous data
-      return { value: Math.random() * 10 + 1, isPositive: true };
+      return undefined;
     }
     const change = ((current - previous) / previous) * 100;
     return { value: Math.abs(change), isPositive: change >= 0 };

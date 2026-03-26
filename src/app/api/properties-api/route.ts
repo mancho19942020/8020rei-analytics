@@ -295,9 +295,18 @@ async function getRecentLogs(days: number, params: URLSearchParams) {
   const status = params.get('status');
   const offset = (page - 1) * pageSize;
 
+  // Build parameterized conditions to prevent SQL injection
   const conditions: string[] = [`created_at >= NOW() - INTERVAL '${days} days'`];
-  if (clientId) conditions.push(`client_id = ${parseInt(clientId)}`);
-  if (endpoint) conditions.push(`endpoint = '${endpoint.replace(/'/g, "''")}'`);
+  const sqlParams: import('@aws-sdk/client-rds-data').SqlParameter[] = [];
+
+  if (clientId) {
+    conditions.push(`client_id = :clientId`);
+    sqlParams.push({ name: 'clientId', value: { longValue: parseInt(clientId) } });
+  }
+  if (endpoint) {
+    conditions.push(`endpoint = :endpoint`);
+    sqlParams.push({ name: 'endpoint', value: { stringValue: endpoint } });
+  }
   if (status === 'error') conditions.push('response_status >= 400');
   if (status === 'success') conditions.push('response_status < 400');
   const whereClause = conditions.join(' AND ');
@@ -316,10 +325,10 @@ async function getRecentLogs(days: number, params: URLSearchParams) {
       WHERE ${whereClause}
       ORDER BY created_at DESC
       LIMIT ${pageSize} OFFSET ${offset}
-    `),
+    `, sqlParams.length > 0 ? sqlParams : undefined),
     runAuroraQuery(`
       SELECT COUNT(*) as total FROM api_token_usage_logs WHERE ${whereClause}
-    `),
+    `, sqlParams.length > 0 ? sqlParams : undefined),
   ]);
 
   const total = Number(countRows[0]?.total || 0);

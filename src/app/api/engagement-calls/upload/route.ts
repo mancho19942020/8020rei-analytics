@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { uploadDocumentWithFolder } from '@/lib/google-drive';
-import { clearCache } from '@/lib/cache';
+import { clearCacheByPrefix } from '@/lib/cache';
 
 // Allowed file types
 const ALLOWED_MIME_TYPES = [
@@ -67,8 +67,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Clear the cache so the new document appears immediately
-    clearCache();
+    // Clear engagement-calls cache so the new document appears immediately
+    clearCacheByPrefix('engagement-calls');
 
     return NextResponse.json({
       success: true,

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getDocumentContent, DocumentContent } from '@/lib/google-drive';
 import { parseDocumentInsights, getDriveViewUrl, ClientInsight } from '@/lib/document-parser';
-import { getCached, setCache, clearCache } from '@/lib/cache';
+import { getCached, setCache, clearCacheByPrefix } from '@/lib/cache';
 
 interface DocumentWithInsights extends DocumentContent {
   clients: ClientInsight[];
@@ -33,7 +33,7 @@ export async function GET(request: Request, { params }: RouteParams) {
 
     const url = new URL(request.url);
     const refresh = url.searchParams.get('refresh') === 'true';
-    if (refresh) clearCache();
+    if (refresh) clearCacheByPrefix('engagement-calls');
 
     // Check cache (5 minute TTL)
     const cacheKey = `engagement-calls:doc:${id}`;
