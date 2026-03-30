@@ -625,6 +625,9 @@ function formatDate(value: CellValue): string {
     const date = new Date(String(value));
     if (isNaN(date.getTime())) return String(value);
 
+    const year = date.getFullYear();
+    if (year < 1900 || year > 2100) return '—';
+
     return date.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
