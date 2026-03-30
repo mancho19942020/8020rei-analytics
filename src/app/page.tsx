@@ -46,7 +46,6 @@ const EngagementCallsTab = dynamic(() => import('@/components/dashboard/Engageme
 const GrafanaTab = dynamic(() => import('@/components/dashboard/GrafanaTab').then(m => m.GrafanaTab), { loading: TabSkeleton, ssr: false });
 const PropertiesApiTab = dynamic(() => import('@/components/dashboard/PropertiesApiTab').then(m => m.PropertiesApiTab), { loading: TabSkeleton, ssr: false });
 const ClientDomainsTab = dynamic(() => import('@/components/dashboard/ClientDomainsTab').then(m => m.ClientDomainsTab), { loading: TabSkeleton, ssr: false });
-const ProductProjectsTab = dynamic(() => import('@/components/dashboard/ProductProjectsTab').then(m => m.ProductProjectsTab), { loading: TabSkeleton, ssr: false });
 
 interface MetricValues {
   total_users: number;
@@ -800,17 +799,6 @@ function Dashboard() {
             />
           )}
 
-          {/* Product > Product Jira & Projects Tab */}
-          {activeMainSection === 'product' && activeSubsection === 'product-jira-projects' && (
-            <ProductProjectsTab
-              ref={tabRefs.refs['product-jira-projects']}
-              days={days}
-              startDate={startDate}
-              endDate={endDate}
-              editMode={editMode}
-              onEditModeChange={setEditMode}
-            />
-          )}
 
           {/* Properties API Tab (Features > 8020REI > Properties API) */}
           {activeMainSection === 'features' && activeSubsection === 'features-rei' && activeDetailTab === 'properties-api' && (

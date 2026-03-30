@@ -26,7 +26,6 @@ export const MAIN_SECTION_TABS: AxisNavigationTabItem[] = [
 
 const PRODUCT_SUBSECTION_TABS: AxisNavigationTabItem[] = [
   { id: 'client-domains', name: 'Client Domains' },
-  { id: 'product-jira-projects', name: 'Jira & Projects' },
 ];
 
 const ANALYTICS_SUBSECTION_TABS: AxisNavigationTabItem[] = [

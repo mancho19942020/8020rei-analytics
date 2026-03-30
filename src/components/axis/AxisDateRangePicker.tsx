@@ -94,7 +94,7 @@ export function AxisDateRangePicker({
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-1 z-50 w-56 rounded-lg border border-[var(--border-default)] bg-[var(--surface-base)] shadow-lg overflow-hidden">
+        <div className="absolute right-0 top-full mt-1 z-50 w-72 rounded-lg border border-[var(--border-default)] bg-[var(--surface-base)] shadow-lg overflow-hidden">
           {/* Presets */}
           <div className="p-1.5">
             <div className="px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-[var(--text-tertiary)]">
