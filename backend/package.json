@@ -1,7 +1,7 @@
 {
   "name": "@8020lens/api",
   "version": "1.0.0",
-  "description": "Backend API for 8020 Lens - handles multi-source data integrations",
+  "description": "Backend API for Metrics Hub - handles multi-source data integrations",
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",

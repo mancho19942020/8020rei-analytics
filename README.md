@@ -1,4 +1,4 @@
-# 8020 Lens
+# Metrics Hub
 
 A comprehensive analytics and operations dashboard for 8020REI. Built with Next.js 16, TypeScript, and the Axis Design System. Features multi-source data integration (BigQuery, AWS Aurora, Google Drive), Firebase Authentication, and a drag-drop widget-based workspace.
 
@@ -29,7 +29,7 @@ A comprehensive analytics and operations dashboard for 8020REI. Built with Next.
 
 ## What is This?
 
-8020 Lens is the central dashboard for monitoring all 8020REI operations. It pulls data from multiple sources and presents it through a customizable widget-based interface.
+Metrics Hub is the central dashboard for monitoring all 8020REI operations. It pulls data from multiple sources and presents it through a customizable widget-based interface.
 
 **Currently active sections:**
 
@@ -848,7 +848,7 @@ The project was built over ~2 months (Feb–Mar 2026) with these major milestone
 3. **Integrations** (Feb 12–17) — Engagement Calls (Google Drive), Product tab (BigQuery)
 4. **Quality & Polish** (Feb 24–Mar 4) — Design system audit, Grafana tab, sticky header, URL deep linking
 5. **Advanced Features** (Mar 4–5) — Properties API (AWS Aurora), export enhancements
-6. **Rebrand** (Mar 25) — Renamed from "8020 Metrics Hub" to "8020 Lens", new logos
+6. **Rebrand** (Mar 25) — Renamed to "Metrics Hub", new logos
 7. **Refinement** (Mar 26–30) — Custom date ranges, lazy loading, SQL safety, cache limits
 
 ---
