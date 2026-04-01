@@ -31,7 +31,7 @@
 
 'use client';
 
-import { useEffect, useRef, ReactNode } from 'react';
+import { useEffect, useRef, useCallback, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
 type ModalSize = 'sm' | 'md' | 'lg';
@@ -69,7 +69,11 @@ export function AxisModal({
   disableBackdropClose = false,
 }: AxisModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
   const maxWidth = SIZE_WIDTHS[size];
+
+  // Keep onClose ref current without re-triggering effects
+  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
 
   // Lock body scroll while open
   useEffect(() => {
@@ -86,7 +90,7 @@ export function AxisModal({
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        onClose();
+        onCloseRef.current();
         return;
       }
 
@@ -115,7 +119,7 @@ export function AxisModal({
     };
 
     document.addEventListener('keydown', handleKeyDown);
-    // Move focus into dialog
+    // Move focus into dialog only when first opening
     setTimeout(() => {
       const dialog = dialogRef.current;
       if (!dialog) return;
@@ -126,7 +130,7 @@ export function AxisModal({
     }, 50);
 
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open || typeof document === 'undefined') return null;
 
@@ -153,7 +157,7 @@ export function AxisModal({
           backgroundColor: 'rgba(0, 0, 0, 0.45)',
           backdropFilter: 'blur(2px)',
         }}
-        onClick={disableBackdropClose ? undefined : onClose}
+        onClick={disableBackdropClose ? undefined : () => onCloseRef.current()}
         aria-hidden="true"
       />
 

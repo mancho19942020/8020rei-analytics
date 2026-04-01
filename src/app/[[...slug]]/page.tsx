@@ -6,6 +6,9 @@ import dynamic from 'next/dynamic';
 import { useAuth } from '@/lib/firebase/AuthContext';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { DesignKitButton } from '@/components/DesignKitButton';
+import { canAccessDesignKit } from '@/lib/access';
+import { SuggestionsButton } from '@/components/SuggestionsButton';
+import { SuggestionsModal } from '@/components/SuggestionsModal';
 import { Logo } from '@/components/Logo';
 import { AxisSelect, AxisSelectOption, AxisSkeleton, AxisCallout, AxisButton, AxisNavigationTab, AxisToggle, AxisDateRangePicker, DateRangeValue } from '@/components/axis';
 import { GridWorkspace, MetricsOverviewWidget, TimeSeriesWidget, BarChartWidget, DataTableWidget, WidgetCatalog, WidgetSettings } from '@/components/workspace';
@@ -95,6 +98,7 @@ function Dashboard({ slug }: { slug: string[] }) {
   const [activeDetailTab, setActiveDetailTab] = useState(initialNav.tab);
   const [editMode, setEditMode] = useState(false);
   const [showEditCallout, setShowEditCallout] = useState(false);
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const [showWidgetCatalog, setShowWidgetCatalog] = useState(false);
   const [selectedWidgetForSettings, setSelectedWidgetForSettings] = useState<Widget | null>(null);
   const [layout, setLayout] = useState<Widget[]>(() => {
@@ -418,12 +422,12 @@ function Dashboard({ slug }: { slug: string[] }) {
                 {/* User Type Filter */}
                 {activeMainSection !== 'customer-success' && !(activeMainSection === 'feedback-loop' && activeSubsection === 'import') && (
                   <AxisSelect
-                  value={userType}
-                  onChange={(val) => setUserType(val as 'all' | 'internal' | 'external' | 'unclassified')}
+                    value={userType}
+                    onChange={(val) => setUserType(val as 'all' | 'internal' | 'external' | 'unclassified')}
                     options={USER_TYPE_OPTIONS}
-                    size="sm"
+                    size="md"
                     fullWidth={false}
-                    className="w-36"
+                    className="w-40"
                   />
                 )}
 
@@ -431,16 +435,20 @@ function Dashboard({ slug }: { slug: string[] }) {
                 <AxisDateRangePicker
                   value={dateRange}
                   onChange={setDateRange}
-                  size="sm"
+                  size="md"
                 />
               </div>
 
-              {/* Divider */}
-              <div className="h-5 w-px bg-stroke mx-1" />
+              {/* Design Kit — visible only to authorized contributors */}
+              {canAccessDesignKit(user?.email) && (
+                <div className="h-9 flex items-center">
+                  <DesignKitButton />
+                </div>
+              )}
 
-              {/* Design Kit */}
+              {/* Suggestions */}
               <div className="h-9 flex items-center">
-                <DesignKitButton />
+                <SuggestionsButton onClick={() => setSuggestionsOpen(true)} />
               </div>
 
               {/* Theme Toggle */}
@@ -450,7 +458,7 @@ function Dashboard({ slug }: { slug: string[] }) {
 
               {/* User Info */}
               {user && (
-                <div className="h-9 flex items-center gap-2 px-3 bg-surface-raised rounded-lg border border-stroke">
+                <div className="h-9 flex items-center gap-2 px-3 bg-surface-raised rounded-sm border border-stroke">
                   {user.photoURL && (
                     <img
                       src={user.photoURL}
@@ -465,12 +473,13 @@ function Dashboard({ slug }: { slug: string[] }) {
               )}
 
               {/* Sign Out Button */}
-              <button
+              <AxisButton
+                variant="outlined"
+                size="md"
                 onClick={signOut}
-                className="h-9 px-3 bg-surface-raised border border-stroke text-content-secondary hover:bg-surface-base hover:text-content-primary hover:border-stroke-strong rounded-lg transition-colors duration-200 text-sm font-medium"
               >
                 Sign Out
-              </button>
+              </AxisButton>
             </div>
           </div>
         </header>
@@ -833,6 +842,13 @@ function Dashboard({ slug }: { slug: string[] }) {
         onClose={() => setSelectedWidgetForSettings(null)}
         onSave={handleUpdateWidget}
         onDelete={handleDeleteWidget}
+      />
+
+      {/* Suggestions Modal */}
+      <SuggestionsModal
+        isOpen={suggestionsOpen}
+        onClose={() => setSuggestionsOpen(false)}
+        user={user}
       />
     </div>
   );
