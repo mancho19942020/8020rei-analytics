@@ -35,7 +35,7 @@ A comprehensive analytics and operations dashboard for 8020REI. Built with Next.
 
 | Section | Description | Data Source |
 |---------|-------------|-------------|
-| **Product** | Client domains, product projects | BigQuery (Product) |
+| **Customer Success** | Client domains, product projects | BigQuery (Product) |
 | **Analytics** | GA4 data — users, events, features, traffic, geography, technology | BigQuery (GA4) |
 | **Features** | Feature-specific metrics — Properties API, Skip Trace, etc. | AWS Aurora, BigQuery |
 | **Engagement Calls** | Google Drive-based document management for client engagement notes | Google Drive API |
@@ -48,7 +48,7 @@ A comprehensive analytics and operations dashboard for 8020REI. Built with Next.
 ## Project Structure
 
 ```
-8020rei-analytics/
+8020-metrics-hub-build/
 ├── src/                          # Next.js frontend (App Router)
 │   ├── app/
 │   │   ├── page.tsx              # Main dashboard (all tabs, navigation, toolbar)
@@ -61,11 +61,11 @@ A comprehensive analytics and operations dashboard for 8020REI. Built with Next.
 │   │       ├── properties-api/   # AWS Aurora data
 │   │       └── diagnostics/      # Health checks
 │   ├── components/
-│   │   ├── axis/                 # Axis Design System (16 components)
+│   │   ├── axis/                 # Axis Design System (15 components)
 │   │   ├── charts/               # Recharts wrappers (Line, Bar, Stacked, Donut)
 │   │   ├── dashboard/            # Tab components (UsersTab, FeaturesTab, etc.)
 │   │   └── workspace/            # Widget system (GridWorkspace, Widget, WidgetCatalog)
-│   │       └── widgets/          # 50+ individual widget components
+│   │       └── widgets/          # 54 individual widget components
 │   ├── hooks/                    # Custom React hooks
 │   ├── lib/                      # Core utilities
 │   │   ├── bigquery.ts           # BigQuery client (GA4 + Product projects)
@@ -110,7 +110,7 @@ A comprehensive analytics and operations dashboard for 8020REI. Built with Next.
 │  ┌────────────┐  ┌──────────────┐  ┌──────────────────────────┐ │
 │  │ Firebase    │  │ 3-Level Nav  │  │ GridWorkspace            │ │
 │  │ Auth        │  │ (Section →   │  │ (react-grid-layout)      │ │
-│  │ (@8020rei)  │  │  Sub → Tab)  │  │  └─ 50+ Widget types    │ │
+│  │ (@8020rei)  │  │  Sub → Tab)  │  │  └─ 54 Widget types    │ │
 │  └────────────┘  └──────────────┘  └──────────────────────────┘ │
 └──────────────────────────┬───────────────────────────────────────┘
                            │ fetch()
@@ -157,8 +157,8 @@ All API routes use an in-memory TTL cache (`src/lib/cache.ts`):
 
 ```bash
 # Clone the repo
-git clone git@github.com:mancho19942020/8020rei-analytics.git
-cd 8020rei-analytics
+git clone git@github.com:mancho19942020/8020-metrics-hub-build.git
+cd 8020-metrics-hub-build
 
 # Install frontend dependencies
 npm install
@@ -173,8 +173,8 @@ gcloud auth application-default login
 ### Set Up Environment
 
 ```bash
-# Copy the example env file and fill in credentials
-cp .env.local.example .env.local
+# Create .env.local and fill in credentials (see Environment Variables section below)
+touch .env.local
 ```
 
 See [Environment Variables](#environment-variables) for what each variable does.
@@ -276,7 +276,7 @@ Local dev uses `gcloud auth application-default login`. In production (Cloud Run
 - **Project:** `bigquery-467404` (opsHub)
 - **Dataset:** `domain`
 - **Auth:** Separate service account key (`GOOGLE_APPLICATION_CREDENTIALS_PRODUCT_JSON`)
-- **Used by:** Product section (Client Domains, Product Projects)
+- **Used by:** Customer Success section (Client Domains, Product Projects)
 
 ### 3. AWS Aurora PostgreSQL
 
@@ -305,15 +305,15 @@ The dashboard uses a **3-level navigation hierarchy** defined in `src/lib/naviga
 
 ### Level 1 — Main Sections
 
-Product | Analytics | Feedback Loop | Features | Pipelines | QA | ML Models | Engagement Calls | Grafana
+Customer Success | Analytics | Feedback Loop | Features | Pipelines | QA | ML Models | Engagement Calls | Grafana
 
 ### Level 2 — Sub-sections (per main section)
 
 | Section | Sub-sections |
 |---------|-------------|
-| Product | Client Domains |
+| Customer Success | *(no subsections — renders directly)* |
 | Analytics | 8020REI GA4, 8020Roofing GA4 (disabled) |
-| Feedback Loop | Salesforce, Import, Integrations, Leads Funnel, Delivery Audit |
+| Feedback Loop | Import, Salesforce, Integrations, Leads Funnel, Delivery Audit |
 | Features | 8020REI, 8020Roofing |
 | Pipelines | 8020REI, 8020Roofing |
 | QA | Axiom Validation, BuyBox Columns, Smoke & Sanity, Marketing Counter Reliability |
@@ -795,7 +795,7 @@ Next.js is configured with `output: 'standalone'` in `next.config.ts` for this.
 | `src/lib/queries.ts` | GA4 SQL query builders |
 | `src/lib/cache.ts` | In-memory TTL cache |
 | `src/lib/workspace/defaultLayouts.ts` | Widget grid positions per tab |
-| `src/components/axis/` | Axis Design System (16 components) |
+| `src/components/axis/` | Axis Design System (15 components) |
 | `src/components/charts/` | Recharts wrappers |
 | `src/components/dashboard/` | Tab components (UsersTab, FeaturesTab, etc.) |
 | `src/components/workspace/` | Widget system (GridWorkspace, Widget, WidgetCatalog) |
