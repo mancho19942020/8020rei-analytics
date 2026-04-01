@@ -1,9 +1,8 @@
 /**
- * ClientDomainsTab Component
+ * ClientDomainsTab Component (Feedback Loop > Import)
  *
- * Product > Client Domains tab.
- * Tracks domain uploads, leads, appointments, deals, revenue,
- * and flags inactive/problematic domains.
+ * Tracks client data imports: properties, leads, appointments, deals, revenue,
+ * and flags inactive/problematic clients.
  *
  * Data source: BigQuery project bigquery-467404, table feedback_clients_unique
  */

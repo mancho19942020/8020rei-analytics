@@ -88,9 +88,9 @@ function Dashboard() {
 
   // Helper: resolve initial tab state from URL params
   const getInitialNavState = useCallback(() => {
-    const section = searchParams.get('section') || 'product';
+    const section = searchParams.get('section') || 'analytics';
     // Validate section exists
-    const validSection = MAIN_SECTION_TABS.find(t => t.id === section) ? section : 'product';
+    const validSection = MAIN_SECTION_TABS.find(t => t.id === section) ? section : 'analytics';
 
     // Resolve subsection
     const subParam = searchParams.get('sub');
@@ -449,7 +449,7 @@ function Dashboard() {
                 />
 
                 {/* User Type Filter */}
-                {activeMainSection !== 'product' && (
+                {activeMainSection !== 'customer-success' && !(activeMainSection === 'feedback-loop' && activeSubsection === 'import') && (
                   <AxisSelect
                   value={userType}
                   onChange={(val) => setUserType(val as 'all' | 'internal' | 'external' | 'unclassified')}
@@ -787,10 +787,10 @@ function Dashboard() {
             <GrafanaTab />
           )}
 
-          {/* Product > Client Domains Tab */}
-          {activeMainSection === 'product' && activeSubsection === 'client-domains' && (
+          {/* Feedback Loop > Import Tab */}
+          {activeMainSection === 'feedback-loop' && activeSubsection === 'import' && (
             <ClientDomainsTab
-              ref={tabRefs.refs['client-domains']}
+              ref={tabRefs.refs['import']}
               days={days}
               startDate={startDate}
               endDate={endDate}
@@ -813,9 +813,10 @@ function Dashboard() {
           )}
 
           {/* Under Construction placeholder for sections without real content */}
-          {activeMainSection !== 'product' && activeMainSection !== 'engagement-calls' && activeMainSection !== 'grafana' &&
+          {activeMainSection !== 'engagement-calls' && activeMainSection !== 'grafana' &&
            !(activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4') &&
-           !(activeMainSection === 'features' && activeSubsection === 'features-rei' && activeDetailTab === 'properties-api') && (
+           !(activeMainSection === 'features' && activeSubsection === 'features-rei' && activeDetailTab === 'properties-api') &&
+           !(activeMainSection === 'feedback-loop' && activeSubsection === 'import') && (
             <div className="flex items-center justify-center min-h-full">
               <div className="text-center">
                 {/* Construction Icon */}

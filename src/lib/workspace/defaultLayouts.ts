@@ -987,13 +987,13 @@ export const INSIGHTS_WIDGET_CATALOG: WidgetCatalogItem[] = [
 ];
 
 // ============================================================================
-// PRODUCT TAB LAYOUTS & CATALOGS
+// FEEDBACK LOOP > IMPORT TAB LAYOUTS & CATALOGS
 // ============================================================================
 
 /**
- * Product > Client Domains Layout Storage Key
+ * Feedback Loop > Import Layout Storage Key
  */
-export const PRODUCT_DOMAINS_LAYOUT_STORAGE_KEY = 'axis-product-domains-layout-v2';
+export const PRODUCT_DOMAINS_LAYOUT_STORAGE_KEY = 'axis-feedback-import-layout-v1';
 
 /**
  * Product > Product Projects Layout Storage Key
@@ -1001,13 +1001,13 @@ export const PRODUCT_DOMAINS_LAYOUT_STORAGE_KEY = 'axis-product-domains-layout-v
 export const PRODUCT_PROJECTS_LAYOUT_STORAGE_KEY = 'axis-product-projects-layout-v1';
 
 /**
- * Default Client Domains Tab Layout
+ * Default Feedback Loop > Import Tab Layout
  */
 export const DEFAULT_PRODUCT_DOMAINS_LAYOUT: Widget[] = [
   {
     id: 'domain-activity-overview',
     type: 'domain-activity-overview',
-    title: 'Domain Activity Overview',
+    title: 'Import Activity Overview',
     x: 0, y: 0,
     w: 12, h: 3,
     minW: 6, minH: 3, maxH: 4,
@@ -1015,7 +1015,7 @@ export const DEFAULT_PRODUCT_DOMAINS_LAYOUT: Widget[] = [
   {
     id: 'domain-leaderboard',
     type: 'domain-leaderboard',
-    title: 'Domain Leaderboard',
+    title: 'Client Import Leaderboard',
     x: 0, y: 3,
     w: 12, h: 6,
     minW: 6, minH: 5, maxW: 12, maxH: 10,
@@ -1023,7 +1023,7 @@ export const DEFAULT_PRODUCT_DOMAINS_LAYOUT: Widget[] = [
   {
     id: 'domain-activity-trend',
     type: 'domain-activity-trend',
-    title: 'Domain Activity Trend',
+    title: 'Import Volume Trend',
     x: 0, y: 9,
     w: 6, h: 5,
     minW: 4, minH: 4, maxW: 12, maxH: 8,
@@ -1031,7 +1031,7 @@ export const DEFAULT_PRODUCT_DOMAINS_LAYOUT: Widget[] = [
   {
     id: 'revenue-by-domain',
     type: 'revenue-by-domain',
-    title: 'Revenue by Domain',
+    title: 'Revenue by Client',
     x: 6, y: 9,
     w: 6, h: 5,
     minW: 4, minH: 4, maxW: 12, maxH: 8,
@@ -1085,34 +1085,34 @@ export const DEFAULT_PRODUCT_PROJECTS_LAYOUT: Widget[] = [
 ];
 
 /**
- * Client Domains Tab Widget Catalog
+ * Feedback Loop > Import Tab Widget Catalog
  */
 export const PRODUCT_DOMAINS_WIDGET_CATALOG: WidgetCatalogItem[] = [
   {
     type: 'domain-activity-overview',
-    title: 'Domain Activity Overview',
-    description: 'KPI cards for active domains, properties, leads, appointments, deals, revenue',
+    title: 'Import Activity Overview',
+    description: 'KPI cards for active clients, imported properties, leads, appointments, deals, revenue',
     iconKey: 'grid',
     defaultSize: { w: 12, h: 3 },
   },
   {
     type: 'domain-leaderboard',
-    title: 'Domain Leaderboard',
-    description: 'Ranked table of domains by activity with risk indicators',
+    title: 'Client Import Leaderboard',
+    description: 'Ranked table of clients by import activity with risk indicators',
     iconKey: 'table',
     defaultSize: { w: 12, h: 6 },
   },
   {
     type: 'domain-activity-trend',
-    title: 'Domain Activity Trend',
-    description: 'Line chart showing properties uploaded over time',
+    title: 'Import Volume Trend',
+    description: 'Line chart showing import volume over time',
     iconKey: 'lineChart',
     defaultSize: { w: 6, h: 5 },
   },
   {
     type: 'revenue-by-domain',
-    title: 'Revenue by Domain',
-    description: 'Horizontal bar chart of top domains by revenue',
+    title: 'Revenue by Client',
+    description: 'Horizontal bar chart of top clients by revenue',
     iconKey: 'barChart',
     defaultSize: { w: 6, h: 5 },
   },
@@ -1289,7 +1289,7 @@ export const TAB_WIDGET_CATALOGS: Record<string, WidgetCatalogItem[]> = {
   geography: GEOGRAPHY_WIDGET_CATALOG,
   events: EVENTS_WIDGET_CATALOG,
   insights: INSIGHTS_WIDGET_CATALOG,
-  'client-domains': PRODUCT_DOMAINS_WIDGET_CATALOG,
+  'import': PRODUCT_DOMAINS_WIDGET_CATALOG,
   'product-projects': PRODUCT_PROJECTS_WIDGET_CATALOG,
   'properties-api': PROPERTIES_API_WIDGET_CATALOG,
 };

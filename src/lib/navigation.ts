@@ -11,7 +11,7 @@ import { AxisNavigationTabItem } from '@/components/axis';
 
 // First-level navigation - Main Sections
 export const MAIN_SECTION_TABS: AxisNavigationTabItem[] = [
-  { id: 'product', name: 'Product' },
+  { id: 'customer-success', name: 'Customer Success' },
   { id: 'analytics', name: 'Analytics' },
   { id: 'feedback-loop', name: 'Feedback Loop' },
   { id: 'features', name: 'Features' },
@@ -24,18 +24,14 @@ export const MAIN_SECTION_TABS: AxisNavigationTabItem[] = [
 
 // Second-level navigation - Sub-sections per Main Section
 
-const PRODUCT_SUBSECTION_TABS: AxisNavigationTabItem[] = [
-  { id: 'client-domains', name: 'Client Domains' },
-];
-
 const ANALYTICS_SUBSECTION_TABS: AxisNavigationTabItem[] = [
   { id: '8020rei-ga4', name: '8020REI GA4' },
   { id: '8020roofing-ga4', name: '8020Roofing GA4', disabled: true },
 ];
 
 const FEEDBACK_LOOP_SUBSECTION_TABS: AxisNavigationTabItem[] = [
-  { id: 'salesforce', name: 'Salesforce' },
   { id: 'import', name: 'Import' },
+  { id: 'salesforce', name: 'Salesforce' },
   { id: 'integrations', name: 'Integrations' },
   { id: 'leads-funnel', name: 'Leads Funnel' },
   { id: 'delivery-audit', name: 'Delivery Audit' },
@@ -65,7 +61,7 @@ const ML_MODELS_SUBSECTION_TABS: AxisNavigationTabItem[] = [
 ];
 
 export const SUBSECTION_TABS_MAP: Record<string, AxisNavigationTabItem[]> = {
-  'product': PRODUCT_SUBSECTION_TABS,
+  // 'customer-success' has no subsections — renders Under Construction directly
   'analytics': ANALYTICS_SUBSECTION_TABS,
   'feedback-loop': FEEDBACK_LOOP_SUBSECTION_TABS,
   'features': FEATURES_SUBSECTION_TABS,

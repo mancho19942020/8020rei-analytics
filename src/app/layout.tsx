@@ -10,7 +10,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "8020LENS",
+  title: "Metrics Hub",
   description: "Analytics dashboard for 8020REI platform",
 };
 

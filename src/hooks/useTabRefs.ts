@@ -12,7 +12,7 @@ import { TabHandle } from '@/types/widget';
 type TabRefKey =
   | 'users' | 'features' | 'clients' | 'traffic' | 'technology'
   | 'geography' | 'events' | 'insights'
-  | 'client-domains' | 'product-jira-projects'
+  | 'import' | 'product-jira-projects'
   | 'properties-api';
 
 export function useTabRefs() {
@@ -25,7 +25,7 @@ export function useTabRefs() {
     'geography': useRef<TabHandle>(null),
     'events': useRef<TabHandle>(null),
     'insights': useRef<TabHandle>(null),
-    'client-domains': useRef<TabHandle>(null),
+    'import': useRef<TabHandle>(null),
     'product-jira-projects': useRef<TabHandle>(null),
     'properties-api': useRef<TabHandle>(null),
   };
@@ -38,12 +38,9 @@ export function useTabRefs() {
     subsection: string,
     detailTab: string
   ): TabRefKey | null => {
-    // Product section tabs
-    if (mainSection === 'product') {
-      if (subsection === 'client-domains' || subsection === 'product-jira-projects') {
-        return subsection as TabRefKey;
-      }
-      return null;
+    // Feedback Loop > Import tab
+    if (mainSection === 'feedback-loop' && subsection === 'import') {
+      return 'import';
     }
     // Features > 8020REI detail tabs
     if (mainSection === 'features' && subsection === 'features-rei') {

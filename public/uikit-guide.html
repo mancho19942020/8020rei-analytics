@@ -1,0 +1,1199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Building with Claude — UI Kit Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,300..700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg-deep: #0a0a0f;
+    --bg-card: #12121a;
+    --bg-elevated: #1a1a26;
+    --bg-hover: #22222e;
+    --accent: #6ee7b7;
+    --accent-dim: #34d39930;
+    --accent-glow: #6ee7b740;
+    --text-primary: #f0f0f5;
+    --text-secondary: #8888a0;
+    --text-tertiary: #55556a;
+    --border: #2a2a3a;
+    --warning: #fbbf24;
+    --error: #f87171;
+    --info: #60a5fa;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html {
+    scroll-behavior: smooth;
+    scroll-snap-type: y proximity;
+  }
+
+  body {
+    background: var(--bg-deep);
+    color: var(--text-primary);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 18px;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  /* ── NAV ── */
+  nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    background: #0a0a0fdd;
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 40px;
+    display: flex;
+    align-items: center;
+    height: 60px;
+    gap: 32px;
+  }
+  nav .logo {
+    font-family: 'Instrument Serif', serif;
+    font-size: 22px;
+    color: var(--accent);
+    letter-spacing: -0.5px;
+    white-space: nowrap;
+  }
+  nav .nav-links {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  nav .nav-links::-webkit-scrollbar { display: none; }
+  nav a {
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 6px 14px;
+    border-radius: 6px;
+    white-space: nowrap;
+    transition: all 0.2s;
+  }
+  nav a:hover, nav a.active {
+    color: var(--text-primary);
+    background: var(--bg-elevated);
+  }
+
+  /* ── SECTIONS ── */
+  section {
+    min-height: 100vh;
+    padding: 100px 40px 80px;
+    scroll-snap-align: start;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    position: relative;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  /* ── HERO ── */
+  .hero {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    position: relative;
+  }
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--accent-dim);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 6px 16px;
+    border-radius: 100px;
+    margin-bottom: 32px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .hero h1 {
+    font-family: 'Instrument Serif', serif;
+    font-size: clamp(48px, 6.5vw, 88px);
+    line-height: 1.05;
+    letter-spacing: -2px;
+    color: var(--text-primary);
+    max-width: 900px;
+    margin-bottom: 24px;
+  }
+  .hero h1 em {
+    font-style: italic;
+    color: var(--accent);
+  }
+  .hero .subtitle {
+    font-size: 20px;
+    color: var(--text-secondary);
+    max-width: 600px;
+    line-height: 1.7;
+    margin-bottom: 48px;
+  }
+  .hero-meta {
+    display: flex;
+    gap: 40px;
+    padding-top: 32px;
+    border-top: 1px solid var(--border);
+  }
+  .hero-meta div {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .hero-meta .label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-tertiary);
+    font-weight: 600;
+  }
+  .hero-meta .value {
+    font-size: 15px;
+    color: var(--text-secondary);
+  }
+
+  /* ── GLOW ORB ── */
+  .glow-orb {
+    position: fixed;
+    width: 600px;
+    height: 600px;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+    pointer-events: none;
+    top: -200px;
+    right: -200px;
+    z-index: -1;
+    opacity: 0.4;
+  }
+
+  /* ── SECTION HEADERS ── */
+  .section-number {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--accent);
+    letter-spacing: 2px;
+    margin-bottom: 16px;
+    font-weight: 500;
+  }
+  .section-title {
+    font-family: 'Instrument Serif', serif;
+    font-size: clamp(36px, 5vw, 56px);
+    line-height: 1.1;
+    letter-spacing: -1.5px;
+    margin-bottom: 20px;
+    max-width: 700px;
+  }
+  .section-subtitle {
+    font-size: 18px;
+    color: var(--text-secondary);
+    max-width: 620px;
+    margin-bottom: 48px;
+    line-height: 1.7;
+  }
+
+  /* ── CARDS ── */
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+  }
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 40px var(--accent-glow);
+  }
+  .card-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: var(--accent-dim);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    margin-bottom: 20px;
+  }
+  .card h3 {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    letter-spacing: -0.3px;
+  }
+  .card p {
+    font-size: 15px;
+    color: var(--text-secondary);
+    line-height: 1.65;
+  }
+
+  /* ── PYRAMID ── */
+  .pyramid-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    margin: 48px 0;
+  }
+  .pyramid-level {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 20px 32px;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    transition: all 0.3s;
+    cursor: default;
+  }
+  .pyramid-level:hover {
+    border-color: var(--accent);
+    box-shadow: 0 4px 30px var(--accent-glow);
+  }
+  .pyramid-level .level-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--accent);
+    min-width: 48px;
+  }
+  .pyramid-level .level-content h4 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .pyramid-level .level-content p {
+    font-size: 14px;
+    color: var(--text-secondary);
+  }
+  .pyramid-level:nth-child(1) { width: 40%; }
+  .pyramid-level:nth-child(2) { width: 55%; }
+  .pyramid-level:nth-child(3) { width: 70%; }
+  .pyramid-level:nth-child(4) { width: 85%; }
+  .pyramid-level:nth-child(5) { width: 100%; }
+
+  /* ── PROMPT BLOCK ── */
+  .prompt-block {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    margin: 16px 0;
+  }
+  .prompt-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 20px;
+    background: var(--bg-elevated);
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--text-tertiary);
+    font-weight: 600;
+  }
+  .prompt-header .prompt-tag {
+    background: var(--accent-dim);
+    color: var(--accent);
+    font-size: 11px;
+    padding: 2px 10px;
+    border-radius: 100px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .prompt-body {
+    padding: 24px;
+    font-size: 15px;
+    line-height: 1.8;
+    color: var(--text-secondary);
+  }
+  .prompt-body em {
+    color: var(--accent);
+    font-style: normal;
+    font-weight: 500;
+  }
+
+  /* ── TIP BOX ── */
+  .tip-box {
+    display: flex;
+    gap: 16px;
+    padding: 24px;
+    border-radius: 14px;
+    border: 1px solid;
+    margin: 20px 0;
+  }
+  .tip-box.info {
+    background: #60a5fa10;
+    border-color: #60a5fa40;
+  }
+  .tip-box.warning {
+    background: #fbbf2410;
+    border-color: #fbbf2440;
+  }
+  .tip-box.success {
+    background: #6ee7b710;
+    border-color: #6ee7b740;
+  }
+  .tip-box .tip-icon {
+    font-size: 20px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .tip-box .tip-content h4 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .tip-box .tip-content p {
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+  }
+
+  /* ── STEPS LIST ── */
+  .steps {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+    margin: 32px 0;
+    position: relative;
+  }
+  .steps::before {
+    content: '';
+    position: absolute;
+    left: 23px;
+    top: 48px;
+    bottom: 12px;
+    width: 2px;
+    background: linear-gradient(to bottom, var(--accent), var(--border));
+  }
+  .step {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+  }
+  .step-circle {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: var(--bg-card);
+    border: 2px solid var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--accent);
+    flex-shrink: 0;
+    z-index: 1;
+  }
+  .step-content h4 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .step-content p {
+    font-size: 15px;
+    color: var(--text-secondary);
+    line-height: 1.65;
+  }
+
+  /* ── COMPARISON ── */
+  .comparison {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin: 32px 0;
+  }
+  .comparison .col {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px;
+  }
+  .comparison .col.bad { border-color: #f8717140; }
+  .comparison .col.good { border-color: #6ee7b740; }
+  .comparison .col-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 20px;
+    font-weight: 600;
+    font-size: 15px;
+  }
+  .comparison .col.bad .col-header { color: var(--error); }
+  .comparison .col.good .col-header { color: var(--accent); }
+  .comparison ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .comparison li {
+    font-size: 14px;
+    color: var(--text-secondary);
+    padding-left: 24px;
+    position: relative;
+    line-height: 1.5;
+  }
+  .comparison .col.bad li::before {
+    content: '\2715';
+    position: absolute;
+    left: 0;
+    color: var(--error);
+    font-weight: 700;
+  }
+  .comparison .col.good li::before {
+    content: '\2713';
+    position: absolute;
+    left: 0;
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  /* ── CHECKLIST ── */
+  .checklist {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin: 24px 0;
+  }
+  .checklist-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 18px 24px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    font-size: 16px;
+    transition: all 0.2s;
+  }
+  .checklist-item:hover {
+    border-color: var(--accent);
+  }
+  .check-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: var(--accent-dim);
+    border: 1.5px solid var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent);
+    font-size: 14px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  /* ── DIVIDER ── */
+  .divider {
+    width: 100%;
+    height: 1px;
+    background: linear-gradient(to right, transparent, var(--border), transparent);
+    margin: 40px 0;
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    text-align: center;
+    padding: 60px 40px;
+    color: var(--text-tertiary);
+    font-size: 14px;
+    border-top: 1px solid var(--border);
+  }
+  footer .logo-footer {
+    font-family: 'Instrument Serif', serif;
+    font-size: 28px;
+    color: var(--accent);
+    margin-bottom: 12px;
+  }
+
+  /* ── SHOWCASE ── */
+  .showcase-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin: 20px 0;
+  }
+  .showcase-chip {
+    padding: 10px 20px;
+    border-radius: 10px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    font-size: 14px;
+    color: var(--text-secondary);
+    transition: all 0.2s;
+  }
+  .showcase-chip:hover {
+    border-color: var(--accent);
+    color: var(--text-primary);
+  }
+
+  /* ── FEATURE GRID ── */
+  .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin: 32px 0;
+  }
+  .feature-item {
+    padding: 24px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    text-align: center;
+  }
+  .feature-item .feat-icon {
+    font-size: 28px;
+    margin-bottom: 12px;
+  }
+  .feature-item h4 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .feature-item p {
+    font-size: 13px;
+    color: var(--text-tertiary);
+  }
+
+  /* ── AUDIT GRID ── */
+  .audit-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px;
+    margin: 32px 0;
+  }
+  .audit-item {
+    padding: 24px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+  }
+  .audit-item h4 {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .audit-item ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .audit-item li {
+    font-size: 14px;
+    color: var(--text-secondary);
+    padding-left: 20px;
+    position: relative;
+    line-height: 1.5;
+  }
+  .audit-item li::before {
+    content: '\2192';
+    position: absolute;
+    left: 0;
+    color: var(--accent);
+  }
+
+  /* ── ANIMATION ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .animate-in {
+    opacity: 0;
+    animation: fadeUp 0.7s ease forwards;
+  }
+  .delay-1 { animation-delay: 0.1s; }
+  .delay-2 { animation-delay: 0.2s; }
+  .delay-3 { animation-delay: 0.3s; }
+  .delay-4 { animation-delay: 0.4s; }
+  .delay-5 { animation-delay: 0.5s; }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 768px) {
+    section { padding: 80px 24px 60px; }
+    .comparison { grid-template-columns: 1fr; }
+    .feature-grid { grid-template-columns: 1fr 1fr; }
+    .pyramid-level { width: 100% !important; }
+    nav { padding: 0 20px; }
+    .audit-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="glow-orb"></div>
+
+<!-- ── NAVIGATION ── -->
+<nav>
+  <div class="logo">Building with Claude</div>
+  <div class="nav-links">
+    <a href="#order">The Right Order</a>
+    <a href="#step1">Your Identity</a>
+    <a href="#step2">Building Blocks</a>
+    <a href="#step3">Assemble</a>
+    <a href="#references">Find References</a>
+    <a href="#audit">Quality Check</a>
+    <a href="#challenge">This Week</a>
+  </div>
+</nav>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- HERO                                    -->
+<!-- ═══════════════════════════════════════ -->
+<section class="hero" id="top">
+  <div class="hero-badge animate-in">Week 5 — UI Kit Setup</div>
+  <h1 class="animate-in delay-1">How to guide Claude to build your <em>product</em> the right way.</h1>
+  <p class="subtitle animate-in delay-2">
+    You don't need to be a developer to build something great. You need to know
+    what to ask for, in what order, and how to tell if it looks right.
+    This guide teaches you exactly that.
+  </p>
+  <div class="hero-meta animate-in delay-3">
+    <div>
+      <span class="label">Who this is for</span>
+      <span class="value">Anyone building with AI</span>
+    </div>
+    <div>
+      <span class="label">What you'll learn</span>
+      <span class="value">The right order of work</span>
+    </div>
+    <div>
+      <span class="label">Reference</span>
+      <span class="value">8020 Lens platform</span>
+    </div>
+    <div>
+      <span class="label">Your tool</span>
+      <span class="value">Claude + your vision</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- SECTION 1 — THE RIGHT ORDER            -->
+<!-- ═══════════════════════════════════════ -->
+<section id="order">
+  <div class="section-number">01 / THE RIGHT ORDER</div>
+  <h2 class="section-title">Order matters more than speed.</h2>
+  <p class="section-subtitle">
+    The #1 mistake is asking Claude to build a full page right away.
+    That's like decorating a house before pouring the foundation. Instead, work in layers — each one supports the next.
+  </p>
+
+  <div class="pyramid-wrapper">
+    <div class="pyramid-level animate-in delay-5">
+      <div class="level-num">5</div>
+      <div class="level-content">
+        <h4>Full Screens</h4>
+        <p>Your dashboard, login, settings — assembled from the pieces below</p>
+      </div>
+    </div>
+    <div class="pyramid-level animate-in delay-4">
+      <div class="level-num">4</div>
+      <div class="level-content">
+        <h4>Sections &amp; Layouts</h4>
+        <p>Headers, sidebars, forms — combining your building blocks</p>
+      </div>
+    </div>
+    <div class="pyramid-level animate-in delay-3">
+      <div class="level-num">3</div>
+      <div class="level-content">
+        <h4>Building Blocks</h4>
+        <p>Buttons, cards, inputs, menus — reusable pieces that look &amp; feel consistent</p>
+      </div>
+    </div>
+    <div class="pyramid-level animate-in delay-2">
+      <div class="level-num">2</div>
+      <div class="level-content">
+        <h4>Your Visual Language</h4>
+        <p>Colors, fonts, spacing, shadows — rules that everything follows</p>
+      </div>
+    </div>
+    <div class="pyramid-level animate-in delay-1">
+      <div class="level-num">1</div>
+      <div class="level-content">
+        <h4>Your Brand Identity</h4>
+        <p>What mood does your product convey? What colors represent you?</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="tip-box success">
+    <div class="tip-icon">&#x1f4a1;</div>
+    <div class="tip-content">
+      <h4>Why this order?</h4>
+      <p>When you build from the bottom up, every new screen becomes <strong>assembly</strong> — just arranging pieces that already exist and already look great together. Skip a layer, and every new feature becomes a fight with inconsistent colors, mismatched fonts, and things that just feel "off."</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- SECTION 2 — STEP 1: BRAND IDENTITY     -->
+<!-- ═══════════════════════════════════════ -->
+<section id="step1">
+  <div class="section-number">02 / STEP 1</div>
+  <h2 class="section-title">Start by telling Claude who you are.</h2>
+  <p class="section-subtitle">
+    Before Claude writes a single line of code, it needs to understand your brand.
+    Think of it like briefing a designer — the clearer your brief, the better the result.
+  </p>
+
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-icon">&#x1f3a8;</div>
+      <h3>Pick Your Colors</h3>
+      <p>Choose a primary brand color and 1-2 accent colors. Find inspiration on sites you admire. You don't need to know hex codes — describe it: "a deep navy blue" or "warm coral, like Airbnb's orange."</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">&#x1f520;</div>
+      <h3>Choose Your Font</h3>
+      <p>Pick a font that matches your brand's personality. Modern and clean? Try something like Inter. Elegant and editorial? Try a serif. Just tell Claude the vibe — it will find the right one.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">&#x1f319;</div>
+      <h3>Light Mode, Dark Mode, or Both?</h3>
+      <p>Decide upfront. If you want both, tell Claude from the start so it sets things up correctly. Adding it later is much harder.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">&#x2728;</div>
+      <h3>What's the Mood?</h3>
+      <p>Is your product serious and professional? Fun and playful? Minimal and calm? This guides every visual decision — from button shapes to spacing between elements.</p>
+    </div>
+  </div>
+
+  <div style="margin-top: 32px;"></div>
+
+  <div class="prompt-block">
+    <div class="prompt-header">
+      <span class="prompt-tag">Example</span>
+      What to tell Claude in Step 1
+    </div>
+    <div class="prompt-body">
+      "I'm building a <em>[type of product]</em>. The brand uses <em>[color description]</em> as the main color. The mood should feel <em>[professional / playful / minimal / bold]</em>. I want to support <em>[light mode / dark mode / both]</em>. Please set up my project with a design system — define all the colors, fonts, and spacing as a visual language that every part of the app will follow. Make sure the colors work well together and are accessible."
+    </div>
+  </div>
+
+  <div class="tip-box warning">
+    <div class="tip-icon">&#x26a0;&#xfe0f;</div>
+    <div class="tip-content">
+      <h4>Why this is worth 10 minutes of thought</h4>
+      <p>If you skip this and go straight to "build me a dashboard," Claude will pick random colors and fonts each time you ask for something new. Your app ends up looking like five different apps glued together.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- SECTION 3 — STEP 2: BUILDING BLOCKS    -->
+<!-- ═══════════════════════════════════════ -->
+<section id="step2">
+  <div class="section-number">03 / STEP 2</div>
+  <h2 class="section-title">Ask Claude to build your pieces first.</h2>
+  <p class="section-subtitle">
+    Before building pages, ask Claude to create small, reusable pieces — buttons, cards, inputs. These are your building blocks. Every screen you build later will use them.
+  </p>
+
+  <h3 style="margin-bottom: 16px; font-size: 17px; color: var(--text-secondary); font-weight: 500;">
+    Common building blocks (you only need 3-5 to start)
+  </h3>
+
+  <div class="showcase-row">
+    <div class="showcase-chip">Button</div>
+    <div class="showcase-chip">Card</div>
+    <div class="showcase-chip">Text Input</div>
+    <div class="showcase-chip">Navigation Tabs</div>
+    <div class="showcase-chip">Dropdown</div>
+    <div class="showcase-chip">Toggle Switch</div>
+    <div class="showcase-chip">Table</div>
+    <div class="showcase-chip">Modal / Popup</div>
+    <div class="showcase-chip">Tag / Badge</div>
+    <div class="showcase-chip">Loading Skeleton</div>
+    <div class="showcase-chip">Tooltip</div>
+    <div class="showcase-chip">Alert / Callout</div>
+  </div>
+
+  <div class="divider"></div>
+
+  <h3 style="margin-bottom: 24px; font-size: 20px;">What to ask Claude for each block</h3>
+
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-icon">&#x1f504;</div>
+      <h3>Multiple Variations</h3>
+      <p>A button isn't just one button. Ask for variations: a main action button, a secondary/outline button, and a subtle/ghost button. Same for sizes: small, medium, large.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">&#x1f3a8;</div>
+      <h3>Consistent Styling</h3>
+      <p>Tell Claude: "Use the colors and fonts from the design system we already set up." This ensures every piece looks like it belongs to the same product.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">&#x1f4e6;</div>
+      <h3>Keep Them Independent</h3>
+      <p>Each piece should work on its own. A Button shouldn't depend on a specific page or feature. This way you can use it anywhere.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">&#x2705;</div>
+      <h3>Test Each One</h3>
+      <p>Before moving on, look at each piece. Does the button look clickable? Does it have a hover effect? Does the card look clean? Fix the small stuff now — it saves time later.</p>
+    </div>
+  </div>
+
+  <div style="margin-top: 32px;"></div>
+
+  <div class="prompt-block">
+    <div class="prompt-header">
+      <span class="prompt-tag">Example</span>
+      What to tell Claude in Step 2
+    </div>
+    <div class="prompt-body">
+      "Now create a set of reusable building blocks using the design system we defined. Start with: <em>a Button</em> (with filled, outlined, and subtle styles in small/medium/large sizes), <em>a Card</em> (a container with a title, content area, and subtle shadow), and <em>a Text Input</em> (with a label, placeholder, and error state). Make sure they all use the same colors and fonts from our design system, and they should work well in <em>[light / dark / both]</em> mode."
+    </div>
+  </div>
+
+  <div class="tip-box info">
+    <div class="tip-icon">&#x1f4d0;</div>
+    <div class="tip-content">
+      <h4>Start small — 3 blocks is enough</h4>
+      <p>For this week, you only need a Button, a Card, and an Input. Don't try to build 15 pieces upfront. Add more as your product actually needs them.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- SECTION 4 — STEP 3: ASSEMBLE           -->
+<!-- ═══════════════════════════════════════ -->
+<section id="step3">
+  <div class="section-number">04 / STEP 3</div>
+  <h2 class="section-title">Now assemble your screens.</h2>
+  <p class="section-subtitle">
+    With your identity defined and your building blocks ready, now you tell Claude to put them together into real screens. This is where things come alive.
+  </p>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-circle">A</div>
+      <div class="step-content">
+        <h4>Describe the screen, not the code</h4>
+        <p>Tell Claude what the user should see: "A clean dashboard with a header at the top, a navigation sidebar, and a main area that shows cards with key metrics." You don't need to say <em>how</em> to build it — just <em>what</em> it should look and feel like.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-circle">B</div>
+      <div class="step-content">
+        <h4>Remind Claude to use your existing pieces</h4>
+        <p>Say: "Use the Button, Card, and Input components we already built." This is the magic — instead of generating new random elements, Claude reuses the building blocks that already match your brand.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-circle">C</div>
+      <div class="step-content">
+        <h4>Add the AI interaction</h4>
+        <p>Once your screen looks right, add the smart part: "Add a text input where the user can type a question, a send button, and a card below that shows the AI response." Start with one simple interaction that works end-to-end.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-circle">D</div>
+      <div class="step-content">
+        <h4>Refine by describing what feels off</h4>
+        <p>Don't restart the conversation. Instead say things like: "The spacing between the cards feels too tight," or "The header doesn't stand out enough," or "Make the button more prominent." Claude understands visual feedback.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="prompt-block">
+    <div class="prompt-header">
+      <span class="prompt-tag">Example</span>
+      What to tell Claude in Step 3
+    </div>
+    <div class="prompt-body">
+      "Build me the main screen of my app. It should have a <em>header with my product name and a navigation bar</em>, and the main area should show <em>[describe what the user sees]</em>. Use the components we already created — the cards, buttons, and inputs. Make sure it feels <em>[clean / spacious / professional]</em> and follows our design system."
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- SECTION 5 — FIND REFERENCES            -->
+<!-- ═══════════════════════════════════════ -->
+<section id="references">
+  <div class="section-number">05 / FIND REFERENCES</div>
+  <h2 class="section-title">Don't design from scratch. Find what works and bring it.</h2>
+  <p class="section-subtitle">
+    The best products aren't invented — they're inspired. Before asking Claude to build something, find examples of apps that do it well and share them as references.
+  </p>
+
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-icon">&#x1f50d;</div>
+      <h3>Browse Real Products</h3>
+      <p>Before building, spend 10 minutes looking at products you admire. How does Notion handle navigation? How does Linear display a dashboard? How does Stripe handle forms? Screenshot what you like.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">&#x1f3a8;</div>
+      <h3>Explore Design Galleries</h3>
+      <p>Sites like Dribbble, Mobbin, or Godly showcase the best UI designs. Search for your type of product — "analytics dashboard," "AI chat interface," "settings page" — and save what resonates.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">&#x1f4ac;</div>
+      <h3>Tell Claude What You Found</h3>
+      <p>Share your references: "I like how Notion uses a clean sidebar with icons," or "I want cards similar to Linear's dashboard — minimal with subtle shadows." The more specific, the better the output.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">&#x1f9e0;</div>
+      <h3>Describe the UX, Not Just the Look</h3>
+      <p>Great design is about how things feel, not just how they look. "When I hover, buttons should have a smooth transition," or "The page should feel spacious, not crowded." Claude can deliver on UX cues.</p>
+    </div>
+  </div>
+
+  <div style="margin-top: 32px;"></div>
+
+  <div class="prompt-block">
+    <div class="prompt-header">
+      <span class="prompt-tag">Example</span>
+      Bringing references to Claude
+    </div>
+    <div class="prompt-body">
+      "For the navigation, I want something similar to <em>Notion's sidebar — clean, with icons next to each item</em>, and it should collapse on mobile. For the main content area, I like how <em>Linear shows cards in a grid — minimal design, lots of white space, subtle shadows on hover</em>. Please follow these references while using our existing design system."
+    </div>
+  </div>
+
+  <div class="tip-box success">
+    <div class="tip-icon">&#x1f680;</div>
+    <div class="tip-content">
+      <h4>The Reference Workflow</h4>
+      <p><strong>Find 2-3 products you admire &#8594; Screenshot the parts you like &#8594; Describe what you like about them to Claude &#8594; Let Claude build your version.</strong> This is how professionals work — they research before they create.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- SECTION 6 — QUALITY CHECK              -->
+<!-- ═══════════════════════════════════════ -->
+<section id="audit">
+  <div class="section-number">06 / QUALITY CHECK</div>
+  <h2 class="section-title">How to tell if it's built well.</h2>
+  <p class="section-subtitle">
+    You don't need to read code to check quality. Here's what to look for visually — if any of these feel off, tell Claude what to fix.
+  </p>
+
+  <div class="audit-grid">
+    <div class="audit-item">
+      <h4>&#x1f3a8; Color Consistency</h4>
+      <ul>
+        <li>Same blue used everywhere for primary actions?</li>
+        <li>Text colors feel consistent across all screens?</li>
+        <li>No random colors that don't belong to your palette?</li>
+        <li>Dark mode looks intentional, not just inverted?</li>
+      </ul>
+    </div>
+    <div class="audit-item">
+      <h4>&#x1f520; Typography</h4>
+      <ul>
+        <li>Only 1-2 fonts used across the whole app?</li>
+        <li>Headlines are clearly bigger than body text?</li>
+        <li>Text is easy to read — not too small, not too light?</li>
+        <li>Same font styling for similar elements?</li>
+      </ul>
+    </div>
+    <div class="audit-item">
+      <h4>&#x1f4d0; Spacing &amp; Alignment</h4>
+      <ul>
+        <li>Elements feel evenly spaced — nothing cramped?</li>
+        <li>Cards, buttons, and inputs are aligned properly?</li>
+        <li>Consistent padding inside cards and sections?</li>
+        <li>The page has "room to breathe" — not cluttered?</li>
+      </ul>
+    </div>
+    <div class="audit-item">
+      <h4>&#x1f5b1;&#xfe0f; Interactions</h4>
+      <ul>
+        <li>Buttons change on hover — visual feedback?</li>
+        <li>Clickable things look clickable?</li>
+        <li>Transitions feel smooth, not jumpy?</li>
+        <li>Focus states visible when tabbing with keyboard?</li>
+      </ul>
+    </div>
+    <div class="audit-item">
+      <h4>&#x1f9e9; Consistency</h4>
+      <ul>
+        <li>All buttons look the same style across pages?</li>
+        <li>Cards have the same shadow and border-radius?</li>
+        <li>Navigation looks identical on every screen?</li>
+        <li>If a pattern is used once, it's used everywhere?</li>
+      </ul>
+    </div>
+    <div class="audit-item">
+      <h4>&#x1f4f1; Usability</h4>
+      <ul>
+        <li>Layout makes sense — user knows where to look?</li>
+        <li>Most important content is the most visible?</li>
+        <li>It feels like one product, not parts glued together?</li>
+        <li>A new user could figure out what to do?</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="tip-box warning">
+    <div class="tip-icon">&#x26a0;&#xfe0f;</div>
+    <div class="tip-content">
+      <h4>When something feels off, describe the feeling</h4>
+      <p>You don't need technical words. Tell Claude: "The buttons feel too small," "There's too much empty space on the right," "The cards don't feel connected to each other," "The header looks disconnected from the rest." Claude understands this language perfectly.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- SECTION 7 — THIS WEEK                  -->
+<!-- ═══════════════════════════════════════ -->
+<section id="challenge">
+  <div class="section-number">07 / THIS WEEK</div>
+  <h2 class="section-title">Your Week 5 game plan.</h2>
+  <p class="section-subtitle">
+    Follow this order. Broken parts are fine — the goal is a working skeleton that proves the foundation is right.
+  </p>
+
+  <div class="checklist">
+    <div class="checklist-item">
+      <div class="check-icon">1</div>
+      <div>
+        <strong>Set up your project and CLAUDE.md</strong>
+        <span style="color: var(--text-secondary); font-size: 14px; display: block; margin-top: 4px;">
+          Ask Claude to scaffold your project and create a CLAUDE.md file that describes your stack, structure, and rules. This file makes Claude smarter about your project in every future conversation.
+        </span>
+      </div>
+    </div>
+    <div class="checklist-item">
+      <div class="check-icon">2</div>
+      <div>
+        <strong>Define your brand identity and visual language</strong>
+        <span style="color: var(--text-secondary); font-size: 14px; display: block; margin-top: 4px;">
+          Tell Claude your colors, fonts, and mood. Ask it to set up a design system with your visual language so every element follows the same rules.
+        </span>
+      </div>
+    </div>
+    <div class="checklist-item">
+      <div class="check-icon">3</div>
+      <div>
+        <strong>Build 2-3 building blocks</strong>
+        <span style="color: var(--text-secondary); font-size: 14px; display: block; margin-top: 4px;">
+          Ask Claude to create a Button, a Card, and an Input — with variations. Check that they look consistent and match your brand.
+        </span>
+      </div>
+    </div>
+    <div class="checklist-item">
+      <div class="check-icon">4</div>
+      <div>
+        <strong>Assemble your first screen</strong>
+        <span style="color: var(--text-secondary); font-size: 14px; display: block; margin-top: 4px;">
+          Tell Claude to build a layout using the pieces you created. A header, a main area, and your content. It should feel like a real product.
+        </span>
+      </div>
+    </div>
+    <div class="checklist-item">
+      <div class="check-icon">5</div>
+      <div>
+        <strong>Wire up one AI interaction</strong>
+        <span style="color: var(--text-secondary); font-size: 14px; display: block; margin-top: 4px;">
+          Add a simple flow: user types something &#x2192; it goes to the AI &#x2192; the response shows on screen. It can be simple — it just has to work.
+        </span>
+      </div>
+    </div>
+    <div class="checklist-item">
+      <div class="check-icon">6</div>
+      <div>
+        <strong>Do a quality check</strong>
+        <span style="color: var(--text-secondary); font-size: 14px; display: block; margin-top: 4px;">
+          Use the audit checklist above. Are colors consistent? Fonts matching? Spacing even? Fix what feels off before moving on.
+        </span>
+      </div>
+    </div>
+    <div class="checklist-item">
+      <div class="check-icon">7</div>
+      <div>
+        <strong>Record a walkthrough</strong>
+        <span style="color: var(--text-secondary); font-size: 14px; display: block; margin-top: 4px;">
+          Screen recording or live link showing what you built. Broken parts are expected. Progress is the point.
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <div class="tip-box success" style="margin-top: 32px;">
+    <div class="tip-icon">&#x1f525;</div>
+    <div class="tip-content">
+      <h4>Remember: Foundation &#x2192; Blocks &#x2192; Screens &#x2192; AI</h4>
+      <p>Don't skip ahead. The whole point of this order is that each step makes the next one easier. Trust the process.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── FOOTER ── -->
+<footer>
+  <div class="logo-footer">Building with Claude</div>
+  <p>Week 5 — The right order, the right quality.</p>
+  <p style="margin-top: 8px; color: var(--text-tertiary);">Reference: 8020 Lens — Axis Design System</p>
+</footer>
+
+<!-- ── SCROLL OBSERVER ── -->
+<script>
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.style.opacity = '1';
+        entry.target.style.transform = 'translateY(0)';
+      }
+    });
+  }, { threshold: 0.1 });
+
+  document.querySelectorAll('.card, .step, .checklist-item, .pyramid-level, .tip-box, .audit-item, .prompt-block').forEach(el => {
+    el.style.opacity = '0';
+    el.style.transform = 'translateY(20px)';
+    el.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+    observer.observe(el);
+  });
+
+  const sections = document.querySelectorAll('section[id]');
+  const navLinks = document.querySelectorAll('nav a');
+
+  window.addEventListener('scroll', () => {
+    let current = '';
+    sections.forEach(section => {
+      const top = section.offsetTop - 100;
+      if (scrollY >= top) current = section.id;
+    });
+    navLinks.forEach(link => {
+      link.classList.remove('active');
+      if (link.getAttribute('href') === '#' + current) link.classList.add('active');
+    });
+  });
+</script>
+
+</body>
+</html>
