@@ -31,18 +31,24 @@ A comprehensive analytics and operations dashboard for 8020REI. Built with Next.
 
 Metrics Hub is the central dashboard for monitoring all 8020REI operations. It pulls data from multiple sources and presents it through a customizable widget-based interface.
 
-**Currently active sections:**
+**Complete section map:**
 
-| Section | Status | Description | Data Source |
-|---------|--------|-------------|-------------|
-| **Analytics** | Live | GA4 data — users, events, features, traffic, geography, technology | BigQuery (GA4) |
-| **Feedback Loop › Import** | Live | Client domain import — the only active tab in Feedback Loop | BigQuery (Product) |
-| **Features › Properties API** | Live | Properties API metrics and usage; other Features tabs are under construction | AWS Aurora |
-| **Engagement Calls** | Live | Google Drive-based document management for client engagement notes | Google Drive API |
-| **Grafana** | Beta | Grafana dashboard directory with contributor profiles — not fully functional | Firestore |
-| **Customer Success** | Under construction | Placeholder — no active content yet | — |
-
-**Planned / under construction** (placeholder UI exists): Customer Success, Feedback Loop (remaining tabs), Features (remaining tabs), Pipelines, QA, ML Models
+| Section | Sub-section | Tab | Status | Data Source |
+|---------|-------------|-----|--------|-------------|
+| **Customer Success** | — | — | Under construction | — |
+| **Analytics** | 8020REI GA4 | Overview, Users, Features, Clients, Traffic, Technology, Geography, Events, Insights | ✅ Live | BigQuery (GA4) |
+| **Analytics** | 8020Roofing GA4 | — | Under construction | — |
+| **Feedback Loop** | — | Import | ✅ Live | BigQuery (Product) |
+| **Feedback Loop** | — | Salesforce, Integrations, Leads Funnel, Delivery Audit | Under construction | — |
+| **Features** | 8020REI | Properties API | ✅ Live | AWS Aurora |
+| **Features** | 8020REI | Skip Trace, Rapid Response, Smart Drop, Auto Export, Zillow, ROI, Buyers List | Under construction | — |
+| **Features** | 8020Roofing | Zillow, Upcoming Features | Under construction | — |
+| **Engagement Calls** | — | — | ✅ Live | Google Drive API |
+| **Grafana** | — | — | Beta (partial) | Firestore |
+| **Pipelines** | 8020REI | EDA ETL, ETL REI | Under construction | — |
+| **Pipelines** | 8020Roofing | ETL Roofing | Under construction | — |
+| **QA** | — | Axiom Validation, BuyBox Columns, Smoke & Sanity, Marketing Counter Reliability | Under construction | — |
+| **ML Models** | — | Deal Scoring, Model Performance, Drift Detection | Under construction | — |
 
 ---
 
