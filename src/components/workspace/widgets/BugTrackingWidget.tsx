@@ -50,7 +50,7 @@ function KpiBox({
       <span
         className={`text-xl font-bold tabular-nums ${
           highlight && value > 0
-            ? 'text-red-600 dark:text-red-400'
+            ? 'text-error-700 dark:text-error-300'
             : 'text-content-primary'
         }`}
       >

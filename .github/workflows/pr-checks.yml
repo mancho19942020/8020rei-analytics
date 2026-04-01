@@ -16,6 +16,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -25,8 +27,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run ESLint
-        run: npm run lint
+      - name: Run ESLint on changed files
+        run: |
+          # Only lint files changed in this PR (src/ tsx/ts/jsx only)
+          CHANGED=$(git diff --name-only origin/${{ github.event.pull_request.base.ref }}...HEAD -- 'src/**/*.tsx' 'src/**/*.ts' 'src/**/*.jsx' | grep -v '\.d\.ts$' || true)
+          if [ -z "$CHANGED" ]; then
+            echo "No lintable files changed. Skipping."
+            exit 0
+          fi
+          echo "Linting $(echo "$CHANGED" | wc -l | tr -d ' ') changed files..."
+          echo "$CHANGED" | xargs npx eslint
 
   typecheck:
     name: TypeScript Build

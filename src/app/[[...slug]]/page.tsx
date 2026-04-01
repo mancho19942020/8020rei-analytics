@@ -9,7 +9,6 @@ import { DesignKitButton } from '@/components/DesignKitButton';
 import { canAccessDesignKit } from '@/lib/access';
 import { SuggestionsButton } from '@/components/SuggestionsButton';
 import { SuggestionsModal } from '@/components/SuggestionsModal';
-import { Logo } from '@/components/Logo';
 import { AxisSelect, AxisSelectOption, AxisSkeleton, AxisCallout, AxisButton, AxisNavigationTab, AxisToggle, AxisDateRangePicker, DateRangeValue, AxisSidebar } from '@/components/axis';
 import { GridWorkspace, MetricsOverviewWidget, TimeSeriesWidget, BarChartWidget, DataTableWidget, WidgetCatalog, WidgetSettings } from '@/components/workspace';
 import { DEFAULT_LAYOUT, LAYOUT_STORAGE_KEY, OVERVIEW_WIDGET_CATALOG } from '@/lib/workspace/defaultLayouts';
@@ -157,17 +156,7 @@ function Dashboard({ slug }: { slug: string[] }) {
     }
   }, [user, authLoading, router]);
 
-  useEffect(() => {
-    if (user) {
-      fetchData();
-    }
-  }, [dateRange, userType, user]);
-
-  useEffect(() => {
-    if (editMode) setShowEditCallout(true);
-  }, [editMode]);
-
-  async function fetchData() {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
 
@@ -186,12 +175,22 @@ function Dashboard({ slug }: { slug: string[] }) {
       } else {
         setError(json.error || 'Error fetching data');
       }
-    } catch (err) {
+    } catch {
       setError('Failed to connect to API');
     }
 
     setLoading(false);
-  }
+  }, [dateRange, userType]);
+
+  useEffect(() => {
+    if (user) {
+      fetchData();
+    }
+  }, [fetchData, user]);
+
+  useEffect(() => {
+    if (editMode) setShowEditCallout(true);
+  }, [editMode]);
 
   // Handle layout changes
   const handleLayoutChange = (newLayout: Widget[]) => {

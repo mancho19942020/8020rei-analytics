@@ -65,8 +65,8 @@ function TrendBadge({ trend, tooltip }: { trend: TrendData; tooltip?: string }) 
   const colorClass = isNeutral
     ? 'text-content-tertiary'
     : isPositive
-      ? 'text-green-600 dark:text-green-400'
-      : 'text-red-600 dark:text-red-400';
+      ? 'text-success-700 dark:text-success-300'
+      : 'text-error-700 dark:text-error-300';
 
   return (
     <div className="relative group/trend flex-shrink-0">
@@ -87,7 +87,7 @@ function TrendBadge({ trend, tooltip }: { trend: TrendData; tooltip?: string }) 
         <span>{value.toFixed(1)}%</span>
       </div>
       {/* Instant CSS tooltip */}
-      <div className="absolute right-0 top-full mt-1 px-2 py-1 rounded-md bg-gray-900 dark:bg-gray-700 text-white text-[11px] font-normal whitespace-nowrap opacity-0 group-hover/trend:opacity-100 transition-opacity duration-75 pointer-events-none z-10">
+      <div className="absolute right-0 top-full mt-1 px-2 py-1 rounded-md bg-surface-overlay text-content-primary text-[11px] font-normal whitespace-nowrap opacity-0 group-hover/trend:opacity-100 transition-opacity duration-75 pointer-events-none z-10 border border-stroke">
         {tooltipText}
       </div>
     </div>

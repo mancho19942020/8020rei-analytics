@@ -151,7 +151,7 @@ export function Widget({
             <button
               type="button"
               onClick={onRemove}
-              className="p-1.5 hover:bg-error-50 dark:hover:bg-error-950 rounded transition-colors duration-150 text-content-secondary hover:text-error-700 dark:hover:text-error-400"
+              className="p-1.5 hover:bg-error-50 dark:hover:bg-error-950 rounded transition-colors duration-150 text-content-secondary hover:text-error-700 dark:hover:text-error-300"
               aria-label="Remove widget"
             >
               <svg
