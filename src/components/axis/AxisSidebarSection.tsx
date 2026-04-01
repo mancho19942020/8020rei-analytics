@@ -162,12 +162,12 @@ export function AxisSidebarSection({
 
   // Auto-expand when this section becomes active
   useEffect(() => {
-    if (isActive) setExpanded(true);
+    if (isActive) setExpanded(() => true);
   }, [isActive]);
 
   // Close flyout when sidebar expands
   useEffect(() => {
-    if (!collapsed) setFlyoutOpen(false);
+    if (!collapsed) setFlyoutOpen(() => false);
   }, [collapsed]);
 
   // Cleanup timeout on unmount

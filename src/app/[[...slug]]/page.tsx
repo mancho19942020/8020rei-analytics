@@ -127,6 +127,12 @@ function Dashboard({ slug }: { slug: string[] }) {
 
   // Tab refs for imperative actions (resetLayout, openWidgetCatalog)
   const tabRefs = useTabRefs();
+  // Destructure refs to avoid "Cannot access refs during render" (React Compiler)
+  const {
+    users: usersRef, features: featuresRef, clients: clientsRef, traffic: trafficRef,
+    technology: technologyRef, geography: geographyRef, events: eventsRef,
+    insights: insightsRef, import: importRef, 'properties-api': propertiesApiRef,
+  } = tabRefs.refs;
 
   // Sidebar navigation callbacks (shared between sidebar and legacy nav)
   const handleSectionChange = useCallback((section: string) => {
@@ -631,7 +637,7 @@ function Dashboard({ slug }: { slug: string[] }) {
           {/* Users Tab */}
           {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && activeDetailTab === 'users' && (
             <UsersTab
-              ref={tabRefs.refs['users']}
+              ref={usersRef}
               days={days}
               userType={userType}
               startDate={startDate}
@@ -644,7 +650,7 @@ function Dashboard({ slug }: { slug: string[] }) {
           {/* Features Tab */}
           {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && activeDetailTab === 'features' && (
             <FeaturesTab
-              ref={tabRefs.refs['features']}
+              ref={featuresRef}
               days={days}
               userType={userType}
               startDate={startDate}
@@ -657,7 +663,7 @@ function Dashboard({ slug }: { slug: string[] }) {
           {/* Clients Tab */}
           {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && activeDetailTab === 'clients' && (
             <ClientsTab
-              ref={tabRefs.refs['clients']}
+              ref={clientsRef}
               days={days}
               userType={userType}
               startDate={startDate}
@@ -670,7 +676,7 @@ function Dashboard({ slug }: { slug: string[] }) {
           {/* Traffic Tab */}
           {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && activeDetailTab === 'traffic' && (
             <TrafficTab
-              ref={tabRefs.refs['traffic']}
+              ref={trafficRef}
               days={days}
               userType={userType}
               startDate={startDate}
@@ -683,7 +689,7 @@ function Dashboard({ slug }: { slug: string[] }) {
           {/* Technology Tab */}
           {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && activeDetailTab === 'technology' && (
             <TechnologyTab
-              ref={tabRefs.refs['technology']}
+              ref={technologyRef}
               days={days}
               userType={userType}
               startDate={startDate}
@@ -696,7 +702,7 @@ function Dashboard({ slug }: { slug: string[] }) {
           {/* Geography Tab */}
           {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && activeDetailTab === 'geography' && (
             <GeographyTab
-              ref={tabRefs.refs['geography']}
+              ref={geographyRef}
               days={days}
               userType={userType}
               startDate={startDate}
@@ -709,7 +715,7 @@ function Dashboard({ slug }: { slug: string[] }) {
           {/* Events Tab */}
           {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && activeDetailTab === 'events' && (
             <EventsTab
-              ref={tabRefs.refs['events']}
+              ref={eventsRef}
               days={days}
               userType={userType}
               startDate={startDate}
@@ -722,7 +728,7 @@ function Dashboard({ slug }: { slug: string[] }) {
           {/* Insights Tab */}
           {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && activeDetailTab === 'insights' && (
             <InsightsTab
-              ref={tabRefs.refs['insights']}
+              ref={insightsRef}
               days={days}
               userType={userType}
               startDate={startDate}
@@ -745,7 +751,7 @@ function Dashboard({ slug }: { slug: string[] }) {
           {/* Feedback Loop > Import Tab */}
           {activeMainSection === 'feedback-loop' && activeSubsection === 'import' && (
             <ClientDomainsTab
-              ref={tabRefs.refs['import']}
+              ref={importRef}
               days={days}
               startDate={startDate}
               endDate={endDate}
@@ -758,7 +764,7 @@ function Dashboard({ slug }: { slug: string[] }) {
           {/* Properties API Tab (Features > 8020REI > Properties API) */}
           {activeMainSection === 'features' && activeSubsection === 'features-rei' && activeDetailTab === 'properties-api' && (
             <PropertiesApiTab
-              ref={tabRefs.refs['properties-api']}
+              ref={propertiesApiRef}
               days={days}
               startDate={startDate}
               endDate={endDate}

@@ -135,7 +135,7 @@ function SeverityInfoModal({ isOpen, onClose, severity }: SeverityInfoModalProps
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
+    setMounted(() => true);
   }, []);
 
   const info = SEVERITY_INFO[severity];

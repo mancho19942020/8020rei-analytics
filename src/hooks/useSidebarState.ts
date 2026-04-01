@@ -1,17 +1,17 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 
 const STORAGE_KEY = 'sidebar-collapsed';
 
 export function useSidebarState() {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem(STORAGE_KEY) === 'true';
+  });
 
-  // Hydrate from localStorage after mount
-  useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored === 'true') setCollapsed(true);
-  }, []);
+  // Track if initial mount has happened
+  const mounted = useRef(false);
 
   const toggle = useCallback(() => {
     setCollapsed(prev => {
@@ -23,20 +23,25 @@ export function useSidebarState() {
 
   // Auto-collapse on small screens
   useEffect(() => {
+    mounted.current = true;
     const mq = window.matchMedia('(max-width: 768px)');
     const handler = (e: MediaQueryListEvent) => {
       if (e.matches) {
-        setCollapsed(true);
-        localStorage.setItem(STORAGE_KEY, 'true');
+        setCollapsed(() => {
+          localStorage.setItem(STORAGE_KEY, 'true');
+          return true;
+        });
       }
     };
     mq.addEventListener('change', handler);
-    if (mq.matches) {
-      setCollapsed(true);
-      localStorage.setItem(STORAGE_KEY, 'true');
+    if (mq.matches && !collapsed) {
+      setCollapsed(() => {
+        localStorage.setItem(STORAGE_KEY, 'true');
+        return true;
+      });
     }
     return () => mq.removeEventListener('change', handler);
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return { collapsed, toggle, setCollapsed };
 }
