@@ -67,7 +67,7 @@ const AlertIcon = () => (
 
 export function ApiOverviewWidget({ data }: ApiOverviewWidgetProps) {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full h-full">
+    <div className="flex w-full h-full flush-cards">
       <MetricCard
         label="Total API Calls"
         value={data.totalCalls}

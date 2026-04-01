@@ -119,14 +119,14 @@ export function MetricCard({
   }, [value, format]);
 
   return (
-    <div className="flex flex-col justify-between p-4 bg-surface-raised rounded-2xl border border-stroke hover:border-stroke-strong hover:shadow-sm transition-all duration-200 h-full min-w-0">
+    <div className="flex flex-col gap-2 p-3 bg-surface-raised border border-stroke hover:border-stroke-strong transition-all duration-200 min-w-0 flex-1 h-full">
       {/* Header: label + trend */}
       <div className="flex items-center justify-between gap-2 min-w-0">
         <span className="text-sm font-medium text-content-secondary truncate">{label}</span>
         {trend && <TrendBadge trend={trend} tooltip={subtitle} />}
       </div>
-      {/* Hero value — anchored to bottom for equal visual weight */}
-      <div className="text-[2.5rem] font-bold text-content-primary tabular-nums leading-none tracking-tight mt-auto">
+      {/* Hero value */}
+      <div className="text-[2.25rem] font-bold text-content-primary tabular-nums leading-[40px] tracking-tight">
         {displayValue}
       </div>
     </div>

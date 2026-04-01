@@ -402,6 +402,55 @@ body {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   FLUSH CARD GRID — edge-to-edge cards inside widgets
+   Bottom-left radius on first child, bottom-right radius on last child.
+   Matches the Widget header's rounded-t-lg (8px).
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.flush-cards > *:first-child {
+  border-bottom-left-radius: 0.5rem; /* 8px = rounded-lg */
+}
+
+.flush-cards > *:last-child {
+  border-bottom-right-radius: 0.5rem;
+}
+
+/* Vertical flush cards (e.g. device category) */
+.flush-cards-vertical > *:last-child {
+  border-bottom-left-radius: 0.5rem;
+  border-bottom-right-radius: 0.5rem;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SIDEBAR NAVIGATION
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Sidebar width transition */
+.sidebar-transition {
+  transition: width 200ms ease-in-out;
+}
+
+/* Sidebar active item — filled blue block, no left border */
+.sidebar-item-active {
+  background-color: var(--color-main-700);
+  color: #ffffff;
+}
+
+.dark .sidebar-item-active {
+  background-color: var(--color-main-700);
+  color: #ffffff;
+}
+
+/* Sidebar flyout popover — appears when hovering collapsed sidebar sections */
+.sidebar-flyout {
+  background-color: var(--surface-chrome);
+}
+
+.dark .sidebar-flyout {
+  background-color: var(--surface-chrome);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    SELECTED TAB STYLING
    ═══════════════════════════════════════════════════════════════════════════
    Uses semantic --color-tab-selection token for high contrast in both modes:

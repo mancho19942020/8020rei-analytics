@@ -10,11 +10,26 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { ResponsiveGridLayout, Layout, LayoutItem } from 'react-grid-layout';
 import { Widget } from './Widget';
-import { Widget as WidgetConfig } from '@/types/widget';
+import { Widget as WidgetConfig, WidgetType } from '@/types/widget';
 import { GRID_CONFIG } from '@/lib/workspace/defaultLayouts';
 
 // Import react-grid-layout CSS
 import 'react-grid-layout/css/styles.css';
+
+/** Widget types whose body content goes edge-to-edge (no padding) */
+const FLUSH_BODY_WIDGETS = new Set<WidgetType>([
+  'metrics',
+  'engagement-metrics',
+  'event-metrics',
+  'clients-overview',
+  'project-status-overview',
+  'api-overview',
+  'domain-activity-overview',
+  'user-activity',
+  'session-summary',
+  'device-category',
+  'insights-summary',
+]);
 
 export interface GridWorkspaceProps {
   /** Widget configurations */
@@ -140,6 +155,7 @@ export function GridWorkspace({
             <Widget
               title={widgetConfig.title}
               editMode={editMode}
+              flushBody={FLUSH_BODY_WIDGETS.has(widgetConfig.type)}
               onRemove={() => handleRemoveWidget(widgetConfig.id)}
               onSettings={onWidgetSettings ? () => onWidgetSettings(widgetConfig.id) : undefined}
               onExport={onWidgetExport ? () => onWidgetExport(widgetConfig.id) : undefined}

@@ -74,7 +74,7 @@ export function DeviceCategoryWidget({ data }: DeviceCategoryWidgetProps) {
   const hasTablet = tablet && tablet.users > 0;
 
   return (
-    <div className="flex flex-col gap-3 w-full h-full">
+    <div className="flex flex-col w-full h-full flush-cards-vertical">
       {/* Desktop */}
       {desktop && (
         <MetricCard

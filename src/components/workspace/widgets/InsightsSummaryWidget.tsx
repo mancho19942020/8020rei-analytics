@@ -324,7 +324,7 @@ function SeverityCard({ label, count, icon, color, description, onLearnMore }: S
   const classes = colorClasses[color];
 
   return (
-    <div className={`flex flex-col p-3 bg-surface-raised rounded-xl border ${classes.border} hover:shadow-sm transition-all duration-200`}>
+    <div className={`flex flex-col p-3 bg-surface-raised border ${classes.border} transition-all duration-200 flex-1 min-w-0`}>
       {/* Header: Icon + Label + Learn More */}
       <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-2">
@@ -377,7 +377,7 @@ export function InsightsSummaryWidget({ data }: InsightsSummaryWidgetProps) {
 
   return (
     <>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
+      <div className="flex w-full h-full flush-cards">
         {/* Critical Alerts */}
         <SeverityCard
           label="Critical"
