@@ -11,7 +11,8 @@ const eslintConfig = defineConfig([
     // flags but are architecturally valid. These should be addressed over
     // time but must not block PRs.
     rules: {
-      "react-compiler/react-compiler": "warn",
+      "react-hooks/set-state-in-effect": "warn",
+      "react-hooks/preserve-manual-memoization": "warn",
     },
   },
   // Override default ignores of eslint-config-next.
