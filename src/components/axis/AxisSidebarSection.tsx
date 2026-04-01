@@ -103,7 +103,7 @@ function SidebarFlyout({
           top: flyoutTop,
           zIndex: 50,
         }}
-        className="sidebar-flyout min-w-[180px] max-w-[220px] rounded-lg border border-stroke shadow-lg py-1.5"
+        className="sidebar-flyout min-w-[180px] max-w-[220px] rounded-lg border border-stroke shadow-lg py-1.5 bg-surface-base"
         role="menu"
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
