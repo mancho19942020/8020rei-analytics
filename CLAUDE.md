@@ -94,11 +94,11 @@ Widgets live in `src/components/workspace/widgets/`. Each widget receives data v
 - `credentials/` directory holds service account key files
 - Next.js output mode: `standalone` (for Docker/Cloud Run deployment)
 
-## CRITICAL: Deploy Protocol
+## Deploy Protocol
 
-**There is NO CI/CD pipeline.** Pushing to GitHub does NOT deploy to Cloud Run. Whenever the user asks to push, you MUST also deploy. Read `.claude/skills/deploy-to-cloud-run/SKILL.md` for the full protocol.
+Pushing to `main` (directly or via merged PR) **automatically deploys** to Cloud Run via GitHub Actions (`.github/workflows/deploy.yml`). No manual deploy step is needed.
 
-Quick reference: after `git push origin main`, always run the deploy script from the skill (regenerate env vars YAML, then `gcloud run deploy`).
+If auto-deploy fails, read `.claude/skills/deploy-to-cloud-run/SKILL.md` for the manual fallback protocol.
 
 ## Other Skills
 

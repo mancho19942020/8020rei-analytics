@@ -20,7 +20,7 @@ A comprehensive analytics and operations dashboard for 8020REI. Built with Next.
 - [Building New Sections](#building-new-sections)
 - [Widget System](#widget-system)
 - [API Routes](#api-routes)
-- [Deployment](#deployment)
+- [CI/CD and Deployment](#cicd-and-deployment)
 - [Styling Guide](#styling-guide)
 - [Key Files Reference](#key-files-reference)
 - [Troubleshooting](#troubleshooting)
@@ -517,14 +517,14 @@ export const DEFAULT_MY_LAYOUT: Widget[] = [
     id: 'my-metrics',
     type: 'metrics',
     title: 'Key Metrics',
-    x: 0, y: 0, w: 12, h: 3,
-    minW: 6, minH: 3, maxW: 12, maxH: 4,
+    x: 0, y: 0, w: 12, h: 2,
+    minW: 6, minH: 2, maxH: 2,
   },
   {
     id: 'my-chart',
     type: 'timeseries',
     title: 'Trend Over Time',
-    x: 0, y: 3, w: 12, h: 5,
+    x: 0, y: 2, w: 12, h: 5,
     minW: 4, minH: 4, maxW: 12, maxH: 8,
   },
 ];
@@ -601,12 +601,12 @@ The dashboard uses `react-grid-layout` for draggable, resizable widgets.
 
 ### Widget Size Constraints
 
-| Widget Type | Min Size | Max Size |
-|-------------|----------|----------|
-| Metrics/Scorecards | 6x3 | 12x4 |
-| Line/Bar Charts | 4x4 | 12x8 |
-| Donut Charts | 4x4 | 8x8 |
-| Tables | 6x4 | 12x12 |
+| Widget Type | Min Size | Max Size | Notes |
+|-------------|----------|----------|-------|
+| Metrics/Scorecards | 6x2 | 12x2 | Flush card layout — compact h=2 cells |
+| Line/Bar Charts | 4x4 | 12x8 | |
+| Donut Charts | 4x4 | 8x8 | |
+| Tables | 6x4 | 12x12 | |
 
 ### Creating a New Widget
 
@@ -657,76 +657,60 @@ Most metrics endpoints accept:
 
 ---
 
-## Deployment
+## CI/CD and Deployment
 
-### CRITICAL: There is NO CI/CD pipeline
+### Automatic deployment
 
-`git push` does **NOT** deploy. After every push, you must manually deploy to Cloud Run.
+Every push to `main` (including merged PRs) automatically deploys to Cloud Run via GitHub Actions. No manual steps required.
 
-### Deployment Steps
+The workflow (`.github/workflows/deploy.yml`):
+1. Authenticates to GCP using a dedicated service account (`github-actions-deploy`)
+2. Generates the env vars YAML from GitHub Secrets
+3. Runs `gcloud run deploy --source .` (Cloud Build builds the Docker image)
+4. Verifies the service is responding
 
-**1. Push to GitHub:**
-```bash
-git push origin main
+### PR quality gates
+
+PRs to `main` must pass three checks before merging (`.github/workflows/pr-checks.yml`):
+
+| Check | What it does |
+|-------|--------------|
+| **ESLint** | Lints only changed files — catches syntax errors, unused vars, React hook violations |
+| **TypeScript Build** | Full `npm run build` — ensures no type errors and pages render |
+| **Design System Compliance** | Custom script (`scripts/check-design-system.sh`) — catches raw Tailwind colors, forbidden shades, missing dark mode, raw HTML tables |
+
+### Branch protection
+
+- **Collaborators** must open a PR, pass all 3 checks, and get 1 approval to merge
+- **Admin** (repo owner) can push directly to main and bypass checks when needed
+- Force pushes and branch deletion are blocked for everyone
+
+### Contributing workflow
+
+```
+1. Create a feature branch:  git checkout -b my-feature
+2. Make changes and commit
+3. Push and open a PR:       git push -u origin my-feature && gh pr create
+4. CI runs automatically — fix any failures
+5. Get approval and merge
+6. Auto-deploy triggers — changes are live in ~3 minutes
 ```
 
-**2. Regenerate env vars file** (converts `.env.local` credentials to YAML format for Cloud Run):
+### Manual deployment (fallback)
+
+If you need to deploy manually (e.g., the GitHub Actions workflow is down):
+
 ```bash
-python3 -c "
-import json, sys, os
-os.chdir('/path/to/8020rei-analytics')
+# Regenerate env vars from .env.local
+python3 scripts/generate-env-vars.py  # or use the inline script in .claude/skills/deploy-to-cloud-run/SKILL.md
 
-# Read BigQuery Product credentials
-bq_creds = None
-with open('.env.local') as f:
-    for line in f:
-        if line.startswith('GOOGLE_APPLICATION_CREDENTIALS_PRODUCT_JSON='):
-            bq_creds = line.split('=', 1)[1].strip()
-            break
-
-# Read Google Drive credentials
-with open('credentials/google-drive-key.json') as f:
-    drive_creds = f.read().strip()
-
-# Read Aurora credentials
-aurora_vars = {}
-aurora_keys = ['DB_AURORA_RESOURCE_ARN', 'DB_AURORA_SECRET_ARN', 'DB_AURORA_ACCESS_KEY_ID',
-               'DB_AURORA_SECRET_ACCESS_KEY', 'DB_AURORA_DEFAULT_REGION', 'AWS_AURORA_GRAFANA_DB']
-with open('.env.local') as f:
-    for line in f:
-        for key in aurora_keys:
-            if line.startswith(key + '='):
-                aurora_vars[key] = line.split('=', 1)[1].strip()
-
-# Build YAML
-env_vars = {
-    'GOOGLE_CLOUD_PROJECT': 'web-app-production-451214',
-    'BIGQUERY_DATASET': 'analytics_489035450',
-    'BIGQUERY_PRODUCT_PROJECT': 'bigquery-467404',
-    'BIGQUERY_PRODUCT_DATASET': 'domain',
-    'GOOGLE_DRIVE_FOLDER_ID': '1y0QT_u6zUIzZowqvqu_HiR4-MveBeFMH',
-    'GOOGLE_DRIVE_CREDENTIALS_JSON': drive_creds,
-    'GOOGLE_APPLICATION_CREDENTIALS_PRODUCT_JSON': bq_creds,
-    **aurora_vars,
-}
-with open('/tmp/env-vars.yaml', 'w') as f:
-    for k, v in env_vars.items():
-        escaped = v.replace('\\\\', '\\\\\\\\').replace('\"', '\\\\\"')
-        f.write(f'{k}: \"{escaped}\"\n')
-print(f'Written {len(env_vars)} env vars to /tmp/env-vars.yaml')
-"
-```
-
-**3. Deploy to Cloud Run:**
-```bash
+# Deploy
 gcloud run deploy analytics8020 \
   --source . \
   --region us-central1 \
   --allow-unauthenticated \
   --env-vars-file /tmp/env-vars.yaml
 ```
-
-**4. Verify:** Open https://analytics8020-798362859849.us-central1.run.app
 
 ### Cloud Run Service Details
 
@@ -823,8 +807,9 @@ Next.js is configured with `output: 'standalone'` in `next.config.ts` for this.
 - For Product BigQuery: ensure `GOOGLE_APPLICATION_CREDENTIALS_PRODUCT_JSON` is set in `.env.local`
 - The GA4 project uses Cloud Run's default service account (no separate key needed)
 
-### Changes not appearing after `git push`
-- **This is the most common issue.** `git push` does NOT deploy. You must run `gcloud run deploy` after every push. See [Deployment](#deployment).
+### Changes not appearing after merge
+- Auto-deploy takes ~3 minutes. Check the "Deploy to Cloud Run" workflow in the Actions tab.
+- If the workflow failed, check the logs and re-run, or deploy manually (see [CI/CD and Deployment](#cicd-and-deployment)).
 
 ### Non-@8020rei.com email can't log in
 - This is by design. `AuthContext.tsx` enforces `@8020rei.com` domain. Non-company emails are automatically signed out.

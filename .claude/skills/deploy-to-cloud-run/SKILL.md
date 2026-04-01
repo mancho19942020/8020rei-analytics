@@ -8,7 +8,7 @@ This skill is **automatically triggered** whenever the user asks to:
 - Update the live/production/remote app
 - Any variation of "push this", "push everything", "update remote"
 
-**CRITICAL**: After every `git push`, you MUST also deploy to Cloud Run. Pushing to GitHub does NOT auto-deploy. There is no CI/CD pipeline — deployment is manual via `gcloud`.
+**NOTE**: As of April 2026, pushing to `main` triggers auto-deploy via GitHub Actions (`.github/workflows/deploy.yml`). The manual steps below are a **fallback** in case the GitHub Actions workflow fails. You do NOT need to run these after every push — only when auto-deploy is broken.
 
 ---
 
