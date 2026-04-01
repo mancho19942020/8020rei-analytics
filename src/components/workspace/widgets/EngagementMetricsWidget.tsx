@@ -82,7 +82,7 @@ function formatEngagementTime(seconds: number): string {
 
 export function EngagementMetricsWidget({ data }: EngagementMetricsWidgetProps) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full h-full">
+    <div className="flex w-full h-full flush-cards">
       {/* Sessions per User */}
       <MetricCard
         label="Sessions per User"

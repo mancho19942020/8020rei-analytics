@@ -48,7 +48,7 @@ interface ProjectStatusOverviewWidgetProps {
 
 export function ProjectStatusOverviewWidget({ data }: ProjectStatusOverviewWidgetProps) {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full h-full">
+    <div className="flex w-full h-full flush-cards">
       <MetricCard
         label="Active Projects"
         value={data.active_projects}

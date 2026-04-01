@@ -9,8 +9,7 @@ import { DesignKitButton } from '@/components/DesignKitButton';
 import { canAccessDesignKit } from '@/lib/access';
 import { SuggestionsButton } from '@/components/SuggestionsButton';
 import { SuggestionsModal } from '@/components/SuggestionsModal';
-import { Logo } from '@/components/Logo';
-import { AxisSelect, AxisSelectOption, AxisSkeleton, AxisCallout, AxisButton, AxisNavigationTab, AxisToggle, AxisDateRangePicker, DateRangeValue } from '@/components/axis';
+import { AxisSelect, AxisSelectOption, AxisSkeleton, AxisCallout, AxisButton, AxisNavigationTab, AxisToggle, AxisDateRangePicker, DateRangeValue, AxisSidebar } from '@/components/axis';
 import { GridWorkspace, MetricsOverviewWidget, TimeSeriesWidget, BarChartWidget, DataTableWidget, WidgetCatalog, WidgetSettings } from '@/components/workspace';
 import { DEFAULT_LAYOUT, LAYOUT_STORAGE_KEY, OVERVIEW_WIDGET_CATALOG } from '@/lib/workspace/defaultLayouts';
 import {
@@ -27,6 +26,7 @@ import {
   parseNavFromSlug,
 } from '@/lib/navigation';
 import { useTabRefs } from '@/hooks/useTabRefs';
+import { useSidebarState } from '@/hooks/useSidebarState';
 import {
   exportToCSV,
   formatMetricsForExport,
@@ -96,6 +96,7 @@ function Dashboard({ slug }: { slug: string[] }) {
   const [activeMainSection, setActiveMainSection] = useState(initialNav.section);
   const [activeSubsection, setActiveSubsection] = useState(initialNav.sub);
   const [activeDetailTab, setActiveDetailTab] = useState(initialNav.tab);
+  const { collapsed: sidebarCollapsed, toggle: toggleSidebar } = useSidebarState();
   const [editMode, setEditMode] = useState(false);
   const [showEditCallout, setShowEditCallout] = useState(false);
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
@@ -126,6 +127,33 @@ function Dashboard({ slug }: { slug: string[] }) {
 
   // Tab refs for imperative actions (resetLayout, openWidgetCatalog)
   const tabRefs = useTabRefs();
+  // Destructure refs to avoid "Cannot access refs during render" (React Compiler)
+  const {
+    users: usersRef, features: featuresRef, clients: clientsRef, traffic: trafficRef,
+    technology: technologyRef, geography: geographyRef, events: eventsRef,
+    insights: insightsRef, import: importRef, 'properties-api': propertiesApiRef,
+  } = tabRefs.refs;
+
+  // Sidebar navigation callbacks (shared between sidebar and legacy nav)
+  const handleSectionChange = useCallback((section: string) => {
+    setActiveMainSection(section);
+    const subsections = SUBSECTION_TABS_MAP[section];
+    if (subsections && subsections.length > 0) {
+      const firstEnabled = subsections.find(s => !s.disabled);
+      if (firstEnabled) {
+        setActiveSubsection(firstEnabled.id);
+        const defaultTab = getDefaultDetailTab(firstEnabled.id);
+        if (defaultTab) setActiveDetailTab(defaultTab);
+      }
+    }
+  }, []);
+
+  const handleSubsectionChange = useCallback((section: string, sub: string) => {
+    setActiveMainSection(section);
+    setActiveSubsection(sub);
+    const defaultTab = getDefaultDetailTab(sub);
+    if (defaultTab) setActiveDetailTab(defaultTab);
+  }, []);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -134,17 +162,7 @@ function Dashboard({ slug }: { slug: string[] }) {
     }
   }, [user, authLoading, router]);
 
-  useEffect(() => {
-    if (user) {
-      fetchData();
-    }
-  }, [dateRange, userType, user]);
-
-  useEffect(() => {
-    if (editMode) setShowEditCallout(true);
-  }, [editMode]);
-
-  async function fetchData() {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
 
@@ -163,12 +181,22 @@ function Dashboard({ slug }: { slug: string[] }) {
       } else {
         setError(json.error || 'Error fetching data');
       }
-    } catch (err) {
+    } catch {
       setError('Failed to connect to API');
     }
 
     setLoading(false);
-  }
+  }, [dateRange, userType]);
+
+  useEffect(() => {
+    if (user) {
+      fetchData();
+    }
+  }, [fetchData, user]);
+
+  useEffect(() => {
+    if (editMode) setShowEditCallout(true);
+  }, [editMode]);
 
   // Handle layout changes
   const handleLayoutChange = (newLayout: Widget[]) => {
@@ -312,54 +340,43 @@ function Dashboard({ slug }: { slug: string[] }) {
 
   if (loading) {
     return (
-      <div className="h-screen flex flex-col bg-surface-base">
-        <div className="w-full flex flex-col flex-1 min-h-0">
-          {/* Header Skeleton - minimal bar */}
+      <div className="h-screen flex flex-row bg-surface-base">
+        {/* Sidebar Skeleton */}
+        <div className="w-60 flex-shrink-0 h-full border-r border-stroke chrome-bg flex flex-col">
+          <div className="px-4 h-14 flex items-center border-b border-stroke">
+            <AxisSkeleton variant="custom" width="120px" height="20px" rounded="md" />
+          </div>
+          <div className="flex-1 px-3 py-3 space-y-2">
+            {Array.from({ length: 7 }).map((_, i) => (
+              <AxisSkeleton key={i} variant="custom" width="100%" height="32px" rounded="md" />
+            ))}
+          </div>
+        </div>
+
+        {/* Content Column Skeleton */}
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Header Skeleton */}
           <div className="flex-shrink-0 px-6 py-3 border-b border-stroke chrome-bg">
-            <div className="flex justify-between items-center">
-              <AxisSkeleton variant="custom" width="120px" height="24px" rounded="md" />
-              <div className="flex gap-2">
-                <AxisSkeleton variant="button" size="sm" />
-                <AxisSkeleton variant="button" size="sm" />
-              </div>
+            <div className="flex justify-end items-center gap-2">
+              <AxisSkeleton variant="button" size="sm" />
+              <AxisSkeleton variant="button" size="sm" />
             </div>
           </div>
 
-          {/* Navigation Skeleton - simple horizontal bar */}
-          <div className="flex-shrink-0 px-6 py-3 border-b border-stroke chrome-bg">
-            <AxisSkeleton variant="custom" width="100%" height="32px" rounded="md" />
-          </div>
-
-          {/* Second Navigation Skeleton */}
+          {/* Detail Tab Skeleton */}
           <div className="flex-shrink-0 px-6 py-3 border-b border-stroke chrome-bg">
             <AxisSkeleton variant="custom" width="60%" height="32px" rounded="md" />
           </div>
 
-          {/* Toolbar Skeleton - simple bar */}
-          <div className="flex-shrink-0 px-6 py-2 border-b border-stroke chrome-bg">
-            <div className="flex justify-between items-center">
-              <AxisSkeleton variant="custom" width="180px" height="24px" rounded="md" />
-              <div className="flex gap-2">
-                <AxisSkeleton variant="custom" width="120px" height="32px" rounded="md" />
-                <AxisSkeleton variant="custom" width="120px" height="32px" rounded="md" />
-              </div>
-            </div>
-          </div>
-
-          {/* Main Content - Minimalistic widget blocks */}
+          {/* Main Content Skeleton */}
           <div className="flex-1 overflow-y-auto px-6 py-4 light-gray-bg">
-            {/* Top row - metrics widgets */}
             <div className="mb-4">
               <AxisSkeleton variant="widget" height="120px" fullWidth />
             </div>
-
-            {/* Charts row */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
               <AxisSkeleton variant="chart" height="300px" />
               <AxisSkeleton variant="chart" height="300px" />
             </div>
-
-            {/* Table widget */}
             <AxisSkeleton variant="widget" height="280px" fullWidth />
           </div>
         </div>
@@ -385,14 +402,22 @@ function Dashboard({ slug }: { slug: string[] }) {
   if (!data) return null;
 
   return (
-    <div className="h-screen flex flex-col bg-surface-base">
-      <div className="w-full flex flex-col flex-1 min-h-0">
-        {/* Header */}
-        <header className="flex-shrink-0 px-6 py-3 border-b border-stroke chrome-bg">
-          <div className="flex justify-between items-center gap-4">
-            {/* Logo */}
-            <Logo className="h-4 w-auto" />
+    <div className="h-screen flex flex-row bg-surface-base">
+      {/* Sidebar Navigation (replaces Level 1 + Level 2 horizontal tabs) */}
+      <AxisSidebar
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={toggleSidebar}
+        activeSection={activeMainSection}
+        activeSubsection={activeSubsection}
+        onSectionChange={handleSectionChange}
+        onSubsectionChange={handleSubsectionChange}
+      />
 
+      {/* Content Column */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Header */}
+        <header className="flex-shrink-0 px-6 h-14 border-b border-stroke chrome-bg">
+          <div className="flex justify-end items-center gap-4 h-full">
             {/* Right side actions - consistent height */}
             <div className="flex items-center gap-2">
 
@@ -483,46 +508,6 @@ function Dashboard({ slug }: { slug: string[] }) {
             </div>
           </div>
         </header>
-
-        {/* First-Level Navigation - Main Sections */}
-        <nav className="flex-shrink-0 px-6 border-b border-stroke chrome-bg">
-          <AxisNavigationTab
-            activeTab={activeMainSection}
-            onTabChange={(section) => {
-              setActiveMainSection(section);
-              // Reset subsection to first available when changing main section
-              const subsections = SUBSECTION_TABS_MAP[section];
-              if (subsections && subsections.length > 0) {
-                const firstEnabled = subsections.find(s => !s.disabled);
-                if (firstEnabled) {
-                  setActiveSubsection(firstEnabled.id);
-                  const defaultTab = getDefaultDetailTab(firstEnabled.id);
-                  if (defaultTab) setActiveDetailTab(defaultTab);
-                }
-              }
-            }}
-            tabs={MAIN_SECTION_TABS}
-            variant="line"
-            size="sm"
-          />
-        </nav>
-
-        {/* Second-Level Navigation - Sub-sections (show for all main sections) */}
-        {SUBSECTION_TABS_MAP[activeMainSection] && (
-          <nav className="flex-shrink-0 px-6 border-b border-stroke chrome-bg">
-            <AxisNavigationTab
-              activeTab={activeSubsection}
-              onTabChange={(sub) => {
-                setActiveSubsection(sub);
-                const defaultTab = getDefaultDetailTab(sub);
-                if (defaultTab) setActiveDetailTab(defaultTab);
-              }}
-              tabs={SUBSECTION_TABS_MAP[activeMainSection]}
-              variant="line"
-              size="sm"
-            />
-          </nav>
-        )}
 
         {/* Third-Level Navigation - Detail Tabs (for GA4 analytics sections) */}
         {activeMainSection === 'analytics' && (activeSubsection === '8020rei-ga4' || activeSubsection === '8020roofing-ga4') && (
@@ -652,7 +637,7 @@ function Dashboard({ slug }: { slug: string[] }) {
           {/* Users Tab */}
           {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && activeDetailTab === 'users' && (
             <UsersTab
-              ref={tabRefs.refs['users']}
+              ref={usersRef}
               days={days}
               userType={userType}
               startDate={startDate}
@@ -665,7 +650,7 @@ function Dashboard({ slug }: { slug: string[] }) {
           {/* Features Tab */}
           {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && activeDetailTab === 'features' && (
             <FeaturesTab
-              ref={tabRefs.refs['features']}
+              ref={featuresRef}
               days={days}
               userType={userType}
               startDate={startDate}
@@ -678,7 +663,7 @@ function Dashboard({ slug }: { slug: string[] }) {
           {/* Clients Tab */}
           {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && activeDetailTab === 'clients' && (
             <ClientsTab
-              ref={tabRefs.refs['clients']}
+              ref={clientsRef}
               days={days}
               userType={userType}
               startDate={startDate}
@@ -691,7 +676,7 @@ function Dashboard({ slug }: { slug: string[] }) {
           {/* Traffic Tab */}
           {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && activeDetailTab === 'traffic' && (
             <TrafficTab
-              ref={tabRefs.refs['traffic']}
+              ref={trafficRef}
               days={days}
               userType={userType}
               startDate={startDate}
@@ -704,7 +689,7 @@ function Dashboard({ slug }: { slug: string[] }) {
           {/* Technology Tab */}
           {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && activeDetailTab === 'technology' && (
             <TechnologyTab
-              ref={tabRefs.refs['technology']}
+              ref={technologyRef}
               days={days}
               userType={userType}
               startDate={startDate}
@@ -717,7 +702,7 @@ function Dashboard({ slug }: { slug: string[] }) {
           {/* Geography Tab */}
           {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && activeDetailTab === 'geography' && (
             <GeographyTab
-              ref={tabRefs.refs['geography']}
+              ref={geographyRef}
               days={days}
               userType={userType}
               startDate={startDate}
@@ -730,7 +715,7 @@ function Dashboard({ slug }: { slug: string[] }) {
           {/* Events Tab */}
           {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && activeDetailTab === 'events' && (
             <EventsTab
-              ref={tabRefs.refs['events']}
+              ref={eventsRef}
               days={days}
               userType={userType}
               startDate={startDate}
@@ -743,7 +728,7 @@ function Dashboard({ slug }: { slug: string[] }) {
           {/* Insights Tab */}
           {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && activeDetailTab === 'insights' && (
             <InsightsTab
-              ref={tabRefs.refs['insights']}
+              ref={insightsRef}
               days={days}
               userType={userType}
               startDate={startDate}
@@ -766,7 +751,7 @@ function Dashboard({ slug }: { slug: string[] }) {
           {/* Feedback Loop > Import Tab */}
           {activeMainSection === 'feedback-loop' && activeSubsection === 'import' && (
             <ClientDomainsTab
-              ref={tabRefs.refs['import']}
+              ref={importRef}
               days={days}
               startDate={startDate}
               endDate={endDate}
@@ -779,7 +764,7 @@ function Dashboard({ slug }: { slug: string[] }) {
           {/* Properties API Tab (Features > 8020REI > Properties API) */}
           {activeMainSection === 'features' && activeSubsection === 'features-rei' && activeDetailTab === 'properties-api' && (
             <PropertiesApiTab
-              ref={tabRefs.refs['properties-api']}
+              ref={propertiesApiRef}
               days={days}
               startDate={startDate}
               endDate={endDate}

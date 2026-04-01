@@ -1,7 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Lazy init to avoid build-time crash when env var is missing
+let _resend: Resend | null = null;
+function getResend() {
+  if (!_resend) {
+    if (!process.env.RESEND_API_KEY) {
+      throw new Error('RESEND_API_KEY is not configured');
+    }
+    _resend = new Resend(process.env.RESEND_API_KEY);
+  }
+  return _resend;
+}
 
 const RECIPIENT_EMAIL = 'german@8020rei.com';
 
@@ -26,7 +36,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Send email via Resend
-    const { error } = await resend.emails.send({
+    const { error } = await getResend().emails.send({
       from: 'Metrics Hub <onboarding@resend.dev>',
       to: [RECIPIENT_EMAIL],
       subject: `[Metrics Hub Suggestion] ${category}: ${subject}`,

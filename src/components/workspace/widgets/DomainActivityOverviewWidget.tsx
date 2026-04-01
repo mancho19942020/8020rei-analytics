@@ -59,7 +59,7 @@ interface DomainActivityOverviewWidgetProps {
 
 export function DomainActivityOverviewWidget({ data }: DomainActivityOverviewWidgetProps) {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 w-full h-full">
+    <div className="flex w-full h-full flush-cards">
       <MetricCard label="Active Domains" value={data.total_active_domains} icon={<GlobeIcon />} subtitle="vs. previous period" iconBgClass={colorMap['main'].bg} sparklineColor={colorMap['main'].stroke} trend={data.trends?.total_active_domains} />
       <MetricCard label="Total Properties" value={data.total_properties} icon={<LayersIcon />} subtitle="vs. previous period" iconBgClass={colorMap['accent-1'].bg} sparklineColor={colorMap['accent-1'].stroke} trend={data.trends?.total_properties} />
       <MetricCard label="Leads" value={data.leads_count} icon={<UserPlusIcon />} subtitle="vs. previous period" iconBgClass={colorMap['accent-2'].bg} sparklineColor={colorMap['accent-2'].stroke} trend={data.trends?.leads_count} />

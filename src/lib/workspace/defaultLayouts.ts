@@ -39,17 +39,17 @@ export interface WidgetCatalogItem {
  */
 export const GRID_CONFIG: GridConfig = {
   cols: {
-    lg: 12,  // Large screens (≥1200px)
-    md: 10,  // Medium screens (≥996px)
-    sm: 6,   // Small screens (≥768px)
-    xs: 4,   // Extra small screens (≥480px)
-    xxs: 2,  // Tiny screens (<480px)
+    lg: 12,  // Large screens (≥960px container width)
+    md: 10,  // Medium screens (≥720px)
+    sm: 6,   // Small screens (≥540px)
+    xs: 4,   // Extra small screens (≥380px)
+    xxs: 2,  // Tiny screens (<380px)
   },
   breakpoints: {
-    lg: 1200,
-    md: 996,
-    sm: 768,
-    xs: 480,
+    lg: 960,   // Lowered from 1200 — sidebar-aware (1200px viewport - 240px sidebar = 960px)
+    md: 720,   // Lowered from 996
+    sm: 540,   // Lowered from 768
+    xs: 380,   // Lowered from 480
     xxs: 0,
   },
   rowHeight: 60,
@@ -71,17 +71,17 @@ export const DEFAULT_LAYOUT: Widget[] = [
     x: 0,
     y: 0,
     w: 12,
-    h: 3,  // Height of 3 to fit metric cards properly (180px)
+    h: 2,
     minW: 6,
-    minH: 3,
-    maxH: 4,
+    minH: 2,
+    maxH: 2,
   },
   {
     id: 'users-chart',
     type: 'timeseries',
     title: 'Users Over Time',
     x: 0,
-    y: 3,  // Adjusted for Key Metrics height of 3
+    y: 2,
     w: 6,
     h: 5,
     minW: 4,
@@ -94,7 +94,7 @@ export const DEFAULT_LAYOUT: Widget[] = [
     type: 'barchart',
     title: 'Feature Usage',
     x: 6,
-    y: 3,  // Adjusted for Key Metrics height of 3
+    y: 2,
     w: 6,
     h: 5,
     minW: 4,
@@ -107,7 +107,7 @@ export const DEFAULT_LAYOUT: Widget[] = [
     type: 'table',
     title: 'Top Clients',
     x: 0,
-    y: 8,  // Adjusted y position (3 + 5)
+    y: 7,
     w: 12,
     h: 6,
     minW: 6,
@@ -122,12 +122,12 @@ export const DEFAULT_LAYOUT: Widget[] = [
  *
  * Key used for localStorage persistence.
  */
-export const LAYOUT_STORAGE_KEY = 'axis-metrics-layout-v2';
+export const LAYOUT_STORAGE_KEY = 'axis-metrics-layout-v3';
 
 /**
  * Users Tab Layout Storage Key
  */
-export const USERS_LAYOUT_STORAGE_KEY = 'axis-users-layout-v1';
+export const USERS_LAYOUT_STORAGE_KEY = 'axis-users-layout-v2';
 
 /**
  * Features Tab Layout Storage Key
@@ -137,7 +137,7 @@ export const FEATURES_LAYOUT_STORAGE_KEY = 'axis-features-layout-v1';
 /**
  * Clients Tab Layout Storage Key
  */
-export const CLIENTS_LAYOUT_STORAGE_KEY = 'axis-clients-layout-v1';
+export const CLIENTS_LAYOUT_STORAGE_KEY = 'axis-clients-layout-v2';
 
 /**
  * Traffic Tab Layout Storage Key
@@ -157,12 +157,12 @@ export const GEOGRAPHY_LAYOUT_STORAGE_KEY = 'axis-geography-layout-v1';
 /**
  * Events Tab Layout Storage Key
  */
-export const EVENTS_LAYOUT_STORAGE_KEY = 'axis-events-layout-v1';
+export const EVENTS_LAYOUT_STORAGE_KEY = 'axis-events-layout-v2';
 
 /**
  * Insights Tab Layout Storage Key
  */
-export const INSIGHTS_LAYOUT_STORAGE_KEY = 'axis-insights-layout-v1';
+export const INSIGHTS_LAYOUT_STORAGE_KEY = 'axis-insights-layout-v2';
 
 /**
  * Layout Version
@@ -184,17 +184,17 @@ export const DEFAULT_USERS_LAYOUT: Widget[] = [
     x: 0,
     y: 0,
     w: 12,
-    h: 3,
+    h: 2,
     minW: 6,
-    minH: 3,
-    maxH: 4,
+    minH: 2,
+    maxH: 2,
   },
   {
     id: 'new-vs-returning',
     type: 'new-vs-returning',
     title: 'New vs Returning Users',
     x: 0,
-    y: 3,
+    y: 2,
     w: 12,
     h: 5,
     minW: 6,
@@ -207,24 +207,24 @@ export const DEFAULT_USERS_LAYOUT: Widget[] = [
     type: 'engagement-metrics',
     title: 'Engagement Metrics',
     x: 0,
-    y: 8,
+    y: 7,
     w: 12,
-    h: 3,
+    h: 2,
     minW: 6,
-    minH: 3,
-    maxH: 4,
+    minH: 2,
+    maxH: 2,
   },
   {
     id: 'session-summary',
     type: 'session-summary',
     title: 'Session Summary',
     x: 0,
-    y: 11,
+    y: 9,
     w: 12,
-    h: 3,
+    h: 2,
     minW: 6,
-    minH: 3,
-    maxH: 4,
+    minH: 2,
+    maxH: 2,
   },
 ];
 
@@ -323,17 +323,17 @@ export const DEFAULT_CLIENTS_LAYOUT: Widget[] = [
     x: 0,
     y: 0,
     w: 12,
-    h: 3,
+    h: 2,
     minW: 6,
-    minH: 3,
-    maxH: 4,
+    minH: 2,
+    maxH: 2,
   },
   {
     id: 'clients-table',
     type: 'clients-table',
     title: 'Top Clients',
     x: 0,
-    y: 3,
+    y: 2,
     w: 12,
     h: 6,
     minW: 6,
@@ -346,7 +346,7 @@ export const DEFAULT_CLIENTS_LAYOUT: Widget[] = [
     type: 'client-activity-trend',
     title: 'Client Activity Trend',
     x: 0,
-    y: 9,
+    y: 8,
     w: 12,
     h: 5,
     minW: 6,
@@ -590,17 +590,17 @@ export const DEFAULT_EVENTS_LAYOUT: Widget[] = [
     x: 0,
     y: 5,
     w: 12,
-    h: 3,
+    h: 2,
     minW: 6,
-    minH: 3,
-    maxH: 4,
+    minH: 2,
+    maxH: 2,
   },
   {
     id: 'event-volume-trend',
     type: 'event-volume-trend',
     title: 'Event Volume Trend',
     x: 0,
-    y: 8,
+    y: 7,
     w: 12,
     h: 5,
     minW: 6,
@@ -613,7 +613,7 @@ export const DEFAULT_EVENTS_LAYOUT: Widget[] = [
     type: 'event-breakdown',
     title: 'Event Breakdown',
     x: 0,
-    y: 13,
+    y: 12,
     w: 12,
     h: 6,
     minW: 6,
@@ -640,10 +640,10 @@ export const DEFAULT_INSIGHTS_LAYOUT: Widget[] = [
     x: 0,
     y: 0,
     w: 12,
-    h: 3,
+    h: 2,
     minW: 6,
-    minH: 3,
-    maxH: 4,
+    minH: 2,
+    maxH: 2,
   },
   {
     id: 'alerts-by-category',
@@ -687,9 +687,9 @@ export const OVERVIEW_WIDGET_CATALOG: WidgetCatalogItem[] = [
   {
     type: 'metrics',
     title: 'Key Metrics',
-    description: 'Display 4 key metrics in a 2x2 grid',
+    description: 'Display 4 key metrics in a flush row',
     iconKey: 'grid',
-    defaultSize: { w: 12, h: 3 },
+    defaultSize: { w: 12, h: 2 },
   },
   {
     type: 'timeseries',
@@ -723,7 +723,7 @@ export const USERS_WIDGET_CATALOG: WidgetCatalogItem[] = [
     title: 'User Activity (DAU/WAU/MAU)',
     description: 'Scorecards showing daily, weekly, and monthly active users',
     iconKey: 'users',
-    defaultSize: { w: 12, h: 3 },
+    defaultSize: { w: 12, h: 2 },
   },
   {
     type: 'new-vs-returning',
@@ -737,14 +737,14 @@ export const USERS_WIDGET_CATALOG: WidgetCatalogItem[] = [
     title: 'Engagement Metrics',
     description: 'Sessions per user, bounce rate, and engaged rate scorecards',
     iconKey: 'grid',
-    defaultSize: { w: 12, h: 3 },
+    defaultSize: { w: 12, h: 2 },
   },
   {
     type: 'session-summary',
     title: 'Session Summary',
     description: 'Total sessions and unique users overview',
     iconKey: 'grid',
-    defaultSize: { w: 12, h: 3 },
+    defaultSize: { w: 12, h: 2 },
   },
 ];
 
@@ -798,7 +798,7 @@ export const CLIENTS_WIDGET_CATALOG: WidgetCatalogItem[] = [
     title: 'Client Metrics Overview',
     description: 'Scorecards for total clients, events, page views, and avg users',
     iconKey: 'grid',
-    defaultSize: { w: 12, h: 3 },
+    defaultSize: { w: 12, h: 2 },
   },
   {
     type: 'clients-table',
@@ -941,7 +941,7 @@ export const EVENTS_WIDGET_CATALOG: WidgetCatalogItem[] = [
     title: 'Event Metrics',
     description: 'Scorecards for events/session, form conversion, clicks, scrolls',
     iconKey: 'grid',
-    defaultSize: { w: 12, h: 3 },
+    defaultSize: { w: 12, h: 2 },
   },
   {
     type: 'event-volume-trend',
@@ -968,7 +968,7 @@ export const INSIGHTS_WIDGET_CATALOG: WidgetCatalogItem[] = [
     title: 'Alert Summary',
     description: 'Scorecards showing critical, warning, and info alert counts',
     iconKey: 'alert',
-    defaultSize: { w: 12, h: 3 },
+    defaultSize: { w: 12, h: 2 },
   },
   {
     type: 'alerts-by-category',
@@ -993,12 +993,12 @@ export const INSIGHTS_WIDGET_CATALOG: WidgetCatalogItem[] = [
 /**
  * Feedback Loop > Import Layout Storage Key
  */
-export const PRODUCT_DOMAINS_LAYOUT_STORAGE_KEY = 'axis-feedback-import-layout-v1';
+export const PRODUCT_DOMAINS_LAYOUT_STORAGE_KEY = 'axis-feedback-import-layout-v2';
 
 /**
  * Product > Product Projects Layout Storage Key
  */
-export const PRODUCT_PROJECTS_LAYOUT_STORAGE_KEY = 'axis-product-projects-layout-v1';
+export const PRODUCT_PROJECTS_LAYOUT_STORAGE_KEY = 'axis-product-projects-layout-v2';
 
 /**
  * Default Feedback Loop > Import Tab Layout
@@ -1009,14 +1009,14 @@ export const DEFAULT_PRODUCT_DOMAINS_LAYOUT: Widget[] = [
     type: 'domain-activity-overview',
     title: 'Import Activity Overview',
     x: 0, y: 0,
-    w: 12, h: 3,
-    minW: 6, minH: 3, maxH: 4,
+    w: 12, h: 2,
+    minW: 6, minH: 2, maxH: 2,
   },
   {
     id: 'domain-leaderboard',
     type: 'domain-leaderboard',
     title: 'Client Import Leaderboard',
-    x: 0, y: 3,
+    x: 0, y: 2,
     w: 12, h: 6,
     minW: 6, minH: 5, maxW: 12, maxH: 10,
   },
@@ -1024,7 +1024,7 @@ export const DEFAULT_PRODUCT_DOMAINS_LAYOUT: Widget[] = [
     id: 'domain-activity-trend',
     type: 'domain-activity-trend',
     title: 'Import Volume Trend',
-    x: 0, y: 9,
+    x: 0, y: 8,
     w: 6, h: 5,
     minW: 4, minH: 4, maxW: 12, maxH: 8,
   },
@@ -1032,7 +1032,7 @@ export const DEFAULT_PRODUCT_DOMAINS_LAYOUT: Widget[] = [
     id: 'revenue-by-domain',
     type: 'revenue-by-domain',
     title: 'Revenue by Client',
-    x: 6, y: 9,
+    x: 6, y: 8,
     w: 6, h: 5,
     minW: 4, minH: 4, maxW: 12, maxH: 8,
   },
@@ -1047,14 +1047,14 @@ export const DEFAULT_PRODUCT_PROJECTS_LAYOUT: Widget[] = [
     type: 'project-status-overview',
     title: 'Project Status',
     x: 0, y: 0,
-    w: 12, h: 3,
-    minW: 6, minH: 3, maxH: 4,
+    w: 12, h: 2,
+    minW: 6, minH: 2, maxH: 2,
   },
   {
     id: 'projects-table',
     type: 'projects-table',
     title: 'Projects',
-    x: 0, y: 3,
+    x: 0, y: 2,
     w: 12, h: 6,
     minW: 6, minH: 5, maxW: 12, maxH: 10,
   },
@@ -1062,7 +1062,7 @@ export const DEFAULT_PRODUCT_PROJECTS_LAYOUT: Widget[] = [
     id: 'bug-tracking',
     type: 'bug-tracking',
     title: 'Bug Tracking',
-    x: 0, y: 9,
+    x: 0, y: 8,
     w: 12, h: 6,
     minW: 6, minH: 5, maxW: 12, maxH: 10,
   },
@@ -1070,7 +1070,7 @@ export const DEFAULT_PRODUCT_PROJECTS_LAYOUT: Widget[] = [
     id: 'team-workload',
     type: 'team-workload',
     title: 'Team Workload',
-    x: 0, y: 15,
+    x: 0, y: 14,
     w: 6, h: 5,
     minW: 4, minH: 4, maxW: 12, maxH: 8,
   },
@@ -1078,7 +1078,7 @@ export const DEFAULT_PRODUCT_PROJECTS_LAYOUT: Widget[] = [
     id: 'delivery-timeline',
     type: 'delivery-timeline',
     title: 'Delivery Timeline',
-    x: 6, y: 15,
+    x: 6, y: 14,
     w: 6, h: 5,
     minW: 4, minH: 4, maxW: 12, maxH: 8,
   },
@@ -1093,7 +1093,7 @@ export const PRODUCT_DOMAINS_WIDGET_CATALOG: WidgetCatalogItem[] = [
     title: 'Import Activity Overview',
     description: 'KPI cards for active clients, imported properties, leads, appointments, deals, revenue',
     iconKey: 'grid',
-    defaultSize: { w: 12, h: 3 },
+    defaultSize: { w: 12, h: 2 },
   },
   {
     type: 'domain-leaderboard',
@@ -1127,7 +1127,7 @@ export const PRODUCT_PROJECTS_WIDGET_CATALOG: WidgetCatalogItem[] = [
     title: 'Project Status Overview',
     description: 'KPI cards for active, on-track, delayed, and completed projects',
     iconKey: 'grid',
-    defaultSize: { w: 12, h: 3 },
+    defaultSize: { w: 12, h: 2 },
   },
   {
     type: 'projects-table',
@@ -1163,7 +1163,7 @@ export const PRODUCT_PROJECTS_WIDGET_CATALOG: WidgetCatalogItem[] = [
 // Features > 8020REI > Properties API Tab
 // ---------------------------------------------------------------------------
 
-export const PROPERTIES_API_LAYOUT_STORAGE_KEY = 'properties-api-layout';
+export const PROPERTIES_API_LAYOUT_STORAGE_KEY = 'properties-api-layout-v2';
 
 export const DEFAULT_PROPERTIES_API_LAYOUT: Widget[] = [
   {
@@ -1171,14 +1171,14 @@ export const DEFAULT_PROPERTIES_API_LAYOUT: Widget[] = [
     type: 'api-overview',
     title: 'API Overview',
     x: 0, y: 0,
-    w: 12, h: 3,
-    minW: 6, minH: 3, maxH: 4,
+    w: 12, h: 2,
+    minW: 6, minH: 2, maxH: 2,
   },
   {
     id: 'api-calls-trend',
     type: 'api-calls-trend',
     title: 'API Calls Over Time',
-    x: 0, y: 3,
+    x: 0, y: 2,
     w: 6, h: 5,
     minW: 4, minH: 3, maxW: 12, maxH: 8,
   },
@@ -1186,7 +1186,7 @@ export const DEFAULT_PROPERTIES_API_LAYOUT: Widget[] = [
     id: 'api-response-trend',
     type: 'api-response-trend',
     title: 'Response Time Trend',
-    x: 6, y: 3,
+    x: 6, y: 2,
     w: 6, h: 5,
     minW: 4, minH: 3, maxW: 12, maxH: 8,
   },
@@ -1194,7 +1194,7 @@ export const DEFAULT_PROPERTIES_API_LAYOUT: Widget[] = [
     id: 'api-endpoint-breakdown',
     type: 'api-endpoint-breakdown',
     title: 'Usage by Endpoint',
-    x: 0, y: 8,
+    x: 0, y: 7,
     w: 6, h: 7,
     minW: 4, minH: 5, maxW: 12, maxH: 10,
   },
@@ -1202,7 +1202,7 @@ export const DEFAULT_PROPERTIES_API_LAYOUT: Widget[] = [
     id: 'api-top-clients',
     type: 'api-top-clients',
     title: 'Top Clients',
-    x: 6, y: 8,
+    x: 6, y: 7,
     w: 6, h: 7,
     minW: 4, minH: 5, maxW: 12, maxH: 10,
   },
@@ -1210,7 +1210,7 @@ export const DEFAULT_PROPERTIES_API_LAYOUT: Widget[] = [
     id: 'api-error-tracker',
     type: 'api-error-tracker',
     title: 'Error Tracker',
-    x: 0, y: 15,
+    x: 0, y: 14,
     w: 12, h: 5,
     minW: 6, minH: 4, maxW: 12, maxH: 8,
   },
@@ -1218,7 +1218,7 @@ export const DEFAULT_PROPERTIES_API_LAYOUT: Widget[] = [
     id: 'api-recent-logs',
     type: 'api-recent-logs',
     title: 'Recent API Logs',
-    x: 0, y: 20,
+    x: 0, y: 19,
     w: 12, h: 7,
     minW: 6, minH: 5, maxW: 12, maxH: 12,
   },
@@ -1230,7 +1230,7 @@ export const PROPERTIES_API_WIDGET_CATALOG: WidgetCatalogItem[] = [
     title: 'API Overview',
     description: 'KPI cards for total calls, unique clients, response time, error rate',
     iconKey: 'grid',
-    defaultSize: { w: 12, h: 3 },
+    defaultSize: { w: 12, h: 2 },
   },
   {
     type: 'api-calls-trend',

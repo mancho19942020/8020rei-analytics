@@ -323,7 +323,7 @@ Always define sensible constraints for widgets:
 
 | Widget Type | Min Size | Max Size | Notes |
 |-------------|----------|----------|-------|
-| Metrics/Scorecards | 6×3 | 12×4 | Height limited for card layout |
+| Metrics/Scorecards | 6×2 | 12×2 | Flush layout — compact h=2 cells (136px), cards fill cell tightly |
 | Line/Bar charts | 4×4 | 12×8 | Charts auto-resize via ResponsiveContainer |
 | Donut charts | 4×4 | 8×8 | Keep aspect ratio close to square |
 | Tables | 6×4 | 12×12 | Shows more rows when taller |
@@ -332,7 +332,7 @@ Always define sensible constraints for widgets:
 All widgets automatically adapt to size changes because:
 - Charts use `<ResponsiveContainer width="100%" height="100%">` from recharts
 - Tables use `overflow-auto` with flex layout
-- Scorecards use CSS Grid with flexible units
+- Scorecards use `flex flush-cards` — content-height, no vertical stretch
 
 #### CSS Classes for Resize Handles
 Defined in `globals.css`:
@@ -372,13 +372,34 @@ const [layout, setLayout] = useState<Widget[]>(() => {
 });
 ```
 
-### Metric Cards (inside widgets)
+### Metric Cards (inside widgets) — Flush Layout
 
-Use the pattern from `MetricsOverviewWidget`:
+Cards sit **edge-to-edge** inside widgets with no gaps and no body padding.
+
+**Card component (`MetricCard`):**
 - Background: `bg-surface-raised`
 - Border: `border border-stroke`
-- Hover: `hover:border-stroke-strong hover:shadow-sm`
-- Icon container: `bg-main-600 dark:bg-main-700` with `text-white`
+- Hover: `hover:border-stroke-strong`
+- Layout: `flex flex-col gap-2 p-3 flex-1 min-w-0 h-full` (compact padding, fills cell)
+- Value: `text-[2.25rem] leading-[40px]` (compact hero)
+- NO `rounded-*` — corners are handled by the parent container
+- NO `hover:shadow-sm` — cards are flush, shadows would break the cohesive block
+
+**Card container (inside each widget):**
+- Use `flex w-full h-full flush-cards` (NOT `grid gap-*`)
+- `flush-cards` CSS class applies `border-bottom-left-radius: 0.5rem` on first child and `border-bottom-right-radius: 0.5rem` on last child
+- For vertical card stacks use `flush-cards-vertical` instead
+
+**Widget wrapper:**
+- Pass `flushBody` to `Widget` via `FLUSH_BODY_WIDGETS` set in `GridWorkspace.tsx`
+- `flushBody` removes `p-4` from the widget body so cards go edge-to-edge
+
+**Grid cell sizing:**
+- All flush card widgets use `h: 2` in their layout config (136px cell = 2 × 60px rows + 16px margin)
+- `minH: 2`, `maxH: 2` — locked to compact height
+- Widget header uses `py-2` (not `py-3`) for flush body widgets — saves 8px for card breathing room
+- Adjust `y` positions of widgets below accordingly
+- Bump layout storage key version when changing heights (forces fresh layout for users)
 
 ---
 
@@ -440,8 +461,9 @@ Always use this exact pattern for non-widget tabs:
 - Field labels: "Display name", "Title / role" — NOT "Display Name", "Title / Role"
 - Exception: proper nouns and abbreviations keep their casing (e.g. "Grafana URL", "Firebase")
 
-### Standard Card Grid
+### Standard Card Grid (non-widget contexts)
 
+For non-widget contexts (e.g. page-level card galleries), grids with gaps are still fine:
 ```tsx
 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
   {items.map(item => (
@@ -455,6 +477,8 @@ For auto-fit grids with a min card width:
 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 16 }}>
 ```
 Use `gap: 16` (not 20 or 24) to keep cards dense.
+
+> **Inside widgets**: NEVER use `grid gap-*`. Use `flex flush-cards` instead (see "Metric Cards" section above).
 
 ### Standard Empty State
 

@@ -28,6 +28,9 @@ export interface WidgetComponentProps {
   /** Callback when export is clicked */
   onExport?: () => void;
 
+  /** Remove body padding so children (e.g. metric cards) go edge-to-edge */
+  flushBody?: boolean;
+
   /** Additional CSS classes */
   className?: string;
 }
@@ -39,6 +42,7 @@ export function Widget({
   onRemove,
   onSettings,
   onExport,
+  flushBody = false,
   className = '',
 }: WidgetComponentProps) {
   return (
@@ -54,7 +58,7 @@ export function Widget({
       ].filter(Boolean).join(' ')}
     >
       {/* Widget Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-stroke bg-surface-raised rounded-t-lg">
+      <div className={`flex items-center justify-between px-4 border-b border-stroke bg-surface-raised rounded-t-lg ${flushBody ? 'py-2' : 'py-3'}`}>
         {/* Left side: Drag handle + Title */}
         <div className="flex items-center gap-3 flex-1 min-w-0">
           {/* Drag Handle (only visible in edit mode) */}
@@ -147,7 +151,7 @@ export function Widget({
             <button
               type="button"
               onClick={onRemove}
-              className="p-1.5 hover:bg-error-50 dark:hover:bg-error-950 rounded transition-colors duration-150 text-content-secondary hover:text-error-700 dark:hover:text-error-400"
+              className="p-1.5 hover:bg-error-50 dark:hover:bg-error-950 rounded transition-colors duration-150 text-content-secondary hover:text-error-700 dark:hover:text-error-300"
               aria-label="Remove widget"
             >
               <svg
@@ -169,7 +173,7 @@ export function Widget({
       </div>
 
       {/* Widget Body */}
-      <div className="flex-1 p-4 min-h-0 overflow-hidden">
+      <div className={`flex-1 min-h-0 overflow-hidden ${flushBody ? '' : 'p-4'}`}>
         <div className="w-full h-full overflow-hidden">
           {children}
         </div>

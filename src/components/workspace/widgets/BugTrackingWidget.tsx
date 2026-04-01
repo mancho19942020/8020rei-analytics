@@ -45,12 +45,12 @@ function KpiBox({
   highlight?: boolean;
 }) {
   return (
-    <div className="bg-surface-raised border border-stroke rounded-xl p-3 flex flex-col gap-1">
+    <div className="bg-surface-raised border border-stroke p-3 flex flex-col gap-1 flex-1 min-w-0">
       <span className="text-xs text-content-secondary">{label}</span>
       <span
         className={`text-xl font-bold tabular-nums ${
           highlight && value > 0
-            ? 'text-red-600 dark:text-red-400'
+            ? 'text-error-700 dark:text-error-300'
             : 'text-content-primary'
         }`}
       >
@@ -73,7 +73,7 @@ export function BugTrackingWidget({ data }: BugTrackingWidgetProps) {
   return (
     <div className="flex flex-col h-full gap-4">
       {/* Top section: 4 KPI boxes */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 flex-shrink-0">
+      <div className="flex flex-shrink-0 flush-cards">
         <KpiBox label="Total Unique Bugs" value={data.total_unique_bugs} />
         <KpiBox label="Customer Bugs" value={data.customer_bugs} />
         <KpiBox label="Critical Bugs" value={data.critical_bugs} />
