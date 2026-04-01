@@ -33,15 +33,16 @@ Metrics Hub is the central dashboard for monitoring all 8020REI operations. It p
 
 **Currently active sections:**
 
-| Section | Description | Data Source |
-|---------|-------------|-------------|
-| **Customer Success** | Client domains, product projects | BigQuery (Product) |
-| **Analytics** | GA4 data — users, events, features, traffic, geography, technology | BigQuery (GA4) |
-| **Features** | Feature-specific metrics — Properties API, Skip Trace, etc. | AWS Aurora, BigQuery |
-| **Engagement Calls** | Google Drive-based document management for client engagement notes | Google Drive API |
-| **Grafana** | Grafana dashboard directory with contributor profiles (Firestore) | Firestore |
+| Section | Status | Description | Data Source |
+|---------|--------|-------------|-------------|
+| **Analytics** | Live | GA4 data — users, events, features, traffic, geography, technology | BigQuery (GA4) |
+| **Feedback Loop › Import** | Live | Client domain import — the only active tab in Feedback Loop | BigQuery (Product) |
+| **Features › Properties API** | Live | Properties API metrics and usage; other Features tabs are under construction | AWS Aurora |
+| **Engagement Calls** | Live | Google Drive-based document management for client engagement notes | Google Drive API |
+| **Grafana** | Beta | Grafana dashboard directory with contributor profiles — not fully functional | Firestore |
+| **Customer Success** | Under construction | Placeholder — no active content yet | — |
 
-**Planned sections** (placeholder UI exists): Feedback Loop, Pipelines, QA, ML Models
+**Planned / under construction** (placeholder UI exists): Customer Success, Feedback Loop (remaining tabs), Features (remaining tabs), Pipelines, QA, ML Models
 
 ---
 
