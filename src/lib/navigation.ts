@@ -133,3 +133,52 @@ export function getDefaultDetailTab(sub: string): string | undefined {
   if (sub === 'pipelines-roofing') return 'etl-roofing';
   return undefined;
 }
+
+/**
+ * Build a clean URL path from navigation state.
+ * Examples:
+ *   buildNavUrl('analytics', '8020rei-ga4', 'overview') → '/analytics/8020rei-ga4/overview'
+ *   buildNavUrl('engagement-calls', '', '')              → '/engagement-calls'
+ *   buildNavUrl('feedback-loop', 'import', '')           → '/feedback-loop/import'
+ */
+export function buildNavUrl(section: string, sub?: string, tab?: string): string {
+  let path = `/${section}`;
+  if (sub) {
+    path += `/${sub}`;
+    if (tab) {
+      path += `/${tab}`;
+    }
+  }
+  return path;
+}
+
+/**
+ * Parse URL slug segments into navigation state.
+ * Validates each level against the navigation config and falls back to defaults.
+ */
+export function parseNavFromSlug(slug: string[]): { section: string; sub: string; tab: string } {
+  const [rawSection, rawSub, rawTab] = slug;
+
+  // Validate section
+  const validSection = MAIN_SECTION_TABS.find(t => t.id === rawSection)
+    ? rawSection
+    : 'analytics';
+
+  // Resolve subsection
+  const subsections = SUBSECTION_TABS_MAP[validSection];
+  let validSub = '';
+  if (subsections && subsections.length > 0) {
+    const matchedSub = rawSub ? subsections.find(t => t.id === rawSub && !t.disabled) : null;
+    validSub = matchedSub ? matchedSub.id : (subsections.find(s => !s.disabled)?.id || subsections[0].id);
+  }
+
+  // Resolve detail tab
+  let validTab = '';
+  const detailTabs = getDetailTabsForSubsection(validSection, validSub);
+  if (detailTabs) {
+    const matchedTab = rawTab ? detailTabs.find(t => t.id === rawTab && !t.disabled) : null;
+    validTab = matchedTab ? matchedTab.id : (detailTabs.find(t => !t.disabled)?.id || detailTabs[0].id);
+  }
+
+  return { section: validSection, sub: validSub, tab: validTab };
+}

@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState, useEffect, useMemo, useCallback, Suspense, use } from 'react';
+import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { useAuth } from '@/lib/firebase/AuthContext';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -20,6 +20,8 @@ import {
   PIPELINES_ROOFING_DETAIL_TABS,
   getDetailTabsForSubsection,
   getDefaultDetailTab,
+  buildNavUrl,
+  parseNavFromSlug,
 } from '@/lib/navigation';
 import { useTabRefs } from '@/hooks/useTabRefs';
 import {
@@ -70,7 +72,7 @@ const USER_TYPE_OPTIONS: AxisSelectOption[] = [
   { value: 'unclassified', label: 'Unclassified' },
 ];
 
-function Dashboard() {
+function Dashboard({ slug }: { slug: string[] }) {
   const { user, loading: authLoading, signOut } = useAuth();
   const router = useRouter();
   const [data, setData] = useState<DashboardData | null>(null);
@@ -83,38 +85,11 @@ function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [isCached, setIsCached] = useState(false);
-  // URL search params for deep linking
-  const searchParams = useSearchParams();
 
-  // Helper: resolve initial tab state from URL params
-  const getInitialNavState = useCallback(() => {
-    const section = searchParams.get('section') || 'analytics';
-    // Validate section exists
-    const validSection = MAIN_SECTION_TABS.find(t => t.id === section) ? section : 'analytics';
+  // Parse navigation state from URL path segments
+  const initialNav = useMemo(() => parseNavFromSlug(slug), []);  // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Resolve subsection
-    const subParam = searchParams.get('sub');
-    const subsections = SUBSECTION_TABS_MAP[validSection];
-    let validSub = '';
-    if (subsections && subsections.length > 0) {
-      const matchedSub = subParam ? subsections.find(t => t.id === subParam && !t.disabled) : null;
-      validSub = matchedSub ? matchedSub.id : (subsections.find(s => !s.disabled)?.id || subsections[0].id);
-    }
-
-    // Resolve detail tab
-    const tabParam = searchParams.get('tab');
-    let validTab = '';
-    const detailTabs = getDetailTabsForSubsection(validSection, validSub);
-    if (detailTabs) {
-      const matchedTab = tabParam ? detailTabs.find(t => t.id === tabParam && !t.disabled) : null;
-      validTab = matchedTab ? matchedTab.id : (detailTabs.find(t => !t.disabled)?.id || detailTabs[0].id);
-    }
-
-    return { section: validSection, sub: validSub, tab: validTab };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Navigation state (3 levels) — initialized from URL
-  const initialNav = useMemo(() => getInitialNavState(), [getInitialNavState]);
+  // Navigation state (3 levels) — initialized from URL path
   const [activeMainSection, setActiveMainSection] = useState(initialNav.section);
   const [activeSubsection, setActiveSubsection] = useState(initialNav.sub);
   const [activeDetailTab, setActiveDetailTab] = useState(initialNav.tab);
@@ -137,19 +112,11 @@ function Dashboard() {
     return DEFAULT_LAYOUT;
   });
 
-  // Sync navigation state → URL search params (replaceState to avoid history spam)
+  // Sync navigation state → clean URL path (replaceState to avoid history spam)
   useEffect(() => {
-    const params = new URLSearchParams();
-    params.set('section', activeMainSection);
-    // Only include sub if this section has subsections
-    if (activeSubsection && SUBSECTION_TABS_MAP[activeMainSection]) {
-      params.set('sub', activeSubsection);
-    }
-    // Only include tab if this section+sub has detail tabs
-    if (activeDetailTab && getDetailTabsForSubsection(activeMainSection, activeSubsection)) {
-      params.set('tab', activeDetailTab);
-    }
-    const newUrl = `${window.location.pathname}?${params.toString()}`;
+    const sub = SUBSECTION_TABS_MAP[activeMainSection] ? activeSubsection : '';
+    const tab = getDetailTabsForSubsection(activeMainSection, activeSubsection) ? activeDetailTab : '';
+    const newUrl = buildNavUrl(activeMainSection, sub, tab);
     window.history.replaceState(null, '', newUrl);
   }, [activeMainSection, activeSubsection, activeDetailTab]);
 
@@ -871,10 +838,11 @@ function Dashboard() {
   );
 }
 
-export default function Page() {
+export default function Page({ params }: { params: Promise<{ slug?: string[] }> }) {
+  const { slug } = use(params);
   return (
     <Suspense>
-      <Dashboard />
+      <Dashboard slug={slug || []} />
     </Suspense>
   );
 }
