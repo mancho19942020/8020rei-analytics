@@ -255,9 +255,9 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
           </div>
         )}
 
-        {/* Disclaimer — sample data notice */}
-        <AxisCallout type="info" title="Under construction">
-          <p>This tab is being built. The data displayed is sample data used for layout validation. Real metrics will populate automatically from Aurora once the backoffice hourly sync is activated.</p>
+        {/* Disclaimer — waiting for production release */}
+        <AxisCallout type="info" title="Awaiting production data">
+          <p>The DM Campaign sync job is merged to dev but not yet released to production. Real metrics will appear automatically after the next monolith production release.</p>
         </AxisCallout>
 
         {/* System Status — standalone callout, not inside a widget */}

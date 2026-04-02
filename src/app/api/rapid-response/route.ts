@@ -23,9 +23,10 @@ import type {
   SystemHealthLevel,
 } from '@/types/rapid-response';
 
-// Exclude seed/test domains from production queries
-const EXCLUDED_DOMAINS = "'8020rei_demo', '8020rei_migracion_test'";
-const DOMAIN_FILTER = `domain NOT IN (${EXCLUDED_DOMAINS})`;
+// Exclude seed/test domains — real data will use production client domains
+const SEED_DOMAINS = "'8020rei_demo', '8020rei_migracion_test'";
+const EXCLUDE_SEED = `domain NOT IN (${SEED_DOMAINS})`;
+
 
 export async function GET(request: NextRequest) {
   if (!isAuroraConfigured()) {
@@ -91,7 +92,7 @@ async function getOverview(days: number) {
         total_sent, total_delivered, last_sent_date,
         on_hold_count, follow_up_pending_count, snapshot_at
       FROM rr_campaign_snapshots
-      WHERE ${DOMAIN_FILTER}
+      WHERE ${EXCLUDE_SEED}
       ORDER BY campaign_id, snapshot_at DESC
     `),
 
@@ -106,16 +107,17 @@ async function getOverview(days: number) {
         COALESCE(AVG(delivery_rate_30d), 0) as avg_delivery_rate
       FROM rr_daily_metrics
       WHERE date >= CURRENT_DATE - INTERVAL '${days} days'
-        AND ${DOMAIN_FILTER}
+      AND ${EXCLUDE_SEED}
     `),
 
-    // PCM Health: latest alignment check
+    // PCM Health: latest per-domain alignment check
     runAuroraQuery(`
-      SELECT *
+      SELECT DISTINCT ON (domain)
+        domain, stale_sent_count, orphaned_orders_count, oldest_stale_days,
+        delivery_lag_median_days, back_office_sync_gap, checked_at
       FROM rr_pcm_alignment
-      WHERE ${DOMAIN_FILTER}
-      ORDER BY checked_at DESC
-      LIMIT 1
+      WHERE ${EXCLUDE_SEED}
+      ORDER BY domain, checked_at DESC
     `),
   ]);
 
@@ -128,7 +130,7 @@ async function getOverview(days: number) {
   const todayRows = await runAuroraQuery(`
     SELECT COALESCE(SUM(sends_total), 0) as sends_today
     FROM rr_daily_metrics
-    WHERE date = CURRENT_DATE AND ${DOMAIN_FILTER}
+    WHERE date = CURRENT_DATE AND ${EXCLUDE_SEED}
   `);
   const sendsToday = Number(todayRows[0]?.sends_today || 0);
 
@@ -160,15 +162,18 @@ async function getOverview(days: number) {
     deliveredTotal7d: Number(q.delivered_count || 0),
   };
 
-  // Compute PCM Health
-  const p = pcmRows[0] || {};
+  // Compute PCM Health (aggregated across all domains)
   const pcmHealth: RrPcmHealth = {
-    staleSentCount: Number(p.stale_sent_count || 0),
-    orphanedOrdersCount: Number(p.orphaned_orders_count || 0),
-    oldestStaleDays: Number(p.oldest_stale_days || 0),
-    deliveryLagMedianDays: Number(Number(p.delivery_lag_median_days || 0).toFixed(1)),
-    backOfficeSyncGap: Number(p.back_office_sync_gap || 0),
-    undeliverableRate7d: Number(Number(p.undeliverable_rate_7d || 0).toFixed(1)),
+    staleSentCount: pcmRows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.stale_sent_count || 0), 0),
+    orphanedOrdersCount: pcmRows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.orphaned_orders_count || 0), 0),
+    oldestStaleDays: pcmRows.reduce((m: number, r: Record<string, unknown>) => Math.max(m, Number(r.oldest_stale_days || 0)), 0),
+    deliveryLagMedianDays: pcmRows.length > 0
+      ? Number((pcmRows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.delivery_lag_median_days || 0), 0) / pcmRows.length).toFixed(1))
+      : 0,
+    backOfficeSyncGap: pcmRows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.back_office_sync_gap || 0), 0),
+    undeliverableRate7d: pcmRows.length > 0
+      ? Number((pcmRows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.undeliverable_rate_7d || 0), 0) / pcmRows.length).toFixed(1))
+      : 0,
   };
 
   // Compute System Status (verdict banner)
@@ -177,7 +182,7 @@ async function getOverview(days: number) {
     operationalPulse,
     qualityMetrics,
     pcmHealth,
-    p.checked_at ? String(p.checked_at) : null
+    pcmRows.length > 0 ? String(pcmRows[0].checked_at || '') : null
   );
 
   const data = {
@@ -210,7 +215,7 @@ async function getDailyTrend(days: number) {
       follow_up_sent, follow_up_failed
     FROM rr_daily_metrics
     WHERE date >= CURRENT_DATE - INTERVAL '${days} days'
-      AND ${DOMAIN_FILTER}
+      AND ${EXCLUDE_SEED}
     ORDER BY date ASC
   `);
 
@@ -254,7 +259,6 @@ async function getCampaignList() {
       on_hold_count, follow_up_pending_count,
       smartdrop_authorization_status, snapshot_at
     FROM rr_campaign_snapshots
-    WHERE ${DOMAIN_FILTER}
     ORDER BY campaign_id, snapshot_at DESC
   `);
 
@@ -297,7 +301,7 @@ async function getPcmAlignment() {
       delivery_lag_median_days, delivery_lag_p95_days,
       undeliverable_rate_7d, back_office_sync_gap
     FROM rr_pcm_alignment
-    WHERE ${DOMAIN_FILTER}
+    WHERE ${EXCLUDE_SEED}
     ORDER BY checked_at DESC
     LIMIT 48
   `);
@@ -340,7 +344,6 @@ async function getStatusBreakdown(days: number) {
       COALESCE(SUM(sends_error), 0) as error
     FROM rr_daily_metrics
     WHERE date >= CURRENT_DATE - INTERVAL '${days} days'
-      AND ${DOMAIN_FILTER}
   `);
 
   const r = rows[0] || {};
@@ -374,7 +377,7 @@ async function getCostTrend(days: number) {
       COALESCE(SUM(sends_total), 0) as sends_total
     FROM rr_daily_metrics
     WHERE date >= CURRENT_DATE - INTERVAL '${days} days'
-      AND ${DOMAIN_FILTER}
+      AND ${EXCLUDE_SEED}
     GROUP BY date
     ORDER BY date ASC
   `);
@@ -403,9 +406,9 @@ async function getAlerts(days: number) {
   const [pulseRows, qualityRows, pcmRows, todayRows] = await Promise.all([
     runAuroraQuery(`
       SELECT DISTINCT ON (campaign_id)
-        campaign_id, status, on_hold_count, snapshot_at
+        campaign_id, domain, status, on_hold_count, snapshot_at
       FROM rr_campaign_snapshots
-      WHERE ${DOMAIN_FILTER}
+      WHERE ${EXCLUDE_SEED}
       ORDER BY campaign_id, snapshot_at DESC
     `),
     runAuroraQuery(`
@@ -416,17 +419,20 @@ async function getAlerts(days: number) {
         COALESCE(AVG(pcm_submission_rate), 0) as avg_pcm_rate
       FROM rr_daily_metrics
       WHERE date >= CURRENT_DATE - INTERVAL '${days} days'
-        AND ${DOMAIN_FILTER}
+      AND ${EXCLUDE_SEED}
     `),
     runAuroraQuery(`
-      SELECT * FROM rr_pcm_alignment
-      WHERE ${DOMAIN_FILTER}
-      ORDER BY checked_at DESC LIMIT 1
+      SELECT DISTINCT ON (domain)
+        domain, stale_sent_count, orphaned_orders_count, oldest_stale_days,
+        delivery_lag_median_days, back_office_sync_gap, undeliverable_rate_7d, checked_at
+      FROM rr_pcm_alignment
+      WHERE ${EXCLUDE_SEED}
+      ORDER BY domain, checked_at DESC
     `),
     runAuroraQuery(`
       SELECT COALESCE(SUM(sends_total), 0) as sends_today
       FROM rr_daily_metrics
-      WHERE date = CURRENT_DATE AND ${DOMAIN_FILTER}
+      WHERE date = CURRENT_DATE AND ${EXCLUDE_SEED}
     `),
   ]);
 
@@ -436,7 +442,20 @@ async function getAlerts(days: number) {
   const activeCampaigns = pulseRows.filter((r: Record<string, unknown>) => r.status === 'active').length;
   const sendsToday = Number(todayRows[0]?.sends_today || 0);
   const q = qualityRows[0] || {};
-  const p = pcmRows[0] || {};
+
+  // Aggregate PCM data across all domains
+  const totalStale = pcmRows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.stale_sent_count || 0), 0);
+  const totalOrphaned = pcmRows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.orphaned_orders_count || 0), 0);
+  const totalSyncGap = pcmRows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.back_office_sync_gap || 0), 0);
+
+  // Helper: list affected domains for a condition
+  function affectedDomains(rows: Record<string, unknown>[], field: string): string {
+    const domains = rows
+      .filter(r => Number(r[field] || 0) > 0)
+      .map(r => String(r.domain || ''));
+    if (domains.length === 0) return '';
+    return ` Affected: ${domains.join(', ')}.`;
+  }
 
   // RR1: No sends detected
   if (activeCampaigns > 0 && sendsToday === 0) {
@@ -454,49 +473,49 @@ async function getAlerts(days: number) {
   }
 
   // RR2: PCM pipeline stale
-  const staleSentCount = Number(p.stale_sent_count || 0);
-  if (staleSentCount > 0) {
+  if (totalStale > 0) {
     alerts.push({
       id: 'rr-pcm-stale',
       name: 'PCM pipeline stale',
       severity: 'critical',
       category: 'rapid-response',
-      description: `${staleSentCount} mailings have been stuck in "sent" status for 14+ days. The PCM status pipeline may be broken — the back-office middleman might not be forwarding updates.`,
-      metrics: { current: staleSentCount },
+      description: `${totalStale} mailings stuck in "sent" for 14+ days — PCM pipeline may be broken.${affectedDomains(pcmRows, 'stale_sent_count')}`,
+      entity: affectedDomains(pcmRows, 'stale_sent_count').replace(' Affected: ', '').replace('.', ''),
+      metrics: { current: totalStale },
       detected_at: now,
-      action: 'Investigate the back-office PCM bridge. Check if the middleman server is receiving and forwarding status updates from PCM.',
+      action: 'Investigate the back-office PCM bridge for the affected clients.',
       link: '/features/features-rei/rapid-response',
     });
   }
 
   // RR3: Orphaned orders
-  const orphanedOrders = Number(p.orphaned_orders_count || 0);
-  if (orphanedOrders > 0) {
+  if (totalOrphaned > 0) {
     alerts.push({
       id: 'rr-orphaned-orders',
       name: 'Orphaned orders',
       severity: 'critical',
       category: 'rapid-response',
-      description: `${orphanedOrders} mailings were marked as "sent" but have no PCM order ID. The API submission to PCM may have partially failed.`,
-      metrics: { current: orphanedOrders },
+      description: `${totalOrphaned} mailings sent without a PCM order ID.${affectedDomains(pcmRows, 'orphaned_orders_count')}`,
+      entity: affectedDomains(pcmRows, 'orphaned_orders_count').replace(' Affected: ', '').replace('.', ''),
+      metrics: { current: totalOrphaned },
       detected_at: now,
-      action: 'Check recent PCM API responses for errors. These orders need to be resubmitted or manually reconciled.',
+      action: 'Check recent PCM API responses for the affected clients.',
       link: '/features/features-rei/rapid-response',
     });
   }
 
   // RR4: Back-office sync gap
-  const syncGap = Number(p.back_office_sync_gap || 0);
-  if (syncGap > 0) {
+  if (totalSyncGap > 0) {
     alerts.push({
       id: 'rr-sync-gap',
       name: 'Back-office sync gap',
       severity: 'critical',
       category: 'rapid-response',
-      description: `${syncGap} orders that PCM accepted are missing from the back-office bridge table. Status updates for these orders WILL be lost.`,
-      metrics: { current: syncGap },
+      description: `${totalSyncGap} orders missing from back-office bridge table.${affectedDomains(pcmRows, 'back_office_sync_gap')}`,
+      entity: affectedDomains(pcmRows, 'back_office_sync_gap').replace(' Affected: ', '').replace('.', ''),
+      metrics: { current: totalSyncGap },
       detected_at: now,
-      action: 'Verify the back-office bridge table is being populated correctly. These specific orders need manual bridge entries.',
+      action: 'Verify the bridge table for the affected clients.',
       link: '/features/features-rei/rapid-response',
     });
   }
@@ -509,26 +528,36 @@ async function getAlerts(days: number) {
       name: 'Delivery rate below threshold',
       severity: 'warning',
       category: 'rapid-response',
-      description: `The 30-day delivery rate is ${deliveryRate.toFixed(1)}%, below the 70% threshold. This may indicate address quality issues or PCM delays.`,
+      description: `The 30-day delivery rate is ${deliveryRate.toFixed(1)}%, below the 70% threshold.`,
       metrics: { current: deliveryRate, baseline: 70 },
       detected_at: now,
-      action: 'Review undeliverable addresses and PCM rejection reasons. Consider enabling address validation for new sends.',
+      action: 'Review undeliverable addresses and PCM rejection reasons.',
       link: '/features/features-rei/rapid-response',
     });
   }
 
-  // RR6: On-hold mailings
-  const totalOnHold = pulseRows.reduce((sum: number, r: Record<string, unknown>) => sum + Number(r.on_hold_count || 0), 0);
+  // RR6: On-hold mailings — include which domains have holds
+  const onHoldByDomain = new Map<string, number>();
+  pulseRows.forEach((r: Record<string, unknown>) => {
+    const hold = Number(r.on_hold_count || 0);
+    if (hold > 0) {
+      const d = String(r.domain || '');
+      onHoldByDomain.set(d, (onHoldByDomain.get(d) || 0) + hold);
+    }
+  });
+  const totalOnHold = Array.from(onHoldByDomain.values()).reduce((s, v) => s + v, 0);
   if (totalOnHold > 0) {
+    const holdDomains = Array.from(onHoldByDomain.keys()).join(', ');
     alerts.push({
       id: 'rr-on-hold',
       name: 'Mailings on hold',
       severity: 'warning',
       category: 'rapid-response',
-      description: `${totalOnHold} mailings are currently on hold due to insufficient account balance. These campaigns are blocked from sending.`,
+      description: `${totalOnHold} mailings on hold due to insufficient balance. Affected: ${holdDomains}.`,
+      entity: holdDomains,
       metrics: { current: totalOnHold },
       detected_at: now,
-      action: 'Check client account balances. Notify account managers for affected domains.',
+      action: 'Check account balances for the affected clients.',
       link: '/features/features-rei/rapid-response',
     });
   }
@@ -549,18 +578,24 @@ async function getAlerts(days: number) {
     });
   }
 
-  // RR8: Delivery lag high
-  const deliveryLag = Number(p.delivery_lag_median_days || 0);
-  if (deliveryLag > 10) {
+  // RR8: Delivery lag high (average across domains)
+  const avgDeliveryLag = pcmRows.length > 0
+    ? pcmRows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.delivery_lag_median_days || 0), 0) / pcmRows.length
+    : 0;
+  if (avgDeliveryLag > 10) {
+    const lagDomains = pcmRows
+      .filter((r: Record<string, unknown>) => Number(r.delivery_lag_median_days || 0) > 10)
+      .map((r: Record<string, unknown>) => String(r.domain || ''));
     alerts.push({
       id: 'rr-delivery-lag',
       name: 'Delivery lag above normal',
       severity: 'info',
       category: 'rapid-response',
-      description: `Median delivery time is ${deliveryLag.toFixed(1)} days, above the 10-day threshold. This may indicate USPS delays or PCM processing backlogs.`,
-      metrics: { current: deliveryLag, baseline: 10 },
+      description: `Median delivery time is ${avgDeliveryLag.toFixed(1)} days, above the 10-day threshold.${lagDomains.length > 0 ? ` Affected: ${lagDomains.join(', ')}.` : ''}`,
+      entity: lagDomains.join(', ') || undefined,
+      metrics: { current: avgDeliveryLag, baseline: 10 },
       detected_at: now,
-      action: 'Monitor PCM vendor status distribution for processing bottlenecks. This may resolve naturally.',
+      action: 'Monitor PCM vendor status distribution for processing bottlenecks.',
       link: '/features/features-rei/rapid-response',
     });
   }
