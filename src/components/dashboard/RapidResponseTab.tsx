@@ -255,15 +255,14 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
           </div>
         )}
 
-        {/* Disclaimer — waiting for production release */}
-        <AxisCallout type="info" title="Awaiting production data">
-          <p>The DM Campaign sync job is merged to dev but not yet released to production. Real metrics will appear automatically after the next monolith production release.</p>
-        </AxisCallout>
-
-        {/* System Status — standalone callout, not inside a widget */}
-        {data?.systemStatus && (
+        {/* System Status — shows disclaimer when awaiting data, or health status when data is flowing */}
+        {data?.systemStatus && data.systemStatus.level === 'awaiting-data' ? (
+          <AxisCallout type="info" title="Awaiting production data">
+            <p>The DM Campaign sync job is merged to dev but not yet released to production. Real metrics will appear automatically after the next monolith production release.</p>
+          </AxisCallout>
+        ) : data?.systemStatus ? (
           <RrSystemStatusWidget data={data.systemStatus} />
-        )}
+        ) : null}
 
         {/* Partial error banner */}
         {error && data?.systemStatus && (

@@ -86,8 +86,8 @@ export const GA4_DETAIL_TABS: AxisNavigationTabItem[] = [
 
 export const FEATURES_REI_DETAIL_TABS: AxisNavigationTabItem[] = [
   { id: 'rapid-response', name: 'DM Campaign' },
-  { id: 'skiptrace', name: 'Skip Trace' },
   { id: 'properties-api', name: 'Properties API' },
+  { id: 'skiptrace', name: 'Skip Trace' },
   { id: 'auto-export', name: 'Auto Export' },
   { id: 'zillow', name: 'Zillow' },
   { id: 'roi', name: 'ROI' },
