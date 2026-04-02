@@ -71,6 +71,17 @@ export { BugTrackingWidget } from './BugTrackingWidget';
 export { TeamWorkloadWidget } from './TeamWorkloadWidget';
 export { DeliveryTimelineWidget } from './DeliveryTimelineWidget';
 
+// Features > 8020REI > Rapid Response tab widgets
+export { RrSystemStatusWidget } from './RrSystemStatusWidget';
+export { RrOperationalPulseWidget } from './RrOperationalPulseWidget';
+export { RrQualityMetricsWidget } from './RrQualityMetricsWidget';
+export { RrPcmHealthWidget } from './RrPcmHealthWidget';
+export { RrSendsTrendWidget } from './RrSendsTrendWidget';
+export { RrStatusBreakdownWidget } from './RrStatusBreakdownWidget';
+export { RrAlertsFeedWidget } from './RrAlertsFeedWidget';
+export { RrCampaignTableWidget } from './RrCampaignTableWidget';
+export { RrCostOverviewWidget } from './RrCostOverviewWidget';
+
 // Features > 8020REI > Properties API tab widgets
 export { ApiOverviewWidget } from './ApiOverviewWidget';
 export { ApiCallsTrendWidget } from './ApiCallsTrendWidget';

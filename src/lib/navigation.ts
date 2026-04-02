@@ -85,8 +85,8 @@ export const GA4_DETAIL_TABS: AxisNavigationTabItem[] = [
 ];
 
 export const FEATURES_REI_DETAIL_TABS: AxisNavigationTabItem[] = [
-  { id: 'skiptrace', name: 'Skip Trace' },
   { id: 'rapid-response', name: 'Rapid Response' },
+  { id: 'skiptrace', name: 'Skip Trace' },
   { id: 'smart-drop', name: 'Smart Drop' },
   { id: 'properties-api', name: 'Properties API' },
   { id: 'auto-export', name: 'Auto Export' },

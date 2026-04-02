@@ -86,7 +86,17 @@ export type WidgetType =
   | 'api-endpoint-breakdown'
   | 'api-top-clients'
   | 'api-error-tracker'
-  | 'api-recent-logs';
+  | 'api-recent-logs'
+  // Features > 8020REI > Rapid Response tab widgets
+  | 'rr-system-status'
+  | 'rr-operational-pulse'
+  | 'rr-quality-metrics'
+  | 'rr-pcm-health'
+  | 'rr-sends-trend'
+  | 'rr-status-breakdown'
+  | 'rr-alerts-feed'
+  | 'rr-campaign-table'
+  | 'rr-cost-overview';
 
 /**
  * Widget Configuration

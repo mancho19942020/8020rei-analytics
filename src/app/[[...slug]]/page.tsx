@@ -50,6 +50,7 @@ const InsightsTab = dynamic(() => import('@/components/dashboard/InsightsTab').t
 const EngagementCallsTab = dynamic(() => import('@/components/dashboard/EngagementCallsTab').then(m => m.EngagementCallsTab), { loading: TabSkeleton, ssr: false });
 const GrafanaTab = dynamic(() => import('@/components/dashboard/GrafanaTab').then(m => m.GrafanaTab), { loading: TabSkeleton, ssr: false });
 const PropertiesApiTab = dynamic(() => import('@/components/dashboard/PropertiesApiTab').then(m => m.PropertiesApiTab), { loading: TabSkeleton, ssr: false });
+const RapidResponseTab = dynamic(() => import('@/components/dashboard/RapidResponseTab').then(m => m.RapidResponseTab), { loading: TabSkeleton, ssr: false });
 const ClientDomainsTab = dynamic(() => import('@/components/dashboard/ClientDomainsTab').then(m => m.ClientDomainsTab), { loading: TabSkeleton, ssr: false });
 
 interface MetricValues {
@@ -132,6 +133,7 @@ function Dashboard({ slug }: { slug: string[] }) {
     users: usersRef, features: featuresRef, clients: clientsRef, traffic: trafficRef,
     technology: technologyRef, geography: geographyRef, events: eventsRef,
     insights: insightsRef, import: importRef, 'properties-api': propertiesApiRef,
+    'rapid-response': rapidResponseRef,
   } = tabRefs.refs;
 
   // Sidebar navigation callbacks (shared between sidebar and legacy nav)
@@ -773,10 +775,23 @@ function Dashboard({ slug }: { slug: string[] }) {
             />
           )}
 
+          {/* Rapid Response Tab (Features > 8020REI > Rapid Response) */}
+          {activeMainSection === 'features' && activeSubsection === 'features-rei' && activeDetailTab === 'rapid-response' && (
+            <RapidResponseTab
+              ref={rapidResponseRef}
+              days={days}
+              startDate={startDate}
+              endDate={endDate}
+              editMode={editMode}
+              onEditModeChange={setEditMode}
+            />
+          )}
+
           {/* Under Construction placeholder for sections without real content */}
           {activeMainSection !== 'engagement-calls' && activeMainSection !== 'grafana' &&
            !(activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4') &&
            !(activeMainSection === 'features' && activeSubsection === 'features-rei' && activeDetailTab === 'properties-api') &&
+           !(activeMainSection === 'features' && activeSubsection === 'features-rei' && activeDetailTab === 'rapid-response') &&
            !(activeMainSection === 'feedback-loop' && activeSubsection === 'import') && (
             <div className="flex items-center justify-center min-h-full">
               <div className="text-center">

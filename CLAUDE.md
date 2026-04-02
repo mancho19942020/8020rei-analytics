@@ -54,6 +54,16 @@ The header and all navigation tab rows are **always fixed at the top** of the vi
 
 See the dashboard-builder skill (`SKILL.md`) for the full page structure template.
 
+### Sentence Case for All Titles (MANDATORY — Global Rule)
+
+All UI titles use **sentence case**: only the first word is capitalized. This applies to widget titles, tab labels, alert names, callout headlines, table headers, and any user-facing heading.
+
+- "Key metrics" not "Key Metrics"
+- "Is it running?" not "Is It Running?"
+- "Critical issues detected" not "Critical Issues Detected"
+
+**Exceptions:** Acronyms stay uppercase (API, PCM, DAU, WAU, MAU, US). Proper nouns stay capitalized (e.g. "Zillow", "Google").
+
 ### Styling: Custom CSS over Tailwind
 
 Tailwind color classes (e.g. `bg-neutral-100`, `text-main-500`) **do not work reliably** in this project. Always use the custom CSS classes from `globals.css`:
@@ -104,6 +114,7 @@ If auto-deploy fails, read `.claude/skills/deploy-to-cloud-run/SKILL.md` for the
 
 - `.claude/skills/deploy-to-cloud-run/` — **Auto-deploy protocol (MUST run after every git push)**
 - `.claude/skills/design-system-docs/` — Design system documentation and component patterns
+- `.claude/skills/design-kit-guardian/` — **MUST run after creating or modifying any UI component** (widgets, tabs, charts). Audits Axis Design System compliance: correct component usage, CSS variable tokens, BaseChart wrappers, dark mode. Run BEFORE presenting UI work as complete.
 - `.claude/skills/gcp-guardian/` — GCP security best practices
 
 ## Documentation
