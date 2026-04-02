@@ -126,7 +126,7 @@ export function getDetailTabsForSubsection(section: string, sub: string): AxisNa
  */
 export function getDefaultDetailTab(sub: string): string | undefined {
   if (sub === '8020rei-ga4' || sub === '8020roofing-ga4') return 'overview';
-  if (sub === 'features-rei') return 'skiptrace';
+  if (sub === 'features-rei') return 'properties-api';
   if (sub === 'features-roofing') return 'upcoming-features';
   if (sub === 'pipelines-rei') return 'eda-etl';
   if (sub === 'pipelines-roofing') return 'etl-roofing';
