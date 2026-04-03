@@ -181,6 +181,8 @@ export function BaseDonutChart({
         </Pie>
         <Tooltip
           contentStyle={tooltipStyle}
+          itemStyle={{ color: 'var(--text-primary)' }}
+          labelStyle={{ color: 'var(--text-secondary)' }}
           formatter={(value, name) => {
             const numValue = typeof value === 'number' ? value : 0;
             const strName = typeof name === 'string' ? name : '';
