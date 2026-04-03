@@ -80,10 +80,10 @@ export function FeatureTrendWidget({ data }: FeatureTrendWidgetProps) {
       <LineChart
         data={chartData}
         margin={{
-          top: 20,
+          top: 5,
           right: 30,
           left: 10,
-          bottom: 40,
+          bottom: 10,
         }}
       >
         <CartesianGrid

@@ -122,47 +122,47 @@ export const DEFAULT_LAYOUT: Widget[] = [
  *
  * Key used for localStorage persistence.
  */
-export const LAYOUT_STORAGE_KEY = 'axis-metrics-layout-v3';
+export const LAYOUT_STORAGE_KEY = 'axis-metrics-layout-v4';
 
 /**
  * Users Tab Layout Storage Key
  */
-export const USERS_LAYOUT_STORAGE_KEY = 'axis-users-layout-v2';
+export const USERS_LAYOUT_STORAGE_KEY = 'axis-users-layout-v3';
 
 /**
  * Features Tab Layout Storage Key
  */
-export const FEATURES_LAYOUT_STORAGE_KEY = 'axis-features-layout-v1';
+export const FEATURES_LAYOUT_STORAGE_KEY = 'axis-features-layout-v2';
 
 /**
  * Clients Tab Layout Storage Key
  */
-export const CLIENTS_LAYOUT_STORAGE_KEY = 'axis-clients-layout-v2';
+export const CLIENTS_LAYOUT_STORAGE_KEY = 'axis-clients-layout-v3';
 
 /**
  * Traffic Tab Layout Storage Key
  */
-export const TRAFFIC_LAYOUT_STORAGE_KEY = 'axis-traffic-layout-v1';
+export const TRAFFIC_LAYOUT_STORAGE_KEY = 'axis-traffic-layout-v2';
 
 /**
  * Technology Tab Layout Storage Key
  */
-export const TECHNOLOGY_LAYOUT_STORAGE_KEY = 'axis-technology-layout-v1';
+export const TECHNOLOGY_LAYOUT_STORAGE_KEY = 'axis-technology-layout-v2';
 
 /**
  * Geography Tab Layout Storage Key
  */
-export const GEOGRAPHY_LAYOUT_STORAGE_KEY = 'axis-geography-layout-v1';
+export const GEOGRAPHY_LAYOUT_STORAGE_KEY = 'axis-geography-layout-v2';
 
 /**
  * Events Tab Layout Storage Key
  */
-export const EVENTS_LAYOUT_STORAGE_KEY = 'axis-events-layout-v2';
+export const EVENTS_LAYOUT_STORAGE_KEY = 'axis-events-layout-v3';
 
 /**
  * Insights Tab Layout Storage Key
  */
-export const INSIGHTS_LAYOUT_STORAGE_KEY = 'axis-insights-layout-v2';
+export const INSIGHTS_LAYOUT_STORAGE_KEY = 'axis-insights-layout-v3';
 
 /**
  * Layout Version
@@ -993,12 +993,12 @@ export const INSIGHTS_WIDGET_CATALOG: WidgetCatalogItem[] = [
 /**
  * Feedback Loop > Import Layout Storage Key
  */
-export const PRODUCT_DOMAINS_LAYOUT_STORAGE_KEY = 'axis-feedback-import-layout-v2';
+export const PRODUCT_DOMAINS_LAYOUT_STORAGE_KEY = 'axis-feedback-import-layout-v3';
 
 /**
  * Product > Product Projects Layout Storage Key
  */
-export const PRODUCT_PROJECTS_LAYOUT_STORAGE_KEY = 'axis-product-projects-layout-v2';
+export const PRODUCT_PROJECTS_LAYOUT_STORAGE_KEY = 'axis-product-projects-layout-v3';
 
 /**
  * Default Feedback Loop > Import Tab Layout

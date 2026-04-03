@@ -65,14 +65,14 @@ export function BaseStackedBarChart({
   yAxisWidth = 45,
 }: BaseStackedBarChartProps) {
   // Calculate bottom margin based on legend
-  const bottomMargin = showLegend ? 40 : 20;
+  const bottomMargin = showLegend ? 10 : 5;
 
   return (
     <ResponsiveContainer width="100%" height="100%">
       <BarChart
         data={data}
         margin={{
-          top: 20,
+          top: 5,
           right: 30,
           left: 10,
           bottom: bottomMargin,

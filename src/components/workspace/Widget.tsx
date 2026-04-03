@@ -195,7 +195,7 @@ export function Widget({
       </div>
 
       {/* Widget Body */}
-      <div className={`flex-1 min-h-0 overflow-hidden ${flushBody ? '' : 'p-4'}`}>
+      <div className={`flex-1 min-h-0 overflow-hidden ${flushBody ? '' : 'px-3 py-2'}`}>
         <div className="w-full h-full overflow-hidden">
           {children}
         </div>

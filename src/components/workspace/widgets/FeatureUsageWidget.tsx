@@ -1,14 +1,15 @@
 /**
  * Feature Usage Widget
  *
- * Horizontal bar chart showing views per feature.
- * Uses 100% of available height - widget should be sized appropriately in the layout.
+ * Table showing views per feature with sortable columns.
+ * Uses AxisTable for consistent design system styling.
  */
 
 'use client';
 
 import { useMemo } from 'react';
-import { BaseHorizontalBarChart, HorizontalBarDataPoint } from '@/components/charts';
+import { AxisTable } from '@/components/axis';
+import type { Column } from '@/types/table';
 
 interface TrendData {
   value: number;
@@ -27,20 +28,47 @@ interface FeatureUsageWidgetProps {
 }
 
 export function FeatureUsageWidget({ data }: FeatureUsageWidgetProps) {
-  const formattedData: HorizontalBarDataPoint[] = useMemo(() =>
-    data.map((item) => ({
-      label: item.feature,
-      value: item.views,
+  const columns: Column[] = useMemo(() => [
+    {
+      field: 'feature',
+      header: 'Feature',
+      type: 'text',
+      sortable: true,
+    },
+    {
+      field: 'views',
+      header: 'Views',
+      type: 'number',
+      sortable: true,
+    },
+    {
+      field: 'unique_users',
+      header: 'Unique users',
+      type: 'number',
+      sortable: true,
+    },
+  ], []);
+
+  const tableData = useMemo(() =>
+    data.map((item, index) => ({
+      ...item,
+      _id: `${item.feature}-${index}`,
     })),
     [data]
   );
 
   return (
-    <BaseHorizontalBarChart
-      data={formattedData}
-      color="rgb(59, 130, 246)"
-      yAxisWidth={140}
-      tooltipFormatter={(value) => [(value ?? 0).toLocaleString(), 'Views']}
-    />
+    <div className="h-full flex flex-col">
+      <div className="flex-1 min-h-0">
+        <AxisTable
+          columns={columns}
+          data={tableData}
+          rowKey="_id"
+          sortable
+          paginated={false}
+          emptyMessage="No feature data available"
+        />
+      </div>
+    </div>
   );
 }

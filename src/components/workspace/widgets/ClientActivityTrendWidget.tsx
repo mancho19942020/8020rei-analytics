@@ -154,10 +154,10 @@ export function ClientActivityTrendWidget({ data, selectedClient }: ClientActivi
           <LineChart
             data={chartData}
             margin={{
-              top: 20,
+              top: 5,
               right: 30,
               left: 10,
-              bottom: 20,
+              bottom: 5,
             }}
           >
             <CartesianGrid
