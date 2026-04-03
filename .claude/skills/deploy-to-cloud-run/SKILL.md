@@ -93,6 +93,16 @@ if len(aurora_vars) == len(aurora_keys):
 else:
     print(f'WARNING: Only {len(aurora_vars)}/{len(aurora_keys)} Aurora vars found — Properties API will not work')
 
+# --- Read additional env vars from .env.local ---
+extra_keys = ['SLACK_DM_ALERTS_WEBHOOK_URL', 'RESEND_API_KEY']
+extra_vars = {}
+with open('.env.local') as f:
+    for line in f:
+        for key in extra_keys:
+            if line.startswith(key + '='):
+                extra_vars[key] = line.split('=', 1)[1].strip()
+print(f'Extra vars loaded: {len(extra_vars)} ({", ".join(extra_vars.keys())})')
+
 # --- Build env vars ---
 env_vars = {
     'GOOGLE_CLOUD_PROJECT': 'web-app-production-451214',
@@ -103,6 +113,7 @@ env_vars = {
     'GOOGLE_DRIVE_CREDENTIALS_JSON': drive_creds,
     'GOOGLE_APPLICATION_CREDENTIALS_PRODUCT_JSON': bq_creds,
     **aurora_vars,
+    **extra_vars,
 }
 with open('/tmp/env-vars.yaml', 'w') as f:
     for k, v in env_vars.items():
