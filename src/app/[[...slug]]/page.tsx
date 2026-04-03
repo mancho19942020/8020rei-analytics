@@ -422,52 +422,51 @@ function Dashboard({ slug }: { slug: string[] }) {
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
         <header className="flex-shrink-0 px-6 h-14 border-b border-stroke chrome-bg">
-          <div className="flex justify-end items-center gap-4 h-full">
-            {/* Right side actions - consistent height */}
-            <div className="flex items-center gap-2">
+          <div className="flex items-center gap-4 h-full">
+            {/* Updated timestamp — left-aligned */}
+            {lastUpdated && (
+              <span className="text-xs text-content-tertiary whitespace-nowrap mr-auto">
+                Updated: {new Date(lastUpdated).toLocaleString('en-US', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: 'numeric'
+                })}
+                {isCached && ' (cached)'}
+              </span>
+            )}
 
-              {/* Global Tools */}
-              <div className="flex items-center gap-2">
-                {/* Updated timestamp */}
-                {lastUpdated && (
-                  <span className="text-xs text-content-tertiary whitespace-nowrap">
-                    Updated: {new Date(lastUpdated).toLocaleString('en-US', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                      day: '2-digit',
-                      month: '2-digit',
-                      year: 'numeric'
-                    })}
-                    {isCached && ' (cached)'}
-                  </span>
-                )}
+            {/* Right side actions */}
+            <div className="flex items-center gap-2 ml-auto">
 
-                {/* Edit Layout Toggle */}
-                <AxisToggle
-                  checked={editMode}
-                  onChange={setEditMode}
-                  label="Edit Layout"
-                />
+              {/* Edit Layout Toggle */}
+              <AxisToggle
+                checked={editMode}
+                onChange={setEditMode}
+                label="Edit Layout"
+              />
 
-                {/* User Type Filter — only shown for GA4 analytics tabs where it affects the data */}
-                {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && (
-                  <AxisSelect
-                    value={userType}
-                    onChange={(val) => setUserType(val as 'all' | 'internal' | 'external' | 'unclassified')}
-                    options={USER_TYPE_OPTIONS}
-                    size="md"
-                    fullWidth={false}
-                    className="w-40"
-                  />
-                )}
+              <div className="w-3" /> {/* Spacer between toggle and filters */}
 
-                {/* Time Filter */}
-                <AxisDateRangePicker
-                  value={dateRange}
-                  onChange={setDateRange}
+              {/* User Type Filter — only shown for GA4 analytics tabs where it affects the data */}
+              {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && (
+                <AxisSelect
+                  value={userType}
+                  onChange={(val) => setUserType(val as 'all' | 'internal' | 'external' | 'unclassified')}
+                  options={USER_TYPE_OPTIONS}
                   size="md"
+                  fullWidth={false}
+                  className="w-40"
                 />
-              </div>
+              )}
+
+              {/* Time Filter */}
+              <AxisDateRangePicker
+                value={dateRange}
+                onChange={setDateRange}
+                size="md"
+              />
 
               {/* Design Kit — visible only to authorized contributors */}
               {canAccessDesignKit(user?.email) && (
