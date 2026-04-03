@@ -98,7 +98,7 @@ function Dashboard({ slug }: { slug: string[] }) {
   const [activeMainSection, setActiveMainSection] = useState(initialNav.section);
   const [activeSubsection, setActiveSubsection] = useState(initialNav.sub);
   const [activeDetailTab, setActiveDetailTab] = useState(initialNav.tab);
-  const [dmCampaignSubTab, setDmCampaignSubTab] = useState('operational-health');
+  const [dmCampaignSubTab, setDmCampaignSubTab] = useState(initialNav.subTab || 'operational-health');
   const { collapsed: sidebarCollapsed, toggle: toggleSidebar } = useSidebarState();
   const [editMode, setEditMode] = useState(false);
   const [showEditCallout, setShowEditCallout] = useState(false);
@@ -124,9 +124,10 @@ function Dashboard({ slug }: { slug: string[] }) {
   useEffect(() => {
     const sub = SUBSECTION_TABS_MAP[activeMainSection] ? activeSubsection : '';
     const tab = getDetailTabsForSubsection(activeMainSection, activeSubsection) ? activeDetailTab : '';
-    const newUrl = buildNavUrl(activeMainSection, sub, tab);
+    const subTab = tab === 'dm-campaign' ? dmCampaignSubTab : '';
+    const newUrl = buildNavUrl(activeMainSection, sub, tab, subTab);
     window.history.replaceState(null, '', newUrl);
-  }, [activeMainSection, activeSubsection, activeDetailTab]);
+  }, [activeMainSection, activeSubsection, activeDetailTab, dmCampaignSubTab]);
 
   // Tab refs for imperative actions (resetLayout, openWidgetCatalog)
   const tabRefs = useTabRefs();
@@ -135,7 +136,7 @@ function Dashboard({ slug }: { slug: string[] }) {
     users: usersRef, features: featuresRef, clients: clientsRef, traffic: trafficRef,
     technology: technologyRef, geography: geographyRef, events: eventsRef,
     insights: insightsRef, import: importRef, 'properties-api': propertiesApiRef,
-    'rapid-response': rapidResponseRef,
+    'dm-campaign': dmCampaignRef,
   } = tabRefs.refs;
 
   // Sidebar navigation callbacks (shared between sidebar and legacy nav)
@@ -540,7 +541,7 @@ function Dashboard({ slug }: { slug: string[] }) {
         )}
 
         {/* Fourth-Level Navigation - Sub-tabs for DM Campaign */}
-        {activeMainSection === 'features' && activeSubsection === 'features-rei' && activeDetailTab === 'rapid-response' && (
+        {activeMainSection === 'features' && activeSubsection === 'features-rei' && activeDetailTab === 'dm-campaign' && (
           <nav className="flex-shrink-0 px-6 border-b border-stroke chrome-bg">
             <AxisNavigationTab
               activeTab={dmCampaignSubTab}
@@ -791,9 +792,9 @@ function Dashboard({ slug }: { slug: string[] }) {
           )}
 
           {/* Rapid Response Tab (Features > 8020REI > Rapid Response) */}
-          {activeMainSection === 'features' && activeSubsection === 'features-rei' && activeDetailTab === 'rapid-response' && (
+          {activeMainSection === 'features' && activeSubsection === 'features-rei' && activeDetailTab === 'dm-campaign' && (
             <RapidResponseTab
-              ref={rapidResponseRef}
+              ref={dmCampaignRef}
               days={days}
               startDate={startDate}
               endDate={endDate}
@@ -807,7 +808,7 @@ function Dashboard({ slug }: { slug: string[] }) {
           {activeMainSection !== 'engagement-calls' && activeMainSection !== 'grafana' &&
            !(activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4') &&
            !(activeMainSection === 'features' && activeSubsection === 'features-rei' && activeDetailTab === 'properties-api') &&
-           !(activeMainSection === 'features' && activeSubsection === 'features-rei' && activeDetailTab === 'rapid-response') &&
+           !(activeMainSection === 'features' && activeSubsection === 'features-rei' && activeDetailTab === 'dm-campaign') &&
            !(activeMainSection === 'feedback-loop' && activeSubsection === 'import') && (
             <div className="flex items-center justify-center min-h-full">
               <div className="text-center">

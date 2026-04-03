@@ -82,6 +82,17 @@ export { RrAlertsFeedWidget } from './RrAlertsFeedWidget';
 export { RrCampaignTableWidget } from './RrCampaignTableWidget';
 export { RrCostOverviewWidget } from './RrCostOverviewWidget';
 
+// Features > 8020REI > DM Campaign Business Results tab widgets
+export { DmAlertsFeedWidget } from './DmAlertsFeedWidget';
+export { DmFunnelOverviewWidget } from './DmFunnelOverviewWidget';
+export { DmClientPerformanceWidget } from './DmClientPerformanceWidget';
+export { DmTemplateLeaderboardWidget } from './DmTemplateLeaderboardWidget';
+export { DmConversionTrendWidget } from './DmConversionTrendWidget';
+export { DmRoasTrendWidget } from './DmRoasTrendWidget';
+export { DmGeoBreakdownWidget } from './DmGeoBreakdownWidget';
+export { DmDataQualityWidget } from './DmDataQualityWidget';
+export { DmPropertyTimelineModal } from './DmPropertyTimelineModal';
+
 // Features > 8020REI > Properties API tab widgets
 export { ApiOverviewWidget } from './ApiOverviewWidget';
 export { ApiCallsTrendWidget } from './ApiCallsTrendWidget';

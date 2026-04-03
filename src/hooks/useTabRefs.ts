@@ -13,7 +13,7 @@ type TabRefKey =
   | 'users' | 'features' | 'clients' | 'traffic' | 'technology'
   | 'geography' | 'events' | 'insights'
   | 'import' | 'product-jira-projects'
-  | 'properties-api' | 'rapid-response';
+  | 'properties-api' | 'dm-campaign';
 
 export function useTabRefs() {
   const refs: Record<TabRefKey, React.RefObject<TabHandle | null>> = {
@@ -28,7 +28,7 @@ export function useTabRefs() {
     'import': useRef<TabHandle>(null),
     'product-jira-projects': useRef<TabHandle>(null),
     'properties-api': useRef<TabHandle>(null),
-    'rapid-response': useRef<TabHandle>(null),
+    'dm-campaign': useRef<TabHandle>(null),
   };
 
   /**
@@ -46,7 +46,7 @@ export function useTabRefs() {
     // Features > 8020REI detail tabs
     if (mainSection === 'features' && subsection === 'features-rei') {
       if (detailTab === 'properties-api') return 'properties-api';
-      if (detailTab === 'rapid-response') return 'rapid-response';
+      if (detailTab === 'dm-campaign') return 'dm-campaign';
       return null;
     }
     // GA4 detail tabs

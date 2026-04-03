@@ -159,7 +159,7 @@ async function fetchCurrentAlerts(): Promise<RrAlert[]> {
       metrics: { current: sendsToday, baseline: activeCampaigns.length },
       detected_at: now,
       action: 'Check the dispatch job logs and verify the cron is running.',
-      link: '/features/features-rei/rapid-response',
+      link: '/features/features-rei/dm-campaign/operational-health',
     });
   }
 
@@ -178,7 +178,7 @@ async function fetchCurrentAlerts(): Promise<RrAlert[]> {
       metrics: { current: totalStale },
       detected_at: now,
       action: 'Investigate the back-office PCM bridge for affected clients.',
-      link: '/features/features-rei/rapid-response',
+      link: '/features/features-rei/dm-campaign/operational-health',
     });
   }
 
@@ -197,7 +197,7 @@ async function fetchCurrentAlerts(): Promise<RrAlert[]> {
       metrics: { current: totalOrphaned },
       detected_at: now,
       action: 'Check PCM API responses for affected clients.',
-      link: '/features/features-rei/rapid-response',
+      link: '/features/features-rei/dm-campaign/operational-health',
     });
   }
 
@@ -213,7 +213,7 @@ async function fetchCurrentAlerts(): Promise<RrAlert[]> {
       metrics: { current: deliveryRate, baseline: 70 },
       detected_at: now,
       action: 'Review undeliverable addresses and PCM rejection reasons.',
-      link: '/features/features-rei/rapid-response',
+      link: '/features/features-rei/dm-campaign/operational-health',
     });
   }
 
@@ -241,7 +241,7 @@ async function fetchCurrentAlerts(): Promise<RrAlert[]> {
       metrics: { current: totalOnHold },
       detected_at: now,
       action: 'Check account balances for affected clients.',
-      link: '/features/features-rei/rapid-response',
+      link: '/features/features-rei/dm-campaign/operational-health',
     });
   }
 
@@ -321,7 +321,7 @@ function formatAlertsForSlack(alerts: RrAlert[], totalCount: number): SlackBlock
     type: 'context',
     elements: [{
       type: 'mrkdwn',
-      text: ':bar_chart: <https://8020-metrics-hub-build-611201211946.us-east1.run.app/features/features-rei/rapid-response|View in Metrics Hub>',
+      text: ':bar_chart: <https://8020-metrics-hub-build-611201211946.us-east1.run.app/features/features-rei/dm-campaign/operational-health|View in Metrics Hub>',
     }],
   });
 

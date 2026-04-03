@@ -90,7 +90,7 @@ export const DM_CAMPAIGN_SUB_TABS: AxisNavigationTabItem[] = [
 ];
 
 export const FEATURES_REI_DETAIL_TABS: AxisNavigationTabItem[] = [
-  { id: 'rapid-response', name: 'DM Campaign' },
+  { id: 'dm-campaign', name: 'DM Campaign' },
   { id: 'properties-api', name: 'Properties API' },
   { id: 'skiptrace', name: 'Skip Trace' },
   { id: 'auto-export', name: 'Auto Export' },
@@ -141,16 +141,20 @@ export function getDefaultDetailTab(sub: string): string | undefined {
 /**
  * Build a clean URL path from navigation state.
  * Examples:
- *   buildNavUrl('analytics', '8020rei-ga4', 'overview') → '/analytics/8020rei-ga4/overview'
- *   buildNavUrl('engagement-calls', '', '')              → '/engagement-calls'
- *   buildNavUrl('feedback-loop', 'import', '')           → '/feedback-loop/import'
+ *   buildNavUrl('analytics', '8020rei-ga4', 'overview')                     → '/analytics/8020rei-ga4/overview'
+ *   buildNavUrl('engagement-calls', '', '')                                  → '/engagement-calls'
+ *   buildNavUrl('feedback-loop', 'import', '')                              → '/feedback-loop/import'
+ *   buildNavUrl('features', 'features-rei', 'dm-campaign', 'business-results') → '/features/features-rei/dm-campaign/business-results'
  */
-export function buildNavUrl(section: string, sub?: string, tab?: string): string {
+export function buildNavUrl(section: string, sub?: string, tab?: string, subTab?: string): string {
   let path = `/${section}`;
   if (sub) {
     path += `/${sub}`;
     if (tab) {
       path += `/${tab}`;
+      if (subTab) {
+        path += `/${subTab}`;
+      }
     }
   }
   return path;
@@ -159,9 +163,10 @@ export function buildNavUrl(section: string, sub?: string, tab?: string): string
 /**
  * Parse URL slug segments into navigation state.
  * Validates each level against the navigation config and falls back to defaults.
+ * Supports 4th segment for sub-tabs (e.g., /features/features-rei/dm-campaign/business-results).
  */
-export function parseNavFromSlug(slug: string[]): { section: string; sub: string; tab: string } {
-  const [rawSection, rawSub, rawTab] = slug;
+export function parseNavFromSlug(slug: string[]): { section: string; sub: string; tab: string; subTab: string } {
+  const [rawSection, rawSub, rawTab, rawSubTab] = slug;
 
   // Validate section
   const validSection = MAIN_SECTION_TABS.find(t => t.id === rawSection)
@@ -184,5 +189,12 @@ export function parseNavFromSlug(slug: string[]): { section: string; sub: string
     validTab = matchedTab ? matchedTab.id : (detailTabs.find(t => !t.disabled)?.id || detailTabs[0].id);
   }
 
-  return { section: validSection, sub: validSub, tab: validTab };
+  // Resolve sub-tab (4th level — currently only used by dm-campaign)
+  let validSubTab = '';
+  if (validTab === 'dm-campaign') {
+    const matched = rawSubTab ? DM_CAMPAIGN_SUB_TABS.find(t => t.id === rawSubTab) : null;
+    validSubTab = matched ? matched.id : 'operational-health';
+  }
+
+  return { section: validSection, sub: validSub, tab: validTab, subTab: validSubTab };
 }

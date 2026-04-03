@@ -96,7 +96,16 @@ export type WidgetType =
   | 'rr-status-breakdown'
   | 'rr-alerts-feed'
   | 'rr-campaign-table'
-  | 'rr-cost-overview';
+  | 'rr-cost-overview'
+  // Features > 8020REI > DM Campaign Business Results tab widgets
+  | 'dm-alerts-feed'
+  | 'dm-funnel-overview'
+  | 'dm-client-performance'
+  | 'dm-template-leaderboard'
+  | 'dm-conversion-trend'
+  | 'dm-roas-trend'
+  | 'dm-geo-breakdown'
+  | 'dm-data-quality';
 
 /**
  * Widget Configuration

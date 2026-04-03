@@ -488,7 +488,7 @@ async function getAlerts(days: number, domain?: string) {
       metrics: { current: sendsToday, baseline: activeCampaigns },
       detected_at: now,
       action: 'Check the dispatch job logs and verify the cron is running on the backoffice server. Verify that the dispatch cron for each listed domain is scheduled and executing.',
-      link: '/features/features-rei/rapid-response',
+      link: '/features/features-rei/dm-campaign/operational-health',
     });
   }
 
@@ -509,7 +509,7 @@ async function getAlerts(days: number, domain?: string) {
       metrics: { current: totalStale },
       detected_at: now,
       action: 'Investigate the back-office PCM bridge for each affected client. Check if status updates from PCM are being received and forwarded correctly.',
-      link: '/features/features-rei/rapid-response',
+      link: '/features/features-rei/dm-campaign/operational-health',
     });
   }
 
@@ -530,7 +530,7 @@ async function getAlerts(days: number, domain?: string) {
       metrics: { current: totalOrphaned },
       detected_at: now,
       action: 'Check recent PCM API responses for each affected client. Look for API timeouts or rejection patterns that prevented order IDs from being stored.',
-      link: '/features/features-rei/rapid-response',
+      link: '/features/features-rei/dm-campaign/operational-health',
     });
   }
 
@@ -546,7 +546,7 @@ async function getAlerts(days: number, domain?: string) {
       metrics: { current: totalSyncGap },
       detected_at: now,
       action: 'Verify the bridge table for the affected clients.',
-      link: '/features/features-rei/rapid-response',
+      link: '/features/features-rei/dm-campaign/operational-health',
     });
   }
 
@@ -562,7 +562,7 @@ async function getAlerts(days: number, domain?: string) {
       metrics: { current: deliveryRate, baseline: 70 },
       detected_at: now,
       action: 'Review undeliverable addresses and PCM rejection reasons.',
-      link: '/features/features-rei/rapid-response',
+      link: '/features/features-rei/dm-campaign/operational-health',
     });
   }
 
@@ -595,7 +595,7 @@ async function getAlerts(days: number, domain?: string) {
       metrics: { current: totalOnHold },
       detected_at: now,
       action: 'Check account balances for the affected clients.',
-      link: '/features/features-rei/rapid-response',
+      link: '/features/features-rei/dm-campaign/operational-health',
     });
   }
 
@@ -611,7 +611,7 @@ async function getAlerts(days: number, domain?: string) {
       metrics: { current: pcmRate, baseline: 95 },
       detected_at: now,
       action: 'Review PCM API error logs. Check for systematic rejection patterns (bad addresses, rate limiting).',
-      link: '/features/features-rei/rapid-response',
+      link: '/features/features-rei/dm-campaign/operational-health',
     });
   }
 
@@ -633,7 +633,7 @@ async function getAlerts(days: number, domain?: string) {
       metrics: { current: avgDeliveryLag, baseline: 10 },
       detected_at: now,
       action: 'Monitor PCM vendor status distribution for processing bottlenecks.',
-      link: '/features/features-rei/rapid-response',
+      link: '/features/features-rei/dm-campaign/operational-health',
     });
   }
 
