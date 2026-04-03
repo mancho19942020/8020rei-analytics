@@ -113,6 +113,9 @@ export interface Widget {
   /** Display title */
   title: string;
 
+  /** Tooltip description shown on hover next to the title */
+  tooltip?: string;
+
   /** Grid column position (0-based) */
   x: number;
 

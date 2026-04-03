@@ -27,7 +27,7 @@
 
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { AxisButton } from './AxisButton';
 import { AxisSelect, AxisSelectOption } from './AxisSelect';
 import { AxisCallout } from './AxisCallout';
@@ -50,6 +50,8 @@ export interface AxisTableProps {
   selectable?: boolean;
   /** Enable pagination */
   paginated?: boolean;
+  /** Enable column resizing via drag handles */
+  resizable?: boolean;
   /** Loading state */
   loading?: boolean;
   /** Error message */
@@ -83,6 +85,7 @@ export function AxisTable({
   sortable = false,
   selectable = false,
   paginated = true,
+  resizable = false,
   loading = false,
   error = null,
   emptyMessage = 'No data found',
@@ -96,6 +99,34 @@ export function AxisTable({
   const [selectedKeys, setSelectedKeys] = useState<Set<string | number>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(defaultPageSize);
+
+  // Column resize state
+  const [colWidths, setColWidths] = useState<Record<string, number>>({});
+  const resizingRef = useRef<{ field: string; startX: number; startW: number } | null>(null);
+
+  const handleResizeStart = useCallback((e: React.MouseEvent, field: string, currentWidth: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    resizingRef.current = { field, startX: e.clientX, startW: currentWidth };
+
+    const onMove = (ev: MouseEvent) => {
+      if (!resizingRef.current) return;
+      const delta = ev.clientX - resizingRef.current.startX;
+      const newW = Math.max(60, resizingRef.current.startW + delta);
+      setColWidths(prev => ({ ...prev, [resizingRef.current!.field]: newW }));
+    };
+    const onUp = () => {
+      resizingRef.current = null;
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }, []);
 
   // Get visible columns (filter out hidden columns)
   const visibleColumns = useMemo(
@@ -271,7 +302,7 @@ export function AxisTable({
         <div className="flex items-center bg-surface-raised border-b border-stroke">
           {selectable && (
             <div className="w-12 px-3 py-2.5 border-r border-stroke">
-              <div className="w-5 h-5 bg-neutral-200 dark:bg-neutral-700 rounded animate-pulse" />
+              <div className="w-5 h-5 bg-neutral-100 dark:bg-neutral-700 rounded animate-pulse" />
             </div>
           )}
           {visibleColumns.slice(0, 6).map((col, idx) => (
@@ -281,7 +312,7 @@ export function AxisTable({
               style={{ minWidth: '100px' }}
             >
               <div
-                className="h-4 bg-neutral-200 dark:bg-neutral-700 rounded animate-pulse"
+                className="h-4 bg-neutral-100 dark:bg-neutral-700 rounded animate-pulse"
                 style={{ width: `${60 + (idx % 3) * 15}%` }}
               />
             </div>
@@ -294,7 +325,7 @@ export function AxisTable({
             <div key={rowIdx} className="flex items-center border-b border-stroke-subtle">
               {selectable && (
                 <div className="w-12 px-3 py-2.5 border-r border-stroke-subtle">
-                  <div className="w-5 h-5 bg-neutral-200 dark:bg-neutral-700 rounded animate-pulse" />
+                  <div className="w-5 h-5 bg-neutral-100 dark:bg-neutral-700 rounded animate-pulse" />
                 </div>
               )}
               {visibleColumns.slice(0, 6).map((col, colIdx) => (
@@ -304,7 +335,7 @@ export function AxisTable({
                   style={{ minWidth: '100px' }}
                 >
                   <div
-                    className="h-4 bg-neutral-200 dark:bg-neutral-700 rounded animate-pulse"
+                    className="h-4 bg-neutral-100 dark:bg-neutral-700 rounded animate-pulse"
                     style={{ width: `${40 + ((rowIdx + colIdx) % 5) * 12}%` }}
                   />
                 </div>
@@ -385,32 +416,41 @@ export function AxisTable({
                 const align = getColumnAlign(column);
                 const sortOrder = getSortIndicator(column);
                 const isSortable = sortable && column.sortable !== false;
+                const effectiveWidth = colWidths[column.field] || column.width;
 
                 return (
                   <th
                     key={column.field}
-                    className={`px-3 py-2.5 bg-surface-raised border-b border-r border-stroke last:border-r-0 ${
+                    className={`px-3 py-2.5 bg-surface-raised border-b border-r border-stroke last:border-r-0 relative ${
                       align === 'center' ? 'text-center' : 'text-left'
                     }`}
-                    style={{ width: column.width, minWidth: column.minWidth, maxWidth: column.maxWidth }}
+                    style={{ width: effectiveWidth, minWidth: column.minWidth || 60, maxWidth: column.maxWidth }}
                   >
                     {isSortable ? (
                       <button
-                        className="flex items-center gap-1 hover:text-content-primary transition-colors w-full"
+                        type="button"
+                        className={`flex items-center gap-1 hover:text-content-primary transition-colors w-full h-full ${
+                          align === 'center' ? 'justify-center' : ''
+                        }`}
                         onClick={() => handleSort(column)}
                       >
                         <span className="text-body-regular font-semibold text-content-primary">
                           {column.header}
                         </span>
-                        <div className="w-4 h-4 flex items-center justify-center">
+                        <div className="w-4 h-4 flex items-center justify-center flex-shrink-0">
                           {sortOrder === 'asc' && (
-                            <svg className="w-4 h-4 text-main-600 dark:text-main-400" fill="none" viewBox="0 0 20 20">
+                            <svg className="w-4 h-4 text-main-700 dark:text-main-300" fill="none" viewBox="0 0 20 20">
                               <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l5-5 5 5" />
                             </svg>
                           )}
                           {sortOrder === 'desc' && (
-                            <svg className="w-4 h-4 text-main-600 dark:text-main-400" fill="none" viewBox="0 0 20 20">
+                            <svg className="w-4 h-4 text-main-700 dark:text-main-300" fill="none" viewBox="0 0 20 20">
                               <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5l-5 5-5-5" />
+                            </svg>
+                          )}
+                          {!sortOrder && (
+                            <svg className="w-4 h-4 text-content-tertiary opacity-0 group-hover:opacity-100" fill="none" viewBox="0 0 20 20">
+                              <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l5 5 5-5M5 7l5-5 5 5" />
                             </svg>
                           )}
                         </div>
@@ -419,6 +459,19 @@ export function AxisTable({
                       <span className="text-body-regular font-semibold text-content-primary">
                         {column.header}
                       </span>
+                    )}
+                    {/* Resize handle — thin bar on right edge, only activates on mousedown */}
+                    {resizable && (
+                      <div
+                        className="absolute top-0 right-0 w-1 h-full cursor-col-resize z-10"
+                        style={{ backgroundColor: 'transparent' }}
+                        onMouseEnter={(e) => { (e.target as HTMLElement).style.backgroundColor = 'var(--color-main-500)'; }}
+                        onMouseLeave={(e) => { (e.target as HTMLElement).style.backgroundColor = 'transparent'; }}
+                        onMouseDown={(e) => {
+                          const th = e.currentTarget.parentElement;
+                          handleResizeStart(e, column.field, th ? th.offsetWidth : (effectiveWidth || 100));
+                        }}
+                      />
                     )}
                   </th>
                 );
@@ -467,6 +520,7 @@ export function AxisTable({
                   {visibleColumns.map((column) => {
                     const align = getColumnAlign(column);
                     const value = row[column.field] as CellValue;
+                    const effectiveWidth = colWidths[column.field] || column.width;
 
                     return (
                       <td
@@ -474,6 +528,7 @@ export function AxisTable({
                         className={`px-3 py-2.5 h-11 border-b border-r border-stroke-subtle last:border-r-0 overflow-hidden ${
                           align === 'center' ? 'text-center' : 'text-left'
                         } ${isSelected ? 'bg-main-50 dark:bg-main-950/30' : 'bg-surface-base'}`}
+                        style={{ width: effectiveWidth }}
                       >
                         {column.render ? (
                           <div className="text-body-regular text-content-primary">

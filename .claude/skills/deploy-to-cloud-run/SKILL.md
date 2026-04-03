@@ -184,5 +184,6 @@ When a new feature requires new environment variables:
 - Never pass JSON credentials directly via `--set-env-vars` (gcloud can't parse it)
 
 ### Changes not appearing after push
-- **This is the #1 issue**: `git push` does NOT trigger deployment
-- You must run the `gcloud run deploy` command after every push
+- Check the GitHub Actions tab — the auto-deploy workflow should have triggered
+- If the workflow failed, use the manual fallback steps above
+- If the workflow succeeded but changes aren't visible, check Cloud Run logs for runtime errors

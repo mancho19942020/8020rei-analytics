@@ -17,6 +17,7 @@ import {
   SUBSECTION_TABS_MAP,
   GA4_DETAIL_TABS,
   FEATURES_REI_DETAIL_TABS,
+  DM_CAMPAIGN_SUB_TABS,
   FEATURES_ROOFING_DETAIL_TABS,
   PIPELINES_REI_DETAIL_TABS,
   PIPELINES_ROOFING_DETAIL_TABS,
@@ -97,6 +98,7 @@ function Dashboard({ slug }: { slug: string[] }) {
   const [activeMainSection, setActiveMainSection] = useState(initialNav.section);
   const [activeSubsection, setActiveSubsection] = useState(initialNav.sub);
   const [activeDetailTab, setActiveDetailTab] = useState(initialNav.tab);
+  const [dmCampaignSubTab, setDmCampaignSubTab] = useState('operational-health');
   const { collapsed: sidebarCollapsed, toggle: toggleSidebar } = useSidebarState();
   const [editMode, setEditMode] = useState(false);
   const [showEditCallout, setShowEditCallout] = useState(false);
@@ -537,6 +539,19 @@ function Dashboard({ slug }: { slug: string[] }) {
           </nav>
         )}
 
+        {/* Fourth-Level Navigation - Sub-tabs for DM Campaign */}
+        {activeMainSection === 'features' && activeSubsection === 'features-rei' && activeDetailTab === 'rapid-response' && (
+          <nav className="flex-shrink-0 px-6 border-b border-stroke chrome-bg">
+            <AxisNavigationTab
+              activeTab={dmCampaignSubTab}
+              onTabChange={setDmCampaignSubTab}
+              tabs={DM_CAMPAIGN_SUB_TABS}
+              variant="line"
+              size="sm"
+            />
+          </nav>
+        )}
+
         {/* Third-Level Navigation - Detail Tabs for Features > 8020 Roofing */}
         {activeMainSection === 'features' && activeSubsection === 'features-roofing' && (
           <nav className="flex-shrink-0 px-6 border-b border-stroke chrome-bg">
@@ -784,6 +799,7 @@ function Dashboard({ slug }: { slug: string[] }) {
               endDate={endDate}
               editMode={editMode}
               onEditModeChange={setEditMode}
+              activeSubTab={dmCampaignSubTab}
             />
           )}
 

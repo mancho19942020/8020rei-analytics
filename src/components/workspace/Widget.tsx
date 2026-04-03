@@ -8,10 +8,14 @@
 'use client';
 
 import { ReactNode } from 'react';
+import { AxisTooltip } from '@/components/axis';
 
 export interface WidgetComponentProps {
   /** Widget title */
   title: string;
+
+  /** Tooltip description shown on hover next to the title */
+  tooltip?: string;
 
   /** Widget content */
   children: ReactNode;
@@ -28,6 +32,9 @@ export interface WidgetComponentProps {
   /** Callback when export is clicked */
   onExport?: () => void;
 
+  /** Extra content rendered in the header bar, between the title and the action buttons */
+  headerExtra?: ReactNode;
+
   /** Remove body padding so children (e.g. metric cards) go edge-to-edge */
   flushBody?: boolean;
 
@@ -37,11 +44,13 @@ export interface WidgetComponentProps {
 
 export function Widget({
   title,
+  tooltip,
   children,
   editMode = false,
   onRemove,
   onSettings,
   onExport,
+  headerExtra,
   flushBody = false,
   className = '',
 }: WidgetComponentProps) {
@@ -84,13 +93,26 @@ export function Widget({
             </button>
           )}
 
-          {/* Title */}
-          <h3 className="text-h4 font-semibold text-content-primary truncate">
+          {/* Title + Tooltip */}
+          <h3 className="text-h4 font-semibold text-content-primary truncate flex items-center gap-1.5">
             {title}
+            {tooltip && (
+              <AxisTooltip content={tooltip} placement="bottom" maxWidth={280}>
+                <span className="inline-flex p-0.5 rounded-full text-content-tertiary hover:text-content-secondary cursor-help flex-shrink-0">
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <circle cx="12" cy="12" r="10" />
+                    <path strokeLinecap="round" d="M12 16v-4m0-4h.01" />
+                  </svg>
+                </span>
+              </AxisTooltip>
+            )}
           </h3>
         </div>
 
-        {/* Right side: Actions */}
+        {/* Right side: Header extra + Actions */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {headerExtra}
+        </div>
         <div className="flex items-center gap-1 flex-shrink-0">
           {/* Export Button */}
           {onExport && (

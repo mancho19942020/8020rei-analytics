@@ -20,12 +20,21 @@ import type {
   RrAlert,
   RrStatusBreakdown,
   RrCostPoint,
-  SystemHealthLevel,
 } from '@/types/rapid-response';
 
 // Exclude seed/test domains — real data will use production client domains
 const SEED_DOMAINS = "'8020rei_demo', '8020rei_migracion_test'";
 const EXCLUDE_SEED = `domain NOT IN (${SEED_DOMAINS})`;
+
+/** Build a WHERE clause that excludes seed domains AND optionally filters to a specific domain */
+function domainFilter(domain?: string | null): string {
+  if (domain) {
+    // Sanitize: only allow alphanumeric, underscore, dot
+    const safe = domain.replace(/[^a-zA-Z0-9_.]/g, '');
+    return `${EXCLUDE_SEED} AND domain = '${safe}'`;
+  }
+  return EXCLUDE_SEED;
+}
 
 
 export async function GET(request: NextRequest) {
@@ -39,23 +48,26 @@ export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
   const type = params.get('type') || 'overview';
   const days = parseInt(params.get('days') || '30');
+  const domain = params.get('domain') || undefined;
 
   try {
     switch (type) {
       case 'overview':
-        return await getOverview(days);
+        return await getOverview(days, domain);
       case 'daily-trend':
-        return await getDailyTrend(days);
+        return await getDailyTrend(days, domain);
       case 'campaign-list':
-        return await getCampaignList();
+        return await getCampaignList(domain);
       case 'pcm-alignment':
-        return await getPcmAlignment();
+        return await getPcmAlignment(domain);
       case 'alerts':
-        return await getAlerts(days);
+        return await getAlerts(days, domain);
       case 'cost-trend':
-        return await getCostTrend(days);
+        return await getCostTrend(days, domain);
       case 'status-breakdown':
-        return await getStatusBreakdown(days);
+        return await getStatusBreakdown(days, domain);
+      case 'domain-list':
+        return await getDomainList();
       default:
         return NextResponse.json(
           { success: false, error: `Unknown type: ${type}` },
@@ -78,8 +90,8 @@ export async function GET(request: NextRequest) {
 // Overview — aggregated system status + three pillars
 // ---------------------------------------------------------------------------
 
-async function getOverview(days: number) {
-  const cacheKey = `rapid-response:overview:${days}`;
+async function getOverview(days: number, domain?: string) {
+  const cacheKey = `rapid-response:overview:${days}:${domain || 'all'}`;
   const cached = getCached(cacheKey);
   if (cached) return NextResponse.json({ success: true, data: cached, cached: true });
 
@@ -87,13 +99,13 @@ async function getOverview(days: number) {
   const [pulseRows, qualityRows, pcmRows] = await Promise.all([
     // Operational Pulse: latest snapshot per campaign
     runAuroraQuery(`
-      SELECT DISTINCT ON (campaign_id)
+      SELECT DISTINCT ON (domain, campaign_id)
         campaign_id, campaign_name, domain, campaign_type, status,
         total_sent, total_delivered, last_sent_date,
         on_hold_count, follow_up_pending_count, snapshot_at
       FROM rr_campaign_snapshots
-      WHERE ${EXCLUDE_SEED}
-      ORDER BY campaign_id, snapshot_at DESC
+      WHERE ${domainFilter(domain)}
+      ORDER BY domain, campaign_id, snapshot_at DESC
     `),
 
     // Quality Metrics: aggregated daily metrics for last N days
@@ -116,7 +128,7 @@ async function getOverview(days: number) {
         domain, stale_sent_count, orphaned_orders_count, oldest_stale_days,
         delivery_lag_median_days, back_office_sync_gap, checked_at
       FROM rr_pcm_alignment
-      WHERE ${EXCLUDE_SEED}
+      WHERE ${domainFilter(domain)}
       ORDER BY domain, checked_at DESC
     `),
   ]);
@@ -200,8 +212,8 @@ async function getOverview(days: number) {
 // Daily Trend
 // ---------------------------------------------------------------------------
 
-async function getDailyTrend(days: number) {
-  const cacheKey = `rapid-response:daily-trend:${days}`;
+async function getDailyTrend(days: number, domain?: string) {
+  const cacheKey = `rapid-response:daily-trend:${days}:${domain || 'all'}`;
   const cached = getCached(cacheKey);
   if (cached) return NextResponse.json({ success: true, data: cached, cached: true });
 
@@ -246,20 +258,21 @@ async function getDailyTrend(days: number) {
 // Campaign List
 // ---------------------------------------------------------------------------
 
-async function getCampaignList() {
-  const cacheKey = 'rapid-response:campaign-list';
+async function getCampaignList(domain?: string) {
+  const cacheKey = `rapid-response:campaign-list:${domain || 'all'}`;
   const cached = getCached(cacheKey);
   if (cached) return NextResponse.json({ success: true, data: cached, cached: true });
 
   const rows = await runAuroraQuery(`
-    SELECT DISTINCT ON (campaign_id)
+    SELECT DISTINCT ON (domain, campaign_id)
       campaign_id, campaign_name, domain, campaign_type, status,
       total_sent, total_delivered, last_sent_date,
       letters_delivered_30d, postcards_delivered_30d,
       on_hold_count, follow_up_pending_count,
       smartdrop_authorization_status, snapshot_at
     FROM rr_campaign_snapshots
-    ORDER BY campaign_id, snapshot_at DESC
+    WHERE ${domainFilter(domain)}
+    ORDER BY domain, campaign_id, snapshot_at DESC
   `);
 
   const data: RrCampaignSnapshot[] = rows.map((r: Record<string, unknown>) => ({
@@ -287,8 +300,8 @@ async function getCampaignList() {
 // PCM Alignment (time series)
 // ---------------------------------------------------------------------------
 
-async function getPcmAlignment() {
-  const cacheKey = 'rapid-response:pcm-alignment';
+async function getPcmAlignment(domain?: string) {
+  const cacheKey = `rapid-response:pcm-alignment:${domain || 'all'}`;
   const cached = getCached(cacheKey);
   if (cached) return NextResponse.json({ success: true, data: cached, cached: true });
 
@@ -301,7 +314,7 @@ async function getPcmAlignment() {
       delivery_lag_median_days, delivery_lag_p95_days,
       undeliverable_rate_7d, back_office_sync_gap
     FROM rr_pcm_alignment
-    WHERE ${EXCLUDE_SEED}
+    WHERE ${domainFilter(domain)}
     ORDER BY checked_at DESC
     LIMIT 48
   `);
@@ -329,8 +342,8 @@ async function getPcmAlignment() {
 // Status Breakdown (for donut/bar chart)
 // ---------------------------------------------------------------------------
 
-async function getStatusBreakdown(days: number) {
-  const cacheKey = `rapid-response:status-breakdown:${days}`;
+async function getStatusBreakdown(days: number, domain?: string) {
+  const cacheKey = `rapid-response:status-breakdown:${days}:${domain || 'all'}`;
   const cached = getCached(cacheKey);
   if (cached) return NextResponse.json({ success: true, data: cached, cached: true });
 
@@ -344,6 +357,7 @@ async function getStatusBreakdown(days: number) {
       COALESCE(SUM(sends_error), 0) as error
     FROM rr_daily_metrics
     WHERE date >= CURRENT_DATE - INTERVAL '${days} days'
+      AND ${EXCLUDE_SEED}
   `);
 
   const r = rows[0] || {};
@@ -364,8 +378,8 @@ async function getStatusBreakdown(days: number) {
 // Cost Trend
 // ---------------------------------------------------------------------------
 
-async function getCostTrend(days: number) {
-  const cacheKey = `rapid-response:cost-trend:${days}`;
+async function getCostTrend(days: number, domain?: string) {
+  const cacheKey = `rapid-response:cost-trend:${days}:${domain || 'all'}`;
   const cached = getCached(cacheKey);
   if (cached) return NextResponse.json({ success: true, data: cached, cached: true });
 
@@ -397,19 +411,19 @@ async function getCostTrend(days: number) {
 // Alerts
 // ---------------------------------------------------------------------------
 
-async function getAlerts(days: number) {
-  const cacheKey = `rapid-response:alerts:${days}`;
+async function getAlerts(days: number, domain?: string) {
+  const cacheKey = `rapid-response:alerts:${days}:${domain || 'all'}`;
   const cached = getCached(cacheKey);
   if (cached) return NextResponse.json({ success: true, data: cached, cached: true });
 
   // Fetch the data needed for alert evaluation
   const [pulseRows, qualityRows, pcmRows, todayRows] = await Promise.all([
     runAuroraQuery(`
-      SELECT DISTINCT ON (campaign_id)
-        campaign_id, domain, status, on_hold_count, snapshot_at
+      SELECT DISTINCT ON (domain, campaign_id)
+        campaign_id, campaign_name, domain, status, on_hold_count, snapshot_at
       FROM rr_campaign_snapshots
-      WHERE ${EXCLUDE_SEED}
-      ORDER BY campaign_id, snapshot_at DESC
+      WHERE ${domainFilter(domain)}
+      ORDER BY domain, campaign_id, snapshot_at DESC
     `),
     runAuroraQuery(`
       SELECT
@@ -426,7 +440,7 @@ async function getAlerts(days: number) {
         domain, stale_sent_count, orphaned_orders_count, oldest_stale_days,
         delivery_lag_median_days, back_office_sync_gap, undeliverable_rate_7d, checked_at
       FROM rr_pcm_alignment
-      WHERE ${EXCLUDE_SEED}
+      WHERE ${domainFilter(domain)}
       ORDER BY domain, checked_at DESC
     `),
     runAuroraQuery(`
@@ -457,49 +471,65 @@ async function getAlerts(days: number) {
     return ` Affected: ${domains.join(', ')}.`;
   }
 
-  // RR1: No sends detected
+  // RR1: No sends detected — list which active campaigns and domains are affected
   if (activeCampaigns > 0 && sendsToday === 0) {
+    const activeCampaignDetails = pulseRows
+      .filter((r: Record<string, unknown>) => r.status === 'active')
+      .map((r: Record<string, unknown>) => `${String(r.campaign_name || 'Unnamed')} (${String(r.domain || 'unknown')})`)
+      .join(', ');
+
     alerts.push({
       id: 'rr-no-sends',
       name: 'No sends detected',
       severity: 'critical',
       category: 'rapid-response',
-      description: `${activeCampaigns} campaigns are active but zero sends have been recorded today. The dispatch system may be stopped.`,
+      description: `${activeCampaigns} campaigns are active but zero sends have been recorded today. The dispatch system may be stopped. Affected campaigns: ${activeCampaignDetails}.`,
+      entity: activeCampaignDetails,
       metrics: { current: sendsToday, baseline: activeCampaigns },
       detected_at: now,
-      action: 'Check the dispatch job logs and verify the cron is running on the backoffice server.',
+      action: 'Check the dispatch job logs and verify the cron is running on the backoffice server. Verify that the dispatch cron for each listed domain is scheduled and executing.',
       link: '/features/features-rei/rapid-response',
     });
   }
 
-  // RR2: PCM pipeline stale
+  // RR2: PCM pipeline stale — per-domain breakdown
   if (totalStale > 0) {
+    const staleBreakdown = pcmRows
+      .filter((r: Record<string, unknown>) => Number(r.stale_sent_count || 0) > 0)
+      .map((r: Record<string, unknown>) => `${String(r.domain || 'unknown')}: ${r.stale_sent_count} stale (oldest: ${r.oldest_stale_days}d)`)
+      .join('; ');
+
     alerts.push({
       id: 'rr-pcm-stale',
       name: 'PCM pipeline stale',
       severity: 'critical',
       category: 'rapid-response',
-      description: `${totalStale} mailings stuck in "sent" for 14+ days — PCM pipeline may be broken.${affectedDomains(pcmRows, 'stale_sent_count')}`,
+      description: `${totalStale} mailings stuck in "sent" for 14+ days — PCM pipeline may be broken. Breakdown by client: ${staleBreakdown}.`,
       entity: affectedDomains(pcmRows, 'stale_sent_count').replace(' Affected: ', '').replace('.', ''),
       metrics: { current: totalStale },
       detected_at: now,
-      action: 'Investigate the back-office PCM bridge for the affected clients.',
+      action: 'Investigate the back-office PCM bridge for each affected client. Check if status updates from PCM are being received and forwarded correctly.',
       link: '/features/features-rei/rapid-response',
     });
   }
 
-  // RR3: Orphaned orders
+  // RR3: Orphaned orders — per-domain breakdown
   if (totalOrphaned > 0) {
+    const orphanBreakdown = pcmRows
+      .filter((r: Record<string, unknown>) => Number(r.orphaned_orders_count || 0) > 0)
+      .map((r: Record<string, unknown>) => `${String(r.domain || 'unknown')}: ${r.orphaned_orders_count} orphaned`)
+      .join('; ');
+
     alerts.push({
       id: 'rr-orphaned-orders',
       name: 'Orphaned orders',
       severity: 'critical',
       category: 'rapid-response',
-      description: `${totalOrphaned} mailings sent without a PCM order ID.${affectedDomains(pcmRows, 'orphaned_orders_count')}`,
+      description: `${totalOrphaned} mailings sent without a PCM order ID — these orders cannot be tracked. Breakdown by client: ${orphanBreakdown}.`,
       entity: affectedDomains(pcmRows, 'orphaned_orders_count').replace(' Affected: ', '').replace('.', ''),
       metrics: { current: totalOrphaned },
       detected_at: now,
-      action: 'Check recent PCM API responses for the affected clients.',
+      action: 'Check recent PCM API responses for each affected client. Look for API timeouts or rejection patterns that prevented order IDs from being stored.',
       link: '/features/features-rei/rapid-response',
     });
   }
@@ -536,24 +566,31 @@ async function getAlerts(days: number) {
     });
   }
 
-  // RR6: On-hold mailings — include which domains have holds
-  const onHoldByDomain = new Map<string, number>();
+  // RR6: On-hold mailings — include which campaigns and domains have holds
+  const onHoldDetails: { domain: string; campaign: string; count: number }[] = [];
   pulseRows.forEach((r: Record<string, unknown>) => {
     const hold = Number(r.on_hold_count || 0);
     if (hold > 0) {
-      const d = String(r.domain || '');
-      onHoldByDomain.set(d, (onHoldByDomain.get(d) || 0) + hold);
+      onHoldDetails.push({
+        domain: String(r.domain || 'unknown'),
+        campaign: String(r.campaign_name || 'Unnamed'),
+        count: hold,
+      });
     }
   });
-  const totalOnHold = Array.from(onHoldByDomain.values()).reduce((s, v) => s + v, 0);
+  const totalOnHold = onHoldDetails.reduce((s, d) => s + d.count, 0);
   if (totalOnHold > 0) {
-    const holdDomains = Array.from(onHoldByDomain.keys()).join(', ');
+    const holdBreakdown = onHoldDetails
+      .map(d => `${d.campaign} (${d.domain}): ${d.count} on hold`)
+      .join('; ');
+    const holdDomains = [...new Set(onHoldDetails.map(d => d.domain))].join(', ');
+
     alerts.push({
       id: 'rr-on-hold',
       name: 'Mailings on hold',
       severity: 'warning',
       category: 'rapid-response',
-      description: `${totalOnHold} mailings on hold due to insufficient balance. Affected: ${holdDomains}.`,
+      description: `${totalOnHold} mailings on hold due to insufficient balance. Breakdown: ${holdBreakdown}.`,
       entity: holdDomains,
       metrics: { current: totalOnHold },
       detected_at: now,
@@ -620,6 +657,37 @@ async function getAlerts(days: number) {
 
 // ---------------------------------------------------------------------------
 // Helpers
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Domain List
+// ---------------------------------------------------------------------------
+
+async function getDomainList() {
+  const cacheKey = 'rapid-response:domain-list';
+  const cached = getCached(cacheKey);
+  if (cached) return NextResponse.json({ success: true, data: cached, cached: true });
+
+  // Pull unique domains from all three tables for a comprehensive list
+  const rows = await runAuroraQuery(`
+    SELECT DISTINCT domain FROM (
+      SELECT DISTINCT domain FROM rr_campaign_snapshots WHERE ${EXCLUDE_SEED}
+      UNION
+      SELECT DISTINCT domain FROM rr_daily_metrics WHERE ${EXCLUDE_SEED}
+      UNION
+      SELECT DISTINCT domain FROM rr_pcm_alignment WHERE ${EXCLUDE_SEED}
+    ) all_domains
+    ORDER BY domain ASC
+  `);
+
+  const data = rows.map((r: Record<string, unknown>) => String(r.domain || ''));
+
+  setCache(cacheKey, data);
+  return NextResponse.json({ success: true, data, cached: false });
+}
+
+// ---------------------------------------------------------------------------
+// System Status
 // ---------------------------------------------------------------------------
 
 function computeSystemStatus(

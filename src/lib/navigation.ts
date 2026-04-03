@@ -84,6 +84,11 @@ export const GA4_DETAIL_TABS: AxisNavigationTabItem[] = [
   { id: 'insights', name: 'Insights' },
 ];
 
+export const DM_CAMPAIGN_SUB_TABS: AxisNavigationTabItem[] = [
+  { id: 'operational-health', name: 'Operational health' },
+  { id: 'business-results', name: 'Business results' },
+];
+
 export const FEATURES_REI_DETAIL_TABS: AxisNavigationTabItem[] = [
   { id: 'rapid-response', name: 'DM Campaign' },
   { id: 'properties-api', name: 'Properties API' },

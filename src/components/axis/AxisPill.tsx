@@ -24,6 +24,7 @@
 'use client';
 
 import React from 'react';
+import { AxisTooltip } from './AxisTooltip';
 
 type PillType = 'default' | 'good' | 'bad';
 
@@ -34,6 +35,8 @@ export interface AxisPillProps {
   value: string | number;
   /** Type determines value color - default, good (green), bad (red) */
   type?: PillType;
+  /** Optional tooltip shown on hover over the label */
+  tooltip?: string;
   /** Additional CSS classes */
   className?: string;
 }
@@ -42,13 +45,15 @@ export function AxisPill({
   label,
   value,
   type = 'default',
+  tooltip,
   className = '',
 }: AxisPillProps) {
   // Type-based value color classes with dark mode support
+  // Using lighter shades (300) in dark mode for better contrast on raised surfaces
   const valueColorClass = {
     default: 'text-content-primary',
-    good: 'text-success-700 dark:text-success-400',
-    bad: 'text-error-700 dark:text-error-400',
+    good: 'text-success-700 dark:text-success-300',
+    bad: 'text-error-700 dark:text-error-300',
   }[type];
 
   return (
@@ -56,9 +61,17 @@ export function AxisPill({
       className={`flex-1 flex items-center justify-between px-3 py-1.5 bg-surface-raised rounded-lg ${className}`}
     >
       {/* Label */}
-      <span className="text-label text-content-tertiary whitespace-nowrap">
-        {label}:
-      </span>
+      {tooltip ? (
+        <AxisTooltip content={tooltip} placement="top" maxWidth={260}>
+          <span className="text-label text-content-tertiary whitespace-nowrap cursor-help" style={{ borderBottom: '1px dotted var(--text-tertiary)' }}>
+            {label}:
+          </span>
+        </AxisTooltip>
+      ) : (
+        <span className="text-label text-content-tertiary whitespace-nowrap">
+          {label}:
+        </span>
+      )}
 
       {/* Value */}
       <span className={`text-h5 whitespace-nowrap tabular-nums ${valueColorClass}`}>

@@ -43,7 +43,7 @@ export function RrSystemStatusWidget({ data }: RrSystemStatusWidgetProps) {
     <AxisCallout type={statusMap[data.level]} title={data.headline}>
       <div className="flex items-center gap-3 flex-wrap">
         <span>{data.detail}</span>
-        <span className="text-label" style={{ color: 'var(--text-tertiary)' }}>
+        <span className="text-label" style={{ color: 'inherit', opacity: 0.8 }}>
           Last sync: {formatSyncTime(data.lastSyncAt)}
         </span>
       </div>

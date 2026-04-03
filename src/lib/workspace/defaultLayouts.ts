@@ -1163,40 +1163,64 @@ export const PRODUCT_PROJECTS_WIDGET_CATALOG: WidgetCatalogItem[] = [
 // Features > 8020REI > Rapid Response Tab
 // ---------------------------------------------------------------------------
 
-export const RAPID_RESPONSE_LAYOUT_STORAGE_KEY = 'rapid-response-layout-v1';
+export const RAPID_RESPONSE_LAYOUT_STORAGE_KEY = 'rapid-response-layout-v3';
 
 export const DEFAULT_RAPID_RESPONSE_LAYOUT: Widget[] = [
-  // Layer 1: The Three Pillars (System Status is a standalone callout above the grid)
+  // Layer 1: Alerts — first, so critical issues are immediately visible
+  {
+    id: 'rr-alerts-feed',
+    type: 'rr-alerts-feed',
+    title: 'Alerts (all-time)',
+    tooltip: 'These alerts scan all historical data, not just the selected date range. This means they can detect issues from months ago — like mailings that were sent long before this dashboard existed but never received a delivery confirmation. Each alert includes a recommended action and shows which clients are affected.',
+    x: 0, y: 0,
+    w: 12, h: 5,
+    minW: 6, minH: 3, maxW: 12, maxH: 8,
+  },
+  // Layer 2: The Three Pillars
   {
     id: 'rr-operational-pulse',
     type: 'rr-operational-pulse',
     title: 'Is it running?',
-    x: 0, y: 0,
-    w: 4, h: 4,
-    minW: 3, minH: 3, maxW: 6, maxH: 6,
+    tooltip: 'A quick check on whether your DM campaigns are actively sending. Shows how many campaigns are active, how many sends happened today, when the last send was, and if any mailings are stuck on hold.',
+    x: 0, y: 5,
+    w: 4, h: 5,
+    minW: 3, minH: 4, maxW: 6, maxH: 7,
   },
   {
     id: 'rr-quality-metrics',
     type: 'rr-quality-metrics',
     title: 'Is it working?',
-    x: 4, y: 0,
-    w: 4, h: 4,
-    minW: 3, minH: 3, maxW: 6, maxH: 6,
+    tooltip: 'Checks the quality of your mailings. Delivery rate is how many pieces actually reach the mailbox. PCM submission rate is how many were successfully handed off to the print vendor. Error rate tracks failed submissions. All percentages are based on the selected date range.',
+    x: 4, y: 5,
+    w: 4, h: 5,
+    minW: 3, minH: 4, maxW: 6, maxH: 7,
   },
   {
     id: 'rr-pcm-health',
     type: 'rr-pcm-health',
     title: 'Is it aligned?',
-    x: 8, y: 0,
-    w: 4, h: 4,
-    minW: 3, minH: 3, maxW: 6, maxH: 6,
+    tooltip: 'Monitors the connection between our platform and PCM (the print vendor). "Stale sent" means mailings stuck without a delivery update for 14+ days. "Orphaned orders" were sent but never got a tracking ID. "Sync gap" detects missing records between systems. These checks look at all historical data, not just the selected date range.',
+    x: 8, y: 5,
+    w: 4, h: 5,
+    minW: 3, minH: 4, maxW: 6, maxH: 7,
   },
-  // Layer 2: The Detail
+  // Layer 3: Campaigns drill-down
+  {
+    id: 'rr-campaign-table',
+    type: 'rr-campaign-table',
+    title: 'Campaigns',
+    tooltip: 'A list of all DM campaigns across all clients. Shows the current status of each campaign (active, paused, disabled), total mailings sent and delivered, and any mailings currently on hold. This reflects the latest snapshot — updated every hour by the sync job.',
+    x: 0, y: 10,
+    w: 12, h: 6,
+    minW: 6, minH: 4, maxW: 12, maxH: 10,
+  },
+  // Layer 4: Charts
   {
     id: 'rr-sends-trend',
     type: 'rr-sends-trend',
     title: 'Send volume trend',
-    x: 0, y: 4,
+    tooltip: 'Daily trend of mailing activity within the selected date range. The blue line shows total sends, green shows confirmed deliveries, and the dashed red line shows errors. Flat lines or sudden drops may indicate a paused campaign or system issue.',
+    x: 0, y: 16,
     w: 6, h: 5,
     minW: 4, minH: 3, maxW: 12, maxH: 8,
   },
@@ -1204,35 +1228,20 @@ export const DEFAULT_RAPID_RESPONSE_LAYOUT: Widget[] = [
     id: 'rr-status-breakdown',
     type: 'rr-status-breakdown',
     title: 'Status breakdown',
-    x: 6, y: 4,
+    tooltip: 'Shows how mailings ended up within the selected date range. "Delivered" means the piece reached the mailbox. "Sent (In Transit)" is still being processed by the print vendor. "On Hold" and "Protected" are paused for business rules. This only counts mailings from the selected period — older mailings are tracked separately in the alerts section.',
+    x: 6, y: 16,
     w: 6, h: 5,
     minW: 4, minH: 3, maxW: 12, maxH: 8,
   },
-  // Layer 3: The Watchlist
-  {
-    id: 'rr-alerts-feed',
-    type: 'rr-alerts-feed',
-    title: 'Alerts',
-    x: 0, y: 9,
-    w: 12, h: 5,
-    minW: 6, minH: 3, maxW: 12, maxH: 8,
-  },
-  // Layer 4: The Drill-Down
-  {
-    id: 'rr-campaign-table',
-    type: 'rr-campaign-table',
-    title: 'Campaigns',
-    x: 0, y: 14,
-    w: 7, h: 6,
-    minW: 5, minH: 4, maxW: 12, maxH: 10,
-  },
+  // Layer 5: Cost
   {
     id: 'rr-cost-overview',
     type: 'rr-cost-overview',
     title: 'Cost overview',
-    x: 7, y: 14,
-    w: 5, h: 6,
-    minW: 4, minH: 4, maxW: 12, maxH: 8,
+    tooltip: 'Tracks daily spending on mailings within the selected date range. The blue bars show total daily spend in dollars. The line shows the average cost per mailed piece. A sudden spike in cost per piece could indicate address quality issues or a change in mailing type.',
+    x: 0, y: 21,
+    w: 12, h: 6,
+    minW: 6, minH: 4, maxW: 12, maxH: 8,
   },
 ];
 
@@ -1274,8 +1283,8 @@ export const RAPID_RESPONSE_WIDGET_CATALOG: WidgetCatalogItem[] = [
   },
   {
     type: 'rr-alerts-feed',
-    title: 'Alerts',
-    description: 'Active alerts with severity, description, and recommended actions',
+    title: 'Alerts (all-time)',
+    description: 'Scans all historical data for issues — not limited to the selected date range',
     iconKey: 'alert',
     defaultSize: { w: 12, h: 5 },
   },

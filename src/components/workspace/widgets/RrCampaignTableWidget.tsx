@@ -1,7 +1,8 @@
 /**
- * Rapid Response Campaign Table Widget
+ * DM Campaign Table Widget
  *
- * Uses AxisTable for consistent table rendering and AxisTag for status badges.
+ * Shows campaigns grouped with client domain visible.
+ * Uses AxisTable for consistent rendering and AxisTag for badges.
  */
 
 'use client';
@@ -28,12 +29,31 @@ const typeColorMap: Record<string, 'info' | 'neutral'> = {
   smartdrop: 'neutral',
 };
 
+/** Clean up the raw domain string into a readable client name */
+function formatDomain(domain: string): string {
+  return domain
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase())
+    .replace(/8020rei/i, '')
+    .trim() || domain;
+}
+
 export function RrCampaignTableWidget({ data }: RrCampaignTableWidgetProps) {
   const columns: Column[] = useMemo(() => [
     {
+      field: 'domain',
+      header: 'Client',
+      minWidth: 140,
+      render: (value: CellValue) => (
+        <span className="font-medium" style={{ color: 'var(--text-primary)' }}>
+          {formatDomain(String(value || ''))}
+        </span>
+      ),
+    },
+    {
       field: 'campaignName',
       header: 'Campaign',
-      minWidth: 180,
+      minWidth: 160,
     },
     {
       field: 'campaignType',
@@ -77,7 +97,7 @@ export function RrCampaignTableWidget({ data }: RrCampaignTableWidgetProps) {
     },
     {
       field: 'onHoldCount',
-      header: 'On Hold',
+      header: 'On hold',
       width: 80,
       align: 'center',
       render: (value: CellValue) => (
@@ -93,7 +113,8 @@ export function RrCampaignTableWidget({ data }: RrCampaignTableWidgetProps) {
 
   const tableData = useMemo(() =>
     data.map(c => ({
-      id: c.campaignId,
+      id: `${c.domain}-${c.campaignId}`,
+      domain: c.domain,
       campaignName: c.campaignName,
       campaignType: c.campaignType,
       status: c.status,
@@ -110,7 +131,9 @@ export function RrCampaignTableWidget({ data }: RrCampaignTableWidgetProps) {
         data={tableData}
         rowKey="id"
         sortable
-        paginated={false}
+        paginated
+        resizable
+        defaultPageSize={25}
         emptyMessage="No campaign data available yet"
       />
     </div>

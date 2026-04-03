@@ -41,8 +41,11 @@ export interface GridWorkspaceProps {
   /** Whether workspace is in edit mode */
   editMode?: boolean;
 
-  /** Widget components mapped by widget ID */
+  /** Widget components mapped by widget type */
   widgets: Record<string, React.ReactNode>;
+
+  /** Extra header content mapped by widget type (rendered in widget header bar) */
+  headerExtras?: Record<string, React.ReactNode>;
 
   /** Callback when widget settings button is clicked */
   onWidgetSettings?: (widgetId: string) => void;
@@ -56,6 +59,7 @@ export function GridWorkspace({
   onLayoutChange,
   editMode = false,
   widgets,
+  headerExtras,
   onWidgetSettings,
   onWidgetExport,
 }: GridWorkspaceProps) {
@@ -154,6 +158,8 @@ export function GridWorkspace({
           <div key={widgetConfig.id} className="transition-shadow duration-200">
             <Widget
               title={widgetConfig.title}
+              tooltip={widgetConfig.tooltip}
+              headerExtra={headerExtras?.[widgetConfig.type]}
               editMode={editMode}
               flushBody={FLUSH_BODY_WIDGETS.has(widgetConfig.type)}
               onRemove={() => handleRemoveWidget(widgetConfig.id)}

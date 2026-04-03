@@ -46,7 +46,7 @@ function AlertCard({ alert }: { alert: RrAlert }) {
               {alert.name}
             </span>
           </div>
-          <p className="text-xs line-clamp-2" style={{ color: 'var(--text-secondary)' }}>
+          <p className="text-label line-clamp-2" style={{ color: 'var(--text-secondary)' }}>
             {alert.description}
           </p>
         </div>
@@ -65,7 +65,7 @@ function AlertCard({ alert }: { alert: RrAlert }) {
           style={{ borderTop: '1px solid var(--border-subtle)' }}
         >
           {alert.metrics && (
-            <div className="flex gap-4 text-xs">
+            <div className="flex gap-4 text-label">
               {alert.metrics.current !== undefined && (
                 <span style={{ color: 'var(--text-secondary)' }}>
                   Current: <span className="font-medium" style={{ color: 'var(--text-primary)' }}>{alert.metrics.current}</span>
@@ -78,7 +78,7 @@ function AlertCard({ alert }: { alert: RrAlert }) {
               )}
             </div>
           )}
-          <div className="text-xs">
+          <div className="text-label">
             <span className="font-medium" style={{ color: 'var(--text-secondary)' }}>Recommended action: </span>
             <span style={{ color: 'var(--text-primary)' }}>{alert.action}</span>
           </div>
@@ -93,7 +93,7 @@ export function RrAlertsFeedWidget({ data }: RrAlertsFeedWidgetProps) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center p-4">
         <AxisTag color="success" size="sm" dot>All Clear</AxisTag>
-        <p className="text-xs mt-2" style={{ color: 'var(--text-secondary)' }}>
+        <p className="text-label mt-2" style={{ color: 'var(--text-secondary)' }}>
           No active alerts for Rapid Response
         </p>
       </div>
@@ -102,15 +102,6 @@ export function RrAlertsFeedWidget({ data }: RrAlertsFeedWidgetProps) {
 
   return (
     <div className="flex flex-col h-full p-3 overflow-y-auto space-y-2">
-      <div className="flex items-center gap-2 mb-1">
-        <span
-          className="text-xs font-semibold uppercase tracking-wider"
-          style={{ color: 'var(--text-secondary)' }}
-        >
-          Active Alerts
-        </span>
-        <AxisTag color="error" size="sm">{data.length}</AxisTag>
-      </div>
       {data.map((alert) => (
         <AlertCard key={alert.id} alert={alert} />
       ))}
