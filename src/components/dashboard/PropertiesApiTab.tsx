@@ -29,6 +29,7 @@ import {
   DEFAULT_PROPERTIES_API_LAYOUT,
   PROPERTIES_API_LAYOUT_STORAGE_KEY,
   PROPERTIES_API_WIDGET_CATALOG,
+  loadLayout,
 } from '@/lib/workspace/defaultLayouts';
 import { Widget, TabHandle } from '@/types/widget';
 import {
@@ -145,19 +146,9 @@ export const PropertiesApiTab = forwardRef<TabHandle, PropertiesApiTabProps>(
     const [logPagination, setLogPagination] = useState({ page: 1, pageSize: 15, total: 0, totalPages: 0 });
 
     // Load layout from localStorage or use default
-    const [layout, setLayout] = useState<Widget[]>(() => {
-      if (typeof window !== 'undefined') {
-        const saved = localStorage.getItem(PROPERTIES_API_LAYOUT_STORAGE_KEY);
-        if (saved) {
-          try {
-            return JSON.parse(saved);
-          } catch (e) {
-            console.error('Failed to parse saved properties-api layout:', e);
-          }
-        }
-      }
-      return DEFAULT_PROPERTIES_API_LAYOUT;
-    });
+    const [layout, setLayout] = useState<Widget[]>(() =>
+      loadLayout(PROPERTIES_API_LAYOUT_STORAGE_KEY, DEFAULT_PROPERTIES_API_LAYOUT)
+    );
 
     // Expose methods to parent via ref
     useImperativeHandle(ref, () => ({

@@ -10,7 +10,7 @@ import { TabHandle } from '@/types/widget';
 
 /** Maps a navigation key to a ref. The key is derived from the tab's position in the nav hierarchy. */
 type TabRefKey =
-  | 'users' | 'features' | 'clients' | 'traffic' | 'technology'
+  | 'users' | 'features' | 'clients' | 'engagement' | 'technology'
   | 'geography' | 'events' | 'insights'
   | 'import' | 'product-jira-projects'
   | 'properties-api' | 'dm-campaign';
@@ -20,7 +20,7 @@ export function useTabRefs() {
     'users': useRef<TabHandle>(null),
     'features': useRef<TabHandle>(null),
     'clients': useRef<TabHandle>(null),
-    'traffic': useRef<TabHandle>(null),
+    'engagement': useRef<TabHandle>(null),
     'technology': useRef<TabHandle>(null),
     'geography': useRef<TabHandle>(null),
     'events': useRef<TabHandle>(null),

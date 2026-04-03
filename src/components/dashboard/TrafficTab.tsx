@@ -24,7 +24,7 @@ import {
   SessionsByDayWidget,
   FirstVisitsTrendWidget,
 } from '@/components/workspace/widgets';
-import { DEFAULT_TRAFFIC_LAYOUT, TRAFFIC_LAYOUT_STORAGE_KEY, TRAFFIC_WIDGET_CATALOG } from '@/lib/workspace/defaultLayouts';
+import { DEFAULT_TRAFFIC_LAYOUT, TRAFFIC_LAYOUT_STORAGE_KEY, TRAFFIC_WIDGET_CATALOG, loadLayout } from '@/lib/workspace/defaultLayouts';
 import { Widget, TabHandle } from '@/types/widget';
 import {
   exportToCSV,
@@ -93,19 +93,9 @@ export const TrafficTab = forwardRef<TabHandle, TrafficTabProps>(function Traffi
   const [selectedWidgetForSettings, setSelectedWidgetForSettings] = useState<Widget | null>(null);
 
   // Load layout from localStorage or use default
-  const [layout, setLayout] = useState<Widget[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem(TRAFFIC_LAYOUT_STORAGE_KEY);
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch (e) {
-          console.error('Failed to parse saved traffic layout:', e);
-        }
-      }
-    }
-    return DEFAULT_TRAFFIC_LAYOUT;
-  });
+  const [layout, setLayout] = useState<Widget[]>(() =>
+    loadLayout(TRAFFIC_LAYOUT_STORAGE_KEY, DEFAULT_TRAFFIC_LAYOUT)
+  );
 
   // Expose methods to parent via ref
   useImperativeHandle(ref, () => ({

@@ -42,6 +42,7 @@ import {
   DEFAULT_DM_BUSINESS_RESULTS_LAYOUT,
   DM_BUSINESS_RESULTS_LAYOUT_STORAGE_KEY,
   DM_BUSINESS_RESULTS_WIDGET_CATALOG,
+  loadLayout,
 } from '@/lib/workspace/defaultLayouts';
 import { Widget, TabHandle } from '@/types/widget';
 import type {
@@ -217,34 +218,14 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
     const [timelinePropertyId, setTimelinePropertyId] = useState<number | null>(null);
 
     // Load layout from localStorage or use default
-    const [layout, setLayout] = useState<Widget[]>(() => {
-      if (typeof window !== 'undefined') {
-        const saved = localStorage.getItem(RAPID_RESPONSE_LAYOUT_STORAGE_KEY);
-        if (saved) {
-          try {
-            return JSON.parse(saved);
-          } catch (e) {
-            console.error('Failed to parse saved rapid-response layout:', e);
-          }
-        }
-      }
-      return DEFAULT_RAPID_RESPONSE_LAYOUT;
-    });
+    const [layout, setLayout] = useState<Widget[]>(() =>
+      loadLayout(RAPID_RESPONSE_LAYOUT_STORAGE_KEY, DEFAULT_RAPID_RESPONSE_LAYOUT)
+    );
 
     // Business Results layout
-    const [brLayout, setBrLayout] = useState<Widget[]>(() => {
-      if (typeof window !== 'undefined') {
-        const saved = localStorage.getItem(DM_BUSINESS_RESULTS_LAYOUT_STORAGE_KEY);
-        if (saved) {
-          try {
-            return JSON.parse(saved);
-          } catch (e) {
-            console.error('Failed to parse saved business-results layout:', e);
-          }
-        }
-      }
-      return DEFAULT_DM_BUSINESS_RESULTS_LAYOUT;
-    });
+    const [brLayout, setBrLayout] = useState<Widget[]>(() =>
+      loadLayout(DM_BUSINESS_RESULTS_LAYOUT_STORAGE_KEY, DEFAULT_DM_BUSINESS_RESULTS_LAYOUT)
+    );
 
     // Expose methods to parent via ref
     useImperativeHandle(ref, () => ({

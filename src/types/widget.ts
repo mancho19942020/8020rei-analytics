@@ -39,14 +39,18 @@ export type WidgetType =
   | 'clients-overview'
   | 'clients-table'
   | 'client-activity-trend'
-  // Traffic tab widgets
+  // Engagement tab widgets (formerly Traffic)
+  | 'sessions-by-day'
+  | 'first-visits-trend'
+  | 'peak-hours'
+  | 'avg-session-duration'
+  | 'sessions-per-user'
+  | 'active-days'
+  // Legacy traffic widgets (kept for backwards compat)
   | 'traffic-by-source'
   | 'traffic-by-medium'
   | 'traffic-browser'
   | 'top-referrers'
-  | 'top-pages'
-  | 'sessions-by-day'
-  | 'first-visits-trend'
   // Technology tab widgets
   | 'device-category'
   | 'browser-distribution'

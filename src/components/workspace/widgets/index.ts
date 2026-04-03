@@ -101,3 +101,9 @@ export { ApiEndpointBreakdownWidget } from './ApiEndpointBreakdownWidget';
 export { ApiTopClientsWidget } from './ApiTopClientsWidget';
 export { ApiErrorTrackerWidget } from './ApiErrorTrackerWidget';
 export { ApiRecentLogsWidget } from './ApiRecentLogsWidget';
+
+// Engagement tab widgets
+export { PeakHoursWidget } from './PeakHoursWidget';
+export { AvgSessionDurationWidget } from './AvgSessionDurationWidget';
+export { SessionsPerUserWidget } from './SessionsPerUserWidget';
+export { ActiveDaysWidget } from './ActiveDaysWidget';

@@ -140,9 +140,12 @@ export const FEATURES_LAYOUT_STORAGE_KEY = 'axis-features-layout-v2';
 export const CLIENTS_LAYOUT_STORAGE_KEY = 'axis-clients-layout-v3';
 
 /**
- * Traffic Tab Layout Storage Key
+ * Engagement Tab Layout Storage Key (formerly Traffic)
  */
-export const TRAFFIC_LAYOUT_STORAGE_KEY = 'axis-traffic-layout-v2';
+export const ENGAGEMENT_LAYOUT_STORAGE_KEY = 'axis-engagement-layout-v1';
+
+/** @deprecated Use ENGAGEMENT_LAYOUT_STORAGE_KEY */
+export const TRAFFIC_LAYOUT_STORAGE_KEY = ENGAGEMENT_LAYOUT_STORAGE_KEY;
 
 /**
  * Technology Tab Layout Storage Key
@@ -165,11 +168,46 @@ export const EVENTS_LAYOUT_STORAGE_KEY = 'axis-events-layout-v3';
 export const INSIGHTS_LAYOUT_STORAGE_KEY = 'axis-insights-layout-v3';
 
 /**
- * Layout Version
+ * Layout Schema Version
  *
- * Used for migration when layout structure changes.
+ * Bump this number any time default layouts change (widget sizes, titles, new widgets, etc.).
+ * When a user's stored version doesn't match, their cached layout is discarded
+ * and replaced with the current defaults — no manual "Reset Layout" needed.
  */
-export const LAYOUT_VERSION = '1.0.0';
+export const LAYOUT_SCHEMA_VERSION = 3;
+
+/**
+ * Load a saved layout from localStorage, or fall back to defaults.
+ * Automatically discards stale layouts when LAYOUT_SCHEMA_VERSION changes.
+ */
+export function loadLayout<T>(storageKey: string, defaults: T): T {
+  if (typeof window === 'undefined') return defaults;
+
+  const VERSION_KEY = 'axis-layout-schema-version';
+  const storedVersion = Number(localStorage.getItem(VERSION_KEY) || '0');
+
+  if (storedVersion !== LAYOUT_SCHEMA_VERSION) {
+    // Version mismatch — wipe all cached layouts and stamp the new version
+    const allKeys = Object.keys(localStorage);
+    for (const key of allKeys) {
+      if (key.startsWith('axis-') && key.includes('-layout-')) {
+        localStorage.removeItem(key);
+      }
+    }
+    localStorage.setItem(VERSION_KEY, String(LAYOUT_SCHEMA_VERSION));
+    return defaults;
+  }
+
+  const saved = localStorage.getItem(storageKey);
+  if (saved) {
+    try {
+      return JSON.parse(saved) as T;
+    } catch {
+      return defaults;
+    }
+  }
+  return defaults;
+}
 
 /**
  * Default Users Tab Layout
@@ -246,18 +284,18 @@ export const DEFAULT_FEATURES_LAYOUT: Widget[] = [
     x: 0,
     y: 0,
     w: 12,
-    h: 10,     // Increased to 10 rows (600px) to show all 12+ features
+    h: 6,
     minW: 6,
-    minH: 8,
+    minH: 4,
     maxW: 12,
-    maxH: 14,
+    maxH: 10,
   },
   {
     id: 'feature-distribution',
     type: 'feature-distribution',
     title: 'Feature distribution',
     x: 0,
-    y: 10,     // Adjusted for feature-usage h:10
+    y: 6,
     w: 6,
     h: 5,
     minW: 4,
@@ -270,7 +308,7 @@ export const DEFAULT_FEATURES_LAYOUT: Widget[] = [
     type: 'feature-adoption',
     title: 'Feature adoption rate',
     x: 6,
-    y: 10,     // Adjusted for feature-usage h:10
+    y: 6,
     w: 6,
     h: 5,
     minW: 4,
@@ -283,7 +321,7 @@ export const DEFAULT_FEATURES_LAYOUT: Widget[] = [
     type: 'feature-trend',
     title: 'Feature trend over time',
     x: 0,
-    y: 15,     // Adjusted: 10 + 5
+    y: 11,
     w: 12,
     h: 5,
     minW: 6,
@@ -296,7 +334,7 @@ export const DEFAULT_FEATURES_LAYOUT: Widget[] = [
     type: 'top-pages',
     title: 'Top 20 pages',
     x: 0,
-    y: 20,     // Adjusted: 15 + 5
+    y: 16,
     w: 12,
     h: 6,
     minW: 6,
@@ -359,58 +397,35 @@ export const DEFAULT_CLIENTS_LAYOUT: Widget[] = [
 /**
  * Default Traffic Tab Layout
  *
- * The default arrangement of widgets for the Traffic tab.
- * Layout follows the design spec:
- * - Traffic by Source (bar) + Traffic by Medium (donut) side by side
- * - Top Referrers table (full width)
- * - Sessions By Day (bar) + First Visits Trend (line) side by side
+ * Default Engagement Tab Layout (formerly Traffic)
+ *
+ * Layout: engagement patterns for a non-organic SaaS product.
+ * - Peak hours heatmap (full width, tall)
+ * - Sessions by day of week + First visits trend (side by side)
+ * - Avg session duration + Sessions per user (side by side)
+ * - Active days per user distribution (half width)
  */
-export const DEFAULT_TRAFFIC_LAYOUT: Widget[] = [
+export const DEFAULT_ENGAGEMENT_LAYOUT: Widget[] = [
   {
-    id: 'traffic-by-source',
-    type: 'traffic-by-source',
-    title: 'Traffic by source',
+    id: 'peak-hours',
+    type: 'peak-hours',
+    title: 'Peak activity hours',
+    tooltip: 'Heatmap showing when users are most active by hour and day of week',
     x: 0,
     y: 0,
-    w: 6,
-    h: 5,
-    minW: 4,
-    minH: 4,
-    maxW: 12,
-    maxH: 8,
-  },
-  {
-    id: 'traffic-by-medium',
-    type: 'traffic-by-medium',
-    title: 'Traffic by medium',
-    x: 6,
-    y: 0,
-    w: 6,
-    h: 5,
-    minW: 4,
-    minH: 4,
-    maxW: 8,
-    maxH: 8,
-  },
-  {
-    id: 'top-referrers',
-    type: 'top-referrers',
-    title: 'Top referrers',
-    x: 0,
-    y: 5,
     w: 12,
-    h: 5,
-    minW: 6,
-    minH: 4,
+    h: 7,
+    minW: 8,
+    minH: 5,
     maxW: 12,
-    maxH: 8,
+    maxH: 10,
   },
   {
     id: 'sessions-by-day',
     type: 'sessions-by-day',
     title: 'Sessions by day of week',
     x: 0,
-    y: 10,
+    y: 7,
     w: 6,
     h: 5,
     minW: 4,
@@ -421,9 +436,52 @@ export const DEFAULT_TRAFFIC_LAYOUT: Widget[] = [
   {
     id: 'first-visits-trend',
     type: 'first-visits-trend',
-    title: 'First visits trend',
+    title: 'New user acquisition',
+    tooltip: 'Daily count of first-time visitors — tracks onboarding velocity',
     x: 6,
-    y: 10,
+    y: 7,
+    w: 6,
+    h: 5,
+    minW: 4,
+    minH: 4,
+    maxW: 12,
+    maxH: 8,
+  },
+  {
+    id: 'avg-session-duration',
+    type: 'avg-session-duration',
+    title: 'Average session duration',
+    tooltip: 'Mean engagement time per session over time',
+    x: 0,
+    y: 12,
+    w: 6,
+    h: 5,
+    minW: 4,
+    minH: 4,
+    maxW: 12,
+    maxH: 8,
+  },
+  {
+    id: 'sessions-per-user',
+    type: 'sessions-per-user',
+    title: 'Sessions per user',
+    tooltip: 'How often users return — higher values indicate stronger engagement',
+    x: 6,
+    y: 12,
+    w: 6,
+    h: 5,
+    minW: 4,
+    minH: 4,
+    maxW: 12,
+    maxH: 8,
+  },
+  {
+    id: 'active-days',
+    type: 'active-days',
+    title: 'Active days per user',
+    tooltip: 'Distribution of how many distinct days each user was active in the period',
+    x: 0,
+    y: 17,
     w: 6,
     h: 5,
     minW: 4,
@@ -432,6 +490,9 @@ export const DEFAULT_TRAFFIC_LAYOUT: Widget[] = [
     maxH: 8,
   },
 ];
+
+/** @deprecated Use DEFAULT_ENGAGEMENT_LAYOUT */
+export const DEFAULT_TRAFFIC_LAYOUT = DEFAULT_ENGAGEMENT_LAYOUT;
 
 /**
  * Default Technology Tab Layout
@@ -755,9 +816,9 @@ export const FEATURES_WIDGET_CATALOG: WidgetCatalogItem[] = [
   {
     type: 'feature-usage',
     title: 'Views per feature',
-    description: 'Horizontal bar chart showing feature usage by views',
-    iconKey: 'barChart',
-    defaultSize: { w: 12, h: 10 },
+    description: 'Table showing feature usage by views and unique users',
+    iconKey: 'table',
+    defaultSize: { w: 12, h: 6 },
   },
   {
     type: 'feature-distribution',
@@ -817,29 +878,15 @@ export const CLIENTS_WIDGET_CATALOG: WidgetCatalogItem[] = [
 ];
 
 /**
- * Traffic Tab Widget Catalog
+ * Engagement Tab Widget Catalog (formerly Traffic)
  */
-export const TRAFFIC_WIDGET_CATALOG: WidgetCatalogItem[] = [
+export const ENGAGEMENT_WIDGET_CATALOG: WidgetCatalogItem[] = [
   {
-    type: 'traffic-by-source',
-    title: 'Traffic by source',
-    description: 'Bar chart showing traffic by source (direct, organic, referral)',
-    iconKey: 'barChart',
-    defaultSize: { w: 6, h: 5 },
-  },
-  {
-    type: 'traffic-by-medium',
-    title: 'Traffic by medium',
-    description: 'Donut chart showing traffic by medium distribution',
-    iconKey: 'donutChart',
-    defaultSize: { w: 6, h: 5 },
-  },
-  {
-    type: 'top-referrers',
-    title: 'Top referrers',
-    description: 'Table showing top referring domains',
-    iconKey: 'table',
-    defaultSize: { w: 12, h: 5 },
+    type: 'peak-hours',
+    title: 'Peak activity hours',
+    description: 'Heatmap showing when users are most active by hour and day of week',
+    iconKey: 'grid',
+    defaultSize: { w: 12, h: 7 },
   },
   {
     type: 'sessions-by-day',
@@ -850,12 +897,36 @@ export const TRAFFIC_WIDGET_CATALOG: WidgetCatalogItem[] = [
   },
   {
     type: 'first-visits-trend',
-    title: 'First visits trend',
-    description: 'Line chart showing new user acquisition trend',
+    title: 'New user acquisition',
+    description: 'Daily first-time visitors — tracks onboarding velocity',
     iconKey: 'lineChart',
     defaultSize: { w: 6, h: 5 },
   },
+  {
+    type: 'avg-session-duration',
+    title: 'Average session duration',
+    description: 'Mean engagement time per session over time',
+    iconKey: 'lineChart',
+    defaultSize: { w: 6, h: 5 },
+  },
+  {
+    type: 'sessions-per-user',
+    title: 'Sessions per user',
+    description: 'How often users return — higher values mean stronger engagement',
+    iconKey: 'lineChart',
+    defaultSize: { w: 6, h: 5 },
+  },
+  {
+    type: 'active-days',
+    title: 'Active days per user',
+    description: 'Distribution of how many distinct days each user was active',
+    iconKey: 'barChart',
+    defaultSize: { w: 6, h: 5 },
+  },
 ];
+
+/** @deprecated Use ENGAGEMENT_WIDGET_CATALOG */
+export const TRAFFIC_WIDGET_CATALOG = ENGAGEMENT_WIDGET_CATALOG;
 
 /**
  * Technology Tab Widget Catalog
@@ -1575,7 +1646,7 @@ export const TAB_WIDGET_CATALOGS: Record<string, WidgetCatalogItem[]> = {
   users: USERS_WIDGET_CATALOG,
   features: FEATURES_WIDGET_CATALOG,
   clients: CLIENTS_WIDGET_CATALOG,
-  traffic: TRAFFIC_WIDGET_CATALOG,
+  engagement: ENGAGEMENT_WIDGET_CATALOG,
   technology: TECHNOLOGY_WIDGET_CATALOG,
   geography: GEOGRAPHY_WIDGET_CATALOG,
   events: EVENTS_WIDGET_CATALOG,

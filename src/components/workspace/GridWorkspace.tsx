@@ -29,7 +29,6 @@ const FLUSH_BODY_WIDGETS = new Set<WidgetType>([
   'session-summary',
   'device-category',
   'insights-summary',
-  'feature-usage',
 ]);
 
 export interface GridWorkspaceProps {

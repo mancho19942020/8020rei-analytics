@@ -469,7 +469,7 @@ export function AxisTable({
                         onMouseLeave={(e) => { (e.target as HTMLElement).style.backgroundColor = 'transparent'; }}
                         onMouseDown={(e) => {
                           const th = e.currentTarget.parentElement;
-                          handleResizeStart(e, column.field, th ? th.offsetWidth : (effectiveWidth || 100));
+                          handleResizeStart(e, column.field, th ? th.offsetWidth : (typeof effectiveWidth === 'number' ? effectiveWidth : 100));
                         }}
                       />
                     )}

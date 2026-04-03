@@ -356,20 +356,29 @@ export const DEFAULT_USERS_LAYOUT: Widget[] = [...];
 ```
 
 ### Loading Layout in Tab Component
+
+**IMPORTANT:** Always use the `loadLayout` helper — never read localStorage directly.
+This ensures that when `LAYOUT_SCHEMA_VERSION` is bumped, all users automatically
+get fresh default layouts without needing to manually "Reset Layout".
+
 ```typescript
-const [layout, setLayout] = useState<Widget[]>(() => {
-  if (typeof window !== 'undefined') {
-    const saved = localStorage.getItem(TAB_LAYOUT_STORAGE_KEY);
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error('Failed to parse saved layout:', e);
-      }
-    }
-  }
-  return DEFAULT_TAB_LAYOUT;
-});
+import { loadLayout, TAB_LAYOUT_STORAGE_KEY, DEFAULT_TAB_LAYOUT } from '@/lib/workspace/defaultLayouts';
+
+const [layout, setLayout] = useState<Widget[]>(() =>
+  loadLayout(TAB_LAYOUT_STORAGE_KEY, DEFAULT_TAB_LAYOUT)
+);
+```
+
+### When Changing Default Layouts (widget sizes, titles, new widgets, etc.)
+
+**CRITICAL:** After modifying any default layout in `defaultLayouts.ts`, bump
+`LAYOUT_SCHEMA_VERSION` by 1. This single number controls cache invalidation
+for ALL tabs. Without bumping it, existing users will keep seeing their old
+cached layouts and won't see your changes until they manually reset.
+
+```typescript
+// In defaultLayouts.ts — bump this after every layout change
+export const LAYOUT_SCHEMA_VERSION = 2;  // was 1 → now 2
 ```
 
 ### Metric Cards (inside widgets) — Flush Layout
@@ -1026,15 +1035,9 @@ export const NewTab = forwardRef<TabHandle, TabProps>(function NewTab(
   const [showWidgetCatalog, setShowWidgetCatalog] = useState(false);
   const [selectedWidgetForSettings, setSelectedWidgetForSettings] = useState<Widget | null>(null);
 
-  const [layout, setLayout] = useState<Widget[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem(TAB_LAYOUT_STORAGE_KEY);
-      if (saved) {
-        try { return JSON.parse(saved); } catch (e) { /* ignore */ }
-      }
-    }
-    return DEFAULT_TAB_LAYOUT;
-  });
+  const [layout, setLayout] = useState<Widget[]>(() =>
+    loadLayout(TAB_LAYOUT_STORAGE_KEY, DEFAULT_TAB_LAYOUT)
+  );
 
   // CRITICAL: Expose methods to parent via ref for unified toolbar
   useImperativeHandle(ref, () => ({

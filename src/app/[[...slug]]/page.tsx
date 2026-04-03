@@ -11,7 +11,7 @@ import { SuggestionsButton } from '@/components/SuggestionsButton';
 import { SuggestionsModal } from '@/components/SuggestionsModal';
 import { AxisSelect, AxisSelectOption, AxisSkeleton, AxisCallout, AxisButton, AxisNavigationTab, AxisToggle, AxisDateRangePicker, DateRangeValue, AxisSidebar } from '@/components/axis';
 import { GridWorkspace, MetricsOverviewWidget, TimeSeriesWidget, BarChartWidget, DataTableWidget, WidgetCatalog, WidgetSettings } from '@/components/workspace';
-import { DEFAULT_LAYOUT, LAYOUT_STORAGE_KEY, OVERVIEW_WIDGET_CATALOG } from '@/lib/workspace/defaultLayouts';
+import { DEFAULT_LAYOUT, LAYOUT_STORAGE_KEY, OVERVIEW_WIDGET_CATALOG, loadLayout } from '@/lib/workspace/defaultLayouts';
 import {
   MAIN_SECTION_TABS,
   SUBSECTION_TABS_MAP,
@@ -43,7 +43,7 @@ const TabSkeleton = () => <div className="flex-1 flex items-center justify-cente
 const UsersTab = dynamic(() => import('@/components/dashboard/UsersTab').then(m => m.UsersTab), { loading: TabSkeleton, ssr: false });
 const FeaturesTab = dynamic(() => import('@/components/dashboard/FeaturesTab').then(m => m.FeaturesTab), { loading: TabSkeleton, ssr: false });
 const ClientsTab = dynamic(() => import('@/components/dashboard/ClientsTab').then(m => m.ClientsTab), { loading: TabSkeleton, ssr: false });
-const TrafficTab = dynamic(() => import('@/components/dashboard/TrafficTab').then(m => m.TrafficTab), { loading: TabSkeleton, ssr: false });
+const EngagementTab = dynamic(() => import('@/components/dashboard/EngagementTab').then(m => m.EngagementTab), { loading: TabSkeleton, ssr: false });
 const TechnologyTab = dynamic(() => import('@/components/dashboard/TechnologyTab').then(m => m.TechnologyTab), { loading: TabSkeleton, ssr: false });
 const GeographyTab = dynamic(() => import('@/components/dashboard/GeographyTab').then(m => m.GeographyTab), { loading: TabSkeleton, ssr: false });
 const EventsTab = dynamic(() => import('@/components/dashboard/EventsTab').then(m => m.EventsTab), { loading: TabSkeleton, ssr: false });
@@ -105,20 +105,9 @@ function Dashboard({ slug }: { slug: string[] }) {
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const [showWidgetCatalog, setShowWidgetCatalog] = useState(false);
   const [selectedWidgetForSettings, setSelectedWidgetForSettings] = useState<Widget | null>(null);
-  const [layout, setLayout] = useState<Widget[]>(() => {
-    // Load saved layout from localStorage on mount
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem(LAYOUT_STORAGE_KEY);
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch (e) {
-          console.error('Failed to parse saved layout:', e);
-        }
-      }
-    }
-    return DEFAULT_LAYOUT;
-  });
+  const [layout, setLayout] = useState<Widget[]>(() =>
+    loadLayout(LAYOUT_STORAGE_KEY, DEFAULT_LAYOUT)
+  );
 
   // Sync navigation state → clean URL path (replaceState to avoid history spam)
   useEffect(() => {
@@ -133,7 +122,7 @@ function Dashboard({ slug }: { slug: string[] }) {
   const tabRefs = useTabRefs();
   // Destructure refs to avoid "Cannot access refs during render" (React Compiler)
   const {
-    users: usersRef, features: featuresRef, clients: clientsRef, traffic: trafficRef,
+    users: usersRef, features: featuresRef, clients: clientsRef, engagement: engagementRef,
     technology: technologyRef, geography: geographyRef, events: eventsRef,
     insights: insightsRef, import: importRef, 'properties-api': propertiesApiRef,
     'dm-campaign': dmCampaignRef,
@@ -690,10 +679,10 @@ function Dashboard({ slug }: { slug: string[] }) {
             />
           )}
 
-          {/* Traffic Tab */}
-          {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && activeDetailTab === 'traffic' && (
-            <TrafficTab
-              ref={trafficRef}
+          {/* Engagement Tab (formerly Traffic) */}
+          {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && activeDetailTab === 'engagement' && (
+            <EngagementTab
+              ref={engagementRef}
               days={days}
               userType={userType}
               startDate={startDate}

@@ -24,7 +24,7 @@ import {
   EngagementMetricsWidget,
   SessionSummaryWidget,
 } from '@/components/workspace/widgets';
-import { DEFAULT_USERS_LAYOUT, USERS_LAYOUT_STORAGE_KEY, USERS_WIDGET_CATALOG } from '@/lib/workspace/defaultLayouts';
+import { DEFAULT_USERS_LAYOUT, USERS_LAYOUT_STORAGE_KEY, USERS_WIDGET_CATALOG, loadLayout } from '@/lib/workspace/defaultLayouts';
 import { Widget, TabHandle } from '@/types/widget';
 import {
   exportToCSV,
@@ -102,19 +102,9 @@ export const UsersTab = forwardRef<TabHandle, UsersTabProps>(function UsersTab(
   const [selectedWidgetForSettings, setSelectedWidgetForSettings] = useState<Widget | null>(null);
 
   // Load layout from localStorage or use default
-  const [layout, setLayout] = useState<Widget[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem(USERS_LAYOUT_STORAGE_KEY);
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch (e) {
-          console.error('Failed to parse saved users layout:', e);
-        }
-      }
-    }
-    return DEFAULT_USERS_LAYOUT;
-  });
+  const [layout, setLayout] = useState<Widget[]>(() =>
+    loadLayout(USERS_LAYOUT_STORAGE_KEY, DEFAULT_USERS_LAYOUT)
+  );
 
   // Expose methods to parent via ref
   useImperativeHandle(ref, () => ({

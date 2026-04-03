@@ -77,7 +77,7 @@ export const GA4_DETAIL_TABS: AxisNavigationTabItem[] = [
   { id: 'users', name: 'Users' },
   { id: 'features', name: 'Features' },
   { id: 'clients', name: 'Clients' },
-  { id: 'traffic', name: 'Traffic' },
+  { id: 'engagement', name: 'Engagement' },
   { id: 'technology', name: 'Technology' },
   { id: 'geography', name: 'Geography' },
   { id: 'events', name: 'Events' },

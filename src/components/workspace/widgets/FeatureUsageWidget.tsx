@@ -9,7 +9,7 @@
 
 import { useMemo } from 'react';
 import { AxisTable } from '@/components/axis';
-import type { Column } from '@/types/table';
+import type { Column, RowData } from '@/types/table';
 
 interface TrendData {
   value: number;
@@ -27,28 +27,32 @@ interface FeatureUsageWidgetProps {
   data: FeatureViewData[];
 }
 
-export function FeatureUsageWidget({ data }: FeatureUsageWidgetProps) {
-  const columns: Column[] = useMemo(() => [
-    {
-      field: 'feature',
-      header: 'Feature',
-      type: 'text',
-      sortable: true,
-    },
-    {
-      field: 'views',
-      header: 'Views',
-      type: 'number',
-      sortable: true,
-    },
-    {
-      field: 'unique_users',
-      header: 'Unique users',
-      type: 'number',
-      sortable: true,
-    },
-  ], []);
+const columns: Column[] = [
+  {
+    field: 'feature',
+    header: 'Feature',
+    width: '33.3%',
+    render: (value) => (
+      <span className="font-medium">{String(value)}</span>
+    ),
+  },
+  {
+    field: 'views',
+    header: 'Views',
+    type: 'number',
+    align: 'center',
+    width: '33.3%',
+  },
+  {
+    field: 'unique_users',
+    header: 'Unique users',
+    type: 'number',
+    align: 'center',
+    width: '33.3%',
+  },
+];
 
+export function FeatureUsageWidget({ data }: FeatureUsageWidgetProps) {
   const tableData = useMemo(() =>
     data.map((item, index) => ({
       ...item,
@@ -58,17 +62,13 @@ export function FeatureUsageWidget({ data }: FeatureUsageWidgetProps) {
   );
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="flex-1 min-h-0">
-        <AxisTable
-          columns={columns}
-          data={tableData}
-          rowKey="_id"
-          sortable
-          paginated={false}
-          emptyMessage="No feature data available"
-        />
-      </div>
-    </div>
+    <AxisTable
+      columns={columns}
+      data={tableData as unknown as RowData[]}
+      rowKey="_id"
+      sortable
+      paginated={false}
+      emptyMessage="No feature data available"
+    />
   );
 }

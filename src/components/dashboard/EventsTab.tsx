@@ -22,7 +22,7 @@ import {
   EventMetricsWidget,
   ScrollDepthWidget,
 } from '@/components/workspace/widgets';
-import { DEFAULT_EVENTS_LAYOUT, EVENTS_LAYOUT_STORAGE_KEY, EVENTS_WIDGET_CATALOG } from '@/lib/workspace/defaultLayouts';
+import { DEFAULT_EVENTS_LAYOUT, EVENTS_LAYOUT_STORAGE_KEY, EVENTS_WIDGET_CATALOG, loadLayout } from '@/lib/workspace/defaultLayouts';
 import { Widget, TabHandle } from '@/types/widget';
 import {
   exportToCSV,
@@ -102,19 +102,9 @@ export const EventsTab = forwardRef<TabHandle, EventsTabProps>(function EventsTa
   const [selectedWidgetForSettings, setSelectedWidgetForSettings] = useState<Widget | null>(null);
 
   // Load layout from localStorage or use default
-  const [layout, setLayout] = useState<Widget[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem(EVENTS_LAYOUT_STORAGE_KEY);
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch (e) {
-          console.error('Failed to parse saved events layout:', e);
-        }
-      }
-    }
-    return DEFAULT_EVENTS_LAYOUT;
-  });
+  const [layout, setLayout] = useState<Widget[]>(() =>
+    loadLayout(EVENTS_LAYOUT_STORAGE_KEY, DEFAULT_EVENTS_LAYOUT)
+  );
 
   // Expose methods to parent via ref
   useImperativeHandle(ref, () => ({

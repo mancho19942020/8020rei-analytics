@@ -26,7 +26,7 @@ import {
   FeatureTrendWidget,
   TopPagesWidget,
 } from '@/components/workspace/widgets';
-import { DEFAULT_FEATURES_LAYOUT, FEATURES_LAYOUT_STORAGE_KEY, FEATURES_WIDGET_CATALOG } from '@/lib/workspace/defaultLayouts';
+import { DEFAULT_FEATURES_LAYOUT, FEATURES_LAYOUT_STORAGE_KEY, FEATURES_WIDGET_CATALOG, loadLayout } from '@/lib/workspace/defaultLayouts';
 import { Widget, TabHandle } from '@/types/widget';
 import {
   exportToCSV,
@@ -97,19 +97,9 @@ export const FeaturesTab = forwardRef<TabHandle, FeaturesTabProps>(function Feat
   const [selectedWidgetForSettings, setSelectedWidgetForSettings] = useState<Widget | null>(null);
 
   // Load layout from localStorage or use default
-  const [layout, setLayout] = useState<Widget[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem(FEATURES_LAYOUT_STORAGE_KEY);
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch (e) {
-          console.error('Failed to parse saved features layout:', e);
-        }
-      }
-    }
-    return DEFAULT_FEATURES_LAYOUT;
-  });
+  const [layout, setLayout] = useState<Widget[]>(() =>
+    loadLayout(FEATURES_LAYOUT_STORAGE_KEY, DEFAULT_FEATURES_LAYOUT)
+  );
 
   // Expose methods to parent via ref
   useImperativeHandle(ref, () => ({

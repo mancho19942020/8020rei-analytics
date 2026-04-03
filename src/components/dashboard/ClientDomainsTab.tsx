@@ -22,6 +22,7 @@ import {
   DEFAULT_PRODUCT_DOMAINS_LAYOUT,
   PRODUCT_DOMAINS_LAYOUT_STORAGE_KEY,
   PRODUCT_DOMAINS_WIDGET_CATALOG,
+  loadLayout,
 } from '@/lib/workspace/defaultLayouts';
 import { Widget, TabHandle } from '@/types/widget';
 import type { ClientDomainsData } from '@/types/product';
@@ -53,19 +54,9 @@ export const ClientDomainsTab = forwardRef<TabHandle, ClientDomainsTabProps>(fun
   const [selectedWidgetForSettings, setSelectedWidgetForSettings] = useState<Widget | null>(null);
 
   // Load layout from localStorage or use default
-  const [layout, setLayout] = useState<Widget[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem(PRODUCT_DOMAINS_LAYOUT_STORAGE_KEY);
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch (e) {
-          console.error('Failed to parse saved product domains layout:', e);
-        }
-      }
-    }
-    return DEFAULT_PRODUCT_DOMAINS_LAYOUT;
-  });
+  const [layout, setLayout] = useState<Widget[]>(() =>
+    loadLayout(PRODUCT_DOMAINS_LAYOUT_STORAGE_KEY, DEFAULT_PRODUCT_DOMAINS_LAYOUT)
+  );
 
   // Expose methods to parent via ref
   useImperativeHandle(ref, () => ({
