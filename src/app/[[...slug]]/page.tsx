@@ -448,8 +448,8 @@ function Dashboard({ slug }: { slug: string[] }) {
                   label="Edit Layout"
                 />
 
-                {/* User Type Filter */}
-                {activeMainSection !== 'customer-success' && !(activeMainSection === 'feedback-loop' && activeSubsection === 'import') && (
+                {/* User Type Filter — only shown for GA4 analytics tabs where it affects the data */}
+                {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && (
                   <AxisSelect
                     value={userType}
                     onChange={(val) => setUserType(val as 'all' | 'internal' | 'external' | 'unclassified')}
