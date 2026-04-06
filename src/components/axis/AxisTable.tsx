@@ -110,10 +110,11 @@ export function AxisTable({
     resizingRef.current = { field, startX: e.clientX, startW: currentWidth };
 
     const onMove = (ev: MouseEvent) => {
-      if (!resizingRef.current) return;
-      const delta = ev.clientX - resizingRef.current.startX;
-      const newW = Math.max(60, resizingRef.current.startW + delta);
-      setColWidths(prev => ({ ...prev, [resizingRef.current!.field]: newW }));
+      const current = resizingRef.current;
+      if (!current) return;
+      const delta = ev.clientX - current.startX;
+      const newW = Math.max(60, current.startW + delta);
+      setColWidths(prev => ({ ...prev, [current.field]: newW }));
     };
     const onUp = () => {
       resizingRef.current = null;
@@ -481,12 +482,12 @@ export function AxisTable({
 
           {/* Body */}
           <tbody>
-            {paginatedData.map((row) => {
+            {paginatedData.map((row, rowIndex) => {
               const isSelected = isRowSelected(row);
 
               return (
                 <tr
-                  key={getRowKey(row)}
+                  key={`${getRowKey(row)}-${rowIndex}`}
                   className={`transition-colors duration-200 hover:bg-surface-raised cursor-pointer ${
                     isSelected ? 'bg-main-50 dark:bg-main-950/30' : 'bg-surface-base'
                   }`}
