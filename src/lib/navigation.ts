@@ -11,15 +11,15 @@ import { AxisNavigationTabItem } from '@/components/axis';
 
 // First-level navigation - Main Sections
 export const MAIN_SECTION_TABS: AxisNavigationTabItem[] = [
-  { id: 'customer-success', name: 'Customer Success' },
   { id: 'analytics', name: 'Analytics' },
-  { id: 'feedback-loop', name: 'Feedback Loop' },
   { id: 'features', name: 'Features' },
-  { id: 'pipelines', name: 'Pipelines' },
-  { id: 'qa', name: 'QA' },
-  { id: 'ml-models', name: 'ML Models' },
+  { id: 'feedback-loop', name: 'Feedback Loop' },
   { id: 'engagement-calls', name: 'Engagement Calls' },
-  { id: 'grafana', name: 'Grafana' },
+  { id: 'customer-success', name: 'Customer Success', disabled: true },
+  { id: 'qa', name: 'QA', disabled: true },
+  { id: 'pipelines', name: 'Pipelines', disabled: true },
+  { id: 'ml-models', name: 'ML Models', disabled: true },
+  { id: 'grafana', name: 'Grafana (beta)' },
 ];
 
 // Second-level navigation - Sub-sections per Main Section
@@ -31,33 +31,33 @@ const ANALYTICS_SUBSECTION_TABS: AxisNavigationTabItem[] = [
 
 const FEEDBACK_LOOP_SUBSECTION_TABS: AxisNavigationTabItem[] = [
   { id: 'import', name: 'Import' },
-  { id: 'salesforce', name: 'Salesforce' },
-  { id: 'integrations', name: 'Integrations' },
-  { id: 'leads-funnel', name: 'Leads Funnel' },
-  { id: 'delivery-audit', name: 'Delivery Audit' },
+  { id: 'salesforce', name: 'Salesforce', disabled: true },
+  { id: 'integrations', name: 'Integrations', disabled: true },
+  { id: 'leads-funnel', name: 'Leads Funnel', disabled: true },
+  { id: 'delivery-audit', name: 'Delivery Audit', disabled: true },
 ];
 
 const FEATURES_SUBSECTION_TABS: AxisNavigationTabItem[] = [
   { id: 'features-rei', name: '8020REI' },
-  { id: 'features-roofing', name: '8020Roofing' },
+  { id: 'features-roofing', name: '8020Roofing', disabled: true },
 ];
 
 const PIPELINES_SUBSECTION_TABS: AxisNavigationTabItem[] = [
-  { id: 'pipelines-rei', name: '8020REI' },
-  { id: 'pipelines-roofing', name: '8020Roofing' },
+  { id: 'pipelines-rei', name: '8020REI', disabled: true },
+  { id: 'pipelines-roofing', name: '8020Roofing', disabled: true },
 ];
 
 const QA_SUBSECTION_TABS: AxisNavigationTabItem[] = [
-  { id: 'axiom-validation', name: 'Axiom Validation' },
-  { id: 'buybox-columns', name: 'BuyBox Columns' },
-  { id: 'smoke-sanity', name: 'Smoke & Sanity' },
-  { id: 'marketing-counter-reliability', name: 'Marketing Counter Reliability' },
+  { id: 'axiom-validation', name: 'Axiom Validation', disabled: true },
+  { id: 'buybox-columns', name: 'BuyBox Columns', disabled: true },
+  { id: 'smoke-sanity', name: 'Smoke & Sanity', disabled: true },
+  { id: 'marketing-counter-reliability', name: 'Marketing Counter Reliability', disabled: true },
 ];
 
 const ML_MODELS_SUBSECTION_TABS: AxisNavigationTabItem[] = [
-  { id: 'deal-scoring', name: 'Deal Scoring' },
-  { id: 'model-performance', name: 'Model Performance' },
-  { id: 'drift-detection', name: 'Drift Detection' },
+  { id: 'deal-scoring', name: 'Deal Scoring', disabled: true },
+  { id: 'model-performance', name: 'Model Performance', disabled: true },
+  { id: 'drift-detection', name: 'Drift Detection', disabled: true },
 ];
 
 export const SUBSECTION_TABS_MAP: Record<string, AxisNavigationTabItem[]> = {
@@ -92,25 +92,25 @@ export const DM_CAMPAIGN_SUB_TABS: AxisNavigationTabItem[] = [
 export const FEATURES_REI_DETAIL_TABS: AxisNavigationTabItem[] = [
   { id: 'dm-campaign', name: 'DM Campaign' },
   { id: 'properties-api', name: 'Properties API' },
-  { id: 'skiptrace', name: 'Skip Trace' },
-  { id: 'auto-export', name: 'Auto Export' },
-  { id: 'zillow', name: 'Zillow' },
-  { id: 'roi', name: 'ROI' },
-  { id: 'buyers-list', name: 'Buyers List' },
+  { id: 'skiptrace', name: 'Skip Trace', disabled: true },
+  { id: 'auto-export', name: 'Auto Export', disabled: true },
+  { id: 'zillow', name: 'Zillow', disabled: true },
+  { id: 'roi', name: 'ROI', disabled: true },
+  { id: 'buyers-list', name: 'Buyers List', disabled: true },
 ];
 
 export const FEATURES_ROOFING_DETAIL_TABS: AxisNavigationTabItem[] = [
-  { id: 'zillow', name: 'Zillow' },
-  { id: 'upcoming-features', name: 'Upcoming Features' },
+  { id: 'zillow', name: 'Zillow', disabled: true },
+  { id: 'upcoming-features', name: 'Upcoming Features', disabled: true },
 ];
 
 export const PIPELINES_REI_DETAIL_TABS: AxisNavigationTabItem[] = [
-  { id: 'eda-etl', name: 'EDA ETL' },
-  { id: 'etl-rei', name: 'ETL REI' },
+  { id: 'eda-etl', name: 'EDA ETL', disabled: true },
+  { id: 'etl-rei', name: 'ETL REI', disabled: true },
 ];
 
 export const PIPELINES_ROOFING_DETAIL_TABS: AxisNavigationTabItem[] = [
-  { id: 'etl-roofing', name: 'ETL Roofing' },
+  { id: 'etl-roofing', name: 'ETL Roofing', disabled: true },
 ];
 
 /**

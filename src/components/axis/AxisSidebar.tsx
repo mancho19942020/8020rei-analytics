@@ -102,8 +102,8 @@ export function AxisSidebar({
             const subsections = SUBSECTION_TABS_MAP[section.id];
             const icon = SIDEBAR_ICONS[section.id] || <span className="w-5 h-5" />;
 
-            // Section has subsections → render collapsible group
-            if (subsections && subsections.length > 0) {
+            // Section has subsections and is not fully disabled → render collapsible group
+            if (subsections && subsections.length > 0 && !section.disabled) {
               return (
                 <AxisSidebarSection
                   key={section.id}
@@ -118,7 +118,7 @@ export function AxisSidebar({
               );
             }
 
-            // Simple section without subsections
+            // Simple section or fully disabled section
             return (
               <AxisSidebarItem
                 key={section.id}
