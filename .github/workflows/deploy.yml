@@ -38,6 +38,8 @@ jobs:
           AURORA_REGION: ${{ secrets.DB_AURORA_DEFAULT_REGION }}
           AURORA_DB: ${{ secrets.AWS_AURORA_GRAFANA_DB }}
           SLACK_WEBHOOK: ${{ secrets.SLACK_DM_ALERTS_WEBHOOK_URL }}
+          SLACK_BOT: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL: ${{ secrets.SLACK_DM_ALERTS_CHANNEL_ID }}
         run: |
           python3 << 'PYEOF'
           import os, json
@@ -58,13 +60,19 @@ jobs:
               'AWS_AURORA_GRAFANA_DB': os.environ['AURORA_DB'],
           }
 
-          # Add optional Slack webhook (only if secret is configured)
+          # Add Slack credentials (bot token + channel for threading, webhook as fallback)
+          slack_bot = os.environ.get('SLACK_BOT', '')
+          slack_channel = os.environ.get('SLACK_CHANNEL', '')
           slack_url = os.environ.get('SLACK_WEBHOOK', '')
+          if slack_bot and slack_channel:
+              env_vars['SLACK_BOT_TOKEN'] = slack_bot
+              env_vars['SLACK_DM_ALERTS_CHANNEL_ID'] = slack_channel
+              print(f'✓ Slack Bot Token + Channel ID configured (threaded messages)')
           if slack_url:
               env_vars['SLACK_DM_ALERTS_WEBHOOK_URL'] = slack_url
-              print(f'✓ SLACK_DM_ALERTS_WEBHOOK_URL configured')
-          else:
-              print('⚠ SLACK_DM_ALERTS_WEBHOOK_URL not set — Slack alerts will be disabled in production')
+              print(f'✓ SLACK_DM_ALERTS_WEBHOOK_URL configured (fallback)')
+          if not slack_bot and not slack_url:
+              print('⚠ No Slack credentials — alerts will be disabled in production')
 
           # Validate JSON credentials
           for key in ['GOOGLE_DRIVE_CREDENTIALS_JSON', 'GOOGLE_APPLICATION_CREDENTIALS_PRODUCT_JSON']:
