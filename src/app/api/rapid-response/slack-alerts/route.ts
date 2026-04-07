@@ -449,11 +449,11 @@ async function fetchCurrentAlerts(): Promise<RrAlert[]> {
   const days = 30;
   const [pulseRows, qualityRows, pcmRows, todayRows] = await Promise.all([
     runAuroraQuery(`
-      SELECT DISTINCT ON (campaign_id)
+      SELECT DISTINCT ON (domain, campaign_id)
         campaign_id, campaign_name, domain, status, on_hold_count, snapshot_at
       FROM rr_campaign_snapshots
       WHERE ${EXCLUDE_SEED}
-      ORDER BY campaign_id, snapshot_at DESC
+      ORDER BY domain, campaign_id, snapshot_at DESC
     `),
     runAuroraQuery(`
       SELECT
@@ -556,18 +556,20 @@ async function fetchCurrentAlerts(): Promise<RrAlert[]> {
       severity: 'warning',
       category: 'rapid-response',
       description: `30-day delivery rate is ${deliveryRate.toFixed(1)}%, below the 70% threshold.`,
-      metrics: { current: deliveryRate, baseline: 70 },
+      metrics: { current: Math.round(deliveryRate * 10) / 10, baseline: 70 },
       detected_at: now,
       action: 'Review undeliverable addresses and PCM rejection reasons.',
       link: '/features/features-rei/dm-campaign/operational-health',
     });
   }
 
-  // On-hold
+  // On-hold — only flag campaigns with 50+ mailings on hold (significant backlogs)
+  const ON_HOLD_WARNING = 50;
+  const ON_HOLD_CRITICAL = 500;
   const onHoldDetails: { domain: string; campaign: string; count: number }[] = [];
   pulseRows.forEach((r: Record<string, unknown>) => {
     const hold = Number(r.on_hold_count || 0);
-    if (hold > 0) {
+    if (hold >= ON_HOLD_WARNING) {
       onHoldDetails.push({
         domain: String(r.domain || 'unknown'),
         campaign: String(r.campaign_name || 'Unnamed'),
@@ -575,18 +577,22 @@ async function fetchCurrentAlerts(): Promise<RrAlert[]> {
       });
     }
   });
+  // Sort by count descending so biggest backlogs appear first
+  onHoldDetails.sort((a, b) => b.count - a.count);
   const totalOnHold = onHoldDetails.reduce((s, d) => s + d.count, 0);
-  if (totalOnHold > 0) {
-    const breakdown = onHoldDetails.map(d => `${d.campaign} (${d.domain}): ${d.count}`).join('; ');
+  if (onHoldDetails.length > 0) {
+    const hasCritical = onHoldDetails.some(d => d.count >= ON_HOLD_CRITICAL);
+    const breakdown = onHoldDetails.map(d => `${d.campaign} (${d.domain}): ${d.count.toLocaleString('en-US')} on hold`).join('; ');
     alerts.push({
       id: 'rr-on-hold',
-      name: 'Mailings on hold',
-      severity: 'warning',
+      name: 'Campaigns with mailings on hold',
+      severity: hasCritical ? 'critical' : 'warning',
       category: 'rapid-response',
-      description: `${totalOnHold} mailings on hold. ${breakdown}.`,
-      metrics: { current: totalOnHold },
+      description: `${onHoldDetails.length} campaign${onHoldDetails.length > 1 ? 's' : ''} with ${totalOnHold.toLocaleString('en-US')} total mailings on hold — these letters are queued but not sending. Clients may need to recharge their accounts. ${breakdown}.`,
+      entity: [...new Set(onHoldDetails.map(d => d.domain))].join(', '),
+      metrics: { current: totalOnHold, baseline: ON_HOLD_WARNING },
       detected_at: now,
-      action: 'Check account balances for affected clients.',
+      action: 'Contact affected clients: their campaigns are active but mailings are paused due to insufficient balance. They need to recharge to resume sending.',
       link: '/features/features-rei/dm-campaign/operational-health',
     });
   }
@@ -600,7 +606,7 @@ async function fetchCurrentAlerts(): Promise<RrAlert[]> {
       severity: 'warning',
       category: 'rapid-response',
       description: `PCM submission rate is ${pcmRate.toFixed(1)}%, below the 95% threshold.`,
-      metrics: { current: pcmRate, baseline: 95 },
+      metrics: { current: Math.round(pcmRate * 10) / 10, baseline: 95 },
       detected_at: now,
       action: 'Review PCM API error logs for systematic rejection patterns.',
       link: '/features/features-rei/dm-campaign/operational-health',
