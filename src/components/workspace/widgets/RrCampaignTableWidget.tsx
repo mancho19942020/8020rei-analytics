@@ -14,6 +14,7 @@ import type { RrCampaignSnapshot } from '@/types/rapid-response';
 
 interface RrCampaignTableWidgetProps {
   data: RrCampaignSnapshot[];
+  onDomainClick?: (domain: string) => void;
 }
 
 const statusColorMap: Record<string, 'success' | 'alert' | 'neutral' | 'info' | 'error'> = {
@@ -38,14 +39,21 @@ function formatDomain(domain: string): string {
     .trim() || domain;
 }
 
-export function RrCampaignTableWidget({ data }: RrCampaignTableWidgetProps) {
+export function RrCampaignTableWidget({ data, onDomainClick }: RrCampaignTableWidgetProps) {
   const columns: Column[] = useMemo(() => [
     {
       field: 'domain',
       header: 'Client',
       minWidth: 140,
       render: (value: CellValue) => (
-        <span className="font-medium" style={{ color: 'var(--text-primary)' }}>
+        <span
+          className="font-medium cursor-pointer hover:underline"
+          style={{ color: 'var(--color-main-500)' }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onDomainClick?.(String(value || ''));
+          }}
+        >
           {formatDomain(String(value || ''))}
         </span>
       ),
@@ -109,7 +117,7 @@ export function RrCampaignTableWidget({ data }: RrCampaignTableWidgetProps) {
         </span>
       ),
     },
-  ], []);
+  ], [onDomainClick]);
 
   const tableData = useMemo(() =>
     data.map(c => ({

@@ -342,7 +342,7 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
         'rr-sends-trend': <RrSendsTrendWidget data={data.dailyTrend} />,
         'rr-status-breakdown': <RrStatusBreakdownWidget data={data.statusBreakdown} />,
         'rr-alerts-feed': <RrAlertsFeedWidget data={data.alerts} />,
-        'rr-campaign-table': <RrCampaignTableWidget data={data.campaigns} />,
+        'rr-campaign-table': <RrCampaignTableWidget data={data.campaigns} onDomainClick={setSelectedDomain} />,
         'rr-cost-overview': <RrCostOverviewWidget data={data.costTrend} />,
       };
     }, [data]);
