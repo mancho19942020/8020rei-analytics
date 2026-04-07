@@ -100,6 +100,7 @@ async function getFunnelOverview(domain?: string) {
   const cached = getCached(cacheKey);
   if (cached) return NextResponse.json({ success: true, data: cached, cached: true });
 
+  // Try dm_client_funnel first (primary), fall back to dm_template_performance
   const rows = await runAuroraQuery(`
     SELECT
       COALESCE(SUM(total_properties_mailed), 0) as total_mailed,
@@ -117,7 +118,30 @@ async function getFunnelOverview(domain?: string) {
       AND ${domainFilter(domain)}
   `);
 
-  const r = rows[0] || {};
+  let r = rows[0] || {};
+  const hasClientFunnelData = Number(r.total_mailed || 0) > 0 || Number(r.leads || 0) > 0
+    || Number(r.deals || 0) > 0;
+
+  // Fallback: if dm_client_funnel has no data, aggregate from dm_template_performance
+  if (!hasClientFunnelData) {
+    const fallbackRows = await runAuroraQuery(`
+      SELECT
+        COALESCE(SUM(unique_properties), 0) as total_mailed,
+        COALESCE(SUM(total_delivered), 0) as total_delivered,
+        COALESCE(SUM(total_sent), 0) as total_sends,
+        0 as prospects,
+        COALESCE(SUM(leads_generated), 0) as leads,
+        COALESCE(SUM(appointments_generated), 0) as appointments,
+        COALESCE(SUM(contracts_generated), 0) as contracts,
+        COALESCE(SUM(deals_generated), 0) as deals,
+        COALESCE(SUM(total_cost), 0) as total_cost,
+        COALESCE(SUM(total_revenue), 0) as total_revenue
+      FROM dm_template_performance
+      WHERE ${domainFilter(domain)}
+    `);
+    r = fallbackRows[0] || r;
+  }
+
   const totalMailed = Number(r.total_mailed || 0);
   const totalDelivered = Number(r.total_delivered || 0);
   const leads = Number(r.leads || 0);
@@ -163,8 +187,8 @@ async function getClientPerformance(domain?: string) {
   const cached = getCached(cacheKey);
   if (cached) return NextResponse.json({ success: true, data: cached, cached: true });
 
-  // Fetch from both tables in parallel
-  const [funnelRows, templateRows] = await Promise.all([
+  // Fetch from all three tables in parallel
+  const [funnelRows, templateRows, campaignStatusRows] = await Promise.all([
     runAuroraQuery(`
       SELECT
         domain,
@@ -202,7 +226,31 @@ async function getClientPerformance(domain?: string) {
       WHERE ${domainFilter(domain)}
       GROUP BY domain
     `),
+    // Get real active campaign counts from rr_campaign_snapshots (source of truth)
+    runAuroraQuery(`
+      SELECT domain, campaign_type,
+        COUNT(*) FILTER (WHERE status = 'active') as active_campaigns
+      FROM (
+        SELECT DISTINCT ON (domain, campaign_id)
+          domain, campaign_id, campaign_type, status
+        FROM rr_campaign_snapshots
+        WHERE ${domainFilter(domain)}
+        ORDER BY domain, campaign_id, snapshot_at DESC
+      ) latest
+      GROUP BY domain, campaign_type
+    `),
   ]);
+
+  // Build active campaigns lookup from rr_campaign_snapshots
+  const activeCampaignsMap = new Map<string, { count: number; type: string }>();
+  for (const r of campaignStatusRows) {
+    const d = String(r.domain || '');
+    const existing = activeCampaignsMap.get(d);
+    const count = Number(r.active_campaigns || 0);
+    if (!existing || count > existing.count) {
+      activeCampaignsMap.set(d, { count, type: String(r.campaign_type || 'rr') });
+    }
+  }
 
   // Build map from client_funnel (primary source)
   const domainMap = new Map<string, DmClientPerformanceRow>();
@@ -215,11 +263,13 @@ async function getClientPerformance(domain?: string) {
     const totalCost = Number(r.total_cost || 0);
     const totalRevenue = Number(r.total_revenue || 0);
     const confidence = getRoasConfidence(deals, totalRevenue);
+    // Use rr_campaign_snapshots as source of truth for active campaigns
+    const liveStatus = activeCampaignsMap.get(d);
 
     domainMap.set(d, {
       domain: d,
-      campaignType: String(r.campaign_type || 'rr'),
-      activeCampaigns: Number(r.active_campaigns || 0),
+      campaignType: liveStatus?.type || String(r.campaign_type || 'rr'),
+      activeCampaigns: liveStatus?.count ?? Number(r.active_campaigns || 0),
       totalMailed,
       totalSends: Number(r.total_sends || 0),
       totalDelivered: Number(r.total_delivered || 0),
@@ -248,11 +298,13 @@ async function getClientPerformance(domain?: string) {
     const totalCost = Number(r.total_cost || 0);
     const totalRevenue = Number(r.total_revenue || 0);
     const confidence = getRoasConfidence(deals, totalRevenue);
+    // Use rr_campaign_snapshots as source of truth for active campaigns
+    const liveStatus = activeCampaignsMap.get(d);
 
     domainMap.set(d, {
       domain: d,
-      campaignType: 'rr',
-      activeCampaigns: 0, // Not in client_funnel = no active campaigns
+      campaignType: liveStatus?.type || 'rr',
+      activeCampaigns: liveStatus?.count ?? 0,
       totalMailed,
       totalSends: Number(r.total_sent || 0),
       totalDelivered: Number(r.total_delivered || 0),
