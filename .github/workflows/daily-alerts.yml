@@ -1,0 +1,59 @@
+name: Daily DM Campaign Alert Digest
+
+# Run Mon-Fri at 9:00 AM EST (14:00 UTC)
+on:
+  schedule:
+    - cron: '0 14 * * 1-5'
+  workflow_dispatch: # Allow manual trigger from GitHub Actions UI
+
+jobs:
+  send-digest:
+    name: Send DM Campaign Digest
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+
+    steps:
+      - name: Restore previous alert state
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: alert-state.json
+          key: dm-alerts-state-${{ github.run_number }}
+          restore-keys: |
+            dm-alerts-state-
+
+      - name: Send daily digest to Slack
+        env:
+          SERVICE_URL: https://analytics8020-798362859849.us-central1.run.app
+        run: |
+          # Build request body with yesterday's state (if available)
+          if [ -f alert-state.json ]; then
+            PREV_STATE=$(cat alert-state.json)
+            echo "Previous state found: $(echo "$PREV_STATE" | jq length) alerts"
+            BODY="{\"previousState\": $PREV_STATE}"
+          else
+            echo "No previous state — all alerts will appear as new"
+            BODY="{\"previousState\": []}"
+          fi
+
+          # Call the digest endpoint
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -d "$BODY" \
+            "$SERVICE_URL/api/rapid-response/slack-alerts")
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY_RESP=$(echo "$RESPONSE" | sed '$d')
+
+          echo "Status: $HTTP_CODE"
+          echo "Response: $BODY_RESP"
+
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+            # Save current state for tomorrow
+            echo "$BODY_RESP" | jq '.currentState // []' > alert-state.json
+            echo "State saved: $(jq length alert-state.json) alerts cached for tomorrow"
+          else
+            echo "::error::Failed to send digest (HTTP $HTTP_CODE)"
+            exit 1
+          fi

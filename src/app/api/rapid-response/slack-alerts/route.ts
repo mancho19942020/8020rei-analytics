@@ -1,14 +1,18 @@
 /**
- * DM Campaign Slack Alerts — Next.js API Route
+ * DM Campaign Daily Digest — Next.js API Route
  *
- * Checks for current alerts and sends new ones to #dm-campaign-alerts on Slack.
- * Deduplication: tracks sent alert fingerprints in Aurora to avoid repeats.
+ * Sends a daily Slack digest to #dm-campaign-alerts with two sections:
+ *   1. Persistent alerts — alerts that were active yesterday and are still active today
+ *   2. New alerts — alerts that appeared today for the first time
+ *
+ * State is persisted in /tmp so the system can compare today vs yesterday.
+ * On container restart, all alerts appear as "new" once (safe direction).
  *
  * Usage:
- *   POST /api/rapid-response/slack-alerts           — send only NEW alerts
- *   POST /api/rapid-response/slack-alerts?force=true — send ALL current alerts
+ *   POST /api/rapid-response/slack-alerts           — daily digest (persistent + new)
+ *   POST /api/rapid-response/slack-alerts?force=true — send ALL current alerts (full detail)
  *
- * Designed to be called daily by Cloud Scheduler or manually.
+ * Designed to be called Mon-Fri at 9:00 AM EST by Cloud Scheduler.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -16,7 +20,6 @@ import { runAuroraQuery, isAuroraConfigured } from '@/lib/aurora';
 import { sendSlackMessage, isSlackConfigured } from '@/lib/slack';
 import type { SlackBlock } from '@/lib/slack';
 import type { RrAlert } from '@/types/rapid-response';
-import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 
@@ -35,35 +38,65 @@ export async function POST(request: NextRequest) {
   const force = request.nextUrl.searchParams.get('force') === 'true';
 
   try {
-    // Fetch current alerts (same queries as the main alerts endpoint)
+    // Fetch current alerts
     const alerts = await fetchCurrentAlerts();
 
+    // Load yesterday's state — prefer body payload (from GitHub Actions cache),
+    // fall back to local /tmp file
+    let yesterdayState: AlertStateEntry[] = [];
+    try {
+      const body = await request.json();
+      if (Array.isArray(body?.previousState)) {
+        yesterdayState = body.previousState;
+      }
+    } catch {
+      // No body or invalid JSON — fall back to local state file
+      yesterdayState = loadAlertState();
+    }
+
+    // Classify alerts as persistent or new
+    const yesterdayIds = new Set(yesterdayState.map(a => a.id));
+    const persistentAlerts = alerts.filter(a => yesterdayIds.has(a.id));
+    const newAlerts = alerts.filter(a => !yesterdayIds.has(a.id));
+
+    // Build context for persistent alerts — check if metrics changed
+    const yesterdayMap = new Map(yesterdayState.map(a => [a.id, a]));
+    const persistentWithDelta = persistentAlerts.map(a => {
+      const prev = yesterdayMap.get(a.id);
+      const prevCurrent = prev?.metricCurrent;
+      const nowCurrent = a.metrics?.current;
+      let delta: string | null = null;
+      if (prevCurrent != null && nowCurrent != null && prevCurrent !== nowCurrent) {
+        const diff = nowCurrent - prevCurrent;
+        const arrow = diff > 0 ? '\u2191' : '\u2193'; // ↑ or ↓
+        delta = `${arrow} was ${formatNum(prevCurrent)}, now ${formatNum(nowCurrent)}`;
+      }
+      return { alert: a, delta };
+    });
+
+    // If no alerts at all, send an "all clear" message
     if (alerts.length === 0) {
-      return NextResponse.json({ success: true, message: 'No alerts to send', sent: 0 });
-    }
-
-    // Determine which alerts are new
-    let alertsToSend: RrAlert[];
-
-    if (force) {
-      alertsToSend = alerts;
-    } else {
-      // Get previously sent fingerprints
-      const sentFingerprints = getSentFingerprints();
-      alertsToSend = alerts.filter(a => {
-        const fp = fingerprint(a);
-        return !sentFingerprints.has(fp);
+      const blocks = formatAllClear();
+      await sendSlackMessage({
+        text: 'DM Campaign: All clear — no alerts today',
+        blocks,
+        unfurl_links: false,
       });
+      saveAlertState([]);
+      return NextResponse.json({ success: true, message: 'All clear — no alerts', sent: 0 });
     }
 
-    if (alertsToSend.length === 0) {
-      return NextResponse.json({ success: true, message: 'No new alerts since last notification', sent: 0 });
+    // Format the digest
+    let blocks: SlackBlock[];
+    if (force) {
+      // Force mode: send everything with full detail (like the old behavior)
+      blocks = formatFullReport(alerts);
+    } else {
+      blocks = formatDailyDigest(persistentWithDelta, newAlerts, alerts.length);
     }
 
-    // Format and send to Slack
-    const blocks = formatAlertsForSlack(alertsToSend, alerts.length);
     const sent = await sendSlackMessage({
-      text: `DM Campaign: ${alertsToSend.length} alert${alertsToSend.length > 1 ? 's' : ''} detected`,
+      text: `DM Campaign daily digest — ${newAlerts.length} new, ${persistentAlerts.length} persistent`,
       blocks,
       unfurl_links: false,
     });
@@ -72,17 +105,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Failed to send Slack message' }, { status: 500 });
     }
 
-    // Record sent fingerprints so the same alerts aren't sent again today
-    recordSentFingerprints(alertsToSend);
+    // Save today's state for tomorrow's comparison
+    saveAlertState(alerts);
+
+    // Build current state for caller to cache (for tomorrow's comparison)
+    const currentState: AlertStateEntry[] = alerts.map(a => ({
+      id: a.id,
+      severity: a.severity,
+      metricCurrent: a.metrics?.current,
+      entity: a.entity,
+    }));
 
     return NextResponse.json({
       success: true,
-      message: `Sent ${alertsToSend.length} alert(s) to Slack`,
-      sent: alertsToSend.length,
+      message: `Digest sent: ${newAlerts.length} new, ${persistentAlerts.length} persistent`,
+      new: newAlerts.length,
+      persistent: persistentAlerts.length,
       total: alerts.length,
+      currentState,
     });
   } catch (err) {
-    console.error('[Slack Alerts] Error:', err);
+    console.error('[Slack Digest] Error:', err);
     return NextResponse.json({
       success: false,
       error: err instanceof Error ? err.message : 'Internal error',
@@ -96,7 +139,310 @@ export async function GET(request: NextRequest) {
 }
 
 // ---------------------------------------------------------------------------
-// Alert fetching (simplified version of the main alerts endpoint)
+// Daily Digest Formatting
+// ---------------------------------------------------------------------------
+
+const SEVERITY_EMOJI: Record<string, string> = {
+  critical: ':red_circle:',
+  warning: ':large_yellow_circle:',
+  info: ':large_blue_circle:',
+};
+
+function formatDailyDigest(
+  persistent: { alert: RrAlert; delta: string | null }[],
+  newAlerts: RrAlert[],
+  totalCount: number,
+): SlackBlock[] {
+  const today = new Date().toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+
+  const criticalCount = persistent.filter(p => p.alert.severity === 'critical').length
+    + newAlerts.filter(a => a.severity === 'critical').length;
+  const warningCount = persistent.filter(p => p.alert.severity === 'warning').length
+    + newAlerts.filter(a => a.severity === 'warning').length;
+
+  const blocks: SlackBlock[] = [
+    {
+      type: 'header',
+      text: {
+        type: 'plain_text',
+        text: `DM Campaign daily digest — ${today}`,
+        emoji: true,
+      },
+    },
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: [
+          criticalCount > 0 ? `:red_circle: *${criticalCount} critical*` : null,
+          warningCount > 0 ? `:large_yellow_circle: *${warningCount} warning*` : null,
+          `${totalCount} total active`,
+          newAlerts.length > 0 ? `*${newAlerts.length} new*` : null,
+          persistent.length > 0 ? `${persistent.length} persistent` : null,
+        ].filter(Boolean).join('  ·  '),
+      },
+    },
+  ];
+
+  // Section 1: New alerts (full detail)
+  if (newAlerts.length > 0) {
+    blocks.push({ type: 'divider' });
+    blocks.push({
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: ':new: *New alerts*',
+      },
+    });
+
+    for (const alert of newAlerts) {
+      const emoji = SEVERITY_EMOJI[alert.severity] || ':white_circle:';
+      blocks.push({
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: [
+            `${emoji} *${alert.name}*`,
+            alert.description,
+            '',
+            `*Action:* ${alert.action}`,
+          ].join('\n'),
+        },
+      });
+
+      if (alert.metrics) {
+        const parts: string[] = [];
+        if (alert.metrics.current !== undefined) parts.push(`Current: *${formatNum(alert.metrics.current)}*`);
+        if (alert.metrics.baseline !== undefined) parts.push(`Threshold: *${formatNum(alert.metrics.baseline)}*`);
+        if (parts.length > 0) {
+          blocks.push({
+            type: 'context',
+            elements: [{ type: 'mrkdwn', text: parts.join('  ·  ') }],
+          });
+        }
+      }
+    }
+  }
+
+  // Section 2: Persistent alerts (brief reference)
+  if (persistent.length > 0) {
+    blocks.push({ type: 'divider' });
+    blocks.push({
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: ':repeat: *Persistent alerts* (still active from previous days)',
+      },
+    });
+
+    const lines = persistent.map(({ alert, delta }) => {
+      const emoji = SEVERITY_EMOJI[alert.severity] || ':white_circle:';
+      const metricStr = alert.metrics?.current !== undefined
+        ? ` — ${formatNum(alert.metrics.current)}`
+        : '';
+      const deltaStr = delta ? ` (${delta})` : '';
+      return `${emoji} *${alert.name}*${metricStr}${deltaStr}`;
+    });
+
+    blocks.push({
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: lines.join('\n'),
+      },
+    });
+  }
+
+  // Footer
+  blocks.push({ type: 'divider' });
+  blocks.push({
+    type: 'context',
+    elements: [{
+      type: 'mrkdwn',
+      text: ':bar_chart: <https://analytics8020-798362859849.us-central1.run.app/features/features-rei/dm-campaign/operational-health|View in Metrics Hub>  ·  Sent automatically Mon–Fri at 9:00 AM EST',
+    }],
+  });
+
+  return blocks;
+}
+
+function formatAllClear(): SlackBlock[] {
+  const today = new Date().toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+
+  return [
+    {
+      type: 'header',
+      text: {
+        type: 'plain_text',
+        text: `DM Campaign daily digest — ${today}`,
+        emoji: true,
+      },
+    },
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: ':white_check_mark: *All clear* — no active alerts today.',
+      },
+    },
+    { type: 'divider' },
+    {
+      type: 'context',
+      elements: [{
+        type: 'mrkdwn',
+        text: ':bar_chart: <https://analytics8020-798362859849.us-central1.run.app/features/features-rei/dm-campaign/operational-health|View in Metrics Hub>  ·  Sent automatically Mon–Fri at 9:00 AM EST',
+      }],
+    },
+  ];
+}
+
+/** Full report mode (used with ?force=true) — same as old behavior */
+function formatFullReport(alerts: RrAlert[]): SlackBlock[] {
+  const criticalCount = alerts.filter(a => a.severity === 'critical').length;
+  const warningCount = alerts.filter(a => a.severity === 'warning').length;
+
+  const blocks: SlackBlock[] = [
+    {
+      type: 'header',
+      text: {
+        type: 'plain_text',
+        text: `DM Campaign alerts — ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`,
+        emoji: true,
+      },
+    },
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: [
+          criticalCount > 0 ? `:red_circle: *${criticalCount} critical*` : null,
+          warningCount > 0 ? `:large_yellow_circle: *${warningCount} warning*` : null,
+          `(${alerts.length} total alerts active)`,
+        ].filter(Boolean).join('  ·  '),
+      },
+    },
+    { type: 'divider' },
+  ];
+
+  for (const alert of alerts) {
+    const emoji = SEVERITY_EMOJI[alert.severity] || ':white_circle:';
+    blocks.push({
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: [
+          `${emoji} *${alert.name}*`,
+          alert.description,
+          '',
+          `*Recommended action:* ${alert.action}`,
+        ].join('\n'),
+      },
+    });
+
+    if (alert.metrics) {
+      const parts: string[] = [];
+      if (alert.metrics.current !== undefined) parts.push(`Current: *${formatNum(alert.metrics.current)}*`);
+      if (alert.metrics.baseline !== undefined) parts.push(`Threshold: *${formatNum(alert.metrics.baseline)}*`);
+      if (parts.length > 0) {
+        blocks.push({
+          type: 'context',
+          elements: [{ type: 'mrkdwn', text: parts.join('  ·  ') }],
+        });
+      }
+    }
+
+    blocks.push({ type: 'divider' });
+  }
+
+  blocks.push({
+    type: 'context',
+    elements: [{
+      type: 'mrkdwn',
+      text: ':bar_chart: <https://analytics8020-798362859849.us-central1.run.app/features/features-rei/dm-campaign/operational-health|View in Metrics Hub>',
+    }],
+  });
+
+  return blocks;
+}
+
+// ---------------------------------------------------------------------------
+// Alert State Persistence (local file, survives within container instance)
+// ---------------------------------------------------------------------------
+
+interface AlertStateEntry {
+  id: string;
+  severity: string;
+  metricCurrent?: number;
+  entity?: string;
+}
+
+const STATE_FILE = path.join('/tmp', 'rr-alert-daily-state.json');
+
+function loadAlertState(): AlertStateEntry[] {
+  try {
+    if (fs.existsSync(STATE_FILE)) {
+      const raw = JSON.parse(fs.readFileSync(STATE_FILE, 'utf-8'));
+      // Return yesterday's state (or the most recent state that's not from today)
+      const today = new Date().toISOString().slice(0, 10);
+      if (raw.date !== today && Array.isArray(raw.alerts)) {
+        return raw.alerts;
+      }
+      // If today's state was already saved (e.g., force re-run), return previous day's backup
+      if (raw.previousAlerts && Array.isArray(raw.previousAlerts)) {
+        return raw.previousAlerts;
+      }
+    }
+  } catch {
+    // File corrupt or unreadable — no previous state
+  }
+  return [];
+}
+
+function saveAlertState(alerts: RrAlert[]): void {
+  const today = new Date().toISOString().slice(0, 10);
+  const state: AlertStateEntry[] = alerts.map(a => ({
+    id: a.id,
+    severity: a.severity,
+    metricCurrent: a.metrics?.current,
+    entity: a.entity,
+  }));
+
+  // Preserve previous day's state as backup
+  let previousAlerts: AlertStateEntry[] = [];
+  try {
+    if (fs.existsSync(STATE_FILE)) {
+      const raw = JSON.parse(fs.readFileSync(STATE_FILE, 'utf-8'));
+      if (raw.date !== today && Array.isArray(raw.alerts)) {
+        previousAlerts = raw.alerts;
+      } else if (Array.isArray(raw.previousAlerts)) {
+        previousAlerts = raw.previousAlerts;
+      }
+    }
+  } catch { /* ignore */ }
+
+  try {
+    fs.writeFileSync(STATE_FILE, JSON.stringify({
+      date: today,
+      alerts: state,
+      previousAlerts,
+    }));
+  } catch (err) {
+    console.warn('[Slack Digest] Could not write state file:', err);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Alert fetching (same queries as the main alerts endpoint)
 // ---------------------------------------------------------------------------
 
 async function fetchCurrentAlerts(): Promise<RrAlert[]> {
@@ -245,137 +591,30 @@ async function fetchCurrentAlerts(): Promise<RrAlert[]> {
     });
   }
 
+  // PCM submission rate
+  const pcmRate = Number(q.avg_pcm_rate || 0);
+  if (pcmRate > 0 && pcmRate < 95) {
+    alerts.push({
+      id: 'rr-pcm-rate',
+      name: 'PCM submission rate low',
+      severity: 'warning',
+      category: 'rapid-response',
+      description: `PCM submission rate is ${pcmRate.toFixed(1)}%, below the 95% threshold.`,
+      metrics: { current: pcmRate, baseline: 95 },
+      detected_at: now,
+      action: 'Review PCM API error logs for systematic rejection patterns.',
+      link: '/features/features-rei/dm-campaign/operational-health',
+    });
+  }
+
   return alerts;
 }
 
 // ---------------------------------------------------------------------------
-// Slack message formatting
+// Helpers
 // ---------------------------------------------------------------------------
 
-const SEVERITY_EMOJI: Record<string, string> = {
-  critical: ':red_circle:',
-  warning: ':large_yellow_circle:',
-  info: ':large_blue_circle:',
-};
-
-function formatAlertsForSlack(alerts: RrAlert[], totalCount: number): SlackBlock[] {
-  const criticalCount = alerts.filter(a => a.severity === 'critical').length;
-  const warningCount = alerts.filter(a => a.severity === 'warning').length;
-
-  const blocks: SlackBlock[] = [
-    {
-      type: 'header',
-      text: {
-        type: 'plain_text',
-        text: `DM Campaign alerts — ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`,
-        emoji: true,
-      },
-    },
-    {
-      type: 'section',
-      text: {
-        type: 'mrkdwn',
-        text: [
-          criticalCount > 0 ? `:red_circle: *${criticalCount} critical*` : null,
-          warningCount > 0 ? `:large_yellow_circle: *${warningCount} warning*` : null,
-          `(${totalCount} total alerts active)`,
-        ].filter(Boolean).join('  ·  '),
-      },
-    },
-    { type: 'divider' },
-  ];
-
-  for (const alert of alerts) {
-    const emoji = SEVERITY_EMOJI[alert.severity] || ':white_circle:';
-
-    blocks.push({
-      type: 'section',
-      text: {
-        type: 'mrkdwn',
-        text: [
-          `${emoji} *${alert.name}*`,
-          alert.description,
-          '',
-          `*Recommended action:* ${alert.action}`,
-        ].join('\n'),
-      },
-    });
-
-    if (alert.metrics) {
-      const parts: string[] = [];
-      if (alert.metrics.current !== undefined) parts.push(`Current: *${alert.metrics.current}*`);
-      if (alert.metrics.baseline !== undefined) parts.push(`Threshold: *${alert.metrics.baseline}*`);
-      if (parts.length > 0) {
-        blocks.push({
-          type: 'context',
-          elements: [{ type: 'mrkdwn', text: parts.join('  ·  ') }],
-        });
-      }
-    }
-
-    blocks.push({ type: 'divider' });
-  }
-
-  // Footer with link to dashboard
-  blocks.push({
-    type: 'context',
-    elements: [{
-      type: 'mrkdwn',
-      text: ':bar_chart: <https://8020-metrics-hub-build-611201211946.us-east1.run.app/features/features-rei/dm-campaign/operational-health|View in Metrics Hub>',
-    }],
-  });
-
-  return blocks;
-}
-
-// ---------------------------------------------------------------------------
-// Deduplication via local file
-// ---------------------------------------------------------------------------
-//
-// Stores fingerprints of sent alerts in a JSON file.
-// Works on Cloud Run (/tmp persists within a container instance) and locally.
-// If the container restarts, fingerprints reset — worst case is one re-send,
-// not missed alerts. This is the safe direction for an alert system.
-
-const SENT_FILE = path.join('/tmp', 'rr-slack-sent-fingerprints.json');
-
-function fingerprint(alert: RrAlert): string {
-  const data = JSON.stringify({
-    id: alert.id,
-    current: alert.metrics?.current,
-    entity: alert.entity,
-  });
-  return crypto.createHash('md5').update(data).digest('hex');
-}
-
-function getSentFingerprints(): Set<string> {
-  try {
-    if (fs.existsSync(SENT_FILE)) {
-      const raw = JSON.parse(fs.readFileSync(SENT_FILE, 'utf-8'));
-      // Only use fingerprints from today (reset daily)
-      const today = new Date().toISOString().slice(0, 10);
-      if (raw.date === today && Array.isArray(raw.fingerprints)) {
-        return new Set(raw.fingerprints as string[]);
-      }
-    }
-  } catch {
-    // File corrupt or unreadable — start fresh
-  }
-  return new Set();
-}
-
-function recordSentFingerprints(alerts: RrAlert[]): void {
-  const existing = getSentFingerprints();
-  for (const alert of alerts) {
-    existing.add(fingerprint(alert));
-  }
-  const today = new Date().toISOString().slice(0, 10);
-  try {
-    fs.writeFileSync(SENT_FILE, JSON.stringify({
-      date: today,
-      fingerprints: Array.from(existing),
-    }));
-  } catch (err) {
-    console.warn('[Slack Alerts] Could not write fingerprint file:', err);
-  }
+function formatNum(n: number): string {
+  if (Number.isInteger(n)) return n.toLocaleString('en-US');
+  return n.toFixed(1);
 }

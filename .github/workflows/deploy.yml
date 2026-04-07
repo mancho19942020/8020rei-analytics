@@ -37,6 +37,7 @@ jobs:
           AURORA_SECRET_KEY: ${{ secrets.DB_AURORA_SECRET_ACCESS_KEY }}
           AURORA_REGION: ${{ secrets.DB_AURORA_DEFAULT_REGION }}
           AURORA_DB: ${{ secrets.AWS_AURORA_GRAFANA_DB }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_DM_ALERTS_WEBHOOK_URL }}
         run: |
           python3 << 'PYEOF'
           import os, json
@@ -56,6 +57,14 @@ jobs:
               'DB_AURORA_DEFAULT_REGION': os.environ['AURORA_REGION'],
               'AWS_AURORA_GRAFANA_DB': os.environ['AURORA_DB'],
           }
+
+          # Add optional Slack webhook (only if secret is configured)
+          slack_url = os.environ.get('SLACK_WEBHOOK', '')
+          if slack_url:
+              env_vars['SLACK_DM_ALERTS_WEBHOOK_URL'] = slack_url
+              print(f'✓ SLACK_DM_ALERTS_WEBHOOK_URL configured')
+          else:
+              print('⚠ SLACK_DM_ALERTS_WEBHOOK_URL not set — Slack alerts will be disabled in production')
 
           # Validate JSON credentials
           for key in ['GOOGLE_DRIVE_CREDENTIALS_JSON', 'GOOGLE_APPLICATION_CREDENTIALS_PRODUCT_JSON']:
