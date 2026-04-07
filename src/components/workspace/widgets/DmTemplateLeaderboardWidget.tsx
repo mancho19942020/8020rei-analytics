@@ -1,15 +1,15 @@
 /**
  * DM Template Leaderboard Widget
  *
- * Sortable table ranking templates by performance: sent, delivered, leads, deals, ROAS.
- * Uses AxisTable for consistent rendering.
+ * Sortable table ranking templates by performance: domain, sent, delivered, leads, deals, ROAS.
+ * Includes data integrity indicators (ROAS confidence, delivery warnings).
  */
 
 'use client';
 
 import { useMemo } from 'react';
 import { AxisTable, AxisTag } from '@/components/axis';
-import type { Column, CellValue } from '@/types/table';
+import type { Column, CellValue, RowData } from '@/types/table';
 import type { DmTemplatePerformance } from '@/types/dm-conversions';
 
 interface DmTemplateLeaderboardWidgetProps {
@@ -20,14 +20,35 @@ const typeColorMap: Record<string, 'info' | 'neutral' | 'alert'> = {
   letter: 'info',
   postcard: 'neutral',
   checkletter: 'alert',
+  'classic-checkletter': 'alert',
+  'about-us': 'info',
+  steps: 'neutral',
 };
+
+function formatDomain(domain: string): string {
+  return domain
+    .replace(/_8020rei_com$/i, '')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase())
+    .trim() || domain;
+}
 
 export function DmTemplateLeaderboardWidget({ data }: DmTemplateLeaderboardWidgetProps) {
   const columns: Column[] = useMemo(() => [
     {
+      field: 'domainDisplay',
+      header: 'Client',
+      minWidth: 120,
+      render: (value: CellValue) => (
+        <span className="text-label" style={{ color: 'var(--text-secondary)' }}>
+          {String(value || '')}
+        </span>
+      ),
+    },
+    {
       field: 'templateName',
       header: 'Template',
-      minWidth: 160,
+      minWidth: 140,
       render: (value: CellValue) => (
         <span className="font-medium" style={{ color: 'var(--text-primary)' }}>
           {String(value || '')}
@@ -37,7 +58,7 @@ export function DmTemplateLeaderboardWidget({ data }: DmTemplateLeaderboardWidge
     {
       field: 'templateType',
       header: 'Type',
-      width: 90,
+      minWidth: 100,
       render: (value: CellValue) => {
         const v = String(value || '');
         return (
@@ -51,27 +72,47 @@ export function DmTemplateLeaderboardWidget({ data }: DmTemplateLeaderboardWidge
       field: 'totalSent',
       header: 'Sent',
       type: 'number',
-      width: 80,
+      minWidth: 80,
       align: 'center',
+    },
+    {
+      field: 'totalDelivered',
+      header: 'Delivered',
+      minWidth: 90,
+      align: 'center',
+      render: (value: CellValue, row: RowData) => {
+        const delivered = Number(value || 0);
+        const warning = row?.deliveryWarning === true;
+        return (
+          <span style={{ color: warning ? 'var(--color-alert-500)' : 'var(--text-primary)' }}>
+            {delivered.toLocaleString()}
+            {warning && (
+              <span title="No delivery data — leads exist without confirmed delivery" style={{ marginLeft: '4px' }}>
+                ⚠
+              </span>
+            )}
+          </span>
+        );
+      },
     },
     {
       field: 'leadsGenerated',
       header: 'Leads',
       type: 'number',
-      width: 70,
+      minWidth: 70,
       align: 'center',
     },
     {
       field: 'dealsGenerated',
       header: 'Deals',
       type: 'number',
-      width: 70,
+      minWidth: 70,
       align: 'center',
     },
     {
       field: 'leadConversionRate',
       header: 'Lead %',
-      width: 80,
+      minWidth: 80,
       align: 'center',
       render: (value: CellValue) => (
         <span style={{ color: 'var(--text-primary)' }}>{Number(value || 0).toFixed(1)}%</span>
@@ -80,40 +121,70 @@ export function DmTemplateLeaderboardWidget({ data }: DmTemplateLeaderboardWidge
     {
       field: 'roas',
       header: 'ROAS',
-      width: 80,
+      minWidth: 100,
       align: 'center',
-      render: (value: CellValue) => {
+      render: (value: CellValue, row: RowData) => {
         const roas = Number(value || 0);
+        const confidence = String(row?.roasConfidence || 'none');
+
+        // Rule 1: Revenue without deal — show dash with warning
+        if (confidence === 'revenue_no_deal') {
+          return (
+            <span
+              className="text-label"
+              title="Revenue recorded but no matching deal status. Under review."
+              style={{ color: 'var(--text-tertiary)' }}
+            >
+              — <span style={{ fontSize: '10px' }}>⚠</span>
+            </span>
+          );
+        }
+
+        // No data
+        if (confidence === 'none' || roas === 0) {
+          return <span style={{ color: 'var(--text-tertiary)' }}>—</span>;
+        }
+
+        // Rule 3: Low sample — show muted with deal count
+        if (confidence === 'low_sample') {
+          const deals = Number(row?.dealsGenerated || 0);
+          return (
+            <span style={{ color: 'var(--text-secondary)' }}>
+              {roas.toFixed(1)}x
+              <span className="text-xs ml-1" style={{ color: 'var(--text-tertiary)' }}>
+                ({deals} {deals === 1 ? 'deal' : 'deals'})
+              </span>
+            </span>
+          );
+        }
+
+        // Confident
         return (
           <AxisTag
-            color={roas >= 2 ? 'success' : roas >= 1 ? 'alert' : roas > 0 ? 'error' : 'neutral'}
+            color={roas >= 2 ? 'success' : roas >= 1 ? 'alert' : 'error'}
             size="sm"
           >
-            {roas > 0 ? `${roas.toFixed(1)}x` : '—'}
+            {roas.toFixed(1)}x
           </AxisTag>
         );
       },
-    },
-    {
-      field: 'campaignsUsing',
-      header: 'Clients',
-      type: 'number',
-      width: 70,
-      align: 'center',
     },
   ], []);
 
   const tableData = useMemo(() =>
     data.map(t => ({
-      id: `${t.templateId}`,
+      id: `${t.domain}-${t.templateId}`,
+      domainDisplay: formatDomain(t.domain),
       templateName: t.templateName,
       templateType: t.templateType,
       totalSent: t.totalSent,
+      totalDelivered: t.totalDelivered,
       leadsGenerated: t.leadsGenerated,
       dealsGenerated: t.dealsGenerated,
       leadConversionRate: t.leadConversionRate,
       roas: t.roas,
-      campaignsUsing: t.campaignsUsing,
+      roasConfidence: t.roasConfidence,
+      deliveryWarning: t.deliveryWarning,
     })),
   [data]);
 

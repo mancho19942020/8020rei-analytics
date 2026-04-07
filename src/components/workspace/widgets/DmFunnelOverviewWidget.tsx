@@ -42,15 +42,25 @@ export function DmFunnelOverviewWidget({ data }: DmFunnelOverviewWidgetProps) {
 
   return (
     <div className="flex flex-col h-full p-4 overflow-y-auto gap-3">
-      {/* Overall conversion rate banner */}
+      {/* Summary banner */}
       <div
-        className="flex items-center justify-between rounded-lg px-4 py-2"
+        className="flex items-center justify-between gap-4 rounded-lg px-4 py-2 flex-wrap"
         style={{ backgroundColor: 'var(--surface-raised)', border: '1px solid var(--border-subtle)' }}
       >
-        <span className="text-label" style={{ color: 'var(--text-secondary)' }}>Overall conversion rate (mailed → deal)</span>
-        <span className="text-h4 font-semibold" style={{ color: 'var(--color-success-500)' }}>
-          {data.overallConversionRate}%
-        </span>
+        <div className="flex items-center gap-1">
+          <span className="text-label" style={{ color: 'var(--text-secondary)' }}>Mailed → Deal</span>
+          <span className="text-h4 font-semibold" style={{ color: 'var(--color-success-500)' }}>
+            {data.overallConversionRate}%
+          </span>
+        </div>
+        <div className="flex items-center gap-4 text-label">
+          <span style={{ color: 'var(--text-secondary)' }}>
+            Cost: <span className="font-medium" style={{ color: 'var(--text-primary)' }}>${(data.totalCost || 0).toLocaleString()}</span>
+          </span>
+          <span style={{ color: 'var(--text-secondary)' }}>
+            Revenue: <span className="font-medium" style={{ color: (data.totalRevenue || 0) > 0 ? 'var(--color-success-500)' : 'var(--text-primary)' }}>${(data.totalRevenue || 0).toLocaleString()}</span>
+          </span>
+        </div>
       </div>
 
       {/* Funnel steps */}

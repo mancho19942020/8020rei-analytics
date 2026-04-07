@@ -2,14 +2,15 @@
  * DM Client Performance Widget
  *
  * Table showing per-client conversion metrics: mailed, leads, deals, ROAS.
- * Uses AxisTable for consistent rendering.
+ * Includes campaign status (active/inactive), ROAS confidence, campaign type.
+ * Sorted by best performer (most leads) to lowest.
  */
 
 'use client';
 
 import { useMemo } from 'react';
 import { AxisTable, AxisTag } from '@/components/axis';
-import type { Column, CellValue } from '@/types/table';
+import type { Column, CellValue, RowData } from '@/types/table';
 import type { DmClientPerformanceRow } from '@/types/dm-conversions';
 
 interface DmClientPerformanceWidgetProps {
@@ -19,9 +20,9 @@ interface DmClientPerformanceWidgetProps {
 
 function formatDomain(domain: string): string {
   return domain
+    .replace(/_8020rei_com$/i, '')
     .replace(/_/g, ' ')
     .replace(/\b\w/g, c => c.toUpperCase())
-    .replace(/8020rei/i, '')
     .trim() || domain;
 }
 
@@ -36,7 +37,7 @@ export function DmClientPerformanceWidget({ data, onDomainClick }: DmClientPerfo
     {
       field: 'domain',
       header: 'Client',
-      minWidth: 140,
+      minWidth: 150,
       render: (value: CellValue) => (
         <span
           className="font-medium cursor-pointer hover:underline"
@@ -51,30 +52,55 @@ export function DmClientPerformanceWidget({ data, onDomainClick }: DmClientPerfo
       ),
     },
     {
+      field: 'status',
+      header: 'Status',
+      minWidth: 80,
+      align: 'center',
+      render: (value: CellValue) => {
+        const active = Number(value || 0) > 0;
+        return (
+          <AxisTag color={active ? 'success' : 'neutral'} size="sm">
+            {active ? 'Active' : 'Inactive'}
+          </AxisTag>
+        );
+      },
+    },
+    {
+      field: 'campaignType',
+      header: 'Campaign',
+      minWidth: 110,
+      align: 'center',
+      render: (value: CellValue) => (
+        <AxisTag color={String(value) === 'smartdrop' ? 'info' : 'neutral'} size="sm">
+          {String(value) === 'smartdrop' ? 'Smart Drop' : 'Rapid Response'}
+        </AxisTag>
+      ),
+    },
+    {
       field: 'totalMailed',
       header: 'Mailed',
       type: 'number',
-      width: 80,
+      minWidth: 80,
       align: 'center',
     },
     {
       field: 'leads',
       header: 'Leads',
       type: 'number',
-      width: 70,
+      minWidth: 70,
       align: 'center',
     },
     {
       field: 'deals',
       header: 'Deals',
       type: 'number',
-      width: 70,
+      minWidth: 70,
       align: 'center',
     },
     {
       field: 'leadConversionRate',
       header: 'Lead %',
-      width: 80,
+      minWidth: 80,
       align: 'center',
       render: (value: CellValue) => (
         <span style={{ color: 'var(--text-primary)' }}>{Number(value || 0).toFixed(1)}%</span>
@@ -83,7 +109,7 @@ export function DmClientPerformanceWidget({ data, onDomainClick }: DmClientPerfo
     {
       field: 'totalCost',
       header: 'Cost',
-      width: 90,
+      minWidth: 90,
       align: 'center',
       render: (value: CellValue) => (
         <span style={{ color: 'var(--text-primary)' }}>{formatCurrency(Number(value || 0))}</span>
@@ -92,7 +118,7 @@ export function DmClientPerformanceWidget({ data, onDomainClick }: DmClientPerfo
     {
       field: 'totalRevenue',
       header: 'Revenue',
-      width: 90,
+      minWidth: 90,
       align: 'center',
       render: (value: CellValue) => (
         <span style={{ color: Number(value) > 0 ? 'var(--color-success-500)' : 'var(--text-primary)' }}>
@@ -103,16 +129,46 @@ export function DmClientPerformanceWidget({ data, onDomainClick }: DmClientPerfo
     {
       field: 'roas',
       header: 'ROAS',
-      width: 80,
+      minWidth: 100,
       align: 'center',
-      render: (value: CellValue) => {
+      render: (value: CellValue, row: RowData) => {
         const roas = Number(value || 0);
+        const confidence = String(row?.roasConfidence || 'none');
+
+        if (confidence === 'revenue_no_deal') {
+          return (
+            <span
+              className="text-label"
+              title="Revenue recorded but no matching deal status. Under review."
+              style={{ color: 'var(--text-tertiary)' }}
+            >
+              — <span style={{ fontSize: '10px' }}>⚠</span>
+            </span>
+          );
+        }
+
+        if (confidence === 'none' || roas === 0) {
+          return <span style={{ color: 'var(--text-tertiary)' }}>—</span>;
+        }
+
+        if (confidence === 'low_sample') {
+          const deals = Number(row?.deals || 0);
+          return (
+            <span style={{ color: 'var(--text-secondary)' }}>
+              {roas.toFixed(1)}x
+              <span className="text-xs ml-1" style={{ color: 'var(--text-tertiary)' }}>
+                ({deals} {deals === 1 ? 'deal' : 'deals'})
+              </span>
+            </span>
+          );
+        }
+
         return (
           <AxisTag
-            color={roas >= 2 ? 'success' : roas >= 1 ? 'alert' : roas > 0 ? 'error' : 'neutral'}
+            color={roas >= 2 ? 'success' : roas >= 1 ? 'alert' : 'error'}
             size="sm"
           >
-            {roas > 0 ? `${roas.toFixed(1)}x` : '—'}
+            {roas.toFixed(1)}x
           </AxisTag>
         );
       },
@@ -123,6 +179,8 @@ export function DmClientPerformanceWidget({ data, onDomainClick }: DmClientPerfo
     data.map(c => ({
       id: c.domain,
       domain: c.domain,
+      status: c.activeCampaigns,
+      campaignType: c.campaignType,
       totalMailed: c.totalMailed,
       leads: c.leads,
       deals: c.deals,
@@ -130,6 +188,7 @@ export function DmClientPerformanceWidget({ data, onDomainClick }: DmClientPerfo
       totalCost: c.totalCost,
       totalRevenue: c.totalRevenue,
       roas: c.roas,
+      roasConfidence: c.roasConfidence,
     })),
   [data]);
 
@@ -142,7 +201,7 @@ export function DmClientPerformanceWidget({ data, onDomainClick }: DmClientPerfo
         sortable
         paginated
         resizable
-        defaultPageSize={10}
+        defaultPageSize={15}
         emptyMessage="No client performance data available yet"
       />
     </div>

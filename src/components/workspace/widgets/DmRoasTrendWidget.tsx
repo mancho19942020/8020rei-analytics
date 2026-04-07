@@ -2,7 +2,8 @@
  * DM ROAS Trend Widget
  *
  * Dual-axis chart: revenue vs cost (bars) with ROAS line.
- * Follows the same pattern as RrCostOverviewWidget.
+ * - Break-even reference line at ROAS = 1.0
+ * - Null ROAS days (no deals) shown as gaps, not zeros
  */
 
 'use client';
@@ -18,13 +19,15 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
+  ReferenceLine,
 } from 'recharts';
 
 interface RoasPoint {
   date: string;
   totalCost: number;
   totalRevenue: number;
-  roas: number;
+  roas: number | null;
+  deals?: number;
 }
 
 interface DmRoasTrendWidgetProps {
@@ -41,7 +44,13 @@ const tooltipStyle = {
 
 export function DmRoasTrendWidget({ data }: DmRoasTrendWidgetProps) {
   const chartData = useMemo(() =>
-    [...data].sort((a, b) => a.date.localeCompare(b.date)),
+    [...data]
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .map(d => ({
+        ...d,
+        // Convert null to undefined so Recharts renders a gap in the line
+        roas: d.roas ?? undefined,
+      })),
   [data]);
 
   if (chartData.length === 0) {
@@ -95,12 +104,27 @@ export function DmRoasTrendWidget({ data }: DmRoasTrendWidgetProps) {
             cursor={{ stroke: 'var(--border-default)', strokeDasharray: '3 3' }}
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             formatter={((value: any, name: any) => {
+              if (value === undefined || value === null) return ['No deals', name];
               const v = Number(value ?? 0);
               if (name === 'ROAS') return [`${v.toFixed(2)}x`, name];
               return [`$${v.toLocaleString()}`, name];
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             }) as any}
           />
           <Legend wrapperStyle={{ fontSize: '11px' }} />
+          {/* Break-even reference line */}
+          <ReferenceLine
+            yAxisId="roas"
+            y={1}
+            stroke="var(--color-alert-500)"
+            strokeDasharray="4 4"
+            strokeWidth={1}
+            label={{
+              value: 'Break-even',
+              position: 'right',
+              style: { fontSize: '10px', fill: 'var(--text-tertiary)' },
+            }}
+          />
           <Bar
             yAxisId="money"
             dataKey="totalCost"
@@ -125,6 +149,7 @@ export function DmRoasTrendWidget({ data }: DmRoasTrendWidgetProps) {
             stroke="var(--color-main-500)"
             strokeWidth={2}
             dot={false}
+            connectNulls={false}
           />
         </ComposedChart>
       </ResponsiveContainer>

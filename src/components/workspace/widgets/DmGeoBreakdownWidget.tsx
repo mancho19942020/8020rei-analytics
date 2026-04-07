@@ -95,6 +95,22 @@ export function DmGeoBreakdownWidget({ data }: DmGeoBreakdownWidgetProps) {
     })),
   [data]);
 
+  if (data.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-center p-6 gap-3">
+        <div
+          className="rounded-lg px-4 py-2"
+          style={{ backgroundColor: 'var(--color-alert-50)', border: '1px solid var(--color-alert-300)' }}
+        >
+          <span className="text-label font-medium" style={{ color: 'var(--color-alert-700)' }}>Pending data</span>
+        </div>
+        <p className="text-label" style={{ color: 'var(--text-secondary)', maxWidth: '400px' }}>
+          Geographic breakdown requires property-level data from <code style={{ fontSize: '12px' }}>dm_property_conversions</code>, which is pending a backend fix. This widget will populate automatically once the fix is deployed.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full overflow-hidden">
       <AxisTable

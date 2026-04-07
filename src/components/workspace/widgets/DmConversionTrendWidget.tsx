@@ -46,8 +46,9 @@ export function DmConversionTrendWidget({ data }: DmConversionTrendWidgetProps) 
 
   if (chartData.length === 0) {
     return (
-      <div className="flex items-center justify-center h-full" style={{ color: 'var(--text-secondary)' }}>
-        No conversion trend data available yet
+      <div className="flex flex-col items-center justify-center h-full text-center p-4 gap-2">
+        <span className="text-label font-medium" style={{ color: 'var(--text-secondary)' }}>No trend data yet</span>
+        <span className="text-label" style={{ color: 'var(--text-tertiary)' }}>Data accumulates daily as the sync cron runs</span>
       </div>
     );
   }

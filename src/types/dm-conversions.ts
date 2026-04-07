@@ -6,12 +6,15 @@
  */
 
 // ---------------------------------------------------------------------------
-// Funnel Stages
+// Funnel Stages & Data Integrity
 // ---------------------------------------------------------------------------
 
 export type FunnelStage = 'prospect' | 'lead' | 'appointment' | 'contract' | 'deal';
 
 export type AttributionStatus = 'attributed' | 'other_campaign' | 'unattributed' | 'prospect';
+
+/** ROAS confidence level — applied server-side based on data integrity rules */
+export type RoasConfidence = 'confident' | 'low_sample' | 'revenue_no_deal' | 'none';
 
 // ---------------------------------------------------------------------------
 // dm_property_conversions
@@ -73,6 +76,10 @@ export interface DmTemplatePerformance {
   roas: number;
   avgDaysToLead: number;
   campaignsUsing: number;
+  /** Data integrity: ROAS confidence level */
+  roasConfidence: RoasConfidence;
+  /** Data integrity: true when delivered=0 but leads>0 */
+  deliveryWarning: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -109,6 +116,7 @@ export interface DmClientFunnel {
 
 export interface DmFunnelOverview {
   totalMailed: number;
+  totalDelivered: number;
   prospects: number;
   leads: number;
   appointments: number;
@@ -119,21 +127,31 @@ export interface DmFunnelOverview {
   appointmentToContractRate: number;
   contractToDealRate: number;
   overallConversionRate: number;
+  totalCost: number;
+  totalRevenue: number;
+  roas: number;
+  roasConfidence: RoasConfidence;
 }
 
 export interface DmClientPerformanceRow {
   domain: string;
+  campaignType: string;
+  activeCampaigns: number;
   totalMailed: number;
   totalSends: number;
   totalDelivered: number;
   leads: number;
   appointments: number;
+  contracts: number;
   deals: number;
   totalCost: number;
   totalRevenue: number;
   roas: number;
   leadConversionRate: number;
   dealConversionRate: number;
+  /** Data integrity: ROAS confidence level */
+  roasConfidence: RoasConfidence;
+  unattributedConversions: number;
 }
 
 export interface DmGeoRow {

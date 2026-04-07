@@ -1,11 +1,13 @@
 /**
  * DM Campaign Business Results — Conversions API Route
  *
- * Queries Aurora's dm_property_conversions and dm_client_funnel tables.
+ * Queries Aurora's dm_client_funnel and dm_property_conversions tables.
  * Supports: funnel-overview, client-performance, geo-breakdown, property-timeline,
- *           data-quality, alerts, domain-list
+ *           data-quality, alerts, conversion-trend, roas-trend, domain-list
  *
- * Mirrors the pattern from /api/rapid-response/route.ts
+ * Data integrity rules applied server-side:
+ * - Rule 1: ROAS requires deals (revenue_no_deal confidence)
+ * - Rule 3: Low-sample ROAS (< 3 deals = low_sample)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -17,6 +19,7 @@ import type {
   DmGeoRow,
   DmDataQuality,
   DmAlert,
+  RoasConfidence,
 } from '@/types/dm-conversions';
 
 const SEED_DOMAINS = "'8020rei_demo', '8020rei_migracion_test'";
@@ -28,6 +31,13 @@ function domainFilter(domain?: string | null): string {
     return `${EXCLUDE_SEED} AND domain = '${safe}'`;
   }
   return EXCLUDE_SEED;
+}
+
+function getRoasConfidence(deals: number, revenue: number): RoasConfidence {
+  if (deals === 0 && revenue > 0) return 'revenue_no_deal';
+  if (deals === 0) return 'none';
+  if (deals < 3) return 'low_sample';
+  return 'confident';
 }
 
 export async function GET(request: NextRequest) {
@@ -82,7 +92,7 @@ export async function GET(request: NextRequest) {
 }
 
 // ---------------------------------------------------------------------------
-// Funnel Overview — aggregated conversion funnel across all domains
+// Funnel Overview — aggregated from dm_client_funnel (latest date snapshot)
 // ---------------------------------------------------------------------------
 
 async function getFunnelOverview(domain?: string) {
@@ -92,26 +102,36 @@ async function getFunnelOverview(domain?: string) {
 
   const rows = await runAuroraQuery(`
     SELECT
-      COUNT(DISTINCT property_id) as total_mailed,
-      COUNT(DISTINCT CASE WHEN became_lead_at IS NULL AND became_appointment_at IS NULL AND became_contract_at IS NULL AND became_deal_at IS NULL THEN property_id END) as prospects,
-      COUNT(DISTINCT CASE WHEN became_lead_at IS NOT NULL THEN property_id END) as leads,
-      COUNT(DISTINCT CASE WHEN became_appointment_at IS NOT NULL THEN property_id END) as appointments,
-      COUNT(DISTINCT CASE WHEN became_contract_at IS NOT NULL THEN property_id END) as contracts,
-      COUNT(DISTINCT CASE WHEN became_deal_at IS NOT NULL THEN property_id END) as deals
-    FROM dm_property_conversions
-    WHERE ${domainFilter(domain)}
+      COALESCE(SUM(total_properties_mailed), 0) as total_mailed,
+      COALESCE(SUM(total_delivered), 0) as total_delivered,
+      COALESCE(SUM(total_sends), 0) as total_sends,
+      COALESCE(SUM(prospects), 0) as prospects,
+      COALESCE(SUM(leads), 0) as leads,
+      COALESCE(SUM(appointments), 0) as appointments,
+      COALESCE(SUM(contracts), 0) as contracts,
+      COALESCE(SUM(deals), 0) as deals,
+      COALESCE(SUM(total_cost), 0) as total_cost,
+      COALESCE(SUM(total_revenue), 0) as total_revenue
+    FROM dm_client_funnel
+    WHERE date = (SELECT MAX(date) FROM dm_client_funnel WHERE ${domainFilter(domain)})
+      AND ${domainFilter(domain)}
   `);
 
   const r = rows[0] || {};
   const totalMailed = Number(r.total_mailed || 0);
-  const prospects = Number(r.prospects || 0);
+  const totalDelivered = Number(r.total_delivered || 0);
   const leads = Number(r.leads || 0);
   const appointments = Number(r.appointments || 0);
   const contracts = Number(r.contracts || 0);
   const deals = Number(r.deals || 0);
+  const totalCost = Number(r.total_cost || 0);
+  const totalRevenue = Number(r.total_revenue || 0);
+  const prospects = Number(r.prospects || 0);
+  const confidence = getRoasConfidence(deals, totalRevenue);
 
   const data: DmFunnelOverview = {
     totalMailed,
+    totalDelivered,
     prospects,
     leads,
     appointments,
@@ -122,6 +142,10 @@ async function getFunnelOverview(domain?: string) {
     appointmentToContractRate: appointments > 0 ? Number(((contracts / appointments) * 100).toFixed(2)) : 0,
     contractToDealRate: contracts > 0 ? Number(((deals / contracts) * 100).toFixed(2)) : 0,
     overallConversionRate: totalMailed > 0 ? Number(((deals / totalMailed) * 100).toFixed(2)) : 0,
+    totalCost: Number(totalCost.toFixed(2)),
+    totalRevenue: Number(totalRevenue.toFixed(2)),
+    roas: confidence === 'revenue_no_deal' ? 0 : (totalCost > 0 ? Number((totalRevenue / totalCost).toFixed(2)) : 0),
+    roasConfidence: confidence,
   };
 
   setCache(cacheKey, data);
@@ -129,7 +153,9 @@ async function getFunnelOverview(domain?: string) {
 }
 
 // ---------------------------------------------------------------------------
-// Client Performance — per-domain summary
+// Client Performance — merged from dm_client_funnel + dm_template_performance
+// Uses client_funnel as primary (has funnel breakdown), fills gaps from
+// template_performance so domains with historical data still appear.
 // ---------------------------------------------------------------------------
 
 async function getClientPerformance(domain?: string) {
@@ -137,51 +163,124 @@ async function getClientPerformance(domain?: string) {
   const cached = getCached(cacheKey);
   if (cached) return NextResponse.json({ success: true, data: cached, cached: true });
 
-  const rows = await runAuroraQuery(`
-    SELECT
-      domain,
-      COUNT(DISTINCT property_id) as total_mailed,
-      COALESCE(SUM(total_sends), 0) as total_sends,
-      COALESCE(SUM(total_delivered), 0) as total_delivered,
-      COUNT(DISTINCT CASE WHEN became_lead_at IS NOT NULL THEN property_id END) as leads,
-      COUNT(DISTINCT CASE WHEN became_appointment_at IS NOT NULL THEN property_id END) as appointments,
-      COUNT(DISTINCT CASE WHEN became_deal_at IS NOT NULL THEN property_id END) as deals,
-      COALESCE(SUM(total_cost), 0) as total_cost,
-      COALESCE(SUM(deal_revenue), 0) as total_revenue
-    FROM dm_property_conversions
-    WHERE ${domainFilter(domain)}
-    GROUP BY domain
-    ORDER BY total_revenue DESC, leads DESC
-  `);
+  // Fetch from both tables in parallel
+  const [funnelRows, templateRows] = await Promise.all([
+    runAuroraQuery(`
+      SELECT
+        domain,
+        campaign_type,
+        COALESCE(active_campaigns, 0) as active_campaigns,
+        COALESCE(total_properties_mailed, 0) as total_mailed,
+        COALESCE(total_sends, 0) as total_sends,
+        COALESCE(total_delivered, 0) as total_delivered,
+        COALESCE(leads, 0) as leads,
+        COALESCE(appointments, 0) as appointments,
+        COALESCE(contracts, 0) as contracts,
+        COALESCE(deals, 0) as deals,
+        COALESCE(total_cost, 0) as total_cost,
+        COALESCE(total_revenue, 0) as total_revenue,
+        COALESCE(unattributed_conversions, 0) as unattributed_conversions
+      FROM dm_client_funnel
+      WHERE date = (SELECT MAX(date) FROM dm_client_funnel WHERE ${domainFilter(domain)})
+        AND ${domainFilter(domain)}
+    `),
+    // Aggregate template data per domain for domains missing from client_funnel
+    runAuroraQuery(`
+      SELECT
+        domain,
+        COALESCE(SUM(total_sent), 0) as total_sent,
+        COALESCE(SUM(total_delivered), 0) as total_delivered,
+        COALESCE(SUM(unique_properties), 0) as unique_properties,
+        COALESCE(SUM(leads_generated), 0) as leads,
+        COALESCE(SUM(appointments_generated), 0) as appointments,
+        COALESCE(SUM(contracts_generated), 0) as contracts,
+        COALESCE(SUM(deals_generated), 0) as deals,
+        COALESCE(SUM(total_cost), 0) as total_cost,
+        COALESCE(SUM(total_revenue), 0) as total_revenue,
+        COALESCE(SUM(campaigns_using), 0) as campaigns_using
+      FROM dm_template_performance
+      WHERE ${domainFilter(domain)}
+      GROUP BY domain
+    `),
+  ]);
 
-  const data: DmClientPerformanceRow[] = rows.map((r: Record<string, unknown>) => {
+  // Build map from client_funnel (primary source)
+  const domainMap = new Map<string, DmClientPerformanceRow>();
+
+  for (const r of funnelRows) {
+    const d = String(r.domain || '');
     const totalMailed = Number(r.total_mailed || 0);
     const leads = Number(r.leads || 0);
     const deals = Number(r.deals || 0);
     const totalCost = Number(r.total_cost || 0);
     const totalRevenue = Number(r.total_revenue || 0);
-    return {
-      domain: String(r.domain || ''),
+    const confidence = getRoasConfidence(deals, totalRevenue);
+
+    domainMap.set(d, {
+      domain: d,
+      campaignType: String(r.campaign_type || 'rr'),
+      activeCampaigns: Number(r.active_campaigns || 0),
       totalMailed,
       totalSends: Number(r.total_sends || 0),
       totalDelivered: Number(r.total_delivered || 0),
       leads,
       appointments: Number(r.appointments || 0),
+      contracts: Number(r.contracts || 0),
       deals,
       totalCost: Number(totalCost.toFixed(2)),
       totalRevenue: Number(totalRevenue.toFixed(2)),
-      roas: totalCost > 0 ? Number((totalRevenue / totalCost).toFixed(2)) : 0,
+      roas: confidence === 'revenue_no_deal' ? 0 : (totalCost > 0 ? Number((totalRevenue / totalCost).toFixed(2)) : 0),
       leadConversionRate: totalMailed > 0 ? Number(((leads / totalMailed) * 100).toFixed(2)) : 0,
       dealConversionRate: totalMailed > 0 ? Number(((deals / totalMailed) * 100).toFixed(2)) : 0,
-    };
-  });
+      roasConfidence: confidence,
+      unattributedConversions: Number(r.unattributed_conversions || 0),
+    });
+  }
+
+  // Fill in domains from template_performance that are missing from client_funnel
+  for (const r of templateRows) {
+    const d = String(r.domain || '');
+    if (domainMap.has(d)) continue; // Already have funnel data
+
+    const totalMailed = Number(r.unique_properties || 0);
+    const leads = Number(r.leads || 0);
+    const deals = Number(r.deals || 0);
+    const totalCost = Number(r.total_cost || 0);
+    const totalRevenue = Number(r.total_revenue || 0);
+    const confidence = getRoasConfidence(deals, totalRevenue);
+
+    domainMap.set(d, {
+      domain: d,
+      campaignType: 'rr',
+      activeCampaigns: 0, // Not in client_funnel = no active campaigns
+      totalMailed,
+      totalSends: Number(r.total_sent || 0),
+      totalDelivered: Number(r.total_delivered || 0),
+      leads,
+      appointments: Number(r.appointments || 0),
+      contracts: Number(r.contracts || 0),
+      deals,
+      totalCost: Number(totalCost.toFixed(2)),
+      totalRevenue: Number(totalRevenue.toFixed(2)),
+      roas: confidence === 'revenue_no_deal' ? 0 : (totalCost > 0 ? Number((totalRevenue / totalCost).toFixed(2)) : 0),
+      leadConversionRate: totalMailed > 0 ? Number(((leads / totalMailed) * 100).toFixed(2)) : 0,
+      dealConversionRate: totalMailed > 0 ? Number(((deals / totalMailed) * 100).toFixed(2)) : 0,
+      roasConfidence: confidence,
+      unattributedConversions: 0,
+    });
+  }
+
+  // Sort by leads DESC, then deals DESC, then mailed DESC (best performers first)
+  const data = Array.from(domainMap.values()).sort((a, b) =>
+    b.leads - a.leads || b.deals - a.deals || b.totalMailed - a.totalMailed
+  );
 
   setCache(cacheKey, data);
   return NextResponse.json({ success: true, data, cached: false });
 }
 
 // ---------------------------------------------------------------------------
-// Geographic Breakdown
+// Geographic Breakdown — still requires dm_property_conversions (blocked)
 // ---------------------------------------------------------------------------
 
 async function getGeoBreakdown(domain?: string) {
@@ -282,7 +381,7 @@ async function getPropertyTimeline(propertyId: string | null, campaignId: string
 }
 
 // ---------------------------------------------------------------------------
-// Data Quality
+// Data Quality — partial real data from available tables
 // ---------------------------------------------------------------------------
 
 async function getDataQuality(domain?: string) {
@@ -290,31 +389,68 @@ async function getDataQuality(domain?: string) {
   const cached = getCached(cacheKey);
   if (cached) return NextResponse.json({ success: true, data: cached, cached: true });
 
-  const rows = await runAuroraQuery(`
-    SELECT
-      COUNT(DISTINCT property_id) as total_properties,
-      COUNT(DISTINCT CASE WHEN attribution_status = 'attributed' THEN property_id END) as attributed,
-      COUNT(DISTINCT CASE WHEN attribution_status = 'unattributed' THEN property_id END) as unattributed,
-      COUNT(DISTINCT CASE WHEN is_backfilled = true THEN property_id END) as backfilled,
-      COUNT(DISTINCT CASE WHEN became_deal_at IS NOT NULL AND (deal_revenue IS NULL OR deal_revenue = 0) THEN property_id END) as zero_revenue_deals
-    FROM dm_property_conversions
-    WHERE ${domainFilter(domain)}
-  `);
+  // Get counts from tables that have data
+  const [templateRows, funnelRows, propertyRows] = await Promise.all([
+    runAuroraQuery(`
+      SELECT
+        COUNT(*) as total_templates,
+        COUNT(CASE WHEN total_delivered = 0 AND total_sent > 0 THEN 1 END) as delivery_issues,
+        COUNT(CASE WHEN deals_generated = 0 AND total_revenue > 0 THEN 1 END) as revenue_mismatch
+      FROM dm_template_performance
+      WHERE ${domainFilter(domain)}
+    `),
+    runAuroraQuery(`
+      SELECT
+        COUNT(DISTINCT domain) as total_clients,
+        COALESCE(SUM(unattributed_conversions), 0) as total_unattributed,
+        COALESCE(SUM(leads + appointments + contracts + deals), 0) as total_conversions
+      FROM dm_client_funnel
+      WHERE date = (SELECT MAX(date) FROM dm_client_funnel WHERE ${domainFilter(domain)})
+        AND ${domainFilter(domain)}
+    `),
+    // This will return 0 rows until dm_property_conversions populates
+    runAuroraQuery(`
+      SELECT
+        COUNT(DISTINCT property_id) as total_properties,
+        COUNT(DISTINCT CASE WHEN attribution_status = 'attributed' THEN property_id END) as attributed,
+        COUNT(DISTINCT CASE WHEN attribution_status = 'unattributed' THEN property_id END) as unattributed,
+        COUNT(DISTINCT CASE WHEN is_backfilled = true THEN property_id END) as backfilled,
+        COUNT(DISTINCT CASE WHEN became_deal_at IS NOT NULL AND (deal_revenue IS NULL OR deal_revenue = 0) THEN property_id END) as zero_revenue_deals
+      FROM dm_property_conversions
+      WHERE ${domainFilter(domain)}
+    `),
+  ]);
 
-  const r = rows[0] || {};
-  const total = Number(r.total_properties || 0);
-  const attributed = Number(r.attributed || 0);
-  const unattributed = Number(r.unattributed || 0);
-  const backfilled = Number(r.backfilled || 0);
+  const t = templateRows[0] || {};
+  const f = funnelRows[0] || {};
+  const p = propertyRows[0] || {};
 
-  const data: DmDataQuality = {
-    totalProperties: total,
+  const totalProperties = Number(p.total_properties || 0);
+  const attributed = Number(p.attributed || 0);
+  const unattributed = Number(p.unattributed || 0);
+  const backfilled = Number(p.backfilled || 0);
+
+  const data: DmDataQuality & {
+    totalTemplates: number;
+    totalClients: number;
+    deliveryIssues: number;
+    revenueMismatch: number;
+    propertyDataAvailable: boolean;
+  } = {
+    // From dm_property_conversions (will be 0 until table populates)
+    totalProperties,
     attributedCount: attributed,
     unattributedCount: unattributed,
-    attributionRate: total > 0 ? Number(((attributed / total) * 100).toFixed(1)) : 0,
+    attributionRate: totalProperties > 0 ? Number(((attributed / totalProperties) * 100).toFixed(1)) : 0,
     backfilledCount: backfilled,
-    backfilledRate: total > 0 ? Number(((backfilled / total) * 100).toFixed(1)) : 0,
-    zeroRevenueDealCount: Number(r.zero_revenue_deals || 0),
+    backfilledRate: totalProperties > 0 ? Number(((backfilled / totalProperties) * 100).toFixed(1)) : 0,
+    zeroRevenueDealCount: Number(p.zero_revenue_deals || 0),
+    // From available tables
+    totalTemplates: Number(t.total_templates || 0),
+    totalClients: Number(f.total_clients || 0),
+    deliveryIssues: Number(t.delivery_issues || 0),
+    revenueMismatch: Number(t.revenue_mismatch || 0),
+    propertyDataAvailable: totalProperties > 0,
   };
 
   setCache(cacheKey, data);
@@ -359,7 +495,7 @@ async function getConversionTrend(days: number, domain?: string) {
 }
 
 // ---------------------------------------------------------------------------
-// ROAS Trend (time series from dm_client_funnel)
+// ROAS Trend (time series from dm_client_funnel) — Rule 1 applied
 // ---------------------------------------------------------------------------
 
 async function getRoasTrend(days: number, domain?: string) {
@@ -372,10 +508,7 @@ async function getRoasTrend(days: number, domain?: string) {
       date::TEXT as date,
       COALESCE(SUM(total_cost), 0) as total_cost,
       COALESCE(SUM(total_revenue), 0) as total_revenue,
-      CASE WHEN COALESCE(SUM(total_cost), 0) > 0
-        THEN ROUND(COALESCE(SUM(total_revenue), 0) / SUM(total_cost), 2)
-        ELSE 0
-      END as roas
+      COALESCE(SUM(deals), 0) as deals
     FROM dm_client_funnel
     WHERE date >= CURRENT_DATE - INTERVAL '${days} days'
       AND ${domainFilter(domain)}
@@ -383,19 +516,32 @@ async function getRoasTrend(days: number, domain?: string) {
     ORDER BY date ASC
   `);
 
-  const data = rows.map((r: Record<string, unknown>) => ({
-    date: String(r.date || ''),
-    totalCost: Number(Number(r.total_cost || 0).toFixed(2)),
-    totalRevenue: Number(Number(r.total_revenue || 0).toFixed(2)),
-    roas: Number(r.roas || 0),
-  }));
+  const data = rows.map((r: Record<string, unknown>) => {
+    const totalCost = Number(r.total_cost || 0);
+    const totalRevenue = Number(r.total_revenue || 0);
+    const deals = Number(r.deals || 0);
+
+    // Rule 1: Only show ROAS when there are deals (not just revenue)
+    let roas: number | null = null;
+    if (deals > 0 && totalCost > 0) {
+      roas = Number((totalRevenue / totalCost).toFixed(2));
+    }
+
+    return {
+      date: String(r.date || ''),
+      totalCost: Number(totalCost.toFixed(2)),
+      totalRevenue: Number(totalRevenue.toFixed(2)),
+      deals,
+      roas,
+    };
+  });
 
   setCache(cacheKey, data);
   return NextResponse.json({ success: true, data, cached: false });
 }
 
 // ---------------------------------------------------------------------------
-// Alerts (Layer 2 — Business Results)
+// Alerts — generated from real data across available tables
 // ---------------------------------------------------------------------------
 
 async function getAlerts(domain?: string) {
@@ -403,25 +549,33 @@ async function getAlerts(domain?: string) {
   const cached = getCached(cacheKey);
   if (cached) return NextResponse.json({ success: true, data: cached, cached: true });
 
-  const [clientRows, qualityRows] = await Promise.all([
+  const [clientRows, templateRows] = await Promise.all([
+    // Client-level alerts from dm_client_funnel
     runAuroraQuery(`
       SELECT
         domain,
-        COUNT(DISTINCT property_id) as total_mailed,
-        COUNT(DISTINCT CASE WHEN became_lead_at IS NOT NULL THEN property_id END) as leads,
-        COUNT(DISTINCT CASE WHEN became_deal_at IS NOT NULL THEN property_id END) as deals,
-        COALESCE(SUM(total_cost), 0) as total_cost,
-        COALESCE(SUM(deal_revenue), 0) as total_revenue
-      FROM dm_property_conversions
-      WHERE ${domainFilter(domain)}
-      GROUP BY domain
+        COALESCE(total_properties_mailed, 0) as total_mailed,
+        COALESCE(leads, 0) as leads,
+        COALESCE(deals, 0) as deals,
+        COALESCE(total_cost, 0) as total_cost,
+        COALESCE(total_revenue, 0) as total_revenue,
+        COALESCE(unattributed_conversions, 0) as unattributed
+      FROM dm_client_funnel
+      WHERE date = (SELECT MAX(date) FROM dm_client_funnel WHERE ${domainFilter(domain)})
+        AND ${domainFilter(domain)}
     `),
+    // Template-level alerts from dm_template_performance
     runAuroraQuery(`
       SELECT
-        COUNT(DISTINCT property_id) as total_properties,
-        COUNT(DISTINCT CASE WHEN attribution_status = 'unattributed' THEN property_id END) as unattributed,
-        COUNT(DISTINCT CASE WHEN is_backfilled = true THEN property_id END) as backfilled
-      FROM dm_property_conversions
+        domain,
+        template_name,
+        COALESCE(total_sent, 0) as total_sent,
+        COALESCE(total_delivered, 0) as total_delivered,
+        COALESCE(delivery_rate, 0) as delivery_rate,
+        COALESCE(deals_generated, 0) as deals,
+        COALESCE(total_revenue, 0) as total_revenue,
+        COALESCE(leads_generated, 0) as leads
+      FROM dm_template_performance
       WHERE ${domainFilter(domain)}
     `),
   ]);
@@ -450,65 +604,102 @@ async function getAlerts(domain?: string) {
     }
   }
 
-  // DM-B2: Negative ROAS (spending more than earning)
-  for (const r of clientRows) {
-    const totalCost = Number(r.total_cost || 0);
-    const totalRevenue = Number(r.total_revenue || 0);
-    const clientDomain = String(r.domain || '');
+  // DM-B2: Revenue without deals (data integrity issue)
+  for (const r of templateRows) {
     const deals = Number(r.deals || 0);
+    const revenue = Number(r.total_revenue || 0);
+    const templateName = String(r.template_name || '');
+    const templateDomain = String(r.domain || '');
 
-    if (totalCost > 1000 && deals > 0 && totalRevenue > 0 && totalRevenue < totalCost) {
-      const roas = Number((totalRevenue / totalCost).toFixed(2));
+    if (deals === 0 && revenue > 0) {
       alerts.push({
-        id: `dm-low-roas-${clientDomain}`,
-        name: 'ROAS below 1.0',
+        id: `dm-revenue-no-deal-${templateDomain}-${templateName}`,
+        name: 'Revenue without matching deal status',
         severity: 'warning',
         category: 'dm-business-results',
-        description: `${clientDomain} has a ROAS of ${roas}x — spending $${totalCost.toFixed(0)} but only generating $${totalRevenue.toFixed(0)} in revenue.`,
-        entity: clientDomain,
-        metrics: { current: roas, baseline: 1.0 },
+        description: `"${templateName}" (${templateDomain}) shows $${revenue.toLocaleString()} revenue but 0 deals. Revenue source and deal status are out of sync.`,
+        entity: templateDomain,
+        metrics: { current: revenue, baseline: 0 },
         detected_at: now,
-        action: `Analyze which templates and geographies are underperforming for ${clientDomain}. Consider pausing low-performing campaigns.`,
+        action: 'Data integrity issue — revenue exists in reverse_buybox_deals but no deal status in log_status_properties. ROAS hidden for this template.',
       });
     }
   }
 
-  // DM-B3: High unattributed conversions
-  const q = qualityRows[0] || {};
-  const totalProps = Number(q.total_properties || 0);
-  const unattributed = Number(q.unattributed || 0);
-  if (totalProps > 100 && unattributed > 0) {
-    const unattributedRate = Number(((unattributed / totalProps) * 100).toFixed(1));
-    if (unattributedRate > 20) {
+  // DM-B3: Low delivery rate
+  for (const r of templateRows) {
+    const totalSent = Number(r.total_sent || 0);
+    const deliveryRate = Number(r.delivery_rate || 0);
+    const templateName = String(r.template_name || '');
+    const templateDomain = String(r.domain || '');
+    const leads = Number(r.leads || 0);
+    const delivered = Number(r.total_delivered || 0);
+
+    if (totalSent > 50 && delivered === 0 && leads > 0) {
       alerts.push({
-        id: 'dm-high-unattributed',
-        name: 'High unattributed conversions',
+        id: `dm-delivery-warning-${templateDomain}-${templateName}`,
+        name: 'Leads without delivery confirmation',
         severity: 'warning',
         category: 'dm-business-results',
-        description: `${unattributedRate}% of conversions (${unattributed} properties) have no campaign attribution. These conversions can't be linked to a specific mailing.`,
-        metrics: { current: unattributedRate, baseline: 20 },
+        description: `"${templateName}" (${templateDomain}) generated ${leads} leads but shows 0 deliveries. Delivery tracking may not be configured for this domain.`,
+        entity: templateDomain,
+        metrics: { current: delivered, baseline: totalSent },
         detected_at: now,
-        action: 'Check if the attribution system is working correctly. Conversions before Sep 2025 will have NULL attribution by design.',
+        action: 'Check if delivery status is being tracked correctly for this domain. The monolith may use a different status string than "delivered".',
+      });
+    } else if (totalSent > 50 && deliveryRate < 50 && deliveryRate > 0) {
+      alerts.push({
+        id: `dm-low-delivery-${templateDomain}-${templateName}`,
+        name: 'Low delivery rate',
+        severity: 'warning',
+        category: 'dm-business-results',
+        description: `"${templateName}" (${templateDomain}) has a ${deliveryRate}% delivery rate (${totalSent} sent).`,
+        entity: templateDomain,
+        metrics: { current: deliveryRate, baseline: 50 },
+        detected_at: now,
+        action: `Review mail list quality and delivery vendor performance for ${templateDomain}.`,
       });
     }
   }
 
-  // DM-B4: High backfilled dates
-  const backfilled = Number(q.backfilled || 0);
-  if (totalProps > 100 && backfilled > 0) {
-    const backfilledRate = Number(((backfilled / totalProps) * 100).toFixed(1));
-    if (backfilledRate > 40) {
-      alerts.push({
-        id: 'dm-high-backfilled',
-        name: 'High backfilled conversion dates',
-        severity: 'info',
-        category: 'dm-business-results',
-        description: `${backfilledRate}% of conversion dates (${backfilled} properties) were system-generated, not organic. Metrics like "avg days to lead" may be less accurate.`,
-        metrics: { current: backfilledRate, baseline: 40 },
-        detected_at: now,
-        action: 'This is informational. Backfilled dates occur when properties jump directly to Deal status. The data quality widget provides more detail.',
-      });
+  // DM-B4: High unattributed conversions
+  for (const r of clientRows) {
+    const leads = Number(r.leads || 0);
+    const deals = Number(r.deals || 0);
+    const unattributed = Number(r.unattributed || 0);
+    const clientDomain = String(r.domain || '');
+    const totalConversions = leads + deals;
+
+    if (totalConversions > 0 && unattributed > 0) {
+      const rate = Number(((unattributed / totalConversions) * 100).toFixed(1));
+      if (rate > 30) {
+        alerts.push({
+          id: `dm-high-unattributed-${clientDomain}`,
+          name: 'High unattributed conversions',
+          severity: 'warning',
+          category: 'dm-business-results',
+          description: `${clientDomain} has ${rate}% unattributed conversions (${unattributed} of ${totalConversions}).`,
+          entity: clientDomain,
+          metrics: { current: rate, baseline: 30 },
+          detected_at: now,
+          action: 'Check attribution system. Conversions before Sep 2025 will have NULL attribution by design.',
+        });
+      }
     }
+  }
+
+  // DM-INFO: Property data availability
+  const propCount = await runAuroraQuery(`SELECT COUNT(*) as cnt FROM dm_property_conversions WHERE ${domainFilter(domain)}`);
+  if (Number((propCount[0] || {}).cnt || 0) === 0) {
+    alerts.push({
+      id: 'dm-property-data-pending',
+      name: 'Property-level data not yet available',
+      severity: 'info',
+      category: 'dm-business-results',
+      description: 'Geographic breakdown and property-level drill-down require the dm_property_conversions table, which is pending a monolith fix.',
+      detected_at: now,
+      action: 'Monolith bug fix in progress. Geographic and property-level widgets will activate when data flows.',
+    });
   }
 
   // Sort: critical first, then warning, then info
