@@ -120,7 +120,10 @@ interface MergedDomainRow {
 }
 
 async function getMergedClientData(domain?: string): Promise<MergedDomainRow[]> {
-  const [funnelRows, templateRows, campaignStatusRows] = await Promise.all([
+  // Query all 3 Layer 2 tables + campaign status in parallel.
+  // dm_property_conversions is the source of truth (complete for all domains).
+  // dm_client_funnel and dm_template_performance may be missing domains (Bug #4).
+  const [funnelRows, templateRows, campaignStatusRows, propertyRows] = await Promise.all([
     runAuroraQuery(`
       SELECT
         domain,
@@ -170,6 +173,25 @@ async function getMergedClientData(domain?: string): Promise<MergedDomainRow[]> 
       ) latest
       GROUP BY domain, campaign_type
     `),
+    // Source of truth: aggregate directly from dm_property_conversions
+    // This catches domains missing from dm_client_funnel + dm_template_performance
+    runAuroraQuery(`
+      SELECT
+        domain,
+        COUNT(DISTINCT property_id) as total_mailed,
+        SUM(total_sends) as total_sends,
+        SUM(total_delivered) as total_delivered,
+        COUNT(DISTINCT CASE WHEN became_lead_at IS NOT NULL THEN property_id END) as leads,
+        COUNT(DISTINCT CASE WHEN became_appointment_at IS NOT NULL THEN property_id END) as appointments,
+        COUNT(DISTINCT CASE WHEN became_contract_at IS NOT NULL THEN property_id END) as contracts,
+        COUNT(DISTINCT CASE WHEN became_deal_at IS NOT NULL THEN property_id END) as deals,
+        COALESCE(SUM(total_cost), 0) as total_cost,
+        COALESCE(SUM(CASE WHEN deal_revenue > 0 THEN deal_revenue ELSE 0 END), 0) as total_revenue,
+        COUNT(DISTINCT CASE WHEN attribution_status = 'unattributed' AND became_lead_at IS NOT NULL THEN property_id END) as unattributed
+      FROM dm_property_conversions
+      WHERE ${domainFilter(domain)}
+      GROUP BY domain
+    `),
   ]);
 
   // Build active campaigns lookup
@@ -183,7 +205,7 @@ async function getMergedClientData(domain?: string): Promise<MergedDomainRow[]> 
     }
   }
 
-  // Build from dm_client_funnel (primary)
+  // Build from dm_client_funnel (primary — when available)
   const domainMap = new Map<string, MergedDomainRow>();
 
   for (const r of funnelRows) {
@@ -227,6 +249,32 @@ async function getMergedClientData(domain?: string): Promise<MergedDomainRow[]> 
       totalCost: Number(r.total_cost || 0),
       totalRevenue: Number(r.total_revenue || 0),
       unattributedConversions: 0,
+    });
+  }
+
+  // Fill remaining missing domains from dm_property_conversions (source of truth)
+  // This catches the 10 domains missing from both aggregate tables (Bug #4)
+  for (const r of propertyRows) {
+    const d = String(r.domain || '');
+    if (domainMap.has(d)) continue;
+    const liveStatus = activeCampaignsMap.get(d);
+    const totalMailed = Number(r.total_mailed || 0);
+    const leads = Number(r.leads || 0);
+    domainMap.set(d, {
+      domain: d,
+      campaignType: liveStatus?.type || 'rr',
+      activeCampaigns: liveStatus?.count ?? 0,
+      totalMailed,
+      totalSends: Number(r.total_sends || 0),
+      totalDelivered: Number(r.total_delivered || 0),
+      prospects: totalMailed - leads, // mailed minus converted
+      leads,
+      appointments: Number(r.appointments || 0),
+      contracts: Number(r.contracts || 0),
+      deals: Number(r.deals || 0),
+      totalCost: Number(r.total_cost || 0),
+      totalRevenue: Number(r.total_revenue || 0),
+      unattributedConversions: Number(r.unattributed || 0),
     });
   }
 
@@ -589,7 +637,8 @@ async function getRoasTrend(days: number, domain?: string) {
 }
 
 // ---------------------------------------------------------------------------
-// Alerts — generated from real data across available tables
+// Business Results Alerts — actionable by CS team or clients
+// Product/data-integrity alerts (B2, B3a, B4) moved to operational health.
 // ---------------------------------------------------------------------------
 
 async function getAlerts(domain?: string) {
@@ -597,10 +646,8 @@ async function getAlerts(domain?: string) {
   const cached = getCached(cacheKey);
   if (cached) return NextResponse.json({ success: true, data: cached, cached: true });
 
-  // Use merged client data (same source as funnel + table) for client-level alerts
   const [mergedClientRows, templateRows] = await Promise.all([
     getMergedClientData(domain),
-    // Template-level alerts from dm_template_performance
     runAuroraQuery(`
       SELECT
         domain,
@@ -619,7 +666,7 @@ async function getAlerts(domain?: string) {
   const alerts: DmAlert[] = [];
   const now = new Date().toISOString();
 
-  // DM-B1: Clients with high sends but zero conversions
+  // BR-1: No conversions after significant sends
   for (const row of mergedClientRows) {
     const totalMailed = row.totalMailed;
     const leads = row.leads;
@@ -627,115 +674,135 @@ async function getAlerts(domain?: string) {
 
     if (totalMailed >= 500 && leads === 0) {
       alerts.push({
-        id: `dm-no-conversions-${clientDomain}`,
+        id: `br-no-conversions-${clientDomain}`,
         name: 'No conversions after significant sends',
         severity: 'critical',
         category: 'dm-business-results',
-        description: `${clientDomain} has mailed ${totalMailed} properties with zero leads. Campaign targeting or template may need review.`,
+        description: `${clientDomain} has mailed ${totalMailed.toLocaleString()} properties with zero leads. The template or targeting criteria may not be reaching the right audience.`,
         entity: clientDomain,
         metrics: { current: leads, baseline: totalMailed },
         detected_at: now,
-        action: `Review campaign targeting and template performance for ${clientDomain}. Check if properties are being correctly matched to the target market.`,
+        action: `Review the template being used and targeting criteria with the client. Consider A/B testing a different template or expanding the geographic area.`,
       });
     }
   }
 
-  // DM-B2: Revenue without deals (data integrity issue)
+  // BR-2: Template underperforming vs peers
+  // Group templates by domain, flag templates with 0 leads when siblings have leads
+  const templatesByDomain = new Map<string, Array<{ name: string; leads: number; sent: number }>>();
   for (const r of templateRows) {
-    const deals = Number(r.deals || 0);
-    const revenue = Number(r.total_revenue || 0);
-    const templateName = String(r.template_name || '');
-    const templateDomain = String(r.domain || '');
-
-    if (deals === 0 && revenue > 0) {
-      alerts.push({
-        id: `dm-revenue-no-deal-${templateDomain}-${templateName}`,
-        name: 'Revenue without matching deal status',
-        severity: 'warning',
-        category: 'dm-business-results',
-        description: `"${templateName}" (${templateDomain}) shows $${revenue.toLocaleString()} revenue but 0 deals. Revenue source and deal status are out of sync.`,
-        entity: templateDomain,
-        metrics: { current: revenue, baseline: 0 },
-        detected_at: now,
-        action: 'Data integrity issue — revenue exists in reverse_buybox_deals but no deal status in log_status_properties. ROAS hidden for this template.',
-      });
-    }
+    const d = String(r.domain || '');
+    const entry = { name: String(r.template_name || ''), leads: Number(r.leads || 0), sent: Number(r.total_sent || 0) };
+    if (!templatesByDomain.has(d)) templatesByDomain.set(d, []);
+    templatesByDomain.get(d)!.push(entry);
   }
-
-  // DM-B3: Low delivery rate
-  for (const r of templateRows) {
-    const totalSent = Number(r.total_sent || 0);
-    const deliveryRate = Number(r.delivery_rate || 0);
-    const templateName = String(r.template_name || '');
-    const templateDomain = String(r.domain || '');
-    const leads = Number(r.leads || 0);
-    const delivered = Number(r.total_delivered || 0);
-
-    if (totalSent > 50 && delivered === 0 && leads > 0) {
-      alerts.push({
-        id: `dm-delivery-warning-${templateDomain}-${templateName}`,
-        name: 'Leads without delivery confirmation',
-        severity: 'warning',
-        category: 'dm-business-results',
-        description: `"${templateName}" (${templateDomain}) generated ${leads} leads but shows 0 deliveries. Delivery tracking may not be configured for this domain.`,
-        entity: templateDomain,
-        metrics: { current: delivered, baseline: totalSent },
-        detected_at: now,
-        action: 'Check if delivery status is being tracked correctly for this domain. The monolith may use a different status string than "delivered".',
-      });
-    } else if (totalSent > 50 && deliveryRate < 50 && deliveryRate > 0) {
-      alerts.push({
-        id: `dm-low-delivery-${templateDomain}-${templateName}`,
-        name: 'Low delivery rate',
-        severity: 'warning',
-        category: 'dm-business-results',
-        description: `"${templateName}" (${templateDomain}) has a ${deliveryRate}% delivery rate (${totalSent} sent).`,
-        entity: templateDomain,
-        metrics: { current: deliveryRate, baseline: 50 },
-        detected_at: now,
-        action: `Review mail list quality and delivery vendor performance for ${templateDomain}.`,
-      });
-    }
-  }
-
-  // DM-B4: High unattributed conversions
-  for (const row of mergedClientRows) {
-    const leads = row.leads;
-    const deals = row.deals;
-    const unattributed = row.unattributedConversions;
-    const clientDomain = row.domain;
-    const totalConversions = leads + deals;
-
-    if (totalConversions > 0 && unattributed > 0) {
-      const rate = Number(((unattributed / totalConversions) * 100).toFixed(1));
-      if (rate > 30) {
+  for (const [d, templates] of templatesByDomain) {
+    const hasPerforming = templates.some(t => t.leads > 0);
+    if (!hasPerforming) continue;
+    for (const t of templates) {
+      if (t.leads === 0 && t.sent >= 100) {
+        const bestTemplate = templates.reduce((best, cur) => cur.leads > best.leads ? cur : best, templates[0]);
         alerts.push({
-          id: `dm-high-unattributed-${clientDomain}`,
-          name: 'High unattributed conversions',
+          id: `br-template-underperform-${d}-${t.name}`,
+          name: 'Template underperforming vs peers',
           severity: 'warning',
           category: 'dm-business-results',
-          description: `${clientDomain} has ${rate}% unattributed conversions (${unattributed} of ${totalConversions}).`,
-          entity: clientDomain,
-          metrics: { current: rate, baseline: 30 },
+          description: `"${t.name}" (${d}) has ${t.sent.toLocaleString()} sends but 0 leads, while "${bestTemplate.name}" has ${bestTemplate.leads} leads. This template may need to be replaced.`,
+          entity: d,
+          metrics: { current: 0, baseline: bestTemplate.leads },
           detected_at: now,
-          action: 'Check attribution system. Conversions before Sep 2025 will have NULL attribution by design.',
+          action: `Suggest the client switch from "${t.name}" to "${bestTemplate.name}" or review the underperforming template's design and messaging.`,
         });
       }
     }
   }
 
-  // DM-INFO: Property data availability
-  const propCount = await runAuroraQuery(`SELECT COUNT(*) as cnt FROM dm_property_conversions WHERE ${domainFilter(domain)}`);
-  if (Number((propCount[0] || {}).cnt || 0) === 0) {
-    alerts.push({
-      id: 'dm-property-data-pending',
-      name: 'Property-level data not yet available',
-      severity: 'info',
-      category: 'dm-business-results',
-      description: 'Geographic breakdown and property-level drill-down require the dm_property_conversions table, which is pending a monolith fix.',
-      detected_at: now,
-      action: 'Monolith bug fix in progress. Geographic and property-level widgets will activate when data flows.',
-    });
+  // BR-3: High cost, zero revenue
+  for (const row of mergedClientRows) {
+    const totalCost = row.totalCost;
+    const totalRevenue = row.totalRevenue;
+    const totalMailed = row.totalMailed;
+    const clientDomain = row.domain;
+
+    if (totalCost > 500 && totalRevenue === 0 && totalMailed >= 200) {
+      alerts.push({
+        id: `br-high-cost-no-revenue-${clientDomain}`,
+        name: 'High cost, zero revenue',
+        severity: 'warning',
+        category: 'dm-business-results',
+        description: `${clientDomain} has spent $${totalCost.toLocaleString()} on ${totalMailed.toLocaleString()} mailings with $0 revenue. The campaign may be targeting the wrong property types.`,
+        entity: clientDomain,
+        metrics: { current: totalCost, baseline: 0 },
+        detected_at: now,
+        action: `Review targeting criteria with the client — property types, geographic area, and price range may need adjustment. Consider pausing the campaign until strategy is revised.`,
+      });
+    }
+  }
+
+  // BR-4: Low delivery rate (mail quality issue)
+  for (const r of templateRows) {
+    const totalSent = Number(r.total_sent || 0);
+    const deliveryRate = Number(r.delivery_rate || 0);
+    const delivered = Number(r.total_delivered || 0);
+    const templateName = String(r.template_name || '');
+    const templateDomain = String(r.domain || '');
+
+    if (totalSent > 50 && deliveryRate > 0 && deliveryRate < 50) {
+      alerts.push({
+        id: `br-low-delivery-${templateDomain}-${templateName}`,
+        name: 'Low delivery rate',
+        severity: 'warning',
+        category: 'dm-business-results',
+        description: `"${templateName}" (${templateDomain}) has a ${deliveryRate}% delivery rate (${delivered.toLocaleString()} of ${totalSent.toLocaleString()} sent). Mail list quality may be an issue.`,
+        entity: templateDomain,
+        metrics: { current: deliveryRate, baseline: 50 },
+        detected_at: now,
+        action: `Review property data quality for ${templateDomain}. Bad addresses or outdated property records may be reducing delivery rates. Consider enabling address verification.`,
+      });
+    }
+  }
+
+  // BR-5: Leads coming in but no deals closing
+  for (const row of mergedClientRows) {
+    const leads = row.leads;
+    const deals = row.deals;
+    const clientDomain = row.domain;
+
+    if (leads >= 5 && deals === 0) {
+      alerts.push({
+        id: `br-leads-no-deals-${clientDomain}`,
+        name: 'Leads coming in but no deals closing',
+        severity: 'warning',
+        category: 'dm-business-results',
+        description: `${clientDomain} has ${leads} leads but 0 deals. Leads are being generated but none are converting to closed deals.`,
+        entity: clientDomain,
+        metrics: { current: deals, baseline: leads },
+        detected_at: now,
+        action: `Check the client's follow-up process and deal pipeline. Are leads being contacted promptly? Is the CRM being updated? Consider a CS check-in to review their sales workflow.`,
+      });
+    }
+  }
+
+  // BR-6: Stagnant campaign — high volume but no growth
+  for (const row of mergedClientRows) {
+    const totalMailed = row.totalMailed;
+    const leads = row.leads;
+    const deals = row.deals;
+    const clientDomain = row.domain;
+
+    if (totalMailed >= 500 && leads > 0 && leads <= 2 && deals === 0) {
+      alerts.push({
+        id: `br-stagnant-${clientDomain}`,
+        name: 'Stagnant campaign',
+        severity: 'info',
+        category: 'dm-business-results',
+        description: `${clientDomain} has mailed ${totalMailed.toLocaleString()} properties but only generated ${leads} lead${leads > 1 ? 's' : ''} with 0 deals. The campaign may have saturated its market.`,
+        entity: clientDomain,
+        metrics: { current: leads, baseline: totalMailed },
+        detected_at: now,
+        action: `Suggest expanding targeting criteria — broader geographic area, additional property types, or higher price range. Consider refreshing the template with a new design.`,
+      });
+    }
   }
 
   // Sort: critical first, then warning, then info
