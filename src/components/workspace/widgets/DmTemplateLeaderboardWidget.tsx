@@ -8,7 +8,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { AxisTable, AxisTag } from '@/components/axis';
+import { AxisTable, AxisTag, AxisTooltip } from '@/components/axis';
 import type { Column, CellValue, RowData } from '@/types/table';
 import type { DmTemplatePerformance } from '@/types/dm-conversions';
 
@@ -49,11 +49,28 @@ export function DmTemplateLeaderboardWidget({ data }: DmTemplateLeaderboardWidge
       field: 'templateName',
       header: 'Template',
       minWidth: 140,
-      render: (value: CellValue) => (
-        <span className="font-medium" style={{ color: 'var(--text-primary)' }}>
-          {String(value || '')}
-        </span>
-      ),
+      render: (value: CellValue) => {
+        const name = String(value || '');
+        const isUnknown = name === 'Unknown template' || !name;
+        if (isUnknown) {
+          return (
+            <AxisTooltip
+              content="This campaign's mail was sent without a linked template in the platform. The sends and conversions are real, but we can't identify which template design was used."
+              placement="top"
+              maxWidth={300}
+            >
+              <span className="font-medium" style={{ color: 'var(--text-tertiary)' }}>
+                Unknown template
+              </span>
+            </AxisTooltip>
+          );
+        }
+        return (
+          <span className="font-medium" style={{ color: 'var(--text-primary)' }}>
+            {name}
+          </span>
+        );
+      },
     },
     {
       field: 'templateType',
@@ -61,9 +78,23 @@ export function DmTemplateLeaderboardWidget({ data }: DmTemplateLeaderboardWidge
       minWidth: 100,
       render: (value: CellValue) => {
         const v = String(value || '');
+        const isUnknown = v === 'unknown' || !v;
+        if (isUnknown) {
+          return (
+            <AxisTooltip
+              content="Template type is unavailable because the campaign was not linked to a template in the platform."
+              placement="top"
+              maxWidth={280}
+            >
+              <AxisTag color="neutral" size="sm">
+                unknown
+              </AxisTag>
+            </AxisTooltip>
+          );
+        }
         return (
           <AxisTag color={typeColorMap[v] || 'neutral'} size="sm">
-            {v || '—'}
+            {v}
           </AxisTag>
         );
       },
