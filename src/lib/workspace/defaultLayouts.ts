@@ -1407,7 +1407,7 @@ export const DEFAULT_DM_BUSINESS_RESULTS_LAYOUT: Widget[] = [
     id: 'dm-client-performance',
     type: 'dm-client-performance',
     title: 'Client performance',
-    tooltip: 'Per-client breakdown of mailing volume, conversions, spend, revenue, and ROAS. Click a client name to filter the entire board to that domain.',
+    tooltip: 'Per-client breakdown of conversions, spend, revenue, and ROAS. "Mailed" = unique properties that received mail (not total mail pieces). Click any number to see the actual properties. Click a client name to filter the board.',
     x: 0, y: 11,
     w: 12, h: 7,
     minW: 6, minH: 5, maxW: 12, maxH: 10,

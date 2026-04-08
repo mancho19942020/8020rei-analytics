@@ -29,6 +29,8 @@ export interface Column {
   sortable?: boolean;
   /** Hide column */
   hidden?: boolean;
+  /** Tooltip shown on hover over the column header */
+  headerTooltip?: string;
   /** Custom cell renderer — when provided, overrides default formatting */
   render?: (value: CellValue, row: RowData) => ReactNode;
 }

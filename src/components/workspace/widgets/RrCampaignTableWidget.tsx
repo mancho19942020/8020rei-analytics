@@ -9,7 +9,7 @@
 
 import { useMemo } from 'react';
 import { AxisTable, AxisTag } from '@/components/axis';
-import type { Column, CellValue } from '@/types/table';
+import type { Column, CellValue, RowData } from '@/types/table';
 import type { RrCampaignSnapshot } from '@/types/rapid-response';
 
 interface RrCampaignTableWidgetProps {
@@ -92,6 +92,7 @@ export function RrCampaignTableWidget({ data, onDomainClick }: RrCampaignTableWi
     {
       field: 'totalSent',
       header: 'Sent',
+      headerTooltip: 'Total mail pieces sent (includes multiple sends to the same property). Not the same as "Mailed" in Business Results, which counts unique properties.',
       type: 'number',
       width: 90,
       align: 'center',
@@ -99,13 +100,30 @@ export function RrCampaignTableWidget({ data, onDomainClick }: RrCampaignTableWi
     {
       field: 'totalDelivered',
       header: 'Delivered',
+      headerTooltip: 'Total mail pieces confirmed delivered. Should never exceed Sent.',
       type: 'number',
       width: 90,
       align: 'center',
+      render: (value: CellValue, row) => {
+        const delivered = Number(value || 0);
+        const sent = Number(row?.totalSent || 0);
+        const impossible = delivered > sent && sent > 0;
+        return (
+          <span
+            title={impossible ? `Data issue: delivered (${delivered}) exceeds sent (${sent})` : undefined}
+            style={{ color: impossible ? 'var(--color-error-500)' : 'var(--text-primary)' }}
+            className={impossible ? 'font-semibold' : ''}
+          >
+            {delivered.toLocaleString()}
+            {impossible && <span className="text-xs ml-0.5">⚠</span>}
+          </span>
+        );
+      },
     },
     {
       field: 'onHoldCount',
       header: 'On hold',
+      headerTooltip: 'Mail pieces waiting to be sent (queued but not yet dispatched)',
       width: 80,
       align: 'center',
       render: (value: CellValue) => (

@@ -31,6 +31,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { AxisButton } from './AxisButton';
 import { AxisSelect, AxisSelectOption } from './AxisSelect';
 import { AxisCallout } from './AxisCallout';
+import { AxisTooltip } from './AxisTooltip';
 import type { Column, RowData, SortModel, CellValue } from '@/types/table';
 
 export interface AxisTableProps {
@@ -435,9 +436,17 @@ export function AxisTable({
                         }`}
                         onClick={() => handleSort(column)}
                       >
-                        <span className="text-body-regular font-semibold text-content-primary">
-                          {column.header}
-                        </span>
+                        {column.headerTooltip ? (
+                          <AxisTooltip content={column.headerTooltip} placement="top" maxWidth={280}>
+                            <span className="text-body-regular font-semibold text-content-primary">
+                              {column.header}
+                            </span>
+                          </AxisTooltip>
+                        ) : (
+                          <span className="text-body-regular font-semibold text-content-primary">
+                            {column.header}
+                          </span>
+                        )}
                         <div className="w-4 h-4 flex items-center justify-center flex-shrink-0">
                           {sortOrder === 'asc' && (
                             <svg className="w-4 h-4 text-main-700 dark:text-main-300" fill="none" viewBox="0 0 20 20">
@@ -456,6 +465,12 @@ export function AxisTable({
                           )}
                         </div>
                       </button>
+                    ) : column.headerTooltip ? (
+                      <AxisTooltip content={column.headerTooltip} placement="top" maxWidth={280}>
+                        <span className="text-body-regular font-semibold text-content-primary">
+                          {column.header}
+                        </span>
+                      </AxisTooltip>
                     ) : (
                       <span className="text-body-regular font-semibold text-content-primary">
                         {column.header}
