@@ -15,6 +15,7 @@ export const MAIN_SECTION_TABS: AxisNavigationTabItem[] = [
   { id: 'features', name: 'Features' },
   { id: 'feedback-loop', name: 'Feedback Loop' },
   { id: 'engagement-calls', name: 'Engagement Calls' },
+  { id: 'product-tasks', name: 'Product Tasks' },
   { id: 'customer-success', name: 'Customer Success', disabled: true },
   { id: 'qa', name: 'QA', disabled: true },
   { id: 'pipelines', name: 'Pipelines', disabled: true },
@@ -60,11 +61,17 @@ const ML_MODELS_SUBSECTION_TABS: AxisNavigationTabItem[] = [
   { id: 'drift-detection', name: 'Drift Detection', disabled: true },
 ];
 
+const PRODUCT_TASKS_SUBSECTION_TABS: AxisNavigationTabItem[] = [
+  { id: 'ai-task-board', name: 'AI task board' },
+  { id: 'bugs-di-board', name: 'Bugs & DI board' },
+];
+
 export const SUBSECTION_TABS_MAP: Record<string, AxisNavigationTabItem[]> = {
   // 'customer-success' has no subsections — renders Under Construction directly
   'analytics': ANALYTICS_SUBSECTION_TABS,
   'feedback-loop': FEEDBACK_LOOP_SUBSECTION_TABS,
   'features': FEATURES_SUBSECTION_TABS,
+  'product-tasks': PRODUCT_TASKS_SUBSECTION_TABS,
   'pipelines': PIPELINES_SUBSECTION_TABS,
   'qa': QA_SUBSECTION_TABS,
   'ml-models': ML_MODELS_SUBSECTION_TABS,

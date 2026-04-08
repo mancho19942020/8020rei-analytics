@@ -5,13 +5,16 @@
  * performance table. Shows the actual property-level data from
  * dm_property_conversions so users can verify exactly which properties
  * became leads, deals, etc.
+ *
+ * Uses AxisTable for consistent rendering with sorting, pagination, and search.
  */
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { AxisModal } from '@/components/axis';
-import { AxisTag } from '@/components/axis';
+import { AxisTable, AxisTag, AxisTooltip } from '@/components/axis';
+import type { Column, CellValue, RowData } from '@/types/table';
 
 export type DrilldownStatus = 'mailed' | 'lead' | 'appointment' | 'contract' | 'deal' | 'sent' | 'delivered';
 
@@ -101,11 +104,13 @@ export function DmPropertyDrilldownModal({
   const [data, setData] = useState<DrilldownProperty[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     if (!open || !domain) return;
 
     let cancelled = false;
+    setSearch('');
     const fetchData = async () => {
       setLoading(true);
       setError(null);
@@ -135,12 +140,203 @@ export function DmPropertyDrilldownModal({
     ? `${domainLabel} — ${campaignName} — ${STATUS_LABELS[status]}`
     : `${domainLabel} — ${STATUS_LABELS[status]}`;
 
-  // Determine which date column to show based on status
   const showConversionDate = !['mailed', 'sent', 'delivered'].includes(status);
   const isSendView = status === 'sent' || status === 'delivered' || status === 'mailed';
 
+  const columns: Column[] = useMemo(() => {
+    const cols: Column[] = [
+      {
+        field: 'address',
+        header: 'Address',
+        width: 220,
+        minWidth: 160,
+        render: (value: CellValue, row: RowData) => {
+          const county = String(row?.county || '');
+          const state = String(row?.state || '');
+          const location = [county, state].filter(Boolean).join(', ');
+          return (
+            <span title={String(value || '')}>
+              <span className="font-medium" style={{ color: 'var(--text-primary)' }}>
+                {String(value || '')}
+              </span>
+              {location && (
+                <span className="ml-1 text-label" style={{ color: 'var(--text-tertiary)' }}>
+                  ({location})
+                </span>
+              )}
+            </span>
+          );
+        },
+      },
+      {
+        field: 'currentStatus',
+        header: 'Status',
+        width: 90,
+        minWidth: 80,
+        align: 'center',
+        render: (value: CellValue, row: RowData) => {
+          const backfilled = Boolean(row?.isBackfilled);
+          return (
+            <span>
+              <AxisTag color={STATUS_TAG_COLORS[String(value)] || 'neutral'} size="sm">
+                {String(value || '')}
+              </AxisTag>
+              {backfilled && (
+                <span className="text-xs ml-0.5" style={{ color: 'var(--text-tertiary)' }}>*</span>
+              )}
+            </span>
+          );
+        },
+      },
+      {
+        field: 'templateName',
+        header: 'Template',
+        width: 140,
+        minWidth: 100,
+        render: (value: CellValue) => {
+          const name = String(value || '');
+          const isUnknown = name === 'Unknown template' || name === '—' || !name;
+          if (isUnknown) {
+            return (
+              <AxisTooltip
+                content="This property's mail was sent without a linked template in the platform. The sends and conversions are real, but we can't identify which template design was used."
+                placement="top"
+                maxWidth={300}
+              >
+                <span className="font-medium" style={{ color: 'var(--text-tertiary)' }}>
+                  Unknown template
+                </span>
+              </AxisTooltip>
+            );
+          }
+          return (
+            <span className="font-medium" style={{ color: 'var(--text-primary)' }}>
+              {name}
+            </span>
+          );
+        },
+      },
+      {
+        field: 'totalSends',
+        header: 'Sends',
+        type: 'number',
+        width: 70,
+        minWidth: 60,
+        align: 'center',
+      },
+    ];
+
+    if (isSendView) {
+      cols.push({
+        field: 'totalDelivered',
+        header: 'Delivered',
+        type: 'number',
+        width: 80,
+        minWidth: 70,
+        align: 'center',
+      });
+    }
+
+    if (showConversionDate) {
+      cols.push({
+        field: 'convertedAt',
+        header: 'Converted',
+        width: 120,
+        minWidth: 90,
+        render: (value: CellValue, row: RowData) => {
+          const dateStr = formatDate(String(value || '') || null);
+          const daysToLead = Number(row?.daysToLead ?? '');
+          const showDays = status === 'lead' && !isNaN(daysToLead);
+          return (
+            <span style={{ color: 'var(--text-primary)' }}>
+              {dateStr}
+              {showDays && (
+                <span className="text-label ml-1" style={{ color: 'var(--text-tertiary)' }}>
+                  ({daysToLead}d)
+                </span>
+              )}
+            </span>
+          );
+        },
+      });
+    }
+
+    cols.push({
+      field: 'firstSentDate',
+      header: isSendView ? 'Sent date' : 'First sent',
+      width: 110,
+      minWidth: 90,
+      render: (value: CellValue) => (
+        <span style={{ color: 'var(--text-primary)' }}>
+          {formatDate(String(value || '') || null)}
+        </span>
+      ),
+    });
+
+    if (status === 'deal') {
+      cols.push({
+        field: 'dealRevenue',
+        header: 'Revenue',
+        width: 100,
+        minWidth: 80,
+        align: 'center',
+        render: (value: CellValue) => {
+          const rev = Number(value || 0);
+          return (
+            <span className="font-medium" style={{
+              color: rev > 0 ? 'var(--color-success-500)' : 'var(--text-primary)',
+            }}>
+              {rev !== 0 ? `$${rev.toLocaleString()}` : '—'}
+            </span>
+          );
+        },
+      });
+    }
+
+    return cols;
+  }, [status, isSendView, showConversionDate]);
+
+  const tableData = useMemo(() => {
+    const lowerSearch = search.toLowerCase();
+
+    const mapped = data.map((p, i) => {
+      // Pick the right conversion date based on status
+      let convertedAt: string | null = null;
+      if (status === 'lead') convertedAt = p.becameLeadAt;
+      else if (status === 'appointment') convertedAt = p.becameAppointmentAt;
+      else if (status === 'contract') convertedAt = p.becameContractAt;
+      else if (status === 'deal') convertedAt = p.becameDealAt;
+
+      return {
+        id: `${p.propertyId}-${i}`,
+        address: p.address,
+        county: p.county,
+        state: p.state,
+        currentStatus: p.currentStatus,
+        templateName: p.templateName || '',
+        totalSends: p.totalSends,
+        totalDelivered: p.totalDelivered,
+        convertedAt: convertedAt || '',
+        firstSentDate: p.firstSentDate || '',
+        dealRevenue: p.dealRevenue ?? 0,
+        isBackfilled: p.isBackfilled,
+        daysToLead: p.daysToLead,
+      };
+    });
+
+    if (!search) return mapped;
+
+    return mapped.filter(row =>
+      row.address.toLowerCase().includes(lowerSearch) ||
+      row.county.toLowerCase().includes(lowerSearch) ||
+      row.state.toLowerCase().includes(lowerSearch) ||
+      row.currentStatus.toLowerCase().includes(lowerSearch) ||
+      row.templateName.toLowerCase().includes(lowerSearch)
+    );
+  }, [data, search, status]);
+
   return (
-    <AxisModal open={open} onClose={onClose} title={title} size="lg">
+    <AxisModal open={open} onClose={onClose} title={title} size="xl" fitContent>
       {loading ? (
         <div className="flex items-center justify-center py-12" style={{ color: 'var(--text-secondary)' }}>
           Loading properties...
@@ -167,151 +363,49 @@ export function DmPropertyDrilldownModal({
           </p>
         </div>
       ) : (
-        <div>
-          {/* Summary bar */}
-          <div
-            className="flex items-center gap-3 mb-4 pb-3"
-            style={{ borderBottom: '1px solid var(--border-subtle)' }}
-          >
+        <div className="flex flex-col gap-3" style={{ flex: 1, minHeight: 0 }}>
+          {/* Summary bar + search */}
+          <div className="flex items-center justify-between gap-3 flex-shrink-0">
             <span className="text-label" style={{ color: 'var(--text-secondary)' }}>
-              Showing {data.length} properties
-              {data.length !== expectedCount && expectedCount > 0 && (
+              {search
+                ? `${tableData.length} of ${data.length} properties`
+                : `${data.length} properties`
+              }
+              {data.length !== expectedCount && expectedCount > 0 && !search && (
                 <span style={{ color: 'var(--color-alert-500)' }}>
                   {' '}(table shows {expectedCount} — data may still be syncing)
                 </span>
               )}
             </span>
+            <input
+              type="text"
+              placeholder="Search address, county, status..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="bg-surface-raised border border-stroke rounded-lg px-3 py-1.5 text-body-regular text-content-primary placeholder:text-content-tertiary focus:outline-none focus:ring-2 focus:ring-main-500 focus:border-main-500"
+              style={{ width: 260 }}
+            />
           </div>
 
-          {/* Property list */}
-          <div className="overflow-x-auto">
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr
-                  style={{
-                    borderBottom: '2px solid var(--border-default)',
-                    textAlign: 'left',
-                  }}
-                >
-                  <th className="text-label font-medium py-2 pr-3" style={{ color: 'var(--text-secondary)' }}>
-                    Address
-                  </th>
-                  <th className="text-label font-medium py-2 pr-3" style={{ color: 'var(--text-secondary)' }}>
-                    Status
-                  </th>
-                  <th className="text-label font-medium py-2 pr-3" style={{ color: 'var(--text-secondary)' }}>
-                    Template
-                  </th>
-                  <th className="text-label font-medium py-2 pr-3" style={{ color: 'var(--text-secondary)', textAlign: 'center' }}>
-                    Sends
-                  </th>
-                  {isSendView && (
-                    <th className="text-label font-medium py-2 pr-3" style={{ color: 'var(--text-secondary)', textAlign: 'center' }}>
-                      Delivered
-                    </th>
-                  )}
-                  {showConversionDate && (
-                    <th className="text-label font-medium py-2 pr-3" style={{ color: 'var(--text-secondary)' }}>
-                      Converted
-                    </th>
-                  )}
-                  <th className="text-label font-medium py-2 pr-3" style={{ color: 'var(--text-secondary)' }}>
-                    {isSendView ? 'Sent date' : 'First sent'}
-                  </th>
-                  {status === 'deal' && (
-                    <th className="text-label font-medium py-2" style={{ color: 'var(--text-secondary)', textAlign: 'right' }}>
-                      Revenue
-                    </th>
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {data.map((p, i) => (
-                  <tr
-                    key={`${p.propertyId}-${i}`}
-                    style={{
-                      borderBottom: '1px solid var(--border-subtle)',
-                    }}
-                  >
-                    <td className="py-2.5 pr-3" style={{ color: 'var(--text-primary)', maxWidth: 250 }}>
-                      <div className="font-medium text-sm truncate" title={p.address}>
-                        {p.address}
-                      </div>
-                      {(p.county || p.state) && (
-                        <div className="text-label" style={{ color: 'var(--text-tertiary)' }}>
-                          {[p.county, p.state].filter(Boolean).join(', ')}
-                        </div>
-                      )}
-                    </td>
-                    <td className="py-2.5 pr-3">
-                      <AxisTag
-                        color={STATUS_TAG_COLORS[p.currentStatus] || 'neutral'}
-                        size="sm"
-                      >
-                        {p.currentStatus}
-                      </AxisTag>
-                      {p.isBackfilled && (
-                        <span className="text-xs ml-1" style={{ color: 'var(--text-tertiary)' }}>
-                          *
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-2.5 pr-3" style={{ maxWidth: 180 }}>
-                      <div className="text-sm truncate" style={{ color: 'var(--text-primary)' }} title={p.templateName}>
-                        {p.templateName}
-                      </div>
-                      <div className="text-label" style={{ color: 'var(--text-tertiary)' }}>
-                        {p.templateType}
-                      </div>
-                    </td>
-                    <td className="py-2.5 pr-3 text-center" style={{ color: 'var(--text-primary)' }}>
-                      {p.totalSends}
-                    </td>
-                    {isSendView && (
-                      <td className="py-2.5 pr-3 text-center" style={{ color: 'var(--text-primary)' }}>
-                        {p.totalDelivered}
-                      </td>
-                    )}
-                    {showConversionDate && (
-                      <td className="py-2.5 pr-3">
-                        <span className="text-sm" style={{ color: 'var(--text-primary)' }}>
-                          {status === 'lead' && formatDate(p.becameLeadAt)}
-                          {status === 'appointment' && formatDate(p.becameAppointmentAt)}
-                          {status === 'contract' && formatDate(p.becameContractAt)}
-                          {status === 'deal' && formatDate(p.becameDealAt)}
-                        </span>
-                        {status === 'lead' && p.daysToLead !== null && (
-                          <span className="text-label ml-1" style={{ color: 'var(--text-tertiary)' }}>
-                            ({p.daysToLead}d)
-                          </span>
-                        )}
-                      </td>
-                    )}
-                    <td className="py-2.5 pr-3">
-                      <span className="text-sm" style={{ color: 'var(--text-primary)' }}>
-                        {formatDate(p.firstSentDate)}
-                      </span>
-                    </td>
-                    {status === 'deal' && (
-                      <td className="py-2.5 text-right">
-                        <span className="text-sm font-medium" style={{
-                          color: p.dealRevenue && p.dealRevenue > 0
-                            ? 'var(--color-success-500)'
-                            : 'var(--text-primary)',
-                        }}>
-                          {p.dealRevenue !== null ? `$${p.dealRevenue.toLocaleString()}` : '—'}
-                        </span>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          {/* Table — position:absolute gives AxisTable a definite height for h-full */}
+          <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
+            <div style={{ position: 'absolute', inset: 0 }}>
+              <AxisTable
+                columns={columns}
+                data={tableData}
+                rowKey="id"
+                sortable
+                paginated
+                resizable
+                defaultPageSize={25}
+                emptyMessage={search ? 'No properties match your search' : 'No property data available'}
+              />
+            </div>
           </div>
 
           {/* Footer note for backfilled data */}
           {data.some(p => p.isBackfilled) && (
-            <p className="text-label mt-4" style={{ color: 'var(--text-tertiary)' }}>
+            <p className="text-label flex-shrink-0" style={{ color: 'var(--text-tertiary)' }}>
               * Conversion dates marked with * are system-estimated (backfilled), not organic timestamps.
             </p>
           )}

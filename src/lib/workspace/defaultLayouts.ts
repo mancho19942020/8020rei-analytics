@@ -1458,7 +1458,7 @@ export const DEFAULT_DM_BUSINESS_RESULTS_LAYOUT: Widget[] = [
     title: 'Data quality',
     tooltip: 'Trust indicators for the conversion data: attribution rate, backfilled dates percentage, unattributed conversions, and zero-revenue deals.',
     x: 0, y: 29,
-    w: 12, h: 4,
+    w: 12, h: 3,
     minW: 4, minH: 3, maxW: 12, maxH: 6,
   },
 ];
@@ -1518,7 +1518,7 @@ export const DM_BUSINESS_RESULTS_WIDGET_CATALOG: WidgetCatalogItem[] = [
     title: 'Data quality',
     description: 'Attribution rate, backfilled dates, and data trust indicators',
     iconKey: 'grid',
-    defaultSize: { w: 12, h: 4 },
+    defaultSize: { w: 12, h: 3 },
   },
 ];
 
@@ -1639,6 +1639,142 @@ export const PROPERTIES_API_WIDGET_CATALOG: WidgetCatalogItem[] = [
   },
 ];
 
+// ============================================================================
+// PRODUCT TASKS > AI TASK BOARD
+// ============================================================================
+
+export const AI_TASK_BOARD_LAYOUT_STORAGE_KEY = 'axis-ai-task-board-layout-v1';
+
+export const DEFAULT_AI_TASK_BOARD_LAYOUT: Widget[] = [
+  {
+    id: 'asana-board-overview',
+    type: 'asana-board-overview',
+    title: 'Board overview',
+    x: 0, y: 0, w: 12, h: 2,
+    minW: 6, minH: 2, maxH: 3,
+  },
+  {
+    id: 'asana-tasks-table',
+    type: 'asana-tasks-table',
+    title: 'Tasks',
+    x: 0, y: 2, w: 12, h: 6,
+    minW: 6, minH: 4, maxH: 12,
+  },
+  {
+    id: 'asana-team-workload',
+    type: 'asana-team-workload',
+    title: 'Team workload',
+    x: 0, y: 8, w: 6, h: 5,
+    minW: 4, minH: 4,
+  },
+  {
+    id: 'asana-section-breakdown',
+    type: 'asana-section-breakdown',
+    title: 'Section breakdown',
+    x: 6, y: 8, w: 6, h: 5,
+    minW: 4, minH: 4,
+  },
+  {
+    id: 'asana-weekly-trend',
+    type: 'asana-weekly-trend',
+    title: 'Weekly trend',
+    x: 0, y: 13, w: 6, h: 5,
+    minW: 4, minH: 4,
+  },
+  {
+    id: 'asana-task-aging',
+    type: 'asana-task-aging',
+    title: 'Task aging',
+    x: 6, y: 13, w: 6, h: 5,
+    minW: 4, minH: 4,
+  },
+  {
+    id: 'asana-alerts-feed',
+    type: 'asana-alerts-feed',
+    title: 'Alerts',
+    x: 0, y: 18, w: 12, h: 4,
+    minW: 6, minH: 3,
+  },
+];
+
+export const AI_TASK_BOARD_WIDGET_CATALOG: WidgetCatalogItem[] = [
+  { type: 'asana-board-overview', title: 'Board overview', description: 'KPI metric cards for board status', iconKey: 'grid', defaultSize: { w: 12, h: 2 } },
+  { type: 'asana-tasks-table', title: 'Tasks table', description: 'Sortable table of all tasks', iconKey: 'table', defaultSize: { w: 12, h: 6 } },
+  { type: 'asana-team-workload', title: 'Team workload', description: 'Stacked bar per assignee', iconKey: 'barChart', defaultSize: { w: 6, h: 5 } },
+  { type: 'asana-section-breakdown', title: 'Section breakdown', description: 'Donut chart of task distribution', iconKey: 'donutChart', defaultSize: { w: 6, h: 5 } },
+  { type: 'asana-weekly-trend', title: 'Weekly trend', description: 'Created vs completed per week', iconKey: 'lineChart', defaultSize: { w: 6, h: 5 } },
+  { type: 'asana-task-aging', title: 'Task aging', description: 'Open task age distribution', iconKey: 'barChart', defaultSize: { w: 6, h: 5 } },
+  { type: 'asana-alerts-feed', title: 'Alerts', description: 'Smart alerts for board health', iconKey: 'alert', defaultSize: { w: 12, h: 4 } },
+];
+
+// ============================================================================
+// PRODUCT TASKS > BUGS & DI BOARD
+// ============================================================================
+
+export const BUGS_DI_BOARD_LAYOUT_STORAGE_KEY = 'axis-bugs-di-board-layout-v1';
+
+export const DEFAULT_BUGS_DI_BOARD_LAYOUT: Widget[] = [
+  {
+    id: 'asana-bugs-overview',
+    type: 'asana-bugs-overview',
+    title: 'Board overview',
+    x: 0, y: 0, w: 12, h: 2,
+    minW: 6, minH: 2, maxH: 3,
+  },
+  {
+    id: 'asana-bugs-table',
+    type: 'asana-bugs-table',
+    title: 'Bugs & data inquiries',
+    x: 0, y: 2, w: 12, h: 6,
+    minW: 6, minH: 4, maxH: 12,
+  },
+  {
+    id: 'asana-bugs-team-workload',
+    type: 'asana-bugs-team-workload',
+    title: 'Team workload',
+    x: 0, y: 8, w: 6, h: 5,
+    minW: 4, minH: 4,
+  },
+  {
+    id: 'asana-bugs-section-breakdown',
+    type: 'asana-bugs-section-breakdown',
+    title: 'Section breakdown',
+    x: 6, y: 8, w: 6, h: 5,
+    minW: 4, minH: 4,
+  },
+  {
+    id: 'asana-bugs-weekly-trend',
+    type: 'asana-bugs-weekly-trend',
+    title: 'Weekly trend',
+    x: 0, y: 13, w: 6, h: 5,
+    minW: 4, minH: 4,
+  },
+  {
+    id: 'asana-bugs-aging',
+    type: 'asana-bugs-aging',
+    title: 'Task aging',
+    x: 6, y: 13, w: 6, h: 5,
+    minW: 4, minH: 4,
+  },
+  {
+    id: 'asana-bugs-alerts-feed',
+    type: 'asana-bugs-alerts-feed',
+    title: 'Alerts',
+    x: 0, y: 18, w: 12, h: 4,
+    minW: 6, minH: 3,
+  },
+];
+
+export const BUGS_DI_BOARD_WIDGET_CATALOG: WidgetCatalogItem[] = [
+  { type: 'asana-bugs-overview', title: 'Board overview', description: 'KPI metric cards for bugs board', iconKey: 'grid', defaultSize: { w: 12, h: 2 } },
+  { type: 'asana-bugs-table', title: 'Bugs table', description: 'Sortable table of bugs and data inquiries', iconKey: 'table', defaultSize: { w: 12, h: 6 } },
+  { type: 'asana-bugs-team-workload', title: 'Team workload', description: 'Stacked bar per assignee', iconKey: 'barChart', defaultSize: { w: 6, h: 5 } },
+  { type: 'asana-bugs-section-breakdown', title: 'Section breakdown', description: 'Donut chart of task distribution', iconKey: 'donutChart', defaultSize: { w: 6, h: 5 } },
+  { type: 'asana-bugs-weekly-trend', title: 'Weekly trend', description: 'Created vs completed per week', iconKey: 'lineChart', defaultSize: { w: 6, h: 5 } },
+  { type: 'asana-bugs-aging', title: 'Task aging', description: 'Open task age distribution', iconKey: 'barChart', defaultSize: { w: 6, h: 5 } },
+  { type: 'asana-bugs-alerts-feed', title: 'Alerts', description: 'Smart alerts for board health', iconKey: 'alert', defaultSize: { w: 12, h: 4 } },
+];
+
 /**
  * Combined catalog lookup by tab name
  */
@@ -1656,4 +1792,6 @@ export const TAB_WIDGET_CATALOGS: Record<string, WidgetCatalogItem[]> = {
   'product-projects': PRODUCT_PROJECTS_WIDGET_CATALOG,
   'properties-api': PROPERTIES_API_WIDGET_CATALOG,
   'rapid-response': RAPID_RESPONSE_WIDGET_CATALOG,
+  'ai-task-board': AI_TASK_BOARD_WIDGET_CATALOG,
+  'bugs-di-board': BUGS_DI_BOARD_WIDGET_CATALOG,
 };

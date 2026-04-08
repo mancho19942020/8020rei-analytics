@@ -13,7 +13,8 @@ type TabRefKey =
   | 'users' | 'features' | 'clients' | 'engagement' | 'technology'
   | 'geography' | 'events' | 'insights'
   | 'import' | 'product-jira-projects'
-  | 'properties-api' | 'dm-campaign';
+  | 'properties-api' | 'dm-campaign'
+  | 'ai-task-board' | 'bugs-di-board';
 
 export function useTabRefs() {
   const refs: Record<TabRefKey, React.RefObject<TabHandle | null>> = {
@@ -29,6 +30,8 @@ export function useTabRefs() {
     'product-jira-projects': useRef<TabHandle>(null),
     'properties-api': useRef<TabHandle>(null),
     'dm-campaign': useRef<TabHandle>(null),
+    'ai-task-board': useRef<TabHandle>(null),
+    'bugs-di-board': useRef<TabHandle>(null),
   };
 
   /**
@@ -47,6 +50,12 @@ export function useTabRefs() {
     if (mainSection === 'features' && subsection === 'features-rei') {
       if (detailTab === 'properties-api') return 'properties-api';
       if (detailTab === 'dm-campaign') return 'dm-campaign';
+      return null;
+    }
+    // Product Tasks subsections
+    if (mainSection === 'product-tasks') {
+      if (subsection === 'ai-task-board') return 'ai-task-board';
+      if (subsection === 'bugs-di-board') return 'bugs-di-board';
       return null;
     }
     // GA4 detail tabs

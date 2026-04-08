@@ -33,8 +33,8 @@ export function DmDataQualityWidget({ data }: DmDataQualityWidgetProps) {
   const hasPropertyData = data.propertyDataAvailable ?? data.totalProperties > 0;
 
   return (
-    <div className="flex flex-col gap-2 h-full p-3 overflow-y-auto">
-      {/* Always available from dm_template_performance + dm_client_funnel */}
+    <div className="grid grid-cols-2 gap-1.5 content-start px-3 py-1.5">
+      {/* Column 1 — aggregate metrics */}
       <AxisPill
         label="Clients tracked"
         value={(data.totalClients ?? 0).toLocaleString()}
@@ -47,7 +47,7 @@ export function DmDataQualityWidget({ data }: DmDataQualityWidgetProps) {
       />
       {(data.deliveryIssues ?? 0) > 0 && (
         <AxisPill
-          label="Templates with delivery issues"
+          label="Delivery issues"
           value={data.deliveryIssues ?? 0}
           type="bad"
           tooltip="Templates showing 0 deliveries but with sends. Delivery tracking may not be configured for these domains."
@@ -55,7 +55,7 @@ export function DmDataQualityWidget({ data }: DmDataQualityWidgetProps) {
       )}
       {(data.revenueMismatch ?? 0) > 0 && (
         <AxisPill
-          label="Revenue without deal status"
+          label="Revenue w/o deal status"
           value={data.revenueMismatch ?? 0}
           type="bad"
           tooltip="Templates with revenue recorded but 0 deals in the status log. ROAS is hidden for these templates."
@@ -97,7 +97,7 @@ export function DmDataQualityWidget({ data }: DmDataQualityWidgetProps) {
         </>
       ) : (
         <div
-          className="flex items-center gap-2 rounded-lg px-3 py-2 mt-1"
+          className="col-span-2 flex items-center gap-2 rounded-lg px-3 py-2 mt-1"
           style={{ backgroundColor: 'var(--surface-raised)', border: '1px solid var(--border-subtle)' }}
         >
           <span className="text-label" style={{ color: 'var(--text-secondary)' }}>

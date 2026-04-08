@@ -391,7 +391,7 @@ export function AxisTable({
 
       {/* Table container with fixed header - scrollable area */}
       <div className="overflow-auto flex-1 min-h-0">
-        <table className="w-full" style={{ tableLayout: 'fixed', borderCollapse: 'separate', borderSpacing: 0 }}>
+        <table style={{ tableLayout: 'fixed', minWidth: '100%', borderCollapse: 'separate', borderSpacing: 0 }}>
           {/* Header */}
           <thead className="sticky top-0 z-10">
             <tr>
@@ -423,7 +423,7 @@ export function AxisTable({
                 return (
                   <th
                     key={column.field}
-                    className={`px-3 py-2.5 bg-surface-raised border-b border-r border-stroke last:border-r-0 relative ${
+                    className={`px-3 py-2.5 bg-surface-raised border-b border-r border-stroke last:border-r-0 relative whitespace-nowrap ${
                       align === 'center' ? 'text-center' : 'text-left'
                     }`}
                     style={{ width: effectiveWidth, minWidth: column.minWidth || 60, maxWidth: column.maxWidth }}
@@ -541,13 +541,13 @@ export function AxisTable({
                     return (
                       <td
                         key={column.field}
-                        className={`px-3 py-2.5 h-11 border-b border-r border-stroke-subtle last:border-r-0 overflow-hidden ${
+                        className={`px-3 py-2.5 h-11 border-b border-r border-stroke-subtle last:border-r-0 overflow-hidden whitespace-nowrap ${
                           align === 'center' ? 'text-center' : 'text-left'
                         } ${isSelected ? 'bg-main-50 dark:bg-main-950/30' : 'bg-surface-base'}`}
                         style={{ width: effectiveWidth }}
                       >
                         {column.render ? (
-                          <div className="text-body-regular text-content-primary">
+                          <div className="text-body-regular text-content-primary truncate">
                             {column.render(value, row)}
                           </div>
                         ) : (
@@ -595,26 +595,35 @@ export function AxisTable({
 
             {/* Page numbers */}
             <div className="flex items-center gap-1">
-              {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
-                const page = i + 1;
-                const isActive = page === currentPage;
-
-                return (
-                  <button
-                    key={page}
-                    onClick={() => setCurrentPage(page)}
-                    className={`min-w-[32px] h-8 px-2 text-body-regular font-medium rounded transition-colors ${
-                      isActive
-                        ? 'bg-main-700 text-white'
-                        : 'text-content-secondary hover:bg-surface-raised'
-                    }`}
-                    aria-label={`Go to page ${page}`}
-                    aria-current={isActive ? 'page' : undefined}
-                  >
-                    {page}
-                  </button>
-                );
-              })}
+              {(() => {
+                const maxVisible = 7;
+                const half = Math.floor(maxVisible / 2);
+                let start = Math.max(1, currentPage - half);
+                let end = start + maxVisible - 1;
+                if (end > totalPages) {
+                  end = totalPages;
+                  start = Math.max(1, end - maxVisible + 1);
+                }
+                return Array.from({ length: end - start + 1 }, (_, i) => {
+                  const page = start + i;
+                  const isActive = page === currentPage;
+                  return (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`min-w-[32px] h-8 px-2 text-body-regular font-medium rounded transition-colors ${
+                        isActive
+                          ? 'bg-main-700 text-white'
+                          : 'text-content-secondary hover:bg-surface-raised'
+                      }`}
+                      aria-label={`Go to page ${page}`}
+                      aria-current={isActive ? 'page' : undefined}
+                    >
+                      {page}
+                    </button>
+                  );
+                });
+              })()}
             </div>
 
             {/* Next button */}

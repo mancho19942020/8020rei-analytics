@@ -109,7 +109,23 @@ export type WidgetType =
   | 'dm-conversion-trend'
   | 'dm-roas-trend'
   | 'dm-geo-breakdown'
-  | 'dm-data-quality';
+  | 'dm-data-quality'
+  // Product Tasks > AI Task Board widgets
+  | 'asana-board-overview'
+  | 'asana-tasks-table'
+  | 'asana-team-workload'
+  | 'asana-section-breakdown'
+  | 'asana-weekly-trend'
+  | 'asana-task-aging'
+  | 'asana-alerts-feed'
+  // Product Tasks > Bugs & DI Board widgets
+  | 'asana-bugs-overview'
+  | 'asana-bugs-table'
+  | 'asana-bugs-team-workload'
+  | 'asana-bugs-section-breakdown'
+  | 'asana-bugs-weekly-trend'
+  | 'asana-bugs-aging'
+  | 'asana-bugs-alerts-feed';
 
 /**
  * Widget Configuration

@@ -64,7 +64,8 @@ export function RrCampaignTableWidget({ data, onDomainClick }: RrCampaignTableWi
     {
       field: 'domain',
       header: 'Client',
-      minWidth: 140,
+      width: 160,
+      minWidth: 120,
       render: (value: CellValue) => (
         <span
           className="font-medium cursor-pointer hover:underline"
@@ -81,7 +82,8 @@ export function RrCampaignTableWidget({ data, onDomainClick }: RrCampaignTableWi
     {
       field: 'campaignName',
       header: 'Campaign',
-      minWidth: 160,
+      width: 180,
+      minWidth: 120,
     },
     {
       field: 'campaignType',
@@ -99,7 +101,7 @@ export function RrCampaignTableWidget({ data, onDomainClick }: RrCampaignTableWi
     {
       field: 'status',
       header: 'Status',
-      width: 90,
+      width: 100,
       render: (value: CellValue) => {
         const v = String(value || '');
         return (

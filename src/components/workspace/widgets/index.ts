@@ -102,6 +102,15 @@ export { ApiTopClientsWidget } from './ApiTopClientsWidget';
 export { ApiErrorTrackerWidget } from './ApiErrorTrackerWidget';
 export { ApiRecentLogsWidget } from './ApiRecentLogsWidget';
 
+// Product Tasks > Asana board widgets
+export { AsanaBoardOverviewWidget } from './AsanaBoardOverviewWidget';
+export { AsanaTasksTableWidget } from './AsanaTasksTableWidget';
+export { AsanaTeamWorkloadWidget } from './AsanaTeamWorkloadWidget';
+export { AsanaSectionBreakdownWidget } from './AsanaSectionBreakdownWidget';
+export { AsanaWeeklyTrendWidget } from './AsanaWeeklyTrendWidget';
+export { AsanaTaskAgingWidget } from './AsanaTaskAgingWidget';
+export { AsanaAlertsFeedWidget } from './AsanaAlertsFeedWidget';
+
 // Engagement tab widgets
 export { PeakHoursWidget } from './PeakHoursWidget';
 export { AvgSessionDurationWidget } from './AvgSessionDurationWidget';

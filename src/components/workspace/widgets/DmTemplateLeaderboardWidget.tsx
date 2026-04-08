@@ -38,7 +38,8 @@ export function DmTemplateLeaderboardWidget({ data }: DmTemplateLeaderboardWidge
     {
       field: 'domainDisplay',
       header: 'Client',
-      minWidth: 120,
+      width: 140,
+      minWidth: 100,
       render: (value: CellValue) => (
         <span className="text-label" style={{ color: 'var(--text-secondary)' }}>
           {String(value || '')}
@@ -48,7 +49,8 @@ export function DmTemplateLeaderboardWidget({ data }: DmTemplateLeaderboardWidge
     {
       field: 'templateName',
       header: 'Template',
-      minWidth: 140,
+      width: 150,
+      minWidth: 100,
       render: (value: CellValue) => {
         const name = String(value || '');
         const isUnknown = name === 'Unknown template' || !name;
@@ -75,7 +77,8 @@ export function DmTemplateLeaderboardWidget({ data }: DmTemplateLeaderboardWidge
     {
       field: 'templateType',
       header: 'Type',
-      minWidth: 100,
+      width: 120,
+      minWidth: 80,
       render: (value: CellValue) => {
         const v = String(value || '');
         const isUnknown = v === 'unknown' || !v;
@@ -103,13 +106,15 @@ export function DmTemplateLeaderboardWidget({ data }: DmTemplateLeaderboardWidge
       field: 'totalSent',
       header: 'Sent',
       type: 'number',
-      minWidth: 80,
+      width: 80,
+      minWidth: 60,
       align: 'center',
     },
     {
       field: 'totalDelivered',
       header: 'Delivered',
-      minWidth: 90,
+      width: 90,
+      minWidth: 70,
       align: 'center',
       render: (value: CellValue, row: RowData) => {
         const delivered = Number(value || 0);
@@ -130,20 +135,23 @@ export function DmTemplateLeaderboardWidget({ data }: DmTemplateLeaderboardWidge
       field: 'leadsGenerated',
       header: 'Leads',
       type: 'number',
-      minWidth: 70,
+      width: 70,
+      minWidth: 60,
       align: 'center',
     },
     {
       field: 'dealsGenerated',
       header: 'Deals',
       type: 'number',
-      minWidth: 70,
+      width: 70,
+      minWidth: 60,
       align: 'center',
     },
     {
       field: 'leadConversionRate',
       header: 'Lead %',
-      minWidth: 80,
+      width: 70,
+      minWidth: 60,
       align: 'center',
       render: (value: CellValue) => (
         <span style={{ color: 'var(--text-primary)' }}>{Number(value || 0).toFixed(1)}%</span>
@@ -152,51 +160,50 @@ export function DmTemplateLeaderboardWidget({ data }: DmTemplateLeaderboardWidge
     {
       field: 'roas',
       header: 'ROAS',
-      minWidth: 100,
+      width: 110,
+      minWidth: 80,
       align: 'center',
       render: (value: CellValue, row: RowData) => {
         const roas = Number(value || 0);
         const confidence = String(row?.roasConfidence || 'none');
+        const deals = Number(row?.dealsGenerated || 0);
 
-        // Rule 1: Revenue without deal — show dash with warning
         if (confidence === 'revenue_no_deal') {
           return (
-            <span
-              className="text-label"
-              title="Revenue recorded but no matching deal status. Under review."
-              style={{ color: 'var(--text-tertiary)' }}
+            <AxisTooltip
+              content="Revenue was recorded but no property has reached Deal status yet. This is under review."
+              placement="top"
+              maxWidth={280}
             >
-              — <span style={{ fontSize: '10px' }}>⚠</span>
-            </span>
+              <span style={{ color: 'var(--text-tertiary)' }}>— ⚠</span>
+            </AxisTooltip>
           );
         }
 
-        // No data
         if (confidence === 'none' || roas === 0) {
-          return <span style={{ color: 'var(--text-tertiary)' }}>—</span>;
-        }
-
-        // Rule 3: Low sample — show muted with deal count
-        if (confidence === 'low_sample') {
-          const deals = Number(row?.dealsGenerated || 0);
           return (
-            <span style={{ color: 'var(--text-secondary)' }}>
-              {roas.toFixed(1)}x
-              <span className="text-xs ml-1" style={{ color: 'var(--text-tertiary)' }}>
-                ({deals} {deals === 1 ? 'deal' : 'deals'})
-              </span>
-            </span>
+            <AxisTooltip
+              content="No deals closed yet, so ROAS can't be calculated."
+              placement="top"
+              maxWidth={240}
+            >
+              <span style={{ color: 'var(--text-tertiary)' }}>—</span>
+            </AxisTooltip>
           );
         }
 
-        // Confident
+        const tooltipText = confidence === 'low_sample'
+          ? `Based on ${deals} ${deals === 1 ? 'deal' : 'deals'} only. Needs 3+ deals for a confident rating.`
+          : `Based on ${deals} deals. Revenue ÷ cost = ${roas.toFixed(1)}x return.`;
+
+        const tagColor = roas >= 2 ? 'success' as const : roas >= 1 ? 'alert' as const : 'error' as const;
+
         return (
-          <AxisTag
-            color={roas >= 2 ? 'success' : roas >= 1 ? 'alert' : 'error'}
-            size="sm"
-          >
-            {roas.toFixed(1)}x
-          </AxisTag>
+          <AxisTooltip content={tooltipText} placement="top" maxWidth={280}>
+            <AxisTag color={tagColor} size="sm">
+              {roas.toFixed(1)}x
+            </AxisTag>
+          </AxisTooltip>
         );
       },
     },

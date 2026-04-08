@@ -27,7 +27,7 @@ export function DmGeoBreakdownWidget({ data }: DmGeoBreakdownWidgetProps) {
     {
       field: 'state',
       header: 'State',
-      width: 100,
+      width: 70,
       render: (value: CellValue) => (
         <span className="font-medium" style={{ color: 'var(--text-primary)' }}>
           {String(value || '')}
@@ -37,7 +37,8 @@ export function DmGeoBreakdownWidget({ data }: DmGeoBreakdownWidgetProps) {
     {
       field: 'county',
       header: 'County',
-      minWidth: 130,
+      width: 120,
+      minWidth: 80,
     },
     {
       field: 'totalMailed',
