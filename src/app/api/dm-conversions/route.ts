@@ -22,7 +22,7 @@ import type {
   RoasConfidence,
 } from '@/types/dm-conversions';
 
-const SEED_DOMAINS = "'8020rei_demo', '8020rei_migracion_test'";
+const SEED_DOMAINS = "'8020rei_demo', '8020rei_migracion_test', '_test_debug', '_test_debug3', 'supertest_8020rei_com'";
 const EXCLUDE_SEED = `domain NOT IN (${SEED_DOMAINS})`;
 
 function domainFilter(domain?: string | null): string {
@@ -391,7 +391,7 @@ async function getGeoBreakdown(domain?: string) {
       COUNT(DISTINCT property_id) as total_mailed,
       COUNT(DISTINCT CASE WHEN became_lead_at IS NOT NULL THEN property_id END) as leads,
       COUNT(DISTINCT CASE WHEN became_deal_at IS NOT NULL THEN property_id END) as deals,
-      COALESCE(SUM(deal_revenue), 0) as total_revenue
+      COALESCE(SUM(CASE WHEN deal_revenue > 0 THEN deal_revenue ELSE 0 END), 0) as total_revenue
     FROM dm_property_conversions
     WHERE ${domainFilter(domain)}
     GROUP BY state, county
@@ -731,29 +731,30 @@ async function getAlerts(domain?: string) {
   const alerts: DmAlert[] = [];
   const now = new Date().toISOString();
 
-  // BR-1: No conversions after significant sends
+  // BR-1: Underperforming campaign (merged: no conversions + high cost zero revenue)
+  // One clear signal per client instead of two overlapping alerts
   for (const row of mergedClientRows) {
-    const totalMailed = row.totalMailed;
-    const leads = row.leads;
-    const clientDomain = row.domain;
+    const { totalMailed, leads, totalCost, totalRevenue, domain: clientDomain } = row;
 
     if (totalMailed >= 500 && leads === 0) {
+      const costNote = totalCost > 500
+        ? ` The campaign has spent $${totalCost.toLocaleString()} with $0 revenue.`
+        : '';
       alerts.push({
-        id: `br-no-conversions-${clientDomain}`,
-        name: 'No conversions after significant sends',
+        id: `br-underperforming-${clientDomain}`,
+        name: 'Underperforming campaign',
         severity: 'critical',
         category: 'dm-business-results',
-        description: `${clientDomain} has mailed ${totalMailed.toLocaleString()} properties with zero leads. The template or targeting criteria may not be reaching the right audience.`,
+        description: `${clientDomain} has mailed ${totalMailed.toLocaleString()} properties with zero leads.${costNote} The template or targeting criteria may not be reaching the right audience.`,
         entity: clientDomain,
         metrics: { current: leads, baseline: totalMailed },
         detected_at: now,
-        action: `Review the template being used and targeting criteria with the client. Consider A/B testing a different template or expanding the geographic area.`,
+        action: `Review the template and targeting criteria with the client. Consider using a different template or changing the design of the current one, expanding the geographic area, or adjusting the property type filter.`,
       });
     }
   }
 
   // BR-2: Template underperforming vs peers
-  // Group templates by domain, flag templates with 0 leads when siblings have leads
   const templatesByDomain = new Map<string, Array<{ name: string; leads: number; sent: number }>>();
   for (const r of templateRows) {
     const d = String(r.domain || '');
@@ -782,29 +783,7 @@ async function getAlerts(domain?: string) {
     }
   }
 
-  // BR-3: High cost, zero revenue
-  for (const row of mergedClientRows) {
-    const totalCost = row.totalCost;
-    const totalRevenue = row.totalRevenue;
-    const totalMailed = row.totalMailed;
-    const clientDomain = row.domain;
-
-    if (totalCost > 500 && totalRevenue === 0 && totalMailed >= 200) {
-      alerts.push({
-        id: `br-high-cost-no-revenue-${clientDomain}`,
-        name: 'High cost, zero revenue',
-        severity: 'warning',
-        category: 'dm-business-results',
-        description: `${clientDomain} has spent $${totalCost.toLocaleString()} on ${totalMailed.toLocaleString()} mailings with $0 revenue. The campaign may be targeting the wrong property types.`,
-        entity: clientDomain,
-        metrics: { current: totalCost, baseline: 0 },
-        detected_at: now,
-        action: `Review targeting criteria with the client — property types, geographic area, and price range may need adjustment. Consider pausing the campaign until strategy is revised.`,
-      });
-    }
-  }
-
-  // BR-4: Low delivery rate (mail quality issue)
+  // BR-3: Low delivery rate (mail quality issue)
   for (const r of templateRows) {
     const totalSent = Number(r.total_sent || 0);
     const deliveryRate = Number(r.delivery_rate || 0);
@@ -827,11 +806,9 @@ async function getAlerts(domain?: string) {
     }
   }
 
-  // BR-5: Leads coming in but no deals closing
+  // BR-4: Leads coming in but no deals closing
   for (const row of mergedClientRows) {
-    const leads = row.leads;
-    const deals = row.deals;
-    const clientDomain = row.domain;
+    const { leads, deals, domain: clientDomain } = row;
 
     if (leads >= 5 && deals === 0) {
       alerts.push({
@@ -848,12 +825,9 @@ async function getAlerts(domain?: string) {
     }
   }
 
-  // BR-6: Stagnant campaign — high volume but no growth
+  // BR-5: Stagnant campaign — high volume but minimal traction
   for (const row of mergedClientRows) {
-    const totalMailed = row.totalMailed;
-    const leads = row.leads;
-    const deals = row.deals;
-    const clientDomain = row.domain;
+    const { totalMailed, leads, deals, domain: clientDomain } = row;
 
     if (totalMailed >= 500 && leads > 0 && leads <= 2 && deals === 0) {
       alerts.push({
@@ -866,6 +840,59 @@ async function getAlerts(domain?: string) {
         metrics: { current: leads, baseline: totalMailed },
         detected_at: now,
         action: `Suggest expanding targeting criteria — broader geographic area, additional property types, or higher price range. Consider refreshing the template with a new design.`,
+      });
+    }
+  }
+
+  // BR-6: Pipeline leakage — sharp conversion drop between funnel stages
+  for (const row of mergedClientRows) {
+    const { leads, appointments, contracts, deals, domain: clientDomain } = row;
+
+    // Only check clients with enough pipeline activity to be meaningful
+    if (leads < 3) continue;
+
+    // Check each stage transition for significant drops
+    const stages: { from: string; to: string; fromCount: number; toCount: number }[] = [
+      { from: 'leads', to: 'appointments', fromCount: leads, toCount: appointments },
+      { from: 'appointments', to: 'contracts', fromCount: appointments, toCount: contracts },
+      { from: 'contracts', to: 'deals', fromCount: contracts, toCount: deals },
+    ];
+
+    for (const stage of stages) {
+      if (stage.fromCount >= 3 && stage.toCount === 0) {
+        alerts.push({
+          id: `br-pipeline-leak-${clientDomain}-${stage.from}-${stage.to}`,
+          name: 'Pipeline leakage',
+          severity: 'warning',
+          category: 'dm-business-results',
+          description: `${clientDomain} has ${stage.fromCount} ${stage.from} but 0 ${stage.to}. There may be a bottleneck in the client's ${stage.to} process.`,
+          entity: clientDomain,
+          metrics: { current: stage.toCount, baseline: stage.fromCount },
+          detected_at: now,
+          action: `Check with the client what's happening at the ${stage.from} → ${stage.to} stage. Are they following up? Is there a process gap or CRM issue preventing progression?`,
+        });
+        break; // Only report the first leakage point per client
+      }
+    }
+  }
+
+  // BR-7: Negative ROAS — spending more than earning
+  for (const row of mergedClientRows) {
+    const { totalCost, totalRevenue, deals, domain: clientDomain } = row;
+
+    // Only flag when there are deals (so ROAS is meaningful) but it's negative
+    if (deals > 0 && totalCost > 0 && totalRevenue > 0 && totalRevenue < totalCost) {
+      const roas = Number((totalRevenue / totalCost).toFixed(2));
+      alerts.push({
+        id: `br-negative-roas-${clientDomain}`,
+        name: 'Negative ROAS',
+        severity: 'warning',
+        category: 'dm-business-results',
+        description: `${clientDomain} has a ${roas}x ROAS — spending $${totalCost.toLocaleString()} but only earning $${totalRevenue.toLocaleString()} from ${deals} deal${deals > 1 ? 's' : ''}. The campaign is losing money.`,
+        entity: clientDomain,
+        metrics: { current: roas, baseline: 1 },
+        detected_at: now,
+        action: `Review deal values and campaign costs with the client. If deal sizes are consistently small, consider targeting higher-value properties or reducing mailing frequency to improve cost efficiency.`,
       });
     }
   }

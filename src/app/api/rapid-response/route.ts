@@ -637,6 +637,110 @@ async function getAlerts(days: number, domain?: string) {
     });
   }
 
+  // -------------------------------------------------------------------------
+  // DM data-integrity alerts (moved from business results — product issues)
+  // -------------------------------------------------------------------------
+
+  const [dmTemplateRows, dmClientRows] = await Promise.all([
+    runAuroraQuery(`
+      SELECT
+        domain,
+        template_name,
+        COALESCE(total_sent, 0) as total_sent,
+        COALESCE(total_delivered, 0) as total_delivered,
+        COALESCE(delivery_rate, 0) as delivery_rate,
+        COALESCE(deals_generated, 0) as deals,
+        COALESCE(total_revenue, 0) as total_revenue,
+        COALESCE(leads_generated, 0) as leads
+      FROM dm_template_performance
+      WHERE ${domainFilter(domain)}
+    `),
+    runAuroraQuery(`
+      SELECT
+        domain,
+        COALESCE(leads, 0) as leads,
+        COALESCE(deals, 0) as deals,
+        COALESCE(unattributed_conversions, 0) as unattributed_conversions
+      FROM dm_client_funnel
+      WHERE date = (SELECT MAX(date) FROM dm_client_funnel WHERE ${domainFilter(domain)})
+        AND ${domainFilter(domain)}
+    `),
+  ]);
+
+  // RR9: Revenue without matching deal status (data integrity)
+  for (const r of dmTemplateRows) {
+    const deals = Number(r.deals || 0);
+    const revenue = Number(r.total_revenue || 0);
+    const templateName = String(r.template_name || '');
+    const templateDomain = String(r.domain || '');
+
+    if (deals === 0 && revenue > 0) {
+      alerts.push({
+        id: `rr-revenue-no-deal-${templateDomain}-${templateName}`,
+        name: 'Revenue without matching deal status',
+        severity: 'warning',
+        category: 'rapid-response',
+        description: `"${templateName}" (${templateDomain}) shows $${revenue.toLocaleString()} revenue but 0 deals. Revenue and deal status are out of sync.`,
+        entity: templateDomain,
+        metrics: { current: revenue, baseline: 0 },
+        detected_at: now,
+        action: 'Data integrity issue — revenue exists in reverse_buybox_deals but no deal status in log_status_properties. Check the status sync pipeline.',
+        link: '/features/features-rei/dm-campaign/operational-health',
+      });
+    }
+  }
+
+  // RR10: Leads without delivery confirmation (tracking misconfiguration)
+  for (const r of dmTemplateRows) {
+    const totalSent = Number(r.total_sent || 0);
+    const delivered = Number(r.total_delivered || 0);
+    const leads = Number(r.leads || 0);
+    const templateName = String(r.template_name || '');
+    const templateDomain = String(r.domain || '');
+
+    if (totalSent > 50 && delivered === 0 && leads > 0) {
+      alerts.push({
+        id: `rr-delivery-tracking-${templateDomain}-${templateName}`,
+        name: 'Leads without delivery confirmation',
+        severity: 'warning',
+        category: 'rapid-response',
+        description: `"${templateName}" (${templateDomain}) generated ${leads} leads but shows 0 deliveries. Delivery tracking may not be configured.`,
+        entity: templateDomain,
+        metrics: { current: delivered, baseline: totalSent },
+        detected_at: now,
+        action: 'Check if delivery status is being tracked correctly for this domain. The monolith may use a different status string than "delivered".',
+        link: '/features/features-rei/dm-campaign/operational-health',
+      });
+    }
+  }
+
+  // RR11: High unattributed conversions (attribution system issue)
+  for (const row of dmClientRows) {
+    const clientLeads = Number(row.leads || 0);
+    const clientDeals = Number(row.deals || 0);
+    const unattributed = Number(row.unattributed_conversions || 0);
+    const clientDomain = String(row.domain || '');
+    const totalConversions = clientLeads + clientDeals;
+
+    if (totalConversions > 0 && unattributed > 0) {
+      const rate = Number(((unattributed / totalConversions) * 100).toFixed(1));
+      if (rate > 30) {
+        alerts.push({
+          id: `rr-high-unattributed-${clientDomain}`,
+          name: 'High unattributed conversions',
+          severity: 'warning',
+          category: 'rapid-response',
+          description: `${clientDomain} has ${rate}% unattributed conversions (${unattributed} of ${totalConversions}).`,
+          entity: clientDomain,
+          metrics: { current: rate, baseline: 30 },
+          detected_at: now,
+          action: 'Check attribution system. Conversions before Sep 2025 will have NULL attribution by design.',
+          link: '/features/features-rei/dm-campaign/operational-health',
+        });
+      }
+    }
+  }
+
   // Sort: critical first, then warning, then info
   const severityOrder = { critical: 0, warning: 1, info: 2 };
   alerts.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
