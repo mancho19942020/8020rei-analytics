@@ -7,11 +7,15 @@
 
 'use client';
 
-import { useRef, useEffect, useMemo } from 'react';
+import { useRef, useEffect, useMemo, useState, useCallback } from 'react';
 import type { DmFunnelOverview } from '@/types/dm-conversions';
+import { DmPropertyDrilldownModal } from './DmPropertyDrilldownModal';
+import type { DrilldownStatus } from './DmPropertyDrilldownModal';
 
 interface DmFunnelOverviewWidgetProps {
   data: DmFunnelOverview;
+  /** Current domain filter (undefined = all clients) */
+  selectedDomain?: string;
 }
 
 interface FunnelStage {
@@ -20,6 +24,7 @@ interface FunnelStage {
   rate: number | null;
   rateLabel: string | null;
   color: string;
+  drilldownStatus: DrilldownStatus;
 }
 
 const STAGE_COLORS = [
@@ -39,16 +44,31 @@ function resolveColor(el: HTMLElement, cssVar: string): string {
   return resolved;
 }
 
-export function DmFunnelOverviewWidget({ data }: DmFunnelOverviewWidgetProps) {
+export function DmFunnelOverviewWidget({ data, selectedDomain }: DmFunnelOverviewWidgetProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  const [drilldown, setDrilldown] = useState<{
+    open: boolean;
+    status: DrilldownStatus;
+    count: number;
+  }>({ open: false, status: 'mailed', count: 0 });
+
+  const openDrilldown = useCallback((status: DrilldownStatus, count: number) => {
+    if (count === 0) return;
+    setDrilldown({ open: true, status, count });
+  }, []);
+
+  const closeDrilldown = useCallback(() => {
+    setDrilldown(prev => ({ ...prev, open: false }));
+  }, []);
+
   const stages: FunnelStage[] = useMemo(() => [
-    { label: 'Mailed', count: data.totalMailed, rate: null, rateLabel: null, color: STAGE_COLORS[0] },
-    { label: 'Leads', count: data.leads, rate: data.prospectToLeadRate, rateLabel: 'Mailed \u2192 Lead', color: STAGE_COLORS[1] },
-    { label: 'Appointments', count: data.appointments, rate: data.leadToAppointmentRate, rateLabel: 'Lead \u2192 Appt', color: STAGE_COLORS[2] },
-    { label: 'Contracts', count: data.contracts, rate: data.appointmentToContractRate, rateLabel: 'Appt \u2192 Contract', color: STAGE_COLORS[3] },
-    { label: 'Deals', count: data.deals, rate: data.contractToDealRate, rateLabel: 'Contract \u2192 Deal', color: STAGE_COLORS[4] },
+    { label: 'Mailed', count: data.totalMailed, rate: null, rateLabel: null, color: STAGE_COLORS[0], drilldownStatus: 'mailed' },
+    { label: 'Leads', count: data.leads, rate: data.prospectToLeadRate, rateLabel: 'Mailed \u2192 Lead', color: STAGE_COLORS[1], drilldownStatus: 'lead' },
+    { label: 'Appointments', count: data.appointments, rate: data.leadToAppointmentRate, rateLabel: 'Lead \u2192 Appt', color: STAGE_COLORS[2], drilldownStatus: 'appointment' },
+    { label: 'Contracts', count: data.contracts, rate: data.appointmentToContractRate, rateLabel: 'Appt \u2192 Contract', color: STAGE_COLORS[3], drilldownStatus: 'contract' },
+    { label: 'Deals', count: data.deals, rate: data.contractToDealRate, rateLabel: 'Contract \u2192 Deal', color: STAGE_COLORS[4], drilldownStatus: 'deal' },
   ], [data]);
 
   useEffect(() => {
@@ -165,19 +185,25 @@ export function DmFunnelOverviewWidget({ data }: DmFunnelOverviewWidgetProps) {
           preserveAspectRatio="none"
         />
 
-        {/* Stage overlays — count + label only */}
+        {/* Stage overlays — count + label, counts are clickable */}
         <div className="absolute inset-0 flex">
           {stages.map((stage) => (
             <div
               key={stage.label}
               className="flex-1 flex flex-col items-center justify-center relative z-10 px-2"
             >
-              <span
-                className="text-2xl font-extrabold tracking-tight"
+              <button
+                type="button"
+                className="bg-transparent border-0 p-0 cursor-pointer hover:opacity-80 transition-opacity"
                 style={{ color: stage.color, textShadow: '0 1px 4px rgba(0,0,0,0.15)' }}
+                onClick={() => openDrilldown(stage.drilldownStatus, stage.count)}
+                title={stage.count > 0 ? `View ${stage.count} ${stage.label.toLowerCase()}` : undefined}
+                disabled={stage.count === 0}
               >
-                {stage.count.toLocaleString()}
-              </span>
+                <span className="text-2xl font-extrabold tracking-tight">
+                  {stage.count.toLocaleString()}
+                </span>
+              </button>
               <span
                 className="text-xs font-semibold uppercase tracking-wide mt-0.5"
                 style={{ color: 'var(--text-secondary)' }}
@@ -209,6 +235,25 @@ export function DmFunnelOverviewWidget({ data }: DmFunnelOverviewWidgetProps) {
           </div>
         ))}
       </div>
+
+      {/* Property drilldown modal — domain is required, show hint if all-clients view */}
+      {selectedDomain ? (
+        <DmPropertyDrilldownModal
+          open={drilldown.open}
+          onClose={closeDrilldown}
+          domain={selectedDomain}
+          status={drilldown.status}
+          expectedCount={drilldown.count}
+        />
+      ) : (
+        <DmPropertyDrilldownModal
+          open={drilldown.open}
+          onClose={closeDrilldown}
+          domain="_all"
+          status={drilldown.status}
+          expectedCount={drilldown.count}
+        />
+      )}
     </div>
   );
 }

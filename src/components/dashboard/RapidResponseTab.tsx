@@ -353,7 +353,7 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
       return {
         'dm-alerts-feed': <DmAlertsFeedWidget data={brData.alerts} />,
         'dm-funnel-overview': brData.funnelOverview
-          ? <DmFunnelOverviewWidget data={brData.funnelOverview} />
+          ? <DmFunnelOverviewWidget data={brData.funnelOverview} selectedDomain={selectedDomain || undefined} />
           : null,
         'dm-client-performance': <DmClientPerformanceWidget data={brData.clientPerformance} onDomainClick={setSelectedDomain} />,
         'dm-template-leaderboard': <DmTemplateLeaderboardWidget data={brData.templateLeaderboard} />,

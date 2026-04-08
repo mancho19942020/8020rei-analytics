@@ -3,14 +3,17 @@
  *
  * Shows campaigns grouped with client domain visible.
  * Uses AxisTable for consistent rendering and AxisTag for badges.
+ * Sent/Delivered numbers are clickable — opens a property drilldown modal.
  */
 
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { AxisTable, AxisTag } from '@/components/axis';
 import type { Column, CellValue, RowData } from '@/types/table';
 import type { RrCampaignSnapshot } from '@/types/rapid-response';
+import { DmPropertyDrilldownModal } from './DmPropertyDrilldownModal';
+import type { DrilldownStatus } from './DmPropertyDrilldownModal';
 
 interface RrCampaignTableWidgetProps {
   data: RrCampaignSnapshot[];
@@ -40,6 +43,23 @@ function formatDomain(domain: string): string {
 }
 
 export function RrCampaignTableWidget({ data, onDomainClick }: RrCampaignTableWidgetProps) {
+  const [drilldown, setDrilldown] = useState<{
+    open: boolean;
+    domain: string;
+    status: DrilldownStatus;
+    count: number;
+    campaignId: number;
+    campaignName: string;
+  }>({ open: false, domain: '', status: 'sent', count: 0, campaignId: 0, campaignName: '' });
+
+  const openDrilldown = useCallback((domain: string, status: DrilldownStatus, count: number, campaignId: number, campaignName: string) => {
+    setDrilldown({ open: true, domain, status, count, campaignId, campaignName });
+  }, []);
+
+  const closeDrilldown = useCallback(() => {
+    setDrilldown(prev => ({ ...prev, open: false }));
+  }, []);
+
   const columns: Column[] = useMemo(() => [
     {
       field: 'domain',
@@ -96,6 +116,24 @@ export function RrCampaignTableWidget({ data, onDomainClick }: RrCampaignTableWi
       type: 'number',
       width: 90,
       align: 'center',
+      render: (value: CellValue, row: RowData) => {
+        const count = Number(value || 0);
+        if (count === 0) return <span style={{ color: 'var(--text-tertiary)' }}>0</span>;
+        return (
+          <button
+            type="button"
+            className="cursor-pointer hover:underline font-medium bg-transparent border-0 p-0"
+            style={{ color: 'var(--color-main-500)' }}
+            onClick={(e) => {
+              e.stopPropagation();
+              openDrilldown(String(row?.domain || ''), 'sent', count, Number(row?.campaignId || 0), String(row?.campaignName || ''));
+            }}
+            title={`View ${count} sent properties`}
+          >
+            {count.toLocaleString()}
+          </button>
+        );
+      },
     },
     {
       field: 'totalDelivered',
@@ -104,19 +142,27 @@ export function RrCampaignTableWidget({ data, onDomainClick }: RrCampaignTableWi
       type: 'number',
       width: 90,
       align: 'center',
-      render: (value: CellValue, row) => {
+      render: (value: CellValue, row: RowData) => {
         const delivered = Number(value || 0);
         const sent = Number(row?.totalSent || 0);
         const impossible = delivered > sent && sent > 0;
+        if (delivered === 0) return <span style={{ color: 'var(--text-tertiary)' }}>0</span>;
         return (
-          <span
-            title={impossible ? `Data issue: delivered (${delivered}) exceeds sent (${sent})` : undefined}
-            style={{ color: impossible ? 'var(--color-error-500)' : 'var(--text-primary)' }}
-            className={impossible ? 'font-semibold' : ''}
+          <button
+            type="button"
+            className="cursor-pointer hover:underline font-medium bg-transparent border-0 p-0"
+            style={{ color: impossible ? 'var(--color-error-500)' : 'var(--color-main-500)' }}
+            onClick={(e) => {
+              e.stopPropagation();
+              openDrilldown(String(row?.domain || ''), 'delivered', delivered, Number(row?.campaignId || 0), String(row?.campaignName || ''));
+            }}
+            title={impossible
+              ? `Data issue: delivered (${delivered}) exceeds sent (${sent}). Click to view properties.`
+              : `View ${delivered} delivered properties`}
           >
             {delivered.toLocaleString()}
             {impossible && <span className="text-xs ml-0.5">⚠</span>}
-          </span>
+          </button>
         );
       },
     },
@@ -135,12 +181,13 @@ export function RrCampaignTableWidget({ data, onDomainClick }: RrCampaignTableWi
         </span>
       ),
     },
-  ], [onDomainClick]);
+  ], [onDomainClick, openDrilldown]);
 
   const tableData = useMemo(() =>
     data.map(c => ({
       id: `${c.domain}-${c.campaignId}`,
       domain: c.domain,
+      campaignId: c.campaignId,
       campaignName: c.campaignName,
       campaignType: c.campaignType,
       status: c.status,
@@ -161,6 +208,15 @@ export function RrCampaignTableWidget({ data, onDomainClick }: RrCampaignTableWi
         resizable
         defaultPageSize={25}
         emptyMessage="No campaign data available yet"
+      />
+      <DmPropertyDrilldownModal
+        open={drilldown.open}
+        onClose={closeDrilldown}
+        domain={drilldown.domain}
+        status={drilldown.status}
+        expectedCount={drilldown.count}
+        campaignId={drilldown.campaignId}
+        campaignName={drilldown.campaignName}
       />
     </div>
   );

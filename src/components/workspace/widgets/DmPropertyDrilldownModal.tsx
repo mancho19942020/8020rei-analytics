@@ -13,7 +13,7 @@ import { useState, useEffect } from 'react';
 import { AxisModal } from '@/components/axis';
 import { AxisTag } from '@/components/axis';
 
-export type DrilldownStatus = 'mailed' | 'lead' | 'appointment' | 'contract' | 'deal';
+export type DrilldownStatus = 'mailed' | 'lead' | 'appointment' | 'contract' | 'deal' | 'sent' | 'delivered';
 
 interface DrilldownProperty {
   propertyId: number;
@@ -47,6 +47,10 @@ interface DmPropertyDrilldownModalProps {
   domain: string;
   status: DrilldownStatus;
   expectedCount: number;
+  /** Optional campaign ID filter (for Operational Health drilldown) */
+  campaignId?: number;
+  /** Optional campaign name for the modal title */
+  campaignName?: string;
 }
 
 const STATUS_LABELS: Record<DrilldownStatus, string> = {
@@ -55,6 +59,8 @@ const STATUS_LABELS: Record<DrilldownStatus, string> = {
   appointment: 'Properties with appointments',
   contract: 'Properties under contract',
   deal: 'Properties with closed deals',
+  sent: 'Properties sent',
+  delivered: 'Properties delivered',
 };
 
 const STATUS_TAG_COLORS: Record<string, 'success' | 'info' | 'alert' | 'neutral' | 'error'> = {
@@ -89,6 +95,8 @@ export function DmPropertyDrilldownModal({
   domain,
   status,
   expectedCount,
+  campaignId,
+  campaignName,
 }: DmPropertyDrilldownModalProps) {
   const [data, setData] = useState<DrilldownProperty[]>([]);
   const [loading, setLoading] = useState(false);
@@ -102,9 +110,9 @@ export function DmPropertyDrilldownModal({
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(
-          `/api/dm-conversions?type=property-drilldown&domain=${encodeURIComponent(domain)}&status=${status}`
-        ).then(r => r.json());
+        let url = `/api/dm-conversions?type=property-drilldown&domain=${encodeURIComponent(domain)}&status=${status}`;
+        if (campaignId) url += `&campaignId=${campaignId}`;
+        const res = await fetch(url).then(r => r.json());
         if (!cancelled) {
           if (res.success) {
             setData(res.data);
@@ -120,12 +128,16 @@ export function DmPropertyDrilldownModal({
     };
     fetchData();
     return () => { cancelled = true; };
-  }, [open, domain, status]);
+  }, [open, domain, status, campaignId]);
 
-  const title = `${formatDomain(domain)} — ${STATUS_LABELS[status]}`;
+  const domainLabel = domain === '_all' ? 'All clients' : formatDomain(domain);
+  const title = campaignName
+    ? `${domainLabel} — ${campaignName} — ${STATUS_LABELS[status]}`
+    : `${domainLabel} — ${STATUS_LABELS[status]}`;
 
   // Determine which date column to show based on status
-  const showConversionDate = status !== 'mailed';
+  const showConversionDate = !['mailed', 'sent', 'delivered'].includes(status);
+  const isSendView = status === 'sent' || status === 'delivered' || status === 'mailed';
 
   return (
     <AxisModal open={open} onClose={onClose} title={title} size="lg">
@@ -193,13 +205,18 @@ export function DmPropertyDrilldownModal({
                   <th className="text-label font-medium py-2 pr-3" style={{ color: 'var(--text-secondary)', textAlign: 'center' }}>
                     Sends
                   </th>
+                  {isSendView && (
+                    <th className="text-label font-medium py-2 pr-3" style={{ color: 'var(--text-secondary)', textAlign: 'center' }}>
+                      Delivered
+                    </th>
+                  )}
                   {showConversionDate && (
                     <th className="text-label font-medium py-2 pr-3" style={{ color: 'var(--text-secondary)' }}>
                       Converted
                     </th>
                   )}
                   <th className="text-label font-medium py-2 pr-3" style={{ color: 'var(--text-secondary)' }}>
-                    First sent
+                    {isSendView ? 'Sent date' : 'First sent'}
                   </th>
                   {status === 'deal' && (
                     <th className="text-label font-medium py-2" style={{ color: 'var(--text-secondary)', textAlign: 'right' }}>
@@ -250,6 +267,11 @@ export function DmPropertyDrilldownModal({
                     <td className="py-2.5 pr-3 text-center" style={{ color: 'var(--text-primary)' }}>
                       {p.totalSends}
                     </td>
+                    {isSendView && (
+                      <td className="py-2.5 pr-3 text-center" style={{ color: 'var(--text-primary)' }}>
+                        {p.totalDelivered}
+                      </td>
+                    )}
                     {showConversionDate && (
                       <td className="py-2.5 pr-3">
                         <span className="text-sm" style={{ color: 'var(--text-primary)' }}>

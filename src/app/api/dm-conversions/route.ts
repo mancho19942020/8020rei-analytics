@@ -75,6 +75,7 @@ export async function GET(request: NextRequest) {
         return await getPropertyDrilldown(
           params.get('domain') || undefined,
           params.get('status') || 'mailed',
+          params.get('campaignId') || undefined,
         );
       case 'domain-list':
         return await getDomainList();
@@ -760,32 +761,65 @@ async function getAlerts(domain?: string) {
 // Clickable numbers in client performance table open this.
 // ---------------------------------------------------------------------------
 
-async function getPropertyDrilldown(domain?: string, status?: string) {
+async function getPropertyDrilldown(domain?: string, status?: string, campaignId?: string) {
   if (!domain) {
     return NextResponse.json({ success: false, error: 'domain is required' }, { status: 400 });
   }
 
-  const safeDomain = domain.replace(/[^a-zA-Z0-9_.]/g, '');
-  const filter = `${EXCLUDE_SEED} AND domain = '${safeDomain}'`;
+  // "_all" means show all domains (used by funnel drilldown when no domain filter is active)
+  let filter: string;
+  if (domain === '_all') {
+    filter = EXCLUDE_SEED;
+  } else {
+    const safeDomain = domain.replace(/[^a-zA-Z0-9_.]/g, '');
+    filter = `${EXCLUDE_SEED} AND domain = '${safeDomain}'`;
+  }
+
+  // Optional: filter by specific campaign (used by Operational Health drilldown)
+  if (campaignId) {
+    const safeCampaignId = campaignId.replace(/[^0-9]/g, '');
+    filter += ` AND campaign_id = ${safeCampaignId}`;
+  }
 
   // Build status filter based on which column was clicked
   let statusCondition = '';
+  let orderBy = `
+    ORDER BY
+      CASE WHEN became_deal_at IS NOT NULL THEN 0
+           WHEN became_contract_at IS NOT NULL THEN 1
+           WHEN became_appointment_at IS NOT NULL THEN 2
+           WHEN became_lead_at IS NOT NULL THEN 3
+           ELSE 4 END ASC,
+      first_sent_date DESC`;
+
   switch (status) {
     case 'lead':
       statusCondition = 'AND became_lead_at IS NOT NULL';
+      orderBy = 'ORDER BY became_lead_at DESC';
       break;
     case 'appointment':
       statusCondition = 'AND became_appointment_at IS NOT NULL';
+      orderBy = 'ORDER BY became_appointment_at DESC';
       break;
     case 'contract':
       statusCondition = 'AND became_contract_at IS NOT NULL';
+      orderBy = 'ORDER BY became_contract_at DESC';
       break;
     case 'deal':
       statusCondition = 'AND became_deal_at IS NOT NULL';
+      orderBy = 'ORDER BY became_deal_at DESC';
+      break;
+    case 'sent':
+      statusCondition = ''; // All properties in the campaign
+      orderBy = 'ORDER BY first_sent_date DESC';
+      break;
+    case 'delivered':
+      statusCondition = 'AND total_delivered > 0';
+      orderBy = 'ORDER BY last_sent_date DESC';
       break;
     case 'mailed':
     default:
-      statusCondition = ''; // All properties that were mailed
+      statusCondition = '';
       break;
   }
 
@@ -817,13 +851,7 @@ async function getPropertyDrilldown(domain?: string, status?: string) {
     FROM dm_property_conversions
     WHERE ${filter}
       ${statusCondition}
-    ORDER BY
-      CASE WHEN became_deal_at IS NOT NULL THEN 0
-           WHEN became_contract_at IS NOT NULL THEN 1
-           WHEN became_appointment_at IS NOT NULL THEN 2
-           WHEN became_lead_at IS NOT NULL THEN 3
-           ELSE 4 END ASC,
-      first_sent_date DESC
+    ${orderBy}
     LIMIT 500
   `);
 
