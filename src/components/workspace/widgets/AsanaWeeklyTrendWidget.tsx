@@ -60,7 +60,7 @@ export function AsanaWeeklyTrendWidget({ data }: AsanaWeeklyTrendWidgetProps) {
               fontSize: '12px',
               color: 'var(--text-primary)',
             }}
-            labelFormatter={formatWeek}
+            labelFormatter={(label) => formatWeek(String(label))}
           />
           <Legend wrapperStyle={{ fontSize: 12 }} />
           <Line
