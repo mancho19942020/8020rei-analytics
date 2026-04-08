@@ -82,44 +82,73 @@ async function getTemplateLeaderboard(domain?: string) {
   const cached = getCached(cacheKey);
   if (cached) return NextResponse.json({ success: true, data: cached, cached: true });
 
-  // Per-domain rows — no cross-domain aggregation (Rule 5)
-  const rows = await runAuroraQuery(`
-    SELECT
-      domain,
-      template_id,
-      template_name,
-      template_type,
-      COALESCE(total_sent, 0) as total_sent,
-      COALESCE(total_delivered, 0) as total_delivered,
-      COALESCE(delivery_rate, 0) as delivery_rate,
-      COALESCE(total_cost, 0) as total_cost,
-      COALESCE(unique_properties, 0) as unique_properties,
-      COALESCE(leads_generated, 0) as leads_generated,
-      COALESCE(appointments_generated, 0) as appointments_generated,
-      COALESCE(contracts_generated, 0) as contracts_generated,
-      COALESCE(deals_generated, 0) as deals_generated,
-      COALESCE(lead_conversion_rate, 0) as lead_conversion_rate,
-      COALESCE(deal_conversion_rate, 0) as deal_conversion_rate,
-      COALESCE(total_revenue, 0) as total_revenue,
-      COALESCE(roas, 0) as roas,
-      COALESCE(avg_days_to_lead, 0) as avg_days_to_lead,
-      COALESCE(campaigns_using, 0) as campaigns_using
-    FROM dm_template_performance
-    WHERE ${domainFilter(domain)}
-    ORDER BY leads_generated DESC, total_sent DESC
-  `);
+  // Query both dm_template_performance (pre-aggregated) and dm_property_conversions
+  // (source of truth) to catch domains/templates missing from the aggregate table
+  const [tpRows, pcRows] = await Promise.all([
+    runAuroraQuery(`
+      SELECT
+        domain,
+        template_id,
+        template_name,
+        template_type,
+        COALESCE(total_sent, 0) as total_sent,
+        COALESCE(total_delivered, 0) as total_delivered,
+        COALESCE(delivery_rate, 0) as delivery_rate,
+        COALESCE(total_cost, 0) as total_cost,
+        COALESCE(unique_properties, 0) as unique_properties,
+        COALESCE(leads_generated, 0) as leads_generated,
+        COALESCE(appointments_generated, 0) as appointments_generated,
+        COALESCE(contracts_generated, 0) as contracts_generated,
+        COALESCE(deals_generated, 0) as deals_generated,
+        COALESCE(lead_conversion_rate, 0) as lead_conversion_rate,
+        COALESCE(deal_conversion_rate, 0) as deal_conversion_rate,
+        COALESCE(total_revenue, 0) as total_revenue,
+        COALESCE(roas, 0) as roas,
+        COALESCE(avg_days_to_lead, 0) as avg_days_to_lead,
+        COALESCE(campaigns_using, 0) as campaigns_using
+      FROM dm_template_performance
+      WHERE ${domainFilter(domain)}
+    `),
+    // Aggregate per domain+template from source of truth
+    runAuroraQuery(`
+      SELECT
+        domain,
+        COALESCE(template_name, 'Unknown template') as template_name,
+        COALESCE(template_type, 'unknown') as template_type,
+        COUNT(DISTINCT property_id) as unique_properties,
+        SUM(total_sends) as total_sent,
+        SUM(total_delivered) as total_delivered,
+        COALESCE(SUM(total_cost), 0) as total_cost,
+        COUNT(DISTINCT CASE WHEN became_lead_at IS NOT NULL THEN property_id END) as leads_generated,
+        COUNT(DISTINCT CASE WHEN became_appointment_at IS NOT NULL THEN property_id END) as appointments_generated,
+        COUNT(DISTINCT CASE WHEN became_contract_at IS NOT NULL THEN property_id END) as contracts_generated,
+        COUNT(DISTINCT CASE WHEN became_deal_at IS NOT NULL THEN property_id END) as deals_generated,
+        COALESCE(SUM(CASE WHEN deal_revenue > 0 THEN deal_revenue ELSE 0 END), 0) as total_revenue
+      FROM dm_property_conversions
+      WHERE ${domainFilter(domain)}
+      GROUP BY domain, template_name, template_type
+    `),
+  ]);
 
-  const data: DmTemplatePerformance[] = rows.map((r: Record<string, unknown>) => {
+  // Build a set of domain+template keys from dm_template_performance
+  const tpKeys = new Set<string>();
+  const allRows: DmTemplatePerformance[] = [];
+
+  for (const r of tpRows) {
+    const d = String(r.domain || '');
+    const tName = String(r.template_name || '');
+    tpKeys.add(`${d}::${tName}`);
+
     const deals = Number(r.deals_generated || 0);
     const revenue = Number(r.total_revenue || 0);
     const delivered = Number(r.total_delivered || 0);
     const leads = Number(r.leads_generated || 0);
     const confidence = getRoasConfidence(deals, revenue);
 
-    return {
-      domain: String(r.domain || ''),
+    allRows.push({
+      domain: d,
       templateId: Number(r.template_id || 0),
-      templateName: String(r.template_name || ''),
+      templateName: tName,
       templateType: String(r.template_type || ''),
       totalSent: Number(r.total_sent || 0),
       totalDelivered: delivered,
@@ -138,8 +167,57 @@ async function getTemplateLeaderboard(domain?: string) {
       campaignsUsing: Number(r.campaigns_using || 0),
       roasConfidence: confidence,
       deliveryWarning: delivered === 0 && leads > 0,
-    };
-  });
+    });
+  }
+
+  // Add domain+template combos from dm_property_conversions that are missing from TP
+  for (const r of pcRows) {
+    const d = String(r.domain || '');
+    const tName = String(r.template_name || 'Unknown template');
+    const key = `${d}::${tName}`;
+    if (tpKeys.has(key)) continue;
+
+    const uniqueProps = Number(r.unique_properties || 0);
+    const totalSent = Number(r.total_sent || 0);
+    const delivered = Number(r.total_delivered || 0);
+    const leads = Number(r.leads_generated || 0);
+    const deals = Number(r.deals_generated || 0);
+    const totalCost = Number(r.total_cost || 0);
+    const revenue = Number(r.total_revenue || 0);
+    const confidence = getRoasConfidence(deals, revenue);
+    const deliveryRate = totalSent > 0 ? Number(((delivered / totalSent) * 100).toFixed(2)) : 0;
+    const leadRate = uniqueProps > 0 ? Number(((leads / uniqueProps) * 100).toFixed(2)) : 0;
+    const dealRate = uniqueProps > 0 ? Number(((deals / uniqueProps) * 100).toFixed(2)) : 0;
+
+    allRows.push({
+      domain: d,
+      templateId: 0,
+      templateName: tName,
+      templateType: String(r.template_type || 'unknown'),
+      totalSent,
+      totalDelivered: delivered,
+      deliveryRate,
+      totalCost: Number(totalCost.toFixed(2)),
+      uniqueProperties: uniqueProps,
+      leadsGenerated: leads,
+      appointmentsGenerated: Number(r.appointments_generated || 0),
+      contractsGenerated: Number(r.contracts_generated || 0),
+      dealsGenerated: deals,
+      leadConversionRate: leadRate,
+      dealConversionRate: dealRate,
+      totalRevenue: Number(revenue.toFixed(2)),
+      roas: confidence === 'revenue_no_deal' ? 0 : (totalCost > 0 ? Number((revenue / totalCost).toFixed(2)) : 0),
+      avgDaysToLead: 0,
+      campaignsUsing: 0,
+      roasConfidence: confidence,
+      deliveryWarning: delivered === 0 && leads > 0,
+    });
+  }
+
+  // Sort by leads DESC, then sent DESC
+  const data = allRows.sort((a, b) =>
+    b.leadsGenerated - a.leadsGenerated || b.totalSent - a.totalSent
+  );
 
   setCache(cacheKey, data);
   return NextResponse.json({ success: true, data, cached: false });

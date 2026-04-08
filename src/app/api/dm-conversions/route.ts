@@ -562,20 +562,60 @@ async function getConversionTrend(days: number, domain?: string) {
   const cached = getCached(cacheKey);
   if (cached) return NextResponse.json({ success: true, data: cached, cached: true });
 
-  const rows = await runAuroraQuery(`
-    SELECT
-      date::TEXT as date,
-      COALESCE(SUM(leads), 0) as leads,
-      COALESCE(SUM(appointments), 0) as appointments,
-      COALESCE(SUM(contracts), 0) as contracts,
-      COALESCE(SUM(deals), 0) as deals,
-      COALESCE(SUM(total_revenue), 0) as total_revenue
-    FROM dm_client_funnel
-    WHERE date >= CURRENT_DATE - INTERVAL '${days} days'
-      AND ${domainFilter(domain)}
-    GROUP BY date
-    ORDER BY date ASC
-  `);
+  // Use dm_client_funnel (has time series) but supplement with dm_property_conversions
+  // for a cumulative total row. This way the trend shows daily changes for 9 domains
+  // (from CF) and the latest point includes all 19 domains (from PC).
+  // When the monolith fix lands, CF will have all domains and this becomes seamless.
+  const [cfRows, pcTotalRows] = await Promise.all([
+    runAuroraQuery(`
+      SELECT
+        date::TEXT as date,
+        COALESCE(SUM(leads), 0) as leads,
+        COALESCE(SUM(appointments), 0) as appointments,
+        COALESCE(SUM(contracts), 0) as contracts,
+        COALESCE(SUM(deals), 0) as deals,
+        COALESCE(SUM(total_revenue), 0) as total_revenue
+      FROM dm_client_funnel
+      WHERE date >= CURRENT_DATE - INTERVAL '${days} days'
+        AND ${domainFilter(domain)}
+      GROUP BY date
+      ORDER BY date ASC
+    `),
+    // Get the current total from dm_property_conversions (all domains)
+    runAuroraQuery(`
+      SELECT
+        CURRENT_DATE::TEXT as date,
+        COUNT(DISTINCT CASE WHEN became_lead_at IS NOT NULL THEN property_id END) as leads,
+        COUNT(DISTINCT CASE WHEN became_appointment_at IS NOT NULL THEN property_id END) as appointments,
+        COUNT(DISTINCT CASE WHEN became_contract_at IS NOT NULL THEN property_id END) as contracts,
+        COUNT(DISTINCT CASE WHEN became_deal_at IS NOT NULL THEN property_id END) as deals,
+        COALESCE(SUM(CASE WHEN deal_revenue > 0 THEN deal_revenue ELSE 0 END), 0) as total_revenue
+      FROM dm_property_conversions
+      WHERE ${domainFilter(domain)}
+    `),
+  ]);
+
+  // Use CF rows for the time series, but ensure the latest date reflects PC totals
+  const rows = cfRows.length > 0 ? cfRows : [];
+  const pcTotal = pcTotalRows[0];
+
+  // If PC total has more data than the latest CF row, update/add today's entry
+  if (pcTotal) {
+    const pcLeads = Number(pcTotal.leads || 0);
+    const today = String(pcTotal.date || '');
+    const lastCfRow = rows.length > 0 ? rows[rows.length - 1] : null;
+    const lastCfDate = lastCfRow ? String(lastCfRow.date || '') : '';
+
+    if (pcLeads > 0) {
+      if (lastCfDate === today) {
+        // Replace today's CF entry with the more complete PC data
+        rows[rows.length - 1] = pcTotal;
+      } else {
+        // Add today as a new point
+        rows.push(pcTotal);
+      }
+    }
+  }
 
   const data = rows.map((r: Record<string, unknown>) => ({
     date: String(r.date || ''),
@@ -599,20 +639,45 @@ async function getRoasTrend(days: number, domain?: string) {
   const cached = getCached(cacheKey);
   if (cached) return NextResponse.json({ success: true, data: cached, cached: true });
 
-  const rows = await runAuroraQuery(`
-    SELECT
-      date::TEXT as date,
-      COALESCE(SUM(total_cost), 0) as total_cost,
-      COALESCE(SUM(total_revenue), 0) as total_revenue,
-      COALESCE(SUM(deals), 0) as deals
-    FROM dm_client_funnel
-    WHERE date >= CURRENT_DATE - INTERVAL '${days} days'
-      AND ${domainFilter(domain)}
-    GROUP BY date
-    ORDER BY date ASC
-  `);
+  // Same approach as conversion trend: CF for time series, PC for accurate totals
+  const [cfRows, pcTotalRows] = await Promise.all([
+    runAuroraQuery(`
+      SELECT
+        date::TEXT as date,
+        COALESCE(SUM(total_cost), 0) as total_cost,
+        COALESCE(SUM(total_revenue), 0) as total_revenue,
+        COALESCE(SUM(deals), 0) as deals
+      FROM dm_client_funnel
+      WHERE date >= CURRENT_DATE - INTERVAL '${days} days'
+        AND ${domainFilter(domain)}
+      GROUP BY date
+      ORDER BY date ASC
+    `),
+    runAuroraQuery(`
+      SELECT
+        CURRENT_DATE::TEXT as date,
+        COALESCE(SUM(total_cost), 0) as total_cost,
+        COALESCE(SUM(CASE WHEN deal_revenue > 0 THEN deal_revenue ELSE 0 END), 0) as total_revenue,
+        COUNT(DISTINCT CASE WHEN became_deal_at IS NOT NULL THEN property_id END) as deals
+      FROM dm_property_conversions
+      WHERE ${domainFilter(domain)}
+    `),
+  ]);
 
-  const data = rows.map((r: Record<string, unknown>) => {
+  const roasRows = cfRows.length > 0 ? [...cfRows] : [];
+  const pcRoas = pcTotalRows[0];
+
+  if (pcRoas && Number(pcRoas.deals || 0) > 0) {
+    const today = String(pcRoas.date || '');
+    const lastDate = roasRows.length > 0 ? String(roasRows[roasRows.length - 1].date || '') : '';
+    if (lastDate === today) {
+      roasRows[roasRows.length - 1] = pcRoas;
+    } else {
+      roasRows.push(pcRoas);
+    }
+  }
+
+  const data = roasRows.map((r: Record<string, unknown>) => {
     const totalCost = Number(r.total_cost || 0);
     const totalRevenue = Number(r.total_revenue || 0);
     const deals = Number(r.deals || 0);
