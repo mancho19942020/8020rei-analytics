@@ -30,6 +30,9 @@ const FLUSH_BODY_WIDGETS = new Set<WidgetType>([
   'device-category',
   'insights-summary',
   'dm-data-quality',
+  'pa-active-users',
+  'asana-board-overview',
+  'asana-bugs-overview',
 ]);
 
 export interface GridWorkspaceProps {

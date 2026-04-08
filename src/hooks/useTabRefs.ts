@@ -14,7 +14,8 @@ type TabRefKey =
   | 'geography' | 'events' | 'insights'
   | 'import' | 'product-jira-projects'
   | 'properties-api' | 'dm-campaign'
-  | 'ai-task-board' | 'bugs-di-board';
+  | 'ai-task-board' | 'bugs-di-board'
+  | 'platform-analytics';
 
 export function useTabRefs() {
   const refs: Record<TabRefKey, React.RefObject<TabHandle | null>> = {
@@ -32,6 +33,7 @@ export function useTabRefs() {
     'dm-campaign': useRef<TabHandle>(null),
     'ai-task-board': useRef<TabHandle>(null),
     'bugs-di-board': useRef<TabHandle>(null),
+    'platform-analytics': useRef<TabHandle>(null),
   };
 
   /**
@@ -58,6 +60,8 @@ export function useTabRefs() {
       if (subsection === 'bugs-di-board') return 'bugs-di-board';
       return null;
     }
+    // Platform Analytics (standalone main section)
+    if (mainSection === 'platform-analytics') return 'platform-analytics';
     // GA4 detail tabs
     if (detailTab && detailTab !== 'overview' && detailTab in refs) {
       return detailTab as TabRefKey;

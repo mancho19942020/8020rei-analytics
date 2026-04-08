@@ -116,3 +116,11 @@ export { PeakHoursWidget } from './PeakHoursWidget';
 export { AvgSessionDurationWidget } from './AvgSessionDurationWidget';
 export { SessionsPerUserWidget } from './SessionsPerUserWidget';
 export { ActiveDaysWidget } from './ActiveDaysWidget';
+
+// Platform Analytics tab widgets
+export { PaActiveUsersWidget } from './PaActiveUsersWidget';
+export { PaVisitorLogWidget } from './PaVisitorLogWidget';
+export { PaUsageTrendsWidget } from './PaUsageTrendsWidget';
+export { PaPopularSectionsWidget } from './PaPopularSectionsWidget';
+export { PaPeakHoursWidget } from './PaPeakHoursWidget';
+export { PaUserEngagementWidget } from './PaUserEngagementWidget';

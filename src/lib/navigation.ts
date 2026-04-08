@@ -21,6 +21,7 @@ export const MAIN_SECTION_TABS: AxisNavigationTabItem[] = [
   { id: 'pipelines', name: 'Pipelines', disabled: true },
   { id: 'ml-models', name: 'ML Models', disabled: true },
   { id: 'grafana', name: 'Grafana (beta)' },
+  { id: 'platform-analytics', name: 'Platform analytics' },
 ];
 
 // Second-level navigation - Sub-sections per Main Section

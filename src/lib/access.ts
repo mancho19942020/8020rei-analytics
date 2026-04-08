@@ -15,3 +15,15 @@ export function canAccessDesignKit(email: string | null | undefined): boolean {
   if (!email) return false;
   return DESIGN_KIT_AUTHORIZED_EMAILS.includes(email.toLowerCase());
 }
+
+/**
+ * Platform Analytics tab is only visible to German (product owner).
+ */
+const PLATFORM_ANALYTICS_AUTHORIZED_EMAILS: string[] = [
+  'german@8020rei.com',
+];
+
+export function canAccessPlatformAnalytics(email: string | null | undefined): boolean {
+  if (!email) return false;
+  return PLATFORM_ANALYTICS_AUTHORIZED_EMAILS.includes(email.toLowerCase());
+}

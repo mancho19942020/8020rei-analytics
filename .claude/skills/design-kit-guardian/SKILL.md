@@ -180,6 +180,28 @@ Every dashboard widget file in `src/components/workspace/widgets/` must follow t
 - Hardcoded title/header inside widget instead of using Widget's `title` prop
 - Export logic implemented directly in widget instead of via `onWidgetExport` callback
 
+### 5b. Flush Body Registration (MANDATORY for MetricCard widgets)
+
+**Rule:** Any widget that renders `MetricCard` components inside a `flush-cards` flex row **MUST** be registered in the `FLUSH_BODY_WIDGETS` set in `src/components/workspace/GridWorkspace.tsx`.
+
+Without this registration, the Widget wrapper adds `px-3 py-2` body padding that squeezes the cards, clips the numbers, and wastes space. With `flushBody=true`, cards go edge-to-edge inside the widget — matching the API Overview reference.
+
+```tsx
+// src/components/workspace/GridWorkspace.tsx
+const FLUSH_BODY_WIDGETS = new Set<WidgetType>([
+  'metrics',
+  'api-overview',
+  'asana-board-overview',
+  // ... every MetricCard-based overview widget
+]);
+```
+
+**This applies regardless of card count (2, 3, 4, 5, or 6 cards).** The cards will flex evenly to fill 100% width.
+
+**Violations:**
+- Widget uses `<MetricCard>` + `flush-cards` but is NOT in `FLUSH_BODY_WIDGETS` → cards will be clipped
+- Widget renders overview cards with custom padding instead of relying on `flushBody`
+
 ### 6. Tab Architecture Compliance
 
 Every tab in `src/components/dashboard/` must follow the Tab pattern:

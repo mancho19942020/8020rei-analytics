@@ -6,7 +6,7 @@ import dynamic from 'next/dynamic';
 import { useAuth } from '@/lib/firebase/AuthContext';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { DesignKitButton } from '@/components/DesignKitButton';
-import { canAccessDesignKit } from '@/lib/access';
+import { canAccessDesignKit, canAccessPlatformAnalytics } from '@/lib/access';
 import { SuggestionsButton } from '@/components/SuggestionsButton';
 import { SuggestionsModal } from '@/components/SuggestionsModal';
 import { WelcomeModal } from '@/components/WelcomeModal';
@@ -37,6 +37,7 @@ import {
   formatClientsForExport,
 } from '@/lib/export';
 import { Widget } from '@/types/widget';
+import { initTracker, trackNavigation } from '@/lib/platform-tracker';
 
 // Lazy-load tab components — only loaded when the user navigates to them
 const TabSkeleton = () => <div className="flex-1 flex items-center justify-center p-8"><AxisSkeleton variant="custom" width="100%" height="256px" /></div>;
@@ -56,6 +57,7 @@ const RapidResponseTab = dynamic(() => import('@/components/dashboard/RapidRespo
 const ClientDomainsTab = dynamic(() => import('@/components/dashboard/ClientDomainsTab').then(m => m.ClientDomainsTab), { loading: TabSkeleton, ssr: false });
 const AiTaskBoardTab = dynamic(() => import('@/components/dashboard/AiTaskBoardTab').then(m => m.AiTaskBoardTab), { loading: TabSkeleton, ssr: false });
 const BugsDiBoardTab = dynamic(() => import('@/components/dashboard/BugsDiBoardTab').then(m => m.BugsDiBoardTab), { loading: TabSkeleton, ssr: false });
+const PlatformAnalyticsTab = dynamic(() => import('@/components/dashboard/PlatformAnalyticsTab').then(m => m.PlatformAnalyticsTab), { loading: TabSkeleton, ssr: false });
 
 interface MetricValues {
   total_users: number;
@@ -131,6 +133,7 @@ function Dashboard({ slug }: { slug: string[] }) {
     'dm-campaign': dmCampaignRef,
     'ai-task-board': aiTaskBoardRef,
     'bugs-di-board': bugsDiBoardRef,
+    'platform-analytics': platformAnalyticsRef,
   } = tabRefs.refs;
 
   // Sidebar navigation callbacks (shared between sidebar and legacy nav)
@@ -192,6 +195,20 @@ function Dashboard({ slug }: { slug: string[] }) {
       fetchData();
     }
   }, [fetchData, user]);
+
+  // Initialize platform tracker when user is authenticated
+  useEffect(() => {
+    if (user?.email) {
+      initTracker(user.email, user.displayName || undefined);
+    }
+  }, [user?.email, user?.displayName]);
+
+  // Track navigation changes
+  useEffect(() => {
+    if (user?.email) {
+      trackNavigation(activeMainSection, activeSubsection, activeDetailTab);
+    }
+  }, [activeMainSection, activeSubsection, activeDetailTab, user?.email]);
 
   useEffect(() => {
     if (editMode) setShowEditCallout(true);
@@ -413,6 +430,7 @@ function Dashboard({ slug }: { slug: string[] }) {
         activeSubsection={activeSubsection}
         onSectionChange={handleSectionChange}
         onSubsectionChange={handleSubsectionChange}
+        hiddenSections={canAccessPlatformAnalytics(user?.email) ? undefined : new Set(['platform-analytics'])}
       />
 
       {/* Content Column */}
@@ -824,8 +842,21 @@ function Dashboard({ slug }: { slug: string[] }) {
             />
           )}
 
+          {/* Platform Analytics Tab (German only) */}
+          {activeMainSection === 'platform-analytics' && canAccessPlatformAnalytics(user?.email) && (
+            <PlatformAnalyticsTab
+              ref={platformAnalyticsRef}
+              days={days}
+              startDate={startDate}
+              endDate={endDate}
+              editMode={editMode}
+              onEditModeChange={setEditMode}
+            />
+          )}
+
           {/* Under Construction placeholder for sections without real content */}
           {activeMainSection !== 'engagement-calls' && activeMainSection !== 'grafana' &&
+           activeMainSection !== 'platform-analytics' &&
            !(activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4') &&
            !(activeMainSection === 'features' && activeSubsection === 'features-rei' && activeDetailTab === 'properties-api') &&
            !(activeMainSection === 'features' && activeSubsection === 'features-rei' && activeDetailTab === 'dm-campaign') &&

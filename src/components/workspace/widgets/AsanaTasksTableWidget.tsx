@@ -1,49 +1,27 @@
 /**
  * Asana Tasks Table Widget
  *
- * Sortable table of Asana tasks with status badges, assignee, section,
- * business impact, priority, and due date.
+ * Sortable table of Asana tasks using AxisTable and AxisTag.
  * Works for both AI Task Board and Bugs & DI Board entries.
  */
 
 'use client';
 
 import { useMemo, useState } from 'react';
-import { AxisTable } from '@/components/axis';
+import { AxisTable, AxisTag } from '@/components/axis';
 import type { Column, RowData, CellValue } from '@/types/table';
 import type { AiTaskBoardEntry, BugsDiBoardEntry } from '@/types/asana-tasks';
 
 type TaskEntry = AiTaskBoardEntry | BugsDiBoardEntry;
 
-function SectionBadge({ section }: { section: string }) {
-  let colorClasses = 'light-gray-bg text-content-secondary';
+type TagColor = 'neutral' | 'success' | 'alert' | 'error' | 'info';
 
-  if (section === 'In progress') {
-    colorClasses = 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300';
-  } else if (section === 'Done') {
-    colorClasses = 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300';
-  } else if (section === 'To do' || section === 'Open') {
-    colorClasses = 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300';
-  } else if (section === 'Backlog') {
-    colorClasses = 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400';
-  }
-
-  return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${colorClasses}`}>
-      {section}
-    </span>
-  );
-}
-
-function OverdueIndicator({ days }: { days: number | null }) {
-  if (days === null || days <= 0) {
-    return <span className="text-content-tertiary text-sm">—</span>;
-  }
-  return (
-    <span className="text-red-600 dark:text-red-400 text-sm font-medium">
-      {days}d late
-    </span>
-  );
+function getSectionTagColor(section: string): TagColor {
+  if (section === 'In progress') return 'info';
+  if (section === 'Done') return 'success';
+  if (section === 'To do' || section === 'Open') return 'alert';
+  if (section === 'Backlog') return 'neutral';
+  return 'neutral';
 }
 
 function BusinessImpactDots({ impact }: { impact: number | null }) {
@@ -53,7 +31,8 @@ function BusinessImpactDots({ impact }: { impact: number | null }) {
       {[1, 2, 3, 4, 5].map(i => (
         <div
           key={i}
-          className={`w-2 h-2 rounded-full ${i <= impact ? 'bg-main-500' : 'bg-surface-overlay'}`}
+          className={`w-2 h-2 rounded-full`}
+          style={{ backgroundColor: i <= impact ? 'var(--color-main-500)' : 'var(--surface-overlay)' }}
         />
       ))}
     </div>
@@ -107,7 +86,11 @@ export function AsanaTasksTableWidget({ data, variant = 'ai-board' }: AsanaTasks
         type: 'text',
         width: 120,
         sortable: true,
-        render: (_value: CellValue, row: RowData) => <SectionBadge section={String(row.section || '')} />,
+        render: (_value: CellValue, row: RowData) => (
+          <AxisTag color={getSectionTagColor(String(row.section || ''))} size="sm">
+            {String(row.section || '')}
+          </AxisTag>
+        ),
       },
       {
         field: 'due_on',
@@ -127,9 +110,17 @@ export function AsanaTasksTableWidget({ data, variant = 'ai-board' }: AsanaTasks
         type: 'number',
         width: 80,
         sortable: true,
-        render: (_value: CellValue, row: RowData) => (
-          <OverdueIndicator days={row.days_overdue as number | null} />
-        ),
+        render: (_value: CellValue, row: RowData) => {
+          const days = row.days_overdue as number | null;
+          if (days === null || days <= 0) {
+            return <span className="text-content-tertiary text-sm">—</span>;
+          }
+          return (
+            <AxisTag color="error" size="sm">
+              {days}d late
+            </AxisTag>
+          );
+        },
       },
     ];
 

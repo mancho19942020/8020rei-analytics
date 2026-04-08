@@ -37,6 +37,8 @@ export interface AxisSidebarProps {
   activeSubsection: string;
   onSectionChange: (section: string) => void;
   onSubsectionChange: (section: string, subsection: string) => void;
+  /** Section IDs to hide from the sidebar (e.g., access-controlled sections) */
+  hiddenSections?: Set<string>;
 }
 
 const CollapseIcon = () => (
@@ -58,7 +60,11 @@ export function AxisSidebar({
   activeSubsection,
   onSectionChange,
   onSubsectionChange,
+  hiddenSections,
 }: AxisSidebarProps) {
+  const visibleSections = hiddenSections
+    ? MAIN_SECTION_TABS.filter(s => !hiddenSections.has(s.id))
+    : MAIN_SECTION_TABS;
   return (
     <aside
       role="navigation"
@@ -98,7 +104,7 @@ export function AxisSidebar({
       {/* Middle zone: Navigation items (scrollable) */}
       <nav className="flex-1 overflow-y-auto overflow-x-hidden py-2 space-y-0.5" role="menu">
         <div className={collapsed ? 'px-1 space-y-1' : 'px-2 space-y-0.5'}>
-          {MAIN_SECTION_TABS.map(section => {
+          {visibleSections.map(section => {
             const subsections = SUBSECTION_TABS_MAP[section.id];
             const icon = SIDEBAR_ICONS[section.id] || <span className="w-5 h-5" />;
 

@@ -1775,6 +1775,72 @@ export const BUGS_DI_BOARD_WIDGET_CATALOG: WidgetCatalogItem[] = [
   { type: 'asana-bugs-alerts-feed', title: 'Alerts', description: 'Smart alerts for board health', iconKey: 'alert', defaultSize: { w: 12, h: 4 } },
 ];
 
+// ============================================================================
+// PLATFORM ANALYTICS TAB
+// ============================================================================
+
+export const PLATFORM_ANALYTICS_LAYOUT_STORAGE_KEY = 'axis-platform-analytics-layout-v1';
+
+export const DEFAULT_PLATFORM_ANALYTICS_LAYOUT: Widget[] = [
+  {
+    id: 'pa-active-users',
+    type: 'pa-active-users',
+    title: 'Active users',
+    tooltip: 'Unique users who accessed the platform in different time windows',
+    x: 0, y: 0, w: 12, h: 2,
+    minW: 6, minH: 2, maxH: 2,
+  },
+  {
+    id: 'pa-visitor-log',
+    type: 'pa-visitor-log',
+    title: 'Visitor log',
+    tooltip: 'Recent sessions with user info, duration, and most-used section',
+    x: 0, y: 2, w: 12, h: 7,
+    minW: 8, minH: 5, maxH: 12,
+  },
+  {
+    id: 'pa-usage-trends',
+    type: 'pa-usage-trends',
+    title: 'Usage trends',
+    tooltip: 'Daily sessions over time',
+    x: 0, y: 9, w: 6, h: 5,
+    minW: 4, minH: 3, maxH: 8,
+  },
+  {
+    id: 'pa-popular-sections',
+    type: 'pa-popular-sections',
+    title: 'Popular sections',
+    tooltip: 'Most visited sections of the platform',
+    x: 6, y: 9, w: 6, h: 5,
+    minW: 4, minH: 3, maxH: 8,
+  },
+  {
+    id: 'pa-peak-hours',
+    type: 'pa-peak-hours',
+    title: 'Peak hours',
+    tooltip: 'Platform activity by hour of day',
+    x: 0, y: 14, w: 6, h: 5,
+    minW: 4, minH: 3, maxH: 8,
+  },
+  {
+    id: 'pa-user-engagement',
+    type: 'pa-user-engagement',
+    title: 'Time by section',
+    tooltip: 'How time is distributed across platform sections',
+    x: 6, y: 14, w: 6, h: 5,
+    minW: 4, minH: 3, maxH: 8,
+  },
+];
+
+export const PLATFORM_ANALYTICS_WIDGET_CATALOG: WidgetCatalogItem[] = [
+  { type: 'pa-active-users', title: 'Active users', description: 'KPI cards for platform visitors', iconKey: 'grid', defaultSize: { w: 12, h: 2 } },
+  { type: 'pa-visitor-log', title: 'Visitor log', description: 'Sortable table of recent sessions', iconKey: 'table', defaultSize: { w: 12, h: 7 } },
+  { type: 'pa-usage-trends', title: 'Usage trends', description: 'Daily sessions over time', iconKey: 'lineChart', defaultSize: { w: 6, h: 5 } },
+  { type: 'pa-popular-sections', title: 'Popular sections', description: 'Most visited sections', iconKey: 'barChart', defaultSize: { w: 6, h: 5 } },
+  { type: 'pa-peak-hours', title: 'Peak hours', description: 'Activity by hour of day', iconKey: 'barChart', defaultSize: { w: 6, h: 5 } },
+  { type: 'pa-user-engagement', title: 'Time by section', description: 'Time distribution across sections', iconKey: 'donutChart', defaultSize: { w: 6, h: 5 } },
+];
+
 /**
  * Combined catalog lookup by tab name
  */
@@ -1794,4 +1860,5 @@ export const TAB_WIDGET_CATALOGS: Record<string, WidgetCatalogItem[]> = {
   'rapid-response': RAPID_RESPONSE_WIDGET_CATALOG,
   'ai-task-board': AI_TASK_BOARD_WIDGET_CATALOG,
   'bugs-di-board': BUGS_DI_BOARD_WIDGET_CATALOG,
+  'platform-analytics': PLATFORM_ANALYTICS_WIDGET_CATALOG,
 };

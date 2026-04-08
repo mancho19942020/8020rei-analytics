@@ -125,7 +125,14 @@ export type WidgetType =
   | 'asana-bugs-section-breakdown'
   | 'asana-bugs-weekly-trend'
   | 'asana-bugs-aging'
-  | 'asana-bugs-alerts-feed';
+  | 'asana-bugs-alerts-feed'
+  // Platform Analytics tab widgets
+  | 'pa-active-users'
+  | 'pa-visitor-log'
+  | 'pa-usage-trends'
+  | 'pa-popular-sections'
+  | 'pa-peak-hours'
+  | 'pa-user-engagement';
 
 /**
  * Widget Configuration

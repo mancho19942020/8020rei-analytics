@@ -1,31 +1,17 @@
 /**
  * Asana Alerts Feed Widget
  *
- * Client-side computed alerts based on board data:
- * - Overdue tasks
- * - Unassigned tasks
- * - Stale tasks (no modification in 14+ days)
- * - Assignee overload (10+ in-progress tasks)
+ * Client-side computed alerts based on board data.
+ * Uses AxisCallout from the design system for alert display.
  */
 
 'use client';
 
 import { useMemo } from 'react';
+import { AxisCallout } from '@/components/axis';
 import type { AsanaAlertItem, AiTaskBoardEntry, BugsDiBoardEntry, AsanaTeamWorkloadEntry } from '@/types/asana-tasks';
 
 type TaskEntry = AiTaskBoardEntry | BugsDiBoardEntry;
-
-const SEVERITY_STYLES: Record<string, string> = {
-  critical: 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300 border-red-200 dark:border-red-800',
-  warning: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800',
-  info: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 border-blue-200 dark:border-blue-800',
-};
-
-const SEVERITY_ICONS: Record<string, string> = {
-  critical: '🔴',
-  warning: '🟡',
-  info: '🔵',
-};
 
 function computeAlerts(
   tasks: TaskEntry[],
@@ -99,8 +85,14 @@ function computeAlerts(
   }
 
   // Sort: critical first, then warning, then info
-  const order = { critical: 0, warning: 1, info: 2 };
+  const order: Record<string, number> = { critical: 0, warning: 1, info: 2 };
   return alerts.sort((a, b) => order[a.severity] - order[b.severity]);
+}
+
+function severityToCalloutType(severity: string): 'error' | 'alert' | 'info' {
+  if (severity === 'critical') return 'error';
+  if (severity === 'warning') return 'alert';
+  return 'info';
 }
 
 interface AsanaAlertsFeedWidgetProps {
@@ -114,10 +106,9 @@ export function AsanaAlertsFeedWidget({ tasks, teamWorkload }: AsanaAlertsFeedWi
   if (alerts.length === 0) {
     return (
       <div className="h-full flex items-center justify-center text-content-tertiary text-sm">
-        <div className="text-center">
-          <div className="text-2xl mb-2">✅</div>
-          <div>No alerts — board looks healthy</div>
-        </div>
+        <AxisCallout type="success" title="Board looks healthy">
+          No alerts detected — all clear.
+        </AxisCallout>
       </div>
     );
   }
@@ -125,26 +116,23 @@ export function AsanaAlertsFeedWidget({ tasks, teamWorkload }: AsanaAlertsFeedWi
   return (
     <div className="h-full flex flex-col overflow-y-auto gap-2 px-1">
       {alerts.map((alert, i) => (
-        <div
+        <AxisCallout
           key={`${alert.type}-${i}`}
-          className={`flex items-start gap-3 px-3 py-2.5 rounded-md border ${SEVERITY_STYLES[alert.severity]}`}
+          type={severityToCalloutType(alert.severity)}
+          title={alert.title}
         >
-          <span className="text-lg flex-shrink-0 mt-0.5">{SEVERITY_ICONS[alert.severity]}</span>
-          <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium">{alert.title}</div>
-            <div className="text-xs opacity-80 mt-0.5">{alert.description}</div>
-          </div>
+          <span className="text-xs">{alert.description}</span>
           {alert.permalink_url && (
             <a
               href={alert.permalink_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-xs opacity-70 hover:opacity-100 flex-shrink-0 underline"
+              className="text-xs text-main-500 hover:underline ml-2"
             >
-              View
+              View in Asana
             </a>
           )}
-        </div>
+        </AxisCallout>
       ))}
     </div>
   );

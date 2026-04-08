@@ -1,14 +1,21 @@
 /**
  * Asana Board Overview Widget
  *
- * Displays KPI metric cards for board status:
- * total tasks, in progress, to do/open, completed, overdue, unassigned.
+ * Displays 4 KPI metric cards matching the API Overview pattern:
+ * total tasks, in progress, completed, overdue.
  */
 
 'use client';
 
 import { MetricCard } from '@/components/workspace/MetricCard';
 import type { AsanaBoardOverview } from '@/types/asana-tasks';
+
+const colorMap = {
+  main: { bg: 'bg-main-700', stroke: 'rgb(29, 78, 216)' },
+  'accent-1': { bg: 'bg-accent-1-700', stroke: 'rgb(59, 130, 246)' },
+  'accent-2': { bg: 'bg-accent-2-700', stroke: 'rgb(99, 102, 241)' },
+  'accent-3': { bg: 'bg-accent-3-700', stroke: 'rgb(168, 85, 247)' },
+};
 
 const TasksIcon = () => (
   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -34,18 +41,6 @@ const OverdueIcon = () => (
   </svg>
 );
 
-const BacklogIcon = () => (
-  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-  </svg>
-);
-
-const UnassignedIcon = () => (
-  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-  </svg>
-);
-
 interface AsanaBoardOverviewWidgetProps {
   data: AsanaBoardOverview;
 }
@@ -58,45 +53,35 @@ export function AsanaBoardOverviewWidget({ data }: AsanaBoardOverviewWidgetProps
         value={data.total_tasks}
         icon={<TasksIcon />}
         subtitle="vs. previous period"
-        iconBgClass="bg-main-700"
+        iconBgClass={colorMap['main'].bg}
+        sparklineColor={colorMap['main'].stroke}
         trend={data.trends?.total_tasks}
       />
       <MetricCard
         label="In progress"
         value={data.in_progress}
         icon={<InProgressIcon />}
-        subtitle="Active work"
-        iconBgClass="bg-accent-1-700"
-      />
-      <MetricCard
-        label="To do / Open"
-        value={data.to_do + data.backlog}
-        icon={<BacklogIcon />}
-        subtitle="Backlog + To do"
-        iconBgClass="bg-accent-3-700"
+        subtitle={`${data.to_do} to do + ${data.backlog} backlog`}
+        iconBgClass={colorMap['accent-1'].bg}
+        sparklineColor={colorMap['accent-1'].stroke}
       />
       <MetricCard
         label="Completed"
         value={data.completed}
         icon={<CompletedIcon />}
         subtitle="vs. previous period"
-        iconBgClass="bg-success-700"
+        iconBgClass={colorMap['accent-2'].bg}
+        sparklineColor={colorMap['accent-2'].stroke}
         trend={data.trends?.completed}
       />
       <MetricCard
         label="Overdue"
         value={data.overdue}
         icon={<OverdueIcon />}
-        subtitle="Less is better"
-        iconBgClass="bg-error-700"
+        subtitle={`${data.unassigned} unassigned`}
+        iconBgClass={colorMap['accent-3'].bg}
+        sparklineColor={colorMap['accent-3'].stroke}
         trend={data.trends?.overdue}
-      />
-      <MetricCard
-        label="Unassigned"
-        value={data.unassigned}
-        icon={<UnassignedIcon />}
-        subtitle="Needs attention"
-        iconBgClass="bg-warning-700"
       />
     </div>
   );
