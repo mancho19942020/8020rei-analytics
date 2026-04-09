@@ -19,7 +19,7 @@ let _db: Firestore | null = null;
 
 export function getFirestoreDb(): Firestore {
   if (!_db) {
-    _db = _getFirestore(app);
+    _db = _getFirestore(app!);
   }
   return _db;
 }

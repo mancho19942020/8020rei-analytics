@@ -23,6 +23,7 @@ import {
 } from '@/lib/slack';
 import type { SlackBlock } from '@/lib/slack';
 import type { DmAlert } from '@/types/dm-conversions';
+import { getAlertsData } from '../get-alerts-data';
 import fs from 'fs';
 import path from 'path';
 
@@ -47,18 +48,9 @@ export async function POST(request: NextRequest) {
   const force = request.nextUrl.searchParams.get('force') === 'true';
 
   try {
-    // Fetch current business alerts from the DM conversions API
-    const baseUrl = request.nextUrl.origin;
-    const internalHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
-    const cronSecret = request.headers.get('x-cron-secret');
-    if (cronSecret) internalHeaders['x-cron-secret'] = cronSecret;
-    const alertsRes = await fetch(`${baseUrl}/api/dm-conversions?type=alerts`, { headers: internalHeaders }).then(r => r.json());
-
-    if (!alertsRes.success || !alertsRes.data?.alerts) {
-      return NextResponse.json({ success: false, error: 'Failed to fetch business alerts' }, { status: 500 });
-    }
-
-    const alerts: DmAlert[] = alertsRes.data.alerts;
+    // Fetch current business alerts directly (no HTTP self-fetch)
+    const alertsData = await getAlertsData();
+    const alerts: DmAlert[] = alertsData.alerts;
 
     // Load yesterday's state — prefer body payload (from GitHub Actions cache),
     // fall back to local /tmp file

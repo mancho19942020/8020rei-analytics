@@ -4,8 +4,9 @@ import { getAuth, Auth } from 'firebase/auth';
 /**
  * Firebase Configuration
  *
- * This file initializes Firebase for the analytics dashboard.
- * You'll get these values from Firebase Console when you create your project.
+ * Guarded initialization — skips Firebase init during SSR/build when
+ * NEXT_PUBLIC_* env vars are not available (e.g. Docker build).
+ * Firebase is only needed client-side for auth.
  *
  * ENVIRONMENT VARIABLES NEEDED:
  * - NEXT_PUBLIC_FIREBASE_API_KEY
@@ -25,16 +26,18 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase (only once)
-let app: FirebaseApp;
-let auth: Auth;
+// Initialize Firebase (only once, only when API key is available)
+let app: FirebaseApp | undefined;
+let auth: Auth | undefined;
 
-if (!getApps().length) {
-  app = initializeApp(firebaseConfig);
-  auth = getAuth(app);
-} else {
-  app = getApps()[0];
-  auth = getAuth(app);
+if (firebaseConfig.apiKey) {
+  if (!getApps().length) {
+    app = initializeApp(firebaseConfig);
+    auth = getAuth(app);
+  } else {
+    app = getApps()[0];
+    auth = getAuth(app);
+  }
 }
 
 export { app, auth };

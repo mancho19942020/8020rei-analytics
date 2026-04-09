@@ -13,7 +13,7 @@ export async function authFetch(
   input: RequestInfo | URL,
   init?: RequestInit
 ): Promise<Response> {
-  const currentUser = auth.currentUser;
+  const currentUser = auth?.currentUser;
 
   if (currentUser) {
     const token = await currentUser.getIdToken();
