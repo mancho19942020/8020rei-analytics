@@ -49,7 +49,10 @@ export async function POST(request: NextRequest) {
   try {
     // Fetch current business alerts from the DM conversions API
     const baseUrl = request.nextUrl.origin;
-    const alertsRes = await fetch(`${baseUrl}/api/dm-conversions?type=alerts`).then(r => r.json());
+    const internalHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+    const cronSecret = request.headers.get('x-cron-secret');
+    if (cronSecret) internalHeaders['x-cron-secret'] = cronSecret;
+    const alertsRes = await fetch(`${baseUrl}/api/dm-conversions?type=alerts`, { headers: internalHeaders }).then(r => r.json());
 
     if (!alertsRes.success || !alertsRes.data?.alerts) {
       return NextResponse.json({ success: false, error: 'Failed to fetch business alerts' }, { status: 500 });
