@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth-guard';
 import { runQuery } from '@/lib/bigquery';
 import { getDiagnosticUserDataQuery } from '@/lib/queries';
 
@@ -19,6 +20,9 @@ interface DiagnosticData {
  * Usage: GET /api/diagnostics?days=7
  */
 export async function GET(request: NextRequest) {
+  const authError = await requireAuth(request);
+  if (authError) return authError;
+
   const searchParams = request.nextUrl.searchParams;
   const days = parseInt(searchParams.get('days') || '7');
 

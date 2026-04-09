@@ -2,7 +2,8 @@
 
 A comprehensive analytics and operations dashboard for 8020REI. Built with Next.js 16, TypeScript, and the Axis Design System. Features multi-source data integration (BigQuery, AWS Aurora, Google Drive), Firebase Authentication, and a drag-drop widget-based workspace.
 
-**Live URL:** https://analytics8020-798362859849.us-central1.run.app
+**Live URL:** https://metrics-hub.8020rei.com
+**Cloud Run:** https://analytics8020-798362859849.us-central1.run.app
 **Stack:** Next.js 16 + Fastify Backend | **Auth:** Firebase (Google Sign-In, @8020rei.com only)
 
 ---
@@ -20,6 +21,8 @@ A comprehensive analytics and operations dashboard for 8020REI. Built with Next.
 - [Building New Sections](#building-new-sections)
 - [Widget System](#widget-system)
 - [API Routes](#api-routes)
+- [Authentication and Security](#authentication-and-security)
+- [Slack Alerts (Automated)](#slack-alerts-automated)
 - [CI/CD and Deployment](#cicd-and-deployment)
 - [Styling Guide](#styling-guide)
 - [Key Files Reference](#key-files-reference)
@@ -120,9 +123,10 @@ Metrics Hub is the central dashboard for monitoring all 8020REI operations. It p
 │  │ (@8020rei)  │  │  Sub → Tab)  │  │  └─ 54 Widget types    │ │
 │  └────────────┘  └──────────────┘  └──────────────────────────┘ │
 └──────────────────────────┬───────────────────────────────────────┘
-                           │ fetch()
+                           │ authFetch() — Bearer token attached
 ┌──────────────────────────▼───────────────────────────────────────┐
-│                    Next.js API Routes (src/app/api/)              │
+│              Next.js API Routes (src/app/api/)                    │
+│              requireAuth() gate on every endpoint                 │
 │  /api/metrics/*  │  /api/engagement-calls/*  │  /api/properties-* │
 └────────┬─────────┴──────────┬────────────────┴────────┬──────────┘
          │                    │                         │
@@ -136,10 +140,11 @@ Metrics Hub is the central dashboard for monitoring all 8020REI operations. It p
 ### Data Flow
 
 1. User logs in via Firebase Google Auth (restricted to `@8020rei.com` emails)
-2. Frontend fetches data from Next.js API routes with date range + user type filters
-3. API routes query data sources (BigQuery, Aurora, Drive) with an in-memory cache (5 min TTL)
-4. Data flows into widget components rendered inside a draggable grid layout
-5. Widget layouts persist to localStorage per tab
+2. Frontend uses `authFetch()` which automatically attaches the Firebase ID token as a `Bearer` header
+3. API routes verify the token via `requireAuth()` (Firebase Admin SDK) before processing
+4. Verified routes query data sources (BigQuery, Aurora, Drive) with an in-memory cache (5 min TTL)
+5. Data flows into widget components rendered inside a draggable grid layout
+6. Widget layouts persist to localStorage per tab
 
 ### Caching
 
@@ -254,7 +259,7 @@ Local dev uses `gcloud auth application-default login`. In production (Cloud Run
 | `GOOGLE_DRIVE_CREDENTIALS_JSON` | Full JSON key as string (production only — set in Cloud Run env vars) |
 | `GOOGLE_DRIVE_FOLDER_ID` | Google Drive folder ID for engagement call docs |
 
-### AWS Aurora (Properties API)
+### AWS Aurora (Properties API + DM Campaigns)
 
 | Variable | Description |
 |----------|-------------|
@@ -264,6 +269,27 @@ Local dev uses `gcloud auth application-default login`. In production (Cloud Run
 | `DB_AURORA_SECRET_ACCESS_KEY` | AWS secret key |
 | `DB_AURORA_DEFAULT_REGION` | AWS region (`us-east-1`) |
 | `AWS_AURORA_GRAFANA_DB` | Database name (`grafana8020db`) |
+
+### Slack (Alert Digests)
+
+| Variable | Description |
+|----------|-------------|
+| `SLACK_BOT_TOKEN` | Slack bot token for threaded messages (Web API) |
+| `SLACK_DM_ALERTS_CHANNEL_ID` | Channel ID for `#dm-campaign-alerts` (operational health) |
+| `SLACK_BUSINESS_ALERTS_CHANNEL_ID` | Channel ID for `#dm-business-alerts` (CS team) |
+| `SLACK_DM_ALERTS_WEBHOOK_URL` | Webhook URL (legacy fallback if bot token not set) |
+
+### Email (Suggestions)
+
+| Variable | Description |
+|----------|-------------|
+| `RESEND_API_KEY` | Resend API key for sending suggestion emails |
+
+### API Security
+
+| Variable | Description |
+|----------|-------------|
+| `CRON_SECRET` | Shared secret for authenticating GitHub Actions cron requests. Must match the `CRON_SECRET` GitHub repo secret. |
 
 ---
 
@@ -432,6 +458,7 @@ Here is the minimal template:
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, forwardRef, useImperativeHandle } from 'react';
+import { authFetch } from '@/lib/auth-fetch';
 import { AxisSkeleton, AxisCallout } from '@/components/axis';
 import { GridWorkspace, WidgetCatalog } from '@/components/workspace';
 import { Widget, TabHandle } from '@/types/widget';
@@ -469,7 +496,8 @@ export const MyTab = forwardRef<TabHandle, MyTabProps>(function MyTab(
 
   async function fetchData() {
     setLoading(true);
-    const res = await fetch(`/api/metrics/my-endpoint?days=${days}&userType=${userType}`);
+    // Always use authFetch — never bare fetch for /api/ routes
+    const res = await authFetch(`/api/metrics/my-endpoint?days=${days}&userType=${userType}`);
     const json = await res.json();
     if (json.success) setData(json.data);
     setLoading(false);
@@ -536,21 +564,25 @@ Add `src/app/api/metrics/my-endpoint/route.ts`:
 
 ```typescript
 import { NextRequest, NextResponse } from 'next/server';
-import { getCache, setCache } from '@/lib/cache';
-import { getBigQueryClient } from '@/lib/bigquery';
+import { requireAuth } from '@/lib/auth-guard';
+import { getCached, setCache } from '@/lib/cache';
+import { runQuery } from '@/lib/bigquery';
 
-export async function GET(req: NextRequest) {
-  const days = Number(req.nextUrl.searchParams.get('days') || '30');
-  const userType = req.nextUrl.searchParams.get('userType') || 'all';
+export async function GET(request: NextRequest) {
+  // Auth guard is MANDATORY on every route
+  const authError = await requireAuth(request);
+  if (authError) return authError;
+
+  const days = Number(request.nextUrl.searchParams.get('days') || '30');
+  const userType = request.nextUrl.searchParams.get('userType') || 'all';
 
   const cacheKey = `my-endpoint:${days}:${userType}`;
-  const cached = getCache(cacheKey);
+  const cached = getCached(cacheKey);
   if (cached) {
     return NextResponse.json({ success: true, data: cached, cached: true });
   }
 
   try {
-    const client = getBigQueryClient();
     // Run your query...
     const data = { /* ... */ };
     setCache(cacheKey, data);
@@ -578,6 +610,8 @@ In `src/app/page.tsx`:
 - [ ] Ref created and wired in `page.tsx`
 - [ ] Cases added in unified toolbar handlers
 - [ ] No duplicate Reset/Add Widget buttons inside the tab
+- [ ] **API route uses `requireAuth(request)` as the first line** in every handler
+- [ ] **Frontend uses `authFetch()` — never bare `fetch()` for `/api/` calls**
 - [ ] Layout uses sticky header pattern (`h-screen flex flex-col`)
 - [ ] Uses `chrome-bg` / `light-gray-bg` CSS classes (not Tailwind color classes)
 - [ ] Widget shadows: `shadow-xs` default, `shadow-sm` on hover
@@ -632,21 +666,37 @@ All API routes follow a consistent response pattern:
 
 ### Active Endpoints
 
-| Endpoint | Data Source | Description |
-|----------|-------------|-------------|
-| `/api/metrics/users` | BigQuery (GA4) | User activity, DAU/WAU/MAU |
-| `/api/metrics/events` | BigQuery (GA4) | Event breakdown and volume |
-| `/api/metrics/features` | BigQuery (GA4) | Feature usage metrics |
-| `/api/metrics/clients` | BigQuery (GA4) | Client/domain data |
-| `/api/metrics/traffic` | BigQuery (GA4) | Traffic sources and referrers |
-| `/api/metrics/geography` | BigQuery (GA4) | Countries, cities, regions |
-| `/api/metrics/technology` | BigQuery (GA4) | Devices, browsers, OS |
-| `/api/metrics/insights` | BigQuery (GA4) | Aggregated insights |
-| `/api/engagement-calls` | Google Drive | List, create, read engagement docs |
-| `/api/engagement-calls/[id]` | Google Drive | Update, delete specific doc |
-| `/api/engagement-calls/upload` | Google Drive | File upload |
-| `/api/properties-api` | AWS Aurora | Properties API metrics |
-| `/api/diagnostics` | — | Health checks |
+All endpoints require authentication (Firebase token or cron secret). See [Authentication and Security](#authentication-and-security).
+
+| Endpoint | Method | Data Source | Description |
+|----------|--------|-------------|-------------|
+| `/api/metrics` | GET | BigQuery (GA4) | Overview KPIs |
+| `/api/metrics/users` | GET | BigQuery (GA4) | User activity, DAU/WAU/MAU |
+| `/api/metrics/events` | GET | BigQuery (GA4) | Event breakdown and volume |
+| `/api/metrics/features` | GET | BigQuery (GA4) | Feature usage metrics |
+| `/api/metrics/clients` | GET | BigQuery (GA4) | Client/domain data |
+| `/api/metrics/traffic` | GET | BigQuery (GA4) | Traffic sources and referrers |
+| `/api/metrics/geography` | GET | BigQuery (GA4) | Countries, cities, regions |
+| `/api/metrics/technology` | GET | BigQuery (GA4) | Devices, browsers, OS |
+| `/api/metrics/insights` | GET | BigQuery (GA4) + Aurora | Aggregated insights and alerts |
+| `/api/metrics/engagement` | GET | BigQuery (GA4) | Session engagement metrics |
+| `/api/metrics/product-domains` | GET | BigQuery (Product) | Domain activity overview |
+| `/api/metrics/product-projects` | GET | BigQuery (Product) | Project status overview |
+| `/api/metrics/asana-ai-board` | GET | BigQuery (Product) | AI task board metrics |
+| `/api/metrics/asana-bugs-board` | GET | BigQuery (Product) | Bugs/DI board metrics |
+| `/api/metrics/platform-analytics` | GET | BigQuery | Platform self-analytics |
+| `/api/properties-api` | GET | AWS Aurora | Properties API usage metrics |
+| `/api/rapid-response` | GET | AWS Aurora | DM campaign operational health |
+| `/api/dm-conversions` | GET | AWS Aurora | DM campaign business results |
+| `/api/dm-templates` | GET | AWS Aurora | DM template performance |
+| `/api/engagement-calls` | GET | Google Drive | List engagement documents |
+| `/api/engagement-calls/[id]` | GET | Google Drive | Single document detail |
+| `/api/engagement-calls/upload` | POST | Google Drive | File upload |
+| `/api/suggestions` | POST | Resend | Send suggestion email |
+| `/api/platform-tracking` | POST | BigQuery | Ingest platform tracking events |
+| `/api/rapid-response/slack-alerts` | POST | Aurora + Slack | Send operational health digest (cron) |
+| `/api/dm-conversions/business-alerts` | POST | Aurora + Slack | Send business results digest (cron) |
+| `/api/diagnostics` | GET | BigQuery (GA4) | User affiliation diagnostic data |
 
 ### Query Parameters
 
@@ -654,6 +704,96 @@ Most metrics endpoints accept:
 - `days` — Number of days to look back (7, 30, 90, or custom)
 - `userType` — Filter: `all`, `internal`, `external`
 - `startDate` / `endDate` — Custom date range (ISO format)
+
+---
+
+## Authentication and Security
+
+### How auth works
+
+All API endpoints are protected. There are two authentication strategies:
+
+1. **Firebase ID token** (for dashboard users) — The frontend uses `authFetch()` from `src/lib/auth-fetch.ts` which automatically attaches the current user's Firebase ID token as a `Bearer` header. On the server side, `requireAuth()` in `src/lib/auth-guard.ts` verifies the token using Firebase Admin SDK and enforces the `@8020rei.com` email domain.
+
+2. **Cron secret** (for GitHub Actions automation) — Alert digest endpoints accept an `x-cron-secret` header as an alternative to a Firebase token. This allows GitHub Actions cron jobs to call the endpoints without a user session. The secret is stored in both `.env.local` (local) and GitHub repo secrets (production).
+
+### Where auth is enforced
+
+| Layer | What | How |
+|-------|------|-----|
+| Frontend | All `fetch('/api/...')` calls | Replaced with `authFetch()` — attaches `Bearer` token automatically |
+| Next.js API routes | All GET and POST endpoints | `requireAuth(request)` called at the top of every handler |
+| Fastify backend | All `/api/v1/*` routes | `requireAuth` preHandler hook; health check is open |
+| Cron endpoints | `/api/rapid-response/slack-alerts`, `/api/dm-conversions/business-alerts` | Accept either Firebase token or `x-cron-secret` header |
+| Fastify rate limiting | All backend routes | 100 requests/minute per IP via `@fastify/rate-limit` |
+
+### For new API routes
+
+Every new API route must include the auth guard:
+
+```typescript
+import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth-guard';
+
+export async function GET(request: NextRequest) {
+  const authError = await requireAuth(request);
+  if (authError) return authError;
+
+  // ... your route logic
+}
+```
+
+Every new frontend fetch call must use `authFetch`:
+
+```typescript
+import { authFetch } from '@/lib/auth-fetch';
+
+const res = await authFetch(`/api/metrics/my-endpoint?days=30`);
+```
+
+### Key files
+
+| File | Purpose |
+|------|---------|
+| `src/lib/auth-fetch.ts` | Client-side fetch wrapper — attaches Firebase Bearer token |
+| `src/lib/auth-guard.ts` | Server-side guard — verifies Firebase token or cron secret |
+| `src/lib/firebase/admin.ts` | Firebase Admin SDK initialization (server-side only) |
+| `src/lib/firebase/config.ts` | Firebase client SDK config (browser-side) |
+| `src/lib/firebase/AuthContext.tsx` | React context — manages user state, Google sign-in |
+| `backend/src/auth/middleware.ts` | Fastify preHandler hook — verifies Firebase tokens |
+| `backend/src/auth/firebase-admin.ts` | Firebase Admin SDK for the Fastify backend |
+
+---
+
+## Slack Alerts (Automated)
+
+The platform sends daily Slack alert digests Monday through Friday at 9:00 AM EST via GitHub Actions cron (`.github/workflows/daily-alerts.yml`).
+
+### Alert channels
+
+| Channel | Audience | Endpoint | What it reports |
+|---------|----------|----------|----------------|
+| `#dm-campaign-alerts` | Product team | `/api/rapid-response/slack-alerts` | Operational health: delivery rates, volume drops, PCM alignment issues |
+| `#dm-business-alerts` | CS team | `/api/dm-conversions/business-alerts` | Business results: conversion anomalies, ROAS issues, targeting problems |
+
+### How it works
+
+1. GitHub Actions cron triggers at 14:00 UTC (9:00 AM EST)
+2. The workflow sends a POST request with the `x-cron-secret` header to each alert endpoint
+3. The endpoint queries Aurora for current metrics, compares against thresholds, and generates alerts
+4. Alerts are sent to Slack as threaded messages (main summary + detail threads)
+5. Alert state is cached between runs (via GitHub Actions cache) to distinguish new vs. persistent alerts
+
+### Manual trigger
+
+You can trigger alerts manually from the GitHub Actions UI (workflow_dispatch) or locally:
+
+```bash
+curl -X POST http://localhost:4000/api/rapid-response/slack-alerts \
+  -H "Content-Type: application/json" \
+  -H "x-cron-secret: <your CRON_SECRET from .env.local>" \
+  -d '{"previousState": []}'
+```
 
 ---
 
@@ -723,6 +863,29 @@ gcloud run deploy analytics8020 \
 | Auth | Unauthenticated (public) |
 | Port | 3000 (Docker) |
 
+### GitHub Repo Secrets
+
+These must be configured in **GitHub > Settings > Secrets and variables > Actions** for deployment and cron alerts to work:
+
+| Secret | Purpose |
+|--------|---------|
+| `GCP_SA_KEY` | GCP service account JSON for Cloud Run deployment |
+| `GOOGLE_APPLICATION_CREDENTIALS_PRODUCT_JSON` | BigQuery Product service account JSON |
+| `GOOGLE_DRIVE_CREDENTIALS_JSON` | Google Drive service account JSON |
+| `DB_AURORA_RESOURCE_ARN` | Aurora cluster ARN |
+| `DB_AURORA_SECRET_ARN` | Secrets Manager ARN for Aurora DB credentials |
+| `DB_AURORA_ACCESS_KEY_ID` | AWS IAM access key |
+| `DB_AURORA_SECRET_ACCESS_KEY` | AWS IAM secret key |
+| `DB_AURORA_DEFAULT_REGION` | AWS region (`us-east-1`) |
+| `AWS_AURORA_GRAFANA_DB` | Aurora database name (`grafana8020db`) |
+| `SLACK_BOT_TOKEN` | Slack bot token for threaded alert messages |
+| `SLACK_DM_ALERTS_CHANNEL_ID` | Slack channel ID for `#dm-campaign-alerts` |
+| `SLACK_DM_ALERTS_WEBHOOK_URL` | Slack webhook URL (legacy fallback) |
+| `CRON_SECRET` | Shared secret for authenticating cron alert requests |
+| `FIREBASE_ADMIN_CREDENTIALS_JSON` | Firebase Admin SDK service account JSON (for API token verification) |
+
+To set a secret via CLI: `echo "value" | gh secret set SECRET_NAME`
+
 ### Docker Build
 
 The `Dockerfile` uses a multi-stage build (Node 20 Alpine):
@@ -779,11 +942,17 @@ Next.js is configured with `output: 'standalone'` in `next.config.ts` for this.
 
 | File | Purpose |
 |------|---------|
-| `src/app/page.tsx` | Main dashboard — navigation, toolbar, tab rendering |
+| `src/app/[[...slug]]/page.tsx` | Main dashboard — navigation, toolbar, tab rendering |
 | `src/app/globals.css` | Design tokens, CSS variables, custom classes |
 | `src/lib/navigation.ts` | 3-level navigation hierarchy |
+| `src/lib/auth-fetch.ts` | Client-side authenticated fetch wrapper |
+| `src/lib/auth-guard.ts` | Server-side auth guard (Firebase token + cron secret) |
+| `src/lib/firebase/admin.ts` | Firebase Admin SDK (server-side token verification) |
+| `src/lib/firebase/AuthContext.tsx` | Firebase Auth React context (sign-in/sign-out) |
 | `src/lib/bigquery.ts` | BigQuery client setup (GA4 + Product) |
 | `src/lib/queries.ts` | GA4 SQL query builders |
+| `src/lib/aurora.ts` | AWS Aurora RDS Data API client |
+| `src/lib/slack.ts` | Slack Web API + webhook integration |
 | `src/lib/cache.ts` | In-memory TTL cache |
 | `src/lib/workspace/defaultLayouts.ts` | Widget grid positions per tab |
 | `src/components/axis/` | Axis Design System (15 components) |
@@ -792,7 +961,10 @@ Next.js is configured with `output: 'standalone'` in `next.config.ts` for this.
 | `src/components/workspace/` | Widget system (GridWorkspace, Widget, WidgetCatalog) |
 | `src/components/workspace/widgets/` | 50+ widget components |
 | `src/types/widget.ts` | Widget types + `TabHandle` interface |
-| `backend/src/index.ts` | Fastify server setup |
+| `backend/src/index.ts` | Fastify server setup (auth, rate limit, routes) |
+| `backend/src/auth/middleware.ts` | Fastify Firebase token verification |
+| `.github/workflows/deploy.yml` | Auto-deploy to Cloud Run on push to main |
+| `.github/workflows/daily-alerts.yml` | Cron: Slack alert digests Mon-Fri 9 AM EST |
 | `Dockerfile` | Multi-stage Docker build for Cloud Run |
 | `CLAUDE.md` | AI assistant guidance (patterns, rules, gotchas) |
 | `.claude/skills/dashboard-builder/SKILL.md` | Complete dashboard building reference |
@@ -826,6 +998,17 @@ Next.js is configured with `output: 'standalone'` in `next.config.ts` for this.
 - Clear localStorage for the affected tab's layout key (e.g., `axis-users-layout-v1`)
 - Or use the "Reset Layout" button in the toolbar (requires edit mode)
 
+### API returns 401 Unauthorized
+- All API routes require authentication. Make sure you're using `authFetch()` (not bare `fetch()`) for client-side calls.
+- Ensure the user is signed in via Firebase before making API calls.
+- For cron endpoints, send the `x-cron-secret` header with the correct `CRON_SECRET` value.
+
+### Slack alerts not sending
+- Verify `SLACK_BOT_TOKEN` and channel ID env vars are set in `.env.local`.
+- The Slack bot must be invited to the target channel.
+- For local testing, use: `curl -X POST http://localhost:4000/api/rapid-response/slack-alerts -H "Content-Type: application/json" -H "x-cron-secret: <CRON_SECRET>" -d '{"previousState": []}'`
+- Check the GitHub Actions "Daily DM Campaign Alert Digests" workflow for cron job failures.
+
 ### YAML parsing error during deploy
 - Never pass JSON credentials via `--set-env-vars` — always use the Python script to generate `/tmp/env-vars.yaml`
 
@@ -842,6 +1025,8 @@ The project was built over ~2 months (Feb–Mar 2026) with these major milestone
 5. **Advanced Features** (Mar 4–5) — Properties API (AWS Aurora), export enhancements
 6. **Rebrand** (Mar 25) — Renamed to "Metrics Hub", new logos
 7. **Refinement** (Mar 26–30) — Custom date ranges, lazy loading, SQL safety, cache limits
+8. **Alert Systems** (Apr 1–7) — Automated Slack digests for DM campaign ops + business results
+9. **Security Hardening** (Apr 9) — Firebase Admin token verification on all API routes, `authFetch` wrapper, rate limiting, SQL injection fix, cron secret auth
 
 ---
 

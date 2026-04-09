@@ -10,6 +10,7 @@
 import { useState, useEffect } from 'react';
 import { AxisButton, AxisTag } from '@/components/axis';
 import type { DmPropertyConversion } from '@/types/dm-conversions';
+import { authFetch } from '@/lib/auth-fetch';
 
 interface DmPropertyTimelineModalProps {
   isOpen: boolean;
@@ -48,7 +49,7 @@ export function DmPropertyTimelineModal({ isOpen, onClose, propertyId, domain }:
       setLoading(true);
       try {
         const domainParam = domain ? `&domain=${encodeURIComponent(domain)}` : '';
-        const res = await fetch(`/api/dm-conversions?type=property-timeline&propertyId=${propertyId}${domainParam}`).then(r => r.json());
+        const res = await authFetch(`/api/dm-conversions?type=property-timeline&propertyId=${propertyId}${domainParam}`).then(r => r.json());
         if (!cancelled && res.success) setData(res.data);
       } catch {
         // ignore

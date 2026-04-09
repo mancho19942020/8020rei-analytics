@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth-guard';
 import { Resend } from 'resend';
 
 // Lazy init to avoid build-time crash when env var is missing
@@ -16,6 +17,9 @@ function getResend() {
 const RECIPIENT_EMAIL = 'german@8020rei.com';
 
 export async function POST(request: NextRequest) {
+  const authError = await requireAuth(request);
+  if (authError) return authError;
+
   try {
     const body = await request.json();
     const { category, subject, description, userEmail, userName } = body;

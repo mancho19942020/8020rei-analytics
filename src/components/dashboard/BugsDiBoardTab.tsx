@@ -30,6 +30,7 @@ import {
 import { Widget, TabHandle } from '@/types/widget';
 import type { BugsDiBoardData } from '@/types/asana-tasks';
 import { buildDateQueryString } from '@/lib/date-utils';
+import { authFetch } from '@/lib/auth-fetch';
 
 interface BugsDiBoardTabProps {
   days: number;
@@ -67,7 +68,7 @@ export const BugsDiBoardTab = forwardRef<TabHandle, BugsDiBoardTabProps>(functio
     setError(null);
 
     try {
-      const res = await fetch(`/api/metrics/asana-bugs-board?${buildDateQueryString(days, startDate, endDate)}`);
+      const res = await authFetch(`/api/metrics/asana-bugs-board?${buildDateQueryString(days, startDate, endDate)}`);
       const json = await res.json();
 
       if (json.success) {

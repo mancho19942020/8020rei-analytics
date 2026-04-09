@@ -13,6 +13,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth-guard';
 import { isAuroraConfigured } from '@/lib/aurora';
 import {
   sendSlackMessage,
@@ -33,6 +34,9 @@ interface AlertStateEntry {
 }
 
 export async function POST(request: NextRequest) {
+  const authError = await requireAuth(request);
+  if (authError) return authError;
+
   if (!isAuroraConfigured()) {
     return NextResponse.json({ success: false, error: 'Aurora not configured' }, { status: 503 });
   }
@@ -186,7 +190,7 @@ async function sendThreadedDigest(
       type: 'context',
       elements: [{
         type: 'mrkdwn',
-        text: ':thread: Details in thread  \u00b7  :bar_chart: <https://analytics8020-798362859849.us-central1.run.app/features/features-rei/dm-campaign/business-results|View in Metrics Hub>',
+        text: ':thread: Details in thread  \u00b7  :bar_chart: <https://metrics-hub.8020rei.com/features/features-rei/dm-campaign/business-results|View in Metrics Hub>',
       }],
     },
   ];
@@ -304,7 +308,7 @@ function formatAllClearBlocks(): SlackBlock[] {
       type: 'context',
       elements: [{
         type: 'mrkdwn',
-        text: ':bar_chart: <https://analytics8020-798362859849.us-central1.run.app/features/features-rei/dm-campaign/business-results|View in Metrics Hub>  \u00b7  Sent automatically Mon\u2013Fri at 9:00 AM EST',
+        text: ':bar_chart: <https://metrics-hub.8020rei.com/features/features-rei/dm-campaign/business-results|View in Metrics Hub>  \u00b7  Sent automatically Mon\u2013Fri at 9:00 AM EST',
       }],
     },
   ];

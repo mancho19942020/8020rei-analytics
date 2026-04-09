@@ -6,6 +6,8 @@
  * Sends events to /api/platform-tracking in batches.
  */
 
+import { authFetch } from '@/lib/auth-fetch';
+
 const BATCH_INTERVAL = 10_000; // Flush every 10 seconds
 const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 min inactivity = new session
 
@@ -58,7 +60,7 @@ async function flushEvents() {
   eventQueue = [];
 
   try {
-    await fetch('/api/platform-tracking', {
+    await authFetch('/api/platform-tracking', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ events: batch }),

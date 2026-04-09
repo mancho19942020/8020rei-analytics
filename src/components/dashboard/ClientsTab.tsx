@@ -29,6 +29,7 @@ import {
   formatClientActivityTrendForExport,
 } from '@/lib/export';
 import { buildDateQueryString } from '@/lib/date-utils';
+import { authFetch } from '@/lib/auth-fetch';
 
 interface TrendData {
   value: number;
@@ -111,7 +112,7 @@ export const ClientsTab = forwardRef<TabHandle, ClientsTabProps>(function Client
     setError(null);
 
     try {
-      const res = await fetch(`/api/metrics/clients?${buildDateQueryString(days, startDate, endDate)}&userType=${userType}`);
+      const res = await authFetch(`/api/metrics/clients?${buildDateQueryString(days, startDate, endDate)}&userType=${userType}`);
       const json = await res.json();
 
       if (json.success) {

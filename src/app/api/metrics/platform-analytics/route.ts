@@ -6,6 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth-guard';
 import { bigquery, PROJECT } from '@/lib/bigquery';
 import { getCached, setCache } from '@/lib/cache';
 
@@ -34,6 +35,9 @@ async function runQuery<T>(query: string): Promise<T[]> {
 }
 
 export async function GET(request: NextRequest) {
+  const authError = await requireAuth(request);
+  if (authError) return authError;
+
   const { searchParams } = new URL(request.url);
   const days = parseInt(searchParams.get('days') || '30', 10);
   const startDate = searchParams.get('startDate') || undefined;

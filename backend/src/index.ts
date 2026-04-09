@@ -14,6 +14,7 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
+import rateLimit from '@fastify/rate-limit';
 import dotenv from 'dotenv';
 
 // Load environment variables
@@ -23,6 +24,7 @@ dotenv.config();
 import { analyticsRoutes } from './routes/analytics.js';
 import { healthRoutes } from './routes/health.js';
 import { propertiesApiRoutes } from './routes/properties-api.js';
+import { requireAuth } from './auth/middleware.js';
 
 // Create Fastify instance
 const fastify = Fastify({
@@ -49,12 +51,25 @@ async function registerPlugins() {
   await fastify.register(helmet, {
     contentSecurityPolicy: false, // Disable for API
   });
+
+  // Rate limiting — 100 requests per minute per IP
+  await fastify.register(rateLimit, {
+    max: 100,
+    timeWindow: '1 minute',
+  });
 }
 
 // Register routes
 async function registerRoutes() {
-  // Health check routes
+  // Health check routes (no auth required)
   await fastify.register(healthRoutes, { prefix: '/api/health' });
+
+  // All /api/v1/* routes require Firebase authentication
+  fastify.addHook('onRequest', async (request, reply) => {
+    if (request.url.startsWith('/api/v1/')) {
+      await requireAuth(request, reply);
+    }
+  });
 
   // Analytics routes (BigQuery GA4)
   await fastify.register(analyticsRoutes, { prefix: '/api/v1/analytics' });

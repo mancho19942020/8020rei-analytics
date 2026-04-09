@@ -37,6 +37,7 @@ import {
   formatDeliveryTimelineForExport,
 } from '@/lib/export';
 import { buildDateQueryString } from '@/lib/date-utils';
+import { authFetch } from '@/lib/auth-fetch';
 
 interface ProductProjectsTabProps {
   days: number;
@@ -74,7 +75,7 @@ export const ProductProjectsTab = forwardRef<TabHandle, ProductProjectsTabProps>
     setError(null);
 
     try {
-      const res = await fetch(`/api/metrics/product-projects?${buildDateQueryString(days, startDate, endDate)}`);
+      const res = await authFetch(`/api/metrics/product-projects?${buildDateQueryString(days, startDate, endDate)}`);
       const json = await res.json();
 
       if (json.success) {

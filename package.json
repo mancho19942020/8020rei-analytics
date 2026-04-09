@@ -12,6 +12,7 @@
     "@aws-sdk/client-rds-data": "^3.1001.0",
     "@google-cloud/bigquery": "^8.1.1",
     "firebase": "^12.9.0",
+    "firebase-admin": "^13.7.0",
     "googleapis": "^171.4.0",
     "mammoth": "^1.11.0",
     "next": "16.1.6",

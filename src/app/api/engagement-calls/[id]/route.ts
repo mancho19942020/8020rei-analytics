@@ -1,4 +1,5 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth-guard';
 import { getDocumentContent, DocumentContent } from '@/lib/google-drive';
 import { parseDocumentInsights, getDriveViewUrl, ClientInsight } from '@/lib/document-parser';
 import { getCached, setCache, clearCacheByPrefix } from '@/lib/cache';
@@ -20,7 +21,10 @@ interface RouteParams {
  * Fetches a single engagement call document by ID
  * Returns the full HTML content parsed from the Word document
  */
-export async function GET(request: Request, { params }: RouteParams) {
+export async function GET(request: NextRequest, { params }: RouteParams) {
+  const authError = await requireAuth(request);
+  if (authError) return authError;
+
   try {
     const { id } = await params;
 

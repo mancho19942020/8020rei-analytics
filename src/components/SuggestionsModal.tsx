@@ -21,6 +21,7 @@ import { AxisInput } from '@/components/axis/AxisInput';
 import { AxisSelect } from '@/components/axis/AxisSelect';
 import { AxisCallout } from '@/components/axis/AxisCallout';
 import type { User } from 'firebase/auth';
+import { authFetch } from '@/lib/auth-fetch';
 
 const CATEGORY_OPTIONS = [
   { value: 'Feature Request', label: 'Feature Request' },
@@ -72,7 +73,7 @@ export function SuggestionsModal({ isOpen, onClose, user }: SuggestionsModalProp
     setSending(true);
 
     try {
-      const res = await fetch('/api/suggestions', {
+      const res = await authFetch('/api/suggestions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

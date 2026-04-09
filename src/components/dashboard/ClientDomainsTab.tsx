@@ -34,6 +34,7 @@ import {
   formatRevenueByDomainForExport,
 } from '@/lib/export';
 import { buildDateQueryString } from '@/lib/date-utils';
+import { authFetch } from '@/lib/auth-fetch';
 
 interface ClientDomainsTabProps {
   days: number;
@@ -73,7 +74,7 @@ export const ClientDomainsTab = forwardRef<TabHandle, ClientDomainsTabProps>(fun
     setError(null);
 
     try {
-      const res = await fetch(`/api/metrics/product-domains?${buildDateQueryString(days, startDate, endDate)}`);
+      const res = await authFetch(`/api/metrics/product-domains?${buildDateQueryString(days, startDate, endDate)}`);
       const json = await res.json();
 
       if (json.success) {

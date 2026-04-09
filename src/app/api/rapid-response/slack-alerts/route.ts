@@ -15,6 +15,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth-guard';
 import { runAuroraQuery, isAuroraConfigured } from '@/lib/aurora';
 import {
   sendSlackMessage,
@@ -32,6 +33,9 @@ const SEED_DOMAINS = "'8020rei_demo', '8020rei_migracion_test'";
 const EXCLUDE_SEED = `domain NOT IN (${SEED_DOMAINS})`;
 
 export async function POST(request: NextRequest) {
+  const authError = await requireAuth(request);
+  if (authError) return authError;
+
   if (!isAuroraConfigured()) {
     return NextResponse.json({ success: false, error: 'Aurora not configured' }, { status: 503 });
   }
@@ -181,7 +185,7 @@ async function sendThreadedDigest(
       type: 'context',
       elements: [{
         type: 'mrkdwn',
-        text: ':thread: Details in thread  ·  :bar_chart: <https://analytics8020-798362859849.us-central1.run.app/features/features-rei/dm-campaign/operational-health|View in Metrics Hub>',
+        text: ':thread: Details in thread  ·  :bar_chart: <https://metrics-hub.8020rei.com/features/features-rei/dm-campaign/operational-health|View in Metrics Hub>',
       }],
     },
   ];
@@ -353,7 +357,7 @@ async function sendFlatDigest(
     type: 'context',
     elements: [{
       type: 'mrkdwn',
-      text: ':bar_chart: <https://analytics8020-798362859849.us-central1.run.app/features/features-rei/dm-campaign/operational-health|View in Metrics Hub>',
+      text: ':bar_chart: <https://metrics-hub.8020rei.com/features/features-rei/dm-campaign/operational-health|View in Metrics Hub>',
     }],
   });
 
@@ -390,7 +394,7 @@ function formatAllClearBlocks(): SlackBlock[] {
       type: 'context',
       elements: [{
         type: 'mrkdwn',
-        text: ':bar_chart: <https://analytics8020-798362859849.us-central1.run.app/features/features-rei/dm-campaign/operational-health|View in Metrics Hub>',
+        text: ':bar_chart: <https://metrics-hub.8020rei.com/features/features-rei/dm-campaign/operational-health|View in Metrics Hub>',
       }],
     },
   ];

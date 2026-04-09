@@ -41,6 +41,7 @@ import {
   formatApiErrorsForExport,
   formatApiRecentLogsForExport,
 } from '@/lib/export';
+import { authFetch } from '@/lib/auth-fetch';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -170,12 +171,12 @@ export const PropertiesApiTab = forwardRef<TabHandle, PropertiesApiTabProps>(
         const dp = buildDateQueryString(days, startDate, endDate);
         const [overviewRes, timeSeriesRes, clientsRes, endpointsRes, errorsRes, logsRes] =
           await Promise.all([
-            fetch(`/api/properties-api?type=overview&${dp}`).then((r) => r.json()),
-            fetch(`/api/properties-api?type=usage-over-time&${dp}&granularity=${granularity}`).then((r) => r.json()),
-            fetch(`/api/properties-api?type=by-client&${dp}&limit=20`).then((r) => r.json()),
-            fetch(`/api/properties-api?type=by-endpoint&${dp}`).then((r) => r.json()),
-            fetch(`/api/properties-api?type=errors&${dp}`).then((r) => r.json()),
-            fetch(`/api/properties-api?type=recent-logs&${dp}&page=1&pageSize=15`).then((r) => r.json()),
+            authFetch(`/api/properties-api?type=overview&${dp}`).then((r) => r.json()),
+            authFetch(`/api/properties-api?type=usage-over-time&${dp}&granularity=${granularity}`).then((r) => r.json()),
+            authFetch(`/api/properties-api?type=by-client&${dp}&limit=20`).then((r) => r.json()),
+            authFetch(`/api/properties-api?type=by-endpoint&${dp}`).then((r) => r.json()),
+            authFetch(`/api/properties-api?type=errors&${dp}`).then((r) => r.json()),
+            authFetch(`/api/properties-api?type=recent-logs&${dp}&page=1&pageSize=15`).then((r) => r.json()),
           ]);
 
         setData({
@@ -207,7 +208,7 @@ export const PropertiesApiTab = forwardRef<TabHandle, PropertiesApiTabProps>(
     // Load a different page of logs
     const fetchLogs = useCallback(async (page: number) => {
       try {
-        const res = await fetch(`/api/properties-api?type=recent-logs&${buildDateQueryString(days, startDate, endDate)}&page=${page}&pageSize=15`);
+        const res = await authFetch(`/api/properties-api?type=recent-logs&${buildDateQueryString(days, startDate, endDate)}&page=${page}&pageSize=15`);
         const json = await res.json();
         if (json.success) {
           setData((prev) => prev ? { ...prev, recentLogs: json.data } : prev);

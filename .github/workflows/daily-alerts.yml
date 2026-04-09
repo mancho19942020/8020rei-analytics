@@ -26,6 +26,7 @@ jobs:
       - name: Send daily digest to Slack
         env:
           SERVICE_URL: https://analytics8020-798362859849.us-central1.run.app
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           # Build request body with yesterday's state (if available)
           if [ -f alert-state.json ]; then
@@ -41,6 +42,7 @@ jobs:
           RESPONSE=$(curl -s -w "\n%{http_code}" \
             -X POST \
             -H "Content-Type: application/json" \
+            -H "x-cron-secret: $CRON_SECRET" \
             -d "$BODY" \
             "$SERVICE_URL/api/rapid-response/slack-alerts")
 
@@ -78,6 +80,7 @@ jobs:
       - name: Send business results digest to Slack
         env:
           SERVICE_URL: https://analytics8020-798362859849.us-central1.run.app
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           # Build request body with yesterday's state (if available)
           if [ -f business-alert-state.json ]; then
@@ -93,6 +96,7 @@ jobs:
           RESPONSE=$(curl -s -w "\n%{http_code}" \
             -X POST \
             -H "Content-Type: application/json" \
+            -H "x-cron-secret: $CRON_SECRET" \
             -d "$BODY" \
             "$SERVICE_URL/api/dm-conversions/business-alerts")
 

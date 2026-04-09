@@ -37,6 +37,7 @@ import {
   formatTopPagesForExport,
 } from '@/lib/export';
 import { buildDateQueryString } from '@/lib/date-utils';
+import { authFetch } from '@/lib/auth-fetch';
 
 interface TrendData {
   value: number;
@@ -116,7 +117,7 @@ export const FeaturesTab = forwardRef<TabHandle, FeaturesTabProps>(function Feat
     setError(null);
 
     try {
-      const res = await fetch(`/api/metrics/features?${buildDateQueryString(days, startDate, endDate)}&userType=${userType}`);
+      const res = await authFetch(`/api/metrics/features?${buildDateQueryString(days, startDate, endDate)}&userType=${userType}`);
       const json = await res.json();
 
       if (json.success) {

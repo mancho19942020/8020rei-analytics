@@ -64,6 +64,7 @@ import type {
   DmDataQuality,
   DmAlert,
 } from '@/types/dm-conversions';
+import { authFetch } from '@/lib/auth-fetch';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -142,7 +143,7 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
 
     // Fetch domain list on mount
     useEffect(() => {
-      fetch('/api/rapid-response?type=domain-list')
+      authFetch('/api/rapid-response?type=domain-list')
         .then(r => r.json())
         .then(res => {
           if (res.success) setAvailableDomains(res.data);
@@ -160,14 +161,14 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
         const domainParam = selectedDomain ? `&domain=${encodeURIComponent(selectedDomain)}` : '';
         const [funnelRes, clientRes, templateRes, geoRes, qualityRes, alertsRes, convTrendRes, roasTrendRes] =
           await Promise.all([
-            fetch(`/api/dm-conversions?type=funnel-overview${domainParam}`).then(r => r.json()),
-            fetch(`/api/dm-conversions?type=client-performance${domainParam}`).then(r => r.json()),
-            fetch(`/api/dm-templates?type=template-leaderboard${domainParam}`).then(r => r.json()),
-            fetch(`/api/dm-conversions?type=geo-breakdown${domainParam}`).then(r => r.json()),
-            fetch(`/api/dm-conversions?type=data-quality${domainParam}`).then(r => r.json()),
-            fetch(`/api/dm-conversions?type=alerts${domainParam}`).then(r => r.json()),
-            fetch(`/api/dm-conversions?type=conversion-trend&${dp}${domainParam}`).then(r => r.json()),
-            fetch(`/api/dm-conversions?type=roas-trend&${dp}${domainParam}`).then(r => r.json()),
+            authFetch(`/api/dm-conversions?type=funnel-overview${domainParam}`).then(r => r.json()),
+            authFetch(`/api/dm-conversions?type=client-performance${domainParam}`).then(r => r.json()),
+            authFetch(`/api/dm-templates?type=template-leaderboard${domainParam}`).then(r => r.json()),
+            authFetch(`/api/dm-conversions?type=geo-breakdown${domainParam}`).then(r => r.json()),
+            authFetch(`/api/dm-conversions?type=data-quality${domainParam}`).then(r => r.json()),
+            authFetch(`/api/dm-conversions?type=alerts${domainParam}`).then(r => r.json()),
+            authFetch(`/api/dm-conversions?type=conversion-trend&${dp}${domainParam}`).then(r => r.json()),
+            authFetch(`/api/dm-conversions?type=roas-trend&${dp}${domainParam}`).then(r => r.json()),
           ]);
 
         const result: BusinessResultsData = {
@@ -211,12 +212,12 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
         const domainParam = selectedDomain ? `&domain=${encodeURIComponent(selectedDomain)}` : '';
         const [overviewRes, trendRes, campaignRes, alertsRes, statusRes, costRes] =
           await Promise.all([
-            fetch(`/api/rapid-response?type=overview&${dp}${domainParam}`).then(r => r.json()),
-            fetch(`/api/rapid-response?type=daily-trend&${dp}${domainParam}`).then(r => r.json()),
-            fetch(`/api/rapid-response?type=campaign-list${domainParam}`).then(r => r.json()),
-            fetch(`/api/rapid-response?type=alerts&${dp}${domainParam}`).then(r => r.json()),
-            fetch(`/api/rapid-response?type=status-breakdown&${dp}${domainParam}`).then(r => r.json()),
-            fetch(`/api/rapid-response?type=cost-trend&${dp}${domainParam}`).then(r => r.json()),
+            authFetch(`/api/rapid-response?type=overview&${dp}${domainParam}`).then(r => r.json()),
+            authFetch(`/api/rapid-response?type=daily-trend&${dp}${domainParam}`).then(r => r.json()),
+            authFetch(`/api/rapid-response?type=campaign-list${domainParam}`).then(r => r.json()),
+            authFetch(`/api/rapid-response?type=alerts&${dp}${domainParam}`).then(r => r.json()),
+            authFetch(`/api/rapid-response?type=status-breakdown&${dp}${domainParam}`).then(r => r.json()),
+            authFetch(`/api/rapid-response?type=cost-trend&${dp}${domainParam}`).then(r => r.json()),
           ]);
 
         setData({

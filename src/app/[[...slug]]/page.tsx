@@ -38,6 +38,7 @@ import {
 } from '@/lib/export';
 import { Widget } from '@/types/widget';
 import { initTracker, trackNavigation } from '@/lib/platform-tracker';
+import { authFetch } from '@/lib/auth-fetch';
 
 // Lazy-load tab components — only loaded when the user navigates to them
 const TabSkeleton = () => <div className="flex-1 flex items-center justify-center p-8"><AxisSkeleton variant="custom" width="100%" height="256px" /></div>;
@@ -173,7 +174,7 @@ function Dashboard({ slug }: { slug: string[] }) {
       : `days=${dateRange.days}`;
 
     try {
-      const res = await fetch(`/api/metrics?${dateParams}&userType=${userType}`);
+      const res = await authFetch(`/api/metrics?${dateParams}&userType=${userType}`);
       const json = await res.json();
 
       if (json.success) {

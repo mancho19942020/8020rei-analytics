@@ -35,6 +35,7 @@ import {
   formatFirstVisitsTrendForExport,
 } from '@/lib/export';
 import { buildDateQueryString } from '@/lib/date-utils';
+import { authFetch } from '@/lib/auth-fetch';
 
 interface TrafficBySourceData {
   source: string;
@@ -112,7 +113,7 @@ export const TrafficTab = forwardRef<TabHandle, TrafficTabProps>(function Traffi
     setError(null);
 
     try {
-      const res = await fetch(`/api/metrics/traffic?${buildDateQueryString(days, startDate, endDate)}&userType=${userType}`);
+      const res = await authFetch(`/api/metrics/traffic?${buildDateQueryString(days, startDate, endDate)}&userType=${userType}`);
       const json = await res.json();
 
       if (json.success) {

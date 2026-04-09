@@ -6,6 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth-guard';
 import { bigquery, PROJECT } from '@/lib/bigquery';
 
 const DATASET = 'metrics_hub_tracking';
@@ -60,6 +61,9 @@ async function ensureTable() {
 }
 
 export async function POST(request: NextRequest) {
+  const authError = await requireAuth(request);
+  if (authError) return authError;
+
   try {
     const body = await request.json();
     const events = body.events;

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth-guard';
 import { runProductQuery } from '@/lib/bigquery';
 import { getCached, setCache } from '@/lib/cache';
 import {
@@ -51,6 +52,9 @@ function calculateTrend(current: number, previous: number, invertPositive = fals
 }
 
 export async function GET(request: NextRequest) {
+  const authError = await requireAuth(request);
+  if (authError) return authError;
+
   const searchParams = request.nextUrl.searchParams;
   const days = parseInt(searchParams.get('days') || '30');
   const startDate = searchParams.get('startDate') || undefined;

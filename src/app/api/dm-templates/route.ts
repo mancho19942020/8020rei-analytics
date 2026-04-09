@@ -8,6 +8,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth-guard';
 import { runAuroraQuery, isAuroraConfigured } from '@/lib/aurora';
 import { getCached, setCache } from '@/lib/cache';
 import type { DmTemplatePerformance } from '@/types/dm-conversions';
@@ -24,6 +25,9 @@ function domainFilter(domain?: string | null): string {
 }
 
 export async function GET(request: NextRequest) {
+  const authError = await requireAuth(request);
+  if (authError) return authError;
+
   if (!isAuroraConfigured()) {
     return NextResponse.json(
       { success: false, error: 'Aurora data source is not configured' },

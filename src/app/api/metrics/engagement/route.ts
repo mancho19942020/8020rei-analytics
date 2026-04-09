@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth-guard';
 import { runQuery } from '@/lib/bigquery';
 import { getCached, setCache } from '@/lib/cache';
 import {
@@ -56,6 +57,9 @@ interface EngagementMetricsData {
 }
 
 export async function GET(request: NextRequest) {
+  const authError = await requireAuth(request);
+  if (authError) return authError;
+
   const searchParams = request.nextUrl.searchParams;
   const dateRange = parseDateRangeFromSearchParams(searchParams);
   const userType = (searchParams.get('userType') || 'all') as UserType;

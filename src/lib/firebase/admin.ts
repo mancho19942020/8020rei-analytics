@@ -1,0 +1,91 @@
+/**
+ * Firebase Admin SDK — Server-Side Only
+ *
+ * Used in Next.js API routes to verify Firebase ID tokens.
+ * This file must NEVER be imported from client components.
+ */
+
+import { initializeApp, getApps, cert, type App } from 'firebase-admin/app';
+import { getAuth, type Auth, type DecodedIdToken } from 'firebase-admin/auth';
+import { headers } from 'next/headers';
+
+const ALLOWED_DOMAIN = '8020rei.com';
+
+let app: App;
+let adminAuth: Auth;
+
+function getAdminAuth(): Auth {
+  if (adminAuth) return adminAuth;
+
+  if (getApps().length > 0) {
+    app = getApps()[0];
+  } else {
+    const credentialsJson = process.env.FIREBASE_ADMIN_CREDENTIALS_JSON;
+
+    if (credentialsJson) {
+      const serviceAccount = JSON.parse(credentialsJson);
+      app = initializeApp({ credential: cert(serviceAccount) });
+    } else {
+      // Local dev: uses Application Default Credentials (gcloud CLI)
+      app = initializeApp();
+    }
+  }
+
+  adminAuth = getAuth(app);
+  return adminAuth;
+}
+
+export interface AuthResult {
+  authenticated: boolean;
+  user?: { uid: string; email: string; name?: string };
+  error?: string;
+  status?: number;
+}
+
+/**
+ * Verify the Firebase ID token from the request Authorization header.
+ * Returns the decoded user or an error.
+ */
+export async function verifyRequest(): Promise<AuthResult> {
+  const headersList = await headers();
+  const authHeader = headersList.get('authorization');
+
+  if (!authHeader?.startsWith('Bearer ')) {
+    return {
+      authenticated: false,
+      error: 'Missing or invalid Authorization header',
+      status: 401,
+    };
+  }
+
+  const token = authHeader.slice(7);
+
+  try {
+    const decoded: DecodedIdToken = await getAdminAuth().verifyIdToken(token);
+
+    const email = decoded.email || '';
+    if (!email.endsWith(`@${ALLOWED_DOMAIN}`)) {
+      return {
+        authenticated: false,
+        error: 'Access denied. Only @8020rei.com accounts are allowed.',
+        status: 403,
+      };
+    }
+
+    return {
+      authenticated: true,
+      user: {
+        uid: decoded.uid,
+        email: decoded.email || '',
+        name: decoded.name,
+      },
+    };
+  } catch (error: any) {
+    const message =
+      error.code === 'auth/id-token-expired'
+        ? 'Token expired. Please refresh and try again.'
+        : 'Invalid authentication token';
+
+    return { authenticated: false, error: message, status: 401 };
+  }
+}

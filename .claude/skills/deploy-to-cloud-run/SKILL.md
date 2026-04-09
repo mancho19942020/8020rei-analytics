@@ -94,7 +94,7 @@ else:
     print(f'WARNING: Only {len(aurora_vars)}/{len(aurora_keys)} Aurora vars found — Properties API will not work')
 
 # --- Read additional env vars from .env.local ---
-extra_keys = ['SLACK_DM_ALERTS_WEBHOOK_URL', 'RESEND_API_KEY']
+extra_keys = ['SLACK_DM_ALERTS_WEBHOOK_URL', 'RESEND_API_KEY', 'CRON_SECRET']
 extra_vars = {}
 with open('.env.local') as f:
     for line in f:
@@ -170,6 +170,8 @@ When a new feature requires new environment variables:
 | GA4 Analytics | BigQuery | `web-app-production-451214` / `analytics_489035450` | Uses default service account |
 | Product/opsHub | BigQuery | `bigquery-467404` / `domain` | `GOOGLE_APPLICATION_CREDENTIALS_PRODUCT_JSON` |
 | Properties API Metrics | AWS Aurora | `aurora-services-8020rei` / `grafana8020db` | `DB_AURORA_*` (6 vars) |
+| API auth (token verify) | Firebase Admin | `rei-analytics-b4b8b` | `FIREBASE_ADMIN_CREDENTIALS_JSON` (optional — uses ADC on Cloud Run) |
+| Cron alert auth | Shared secret | N/A | `CRON_SECRET` (must match GitHub Actions secret) |
 
 ---
 

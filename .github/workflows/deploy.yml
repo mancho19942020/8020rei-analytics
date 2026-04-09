@@ -40,6 +40,8 @@ jobs:
           SLACK_WEBHOOK: ${{ secrets.SLACK_DM_ALERTS_WEBHOOK_URL }}
           SLACK_BOT: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL: ${{ secrets.SLACK_DM_ALERTS_CHANNEL_ID }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          FIREBASE_ADMIN_CREDS: ${{ secrets.FIREBASE_ADMIN_CREDENTIALS_JSON }}
         run: |
           python3 << 'PYEOF'
           import os, json
@@ -59,6 +61,21 @@ jobs:
               'DB_AURORA_DEFAULT_REGION': os.environ['AURORA_REGION'],
               'AWS_AURORA_GRAFANA_DB': os.environ['AURORA_DB'],
           }
+
+          # Add auth secrets for API protection
+          cron_secret = os.environ.get('CRON_SECRET', '')
+          if cron_secret:
+              env_vars['CRON_SECRET'] = cron_secret
+              print('✓ CRON_SECRET configured (cron alert auth)')
+          else:
+              print('⚠ No CRON_SECRET — cron alert endpoints will be open')
+
+          firebase_admin_creds = os.environ.get('FIREBASE_ADMIN_CREDS', '')
+          if firebase_admin_creds:
+              env_vars['FIREBASE_ADMIN_CREDENTIALS_JSON'] = firebase_admin_creds
+              print('✓ FIREBASE_ADMIN_CREDENTIALS_JSON configured (API token verification)')
+          else:
+              print('⚠ No FIREBASE_ADMIN_CREDENTIALS_JSON — API routes will use default credentials')
 
           # Add Slack credentials (bot token + channel for threading, webhook as fallback)
           slack_bot = os.environ.get('SLACK_BOT', '')

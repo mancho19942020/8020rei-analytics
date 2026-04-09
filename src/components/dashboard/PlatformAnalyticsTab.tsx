@@ -20,6 +20,7 @@ import {
 import { Widget, TabHandle } from '@/types/widget';
 import { exportToCSV } from '@/lib/export';
 import { buildDateQueryString } from '@/lib/date-utils';
+import { authFetch } from '@/lib/auth-fetch';
 
 interface ActiveUsersData {
   users_today: number;
@@ -83,7 +84,7 @@ export const PlatformAnalyticsTab = forwardRef<TabHandle, PlatformAnalyticsTabPr
       setError(null);
 
       try {
-        const res = await fetch(`/api/metrics/platform-analytics?${buildDateQueryString(days, startDate, endDate)}`);
+        const res = await authFetch(`/api/metrics/platform-analytics?${buildDateQueryString(days, startDate, endDate)}`);
         const json = await res.json();
 
         if (json.success) {

@@ -29,6 +29,7 @@ import {
   formatAlertsByCategoryForExport,
 } from '@/lib/export';
 import { buildDateQueryString } from '@/lib/date-utils';
+import { authFetch } from '@/lib/auth-fetch';
 
 interface Alert {
   id: string;
@@ -98,7 +99,7 @@ export const InsightsTab = forwardRef<TabHandle, InsightsTabProps>(function Insi
     setError(null);
 
     try {
-      const res = await fetch(`/api/metrics/insights?${buildDateQueryString(days, startDate, endDate)}&userType=${userType}`);
+      const res = await authFetch(`/api/metrics/insights?${buildDateQueryString(days, startDate, endDate)}&userType=${userType}`);
       const json = await res.json();
 
       if (json.success) {

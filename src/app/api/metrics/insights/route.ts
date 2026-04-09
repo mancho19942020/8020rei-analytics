@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth-guard';
 import { runQuery } from '@/lib/bigquery';
 import { getCached, setCache } from '@/lib/cache';
 import { isAuroraConfigured } from '@/lib/aurora';
@@ -259,6 +260,9 @@ function detectFirstVisitsAlert(data: any[]): Alert | null {
 // ============================================
 
 export async function GET(request: NextRequest) {
+  const authError = await requireAuth(request);
+  if (authError) return authError;
+
   const searchParams = request.nextUrl.searchParams;
   const userType = (searchParams.get('userType') || 'all') as UserType;
 
