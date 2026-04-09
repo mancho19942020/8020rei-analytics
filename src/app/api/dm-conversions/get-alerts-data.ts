@@ -262,13 +262,15 @@ async function getMergedClientDataForAlerts(domain?: string): Promise<MergedDoma
     runAuroraQuery(`
       SELECT
         domain,
-        COUNT(*) as total_properties,
-        SUM(CASE WHEN total_sends > 0 THEN 1 ELSE 0 END) as mailed_properties,
+        COUNT(DISTINCT property_id) as total_mailed,
         SUM(total_sends) as total_sends,
-        SUM(CASE WHEN is_delivered THEN 1 ELSE 0 END) as total_delivered,
-        SUM(CASE WHEN status = 'lead' OR status = 'appointment' OR status = 'contract' OR status = 'deal' THEN 1 ELSE 0 END) as leads,
-        SUM(CASE WHEN status = 'deal' THEN 1 ELSE 0 END) as deals,
-        SUM(COALESCE(revenue, 0)) as total_revenue
+        SUM(total_delivered) as total_delivered,
+        COUNT(DISTINCT CASE WHEN became_lead_at IS NOT NULL THEN property_id END) as leads,
+        COUNT(DISTINCT CASE WHEN became_appointment_at IS NOT NULL THEN property_id END) as appointments,
+        COUNT(DISTINCT CASE WHEN became_contract_at IS NOT NULL THEN property_id END) as contracts,
+        COUNT(DISTINCT CASE WHEN became_deal_at IS NOT NULL THEN property_id END) as deals,
+        COALESCE(SUM(total_cost), 0) as total_cost,
+        COALESCE(SUM(CASE WHEN deal_revenue > 0 THEN deal_revenue ELSE 0 END), 0) as total_revenue
       FROM dm_property_conversions
       WHERE ${domainFilter(domain)}
       GROUP BY domain
@@ -299,14 +301,14 @@ async function getMergedClientDataForAlerts(domain?: string): Promise<MergedDoma
     if (!domainMap.has(d)) {
       domainMap.set(d, {
         domain: d,
-        totalMailed: Number(r.mailed_properties || 0),
+        totalMailed: Number(r.total_mailed || 0),
         totalSends: Number(r.total_sends || 0),
         totalDelivered: Number(r.total_delivered || 0),
         leads: Number(r.leads || 0),
-        appointments: 0,
-        contracts: 0,
+        appointments: Number(r.appointments || 0),
+        contracts: Number(r.contracts || 0),
         deals: Number(r.deals || 0),
-        totalCost: 0,
+        totalCost: Number(r.total_cost || 0),
         totalRevenue: Number(r.total_revenue || 0),
       });
     }
