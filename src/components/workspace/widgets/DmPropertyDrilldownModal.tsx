@@ -14,6 +14,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { AxisModal } from '@/components/axis';
 import { AxisTable, AxisTag, AxisTooltip } from '@/components/axis';
+import { authFetch } from '@/lib/auth-fetch';
 import type { Column, CellValue, RowData } from '@/types/table';
 
 export type DrilldownStatus = 'mailed' | 'lead' | 'appointment' | 'contract' | 'deal' | 'sent' | 'delivered';
@@ -117,7 +118,7 @@ export function DmPropertyDrilldownModal({
       try {
         let url = `/api/dm-conversions?type=property-drilldown&domain=${encodeURIComponent(domain)}&status=${status}`;
         if (campaignId) url += `&campaignId=${campaignId}`;
-        const res = await fetch(url).then(r => r.json());
+        const res = await authFetch(url).then(r => r.json());
         if (!cancelled) {
           if (res.success) {
             setData(res.data);

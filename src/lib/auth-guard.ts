@@ -25,6 +25,11 @@ export async function requireAuth(request: NextRequest): Promise<NextResponse | 
     return null; // Authorized
   }
 
+  // Local dev: skip Firebase token verification when Admin SDK is not configured
+  if (process.env.NODE_ENV === 'development' && !process.env.FIREBASE_ADMIN_CREDENTIALS_JSON) {
+    return null;
+  }
+
   // Strategy 2: Firebase ID token (for dashboard users)
   const result = await verifyRequest();
 
