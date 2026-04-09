@@ -40,6 +40,7 @@ jobs:
           SLACK_WEBHOOK: ${{ secrets.SLACK_DM_ALERTS_WEBHOOK_URL }}
           SLACK_BOT: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL: ${{ secrets.SLACK_DM_ALERTS_CHANNEL_ID }}
+          SLACK_BIZ_CHANNEL: ${{ secrets.SLACK_BUSINESS_ALERTS_CHANNEL_ID }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
           FIREBASE_ADMIN_CREDS: ${{ secrets.FIREBASE_ADMIN_CREDENTIALS_JSON }}
         run: |
@@ -81,10 +82,14 @@ jobs:
           slack_bot = os.environ.get('SLACK_BOT', '')
           slack_channel = os.environ.get('SLACK_CHANNEL', '')
           slack_url = os.environ.get('SLACK_WEBHOOK', '')
+          slack_biz_channel = os.environ.get('SLACK_BIZ_CHANNEL', '')
           if slack_bot and slack_channel:
               env_vars['SLACK_BOT_TOKEN'] = slack_bot
               env_vars['SLACK_DM_ALERTS_CHANNEL_ID'] = slack_channel
               print(f'✓ Slack Bot Token + Channel ID configured (threaded messages)')
+          if slack_biz_channel:
+              env_vars['SLACK_BUSINESS_ALERTS_CHANNEL_ID'] = slack_biz_channel
+              print(f'✓ SLACK_BUSINESS_ALERTS_CHANNEL_ID configured (business alerts)')
           if slack_url:
               env_vars['SLACK_DM_ALERTS_WEBHOOK_URL'] = slack_url
               print(f'✓ SLACK_DM_ALERTS_WEBHOOK_URL configured (fallback)')
