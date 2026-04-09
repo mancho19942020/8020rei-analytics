@@ -1,7 +1,7 @@
 # Alerts System Plan — Complete Inventory & Blueprint
 
-**Date:** April 7, 2026  
-**Status:** System A live and automated. Systems B and C pending.  
+**Date:** April 7, 2026 (updated April 9, 2026)  
+**Status:** Systems A and B live and automated. System C pending.  
 **Related docs:**
 - [RAPID_RESPONSE_METRICS_PLAN.md](RAPID_RESPONSE_METRICS_PLAN.md) — Layer 1 (operational health)
 - [DM_CAMPAIGN_METRICS_PLAN_V2.md](DM_CAMPAIGN_METRICS_PLAN_V2.md) — Layer 2 (business results)
@@ -11,7 +11,8 @@
 
 ## 1. Complete Alert Inventory
 
-The platform has **3 independent alert systems**, each monitoring a different layer of the business:
+The platform has **3 independent alert systems**, each monitoring a different layer of the business.  
+**Systems A and B are fully operational** — automated daily digests fire Mon–Fri at 9:00 AM EST with zero manual intervention.
 
 ### System A: DM Campaign — Operational Health (Layer 1) — LIVE
 
@@ -32,19 +33,24 @@ The platform has **3 independent alert systems**, each monitoring a different la
 
 ---
 
-### System B: DM Campaign — Business Results (Layer 2) — BLOCKED
+### System B: DM Campaign — Business Results (Layer 2) — LIVE
 
 **Purpose:** "Is the DM Campaign generating results for our clients?"  
 **Data source:** Aurora tables (`dm_property_conversions`, `dm_template_performance`, `dm_client_funnel`)  
-**Slack channel:** `#dm-campaign-alerts` (will split to `#dm-business-alerts` when live)  
-**Current status:** Blocked on Carolina redeploying PR #1827 fix for `dm_property_conversions` NULL timestamp bug.
+**Slack channel:** `#dm-alerts-cs` (channel ID: `C0ARQTT6ZRA`)  
+**Slack delivery:** Automated daily digest Mon–Fri at 9:00 AM EST (threaded format, same as System A)  
+**Audience:** Customer Success team  
+**Live since:** April 9, 2026
 
 | ID | Alert Name | Severity | Trigger | Recommended Action |
 |----|-----------|----------|---------|-------------------|
-| `dm-zero-conversions` | Zero conversions after many sends | **Critical** | Client has 500+ sends but 0 leads | Review targeting criteria |
-| `dm-negative-roas` | Negative ROAS | **Warning** | Client's cost > revenue | Review template performance |
-| `dm-high-unattributed` | High unattributed conversions | **Warning** | >30% conversions have NULL `rapid_response_id` | Check attribution lookback window |
-| `dm-data-quality` | Data quality issue | **Info** | High backfilled rate or zero-revenue deals | Review data quality |
+| `br-underperforming` | Underperforming campaign | **Critical** | Client has 500+ mailed properties but 0 leads | Review template and targeting criteria with client |
+| `br-template-underperform` | Template underperforming vs peers | **Warning** | Template has 100+ sends, 0 leads while sibling template has leads | Suggest client switch to performing template |
+| `br-low-delivery` | Low delivery rate | **Warning** | Template delivery rate < 50% | Review property data quality, enable address verification |
+| `br-leads-no-deals` | Leads coming in but no deals closing | **Warning** | Client has 5+ leads but 0 deals | Check client's follow-up process and CRM |
+| `br-stagnant` | Stagnant campaign | **Info** | 500+ mailed, 1-2 leads, 0 deals | Suggest expanding targeting criteria |
+| `br-pipeline-leak` | Pipeline leakage | **Warning** | 3+ entries at a stage with 0 at next stage | Check for bottleneck in client's process |
+| `br-negative-roas` | Negative ROAS | **Warning** | Client has deals but cost > revenue | Review deal values and campaign costs |
 
 ---
 
@@ -144,15 +150,19 @@ Main message (channel):
 | Variable | Purpose | Where set |
 |----------|---------|-----------|
 | `SLACK_BOT_TOKEN` | Bot User OAuth Token (`xoxb-...`) for Web API | GitHub secret + Cloud Run env |
-| `SLACK_DM_ALERTS_CHANNEL_ID` | Channel ID for `#dm-campaign-alerts` | GitHub secret + Cloud Run env |
+| `SLACK_DM_ALERTS_CHANNEL_ID` | Channel ID for `#dm-campaign-alerts` (System A) | GitHub secret + Cloud Run env |
+| `SLACK_BUSINESS_ALERTS_CHANNEL_ID` | Channel ID for `#dm-alerts-cs` (System B) | GitHub secret + Cloud Run env |
 | `SLACK_DM_ALERTS_WEBHOOK_URL` | Legacy webhook URL (fallback) | GitHub secret + Cloud Run env |
+| `CRON_SECRET` | Shared secret for GitHub Actions → Cloud Run auth | GitHub secret + Cloud Run env |
 
-**To add a new channel** (e.g., `#dm-business-alerts`):
+**To add a new channel** for a new alert system:
 1. Create the channel in Slack
 2. Invite `@Metrics Hub Alerts` bot to the channel
 3. Get the channel ID (right-click channel > View details > bottom)
-4. Add a new env var (e.g., `SLACK_DM_BUSINESS_CHANNEL_ID`)
-5. Update `slack.ts` to support posting to multiple channels
+4. Add as GitHub repo secret: `gh secret set SLACK_{NAME}_CHANNEL_ID --body "CXXXXXX"`
+5. Update `deploy.yml` to pass the secret through to Cloud Run env vars
+6. Update `slack.ts` with a getter function for the new channel
+7. Add a new job in `daily-alerts.yml` calling the new endpoint
 
 ### 3.4 The Slack App
 
@@ -193,15 +203,22 @@ The bot must be **invited to each channel** it posts to (`/invite @Metrics Hub A
 
 **Schedule:** `cron: '0 14 * * 1-5'` = Mon–Fri at 9:00 AM EST (14:00 UTC)
 
-**Flow:**
+**Jobs (run in parallel):**
+
+| Job | Endpoint | Channel | Cache key |
+|-----|----------|---------|-----------|
+| `send-operational-digest` | `/api/rapid-response/slack-alerts` | `#dm-campaign-alerts` | `dm-alerts-state-*` |
+| `send-business-digest` | `/api/dm-conversions/business-alerts` | `#dm-alerts-cs` | `business-alerts-state-*` |
+
+**Flow (each job):**
 1. Restore previous alert state from `actions/cache`
-2. POST to `/api/rapid-response/slack-alerts` with `{"previousState": [...]}`
+2. POST to the endpoint with `{"previousState": [...]}` and `x-cron-secret` header
 3. Parse response, extract `currentState`
 4. Save `currentState` to cache for tomorrow
 
-**Manual trigger:** Supports `workflow_dispatch` — trigger from GitHub Actions UI anytime.
+**Manual trigger:** Supports `workflow_dispatch` — trigger from GitHub Actions UI anytime. **Note:** this fires both jobs, not just one.
 
-**To add a new alert system to the cron:** Add another step in the workflow that calls the new endpoint.
+**To add a new alert system to the cron:** Add another job in the workflow that calls the new endpoint with its own cache key.
 
 ---
 
@@ -327,12 +344,13 @@ Add a new step in `.github/workflows/daily-alerts.yml`:
 | 4 | ~~Slack webhook to Cloud Run~~ | High | **Done** (Apr 7) |
 | 5 | ~~Threaded messages via Web API~~ | High | **Done** — Metrics Hub Alerts bot (Apr 7) |
 | 6 | ~~On-hold alert with 50/500 thresholds~~ | High | **Done** (Apr 7) |
-| 7 | Set up DM business alerts (System B) | High | Blocked on Layer 2 data |
-| 8 | Build GA4 Slack alert endpoint (System C) | Medium | TODO |
-| 9 | Create `#analytics-alerts` Slack channel | Medium | TODO |
-| 10 | Create `#dm-business-alerts` channel | Low | When Layer 2 data is live |
-| 11 | Migrate state persistence to Aurora | Low | Needs CREATE TABLE permission |
-| 12 | Review thresholds for Smart Drop volumes | Low | When Smart Drop launches |
+| 7 | ~~Set up DM business alerts (System B)~~ | High | **Done** — 7 alert rules, `#dm-alerts-cs` (Apr 9) |
+| 8 | ~~Create `#dm-alerts-cs` channel~~ | High | **Done** — Channel ID: C0ARQTT6ZRA (Apr 8) |
+| 9 | ~~Wire System B into cron + Cloud Run deploy~~ | High | **Done** — GitHub secret + deploy.yml + daily-alerts.yml (Apr 9) |
+| 10 | Build GA4 Slack alert endpoint (System C) | Medium | TODO |
+| 11 | Create `#analytics-alerts` Slack channel | Medium | TODO |
+| 12 | Migrate state persistence to Aurora | Low | Needs CREATE TABLE permission |
+| 13 | Review thresholds for Smart Drop volumes | Low | When Smart Drop launches |
 
 ---
 
@@ -341,15 +359,32 @@ Add a new step in `.github/workflows/daily-alerts.yml`:
 | Component | File |
 |-----------|------|
 | Slack client (Web API + webhook) | `src/lib/slack.ts` |
-| DM Operational alerts route | `src/app/api/rapid-response/slack-alerts/route.ts` |
+| DM Operational alerts route (System A) | `src/app/api/rapid-response/slack-alerts/route.ts` |
 | DM Operational main API | `src/app/api/rapid-response/route.ts` |
-| DM Business alerts route | `src/app/api/dm-conversions/slack-alerts/route.ts` |
+| DM Business alerts route (System B) | `src/app/api/dm-conversions/business-alerts/route.ts` |
+| DM Business alerts data (shared) | `src/app/api/dm-conversions/get-alerts-data.ts` |
+| DM Business main API | `src/app/api/dm-conversions/route.ts` |
 | Alert types (DM Operational) | `src/types/rapid-response.ts` |
 | Alert types (DM Business) | `src/types/dm-conversions.ts` |
 | Daily cron workflow | `.github/workflows/daily-alerts.yml` |
 | Deploy workflow (env vars) | `.github/workflows/deploy.yml` |
+| Auth guard (cron secret + Firebase) | `src/lib/auth-guard.ts` |
 | Aurora client | `src/lib/aurora.ts` |
 
 ---
 
-*Last updated: April 7, 2026*
+## 9. Lessons Learned
+
+Key issues encountered and resolved during System B launch (April 9, 2026):
+
+1. **Environment variables must be in both GitHub secrets AND deploy.yml.** Adding a GitHub secret alone does nothing — `deploy.yml` must explicitly read it and pass it to Cloud Run via the env-vars YAML file.
+
+2. **API routes must not self-fetch on Cloud Run.** Internal `fetch(${baseUrl}/api/...)` calls fail because the container can't reliably reach itself. Extract shared data logic into a module and import it directly.
+
+3. **Firebase client SDK crashes during Docker build.** `NEXT_PUBLIC_*` env vars aren't available at build time. Guard `initializeApp()` with `if (firebaseConfig.apiKey)` to skip initialization during SSR/static generation.
+
+4. **`workflow_dispatch` fires ALL jobs.** Manual re-triggers of the daily alerts workflow send to all channels. To test a single channel, call the Cloud Run endpoint directly with `curl` and the `x-cron-secret` header.
+
+---
+
+*Last updated: April 9, 2026*
