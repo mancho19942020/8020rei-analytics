@@ -125,10 +125,13 @@ interface MergedDomainRow {
 }
 
 async function getMergedClientData(domain?: string): Promise<MergedDomainRow[]> {
-  // Query all 3 Layer 2 tables + campaign status in parallel.
-  // dm_property_conversions is the source of truth (complete for all domains).
-  // dm_client_funnel and dm_template_performance may be missing domains (Bug #4).
-  const [funnelRows, templateRows, campaignStatusRows, propertyRows] = await Promise.all([
+  // dm_property_conversions is the SINGLE SOURCE OF TRUTH for all conversion counts
+  // (leads, appointments, contracts, deals, revenue). This guarantees that the numbers
+  // shown in tables always match what users see in the property drilldown modal.
+  //
+  // dm_client_funnel provides operational fields only: mailed, sends, delivered, cost.
+  // rr_campaign_snapshots provides campaign status (active/inactive) and type.
+  const [funnelRows, campaignStatusRows, propertyRows] = await Promise.all([
     runAuroraQuery(`
       SELECT
         domain,
@@ -137,34 +140,10 @@ async function getMergedClientData(domain?: string): Promise<MergedDomainRow[]> 
         COALESCE(total_properties_mailed, 0) as total_mailed,
         COALESCE(total_sends, 0) as total_sends,
         COALESCE(total_delivered, 0) as total_delivered,
-        COALESCE(prospects, 0) as prospects,
-        COALESCE(leads, 0) as leads,
-        COALESCE(appointments, 0) as appointments,
-        COALESCE(contracts, 0) as contracts,
-        COALESCE(deals, 0) as deals,
-        COALESCE(total_cost, 0) as total_cost,
-        COALESCE(total_revenue, 0) as total_revenue,
-        COALESCE(unattributed_conversions, 0) as unattributed_conversions
+        COALESCE(total_cost, 0) as total_cost
       FROM dm_client_funnel
       WHERE date = (SELECT MAX(date) FROM dm_client_funnel WHERE ${domainFilter(domain)})
         AND ${domainFilter(domain)}
-    `),
-    runAuroraQuery(`
-      SELECT
-        domain,
-        COALESCE(SUM(total_sent), 0) as total_sent,
-        COALESCE(SUM(total_delivered), 0) as total_delivered,
-        COALESCE(SUM(unique_properties), 0) as unique_properties,
-        COALESCE(SUM(leads_generated), 0) as leads,
-        COALESCE(SUM(appointments_generated), 0) as appointments,
-        COALESCE(SUM(contracts_generated), 0) as contracts,
-        COALESCE(SUM(deals_generated), 0) as deals,
-        COALESCE(SUM(total_cost), 0) as total_cost,
-        COALESCE(SUM(total_revenue), 0) as total_revenue,
-        COALESCE(SUM(campaigns_using), 0) as campaigns_using
-      FROM dm_template_performance
-      WHERE ${domainFilter(domain)}
-      GROUP BY domain
     `),
     runAuroraQuery(`
       SELECT domain, campaign_type,
@@ -178,8 +157,7 @@ async function getMergedClientData(domain?: string): Promise<MergedDomainRow[]> 
       ) latest
       GROUP BY domain, campaign_type
     `),
-    // Source of truth: aggregate directly from dm_property_conversions
-    // This catches domains missing from dm_client_funnel + dm_template_performance
+    // Source of truth for ALL conversion counts — what the drilldown modal shows
     runAuroraQuery(`
       SELECT
         domain,
@@ -210,11 +188,59 @@ async function getMergedClientData(domain?: string): Promise<MergedDomainRow[]> 
     }
   }
 
-  // Build from dm_client_funnel (primary — when available)
-  const domainMap = new Map<string, MergedDomainRow>();
-
+  // Build operational data lookup from dm_client_funnel (mailed, sends, delivered, cost)
+  const funnelMap = new Map<string, { campaignType: string; activeCampaigns: number; totalMailed: number; totalSends: number; totalDelivered: number; totalCost: number }>();
   for (const r of funnelRows) {
     const d = String(r.domain || '');
+    funnelMap.set(d, {
+      campaignType: String(r.campaign_type || 'rr'),
+      activeCampaigns: Number(r.active_campaigns || 0),
+      totalMailed: Number(r.total_mailed || 0),
+      totalSends: Number(r.total_sends || 0),
+      totalDelivered: Number(r.total_delivered || 0),
+      totalCost: Number(r.total_cost || 0),
+    });
+  }
+
+  // Build final merged data — dm_property_conversions drives all domains and conversion counts
+  const domainMap = new Map<string, MergedDomainRow>();
+
+  for (const r of propertyRows) {
+    const d = String(r.domain || '');
+    const liveStatus = activeCampaignsMap.get(d);
+    const funnel = funnelMap.get(d);
+
+    // Operational fields: prefer dm_client_funnel when available (has more accurate mailed/cost)
+    // Conversion fields: ALWAYS from dm_property_conversions (single source of truth)
+    const totalMailed = funnel ? funnel.totalMailed : Number(r.total_mailed || 0);
+    const totalSends = funnel ? funnel.totalSends : Number(r.total_sends || 0);
+    const totalDelivered = funnel ? funnel.totalDelivered : Number(r.total_delivered || 0);
+    const totalCost = funnel ? funnel.totalCost : Number(r.total_cost || 0);
+    const leads = Number(r.leads || 0);
+
+    domainMap.set(d, {
+      domain: d,
+      campaignType: liveStatus?.type || funnel?.campaignType || 'rr',
+      activeCampaigns: liveStatus?.count ?? funnel?.activeCampaigns ?? 0,
+      totalMailed,
+      totalSends,
+      totalDelivered,
+      prospects: totalMailed - leads,
+      leads,
+      appointments: Number(r.appointments || 0),
+      contracts: Number(r.contracts || 0),
+      deals: Number(r.deals || 0),
+      totalCost,
+      totalRevenue: Number(r.total_revenue || 0),
+      unattributedConversions: Number(r.unattributed || 0),
+    });
+  }
+
+  // Add domains that exist in dm_client_funnel but not in dm_property_conversions
+  // (show operational data with zero conversions — we can't verify conversions without property records)
+  for (const r of funnelRows) {
+    const d = String(r.domain || '');
+    if (domainMap.has(d)) continue;
     const liveStatus = activeCampaignsMap.get(d);
     domainMap.set(d, {
       domain: d,
@@ -223,63 +249,14 @@ async function getMergedClientData(domain?: string): Promise<MergedDomainRow[]> 
       totalMailed: Number(r.total_mailed || 0),
       totalSends: Number(r.total_sends || 0),
       totalDelivered: Number(r.total_delivered || 0),
-      prospects: Number(r.prospects || 0),
-      leads: Number(r.leads || 0),
-      appointments: Number(r.appointments || 0),
-      contracts: Number(r.contracts || 0),
-      deals: Number(r.deals || 0),
+      prospects: Number(r.total_mailed || 0),
+      leads: 0,
+      appointments: 0,
+      contracts: 0,
+      deals: 0,
       totalCost: Number(r.total_cost || 0),
-      totalRevenue: Number(r.total_revenue || 0),
-      unattributedConversions: Number(r.unattributed_conversions || 0),
-    });
-  }
-
-  // Fill missing domains from dm_template_performance
-  for (const r of templateRows) {
-    const d = String(r.domain || '');
-    if (domainMap.has(d)) continue;
-    const liveStatus = activeCampaignsMap.get(d);
-    domainMap.set(d, {
-      domain: d,
-      campaignType: liveStatus?.type || 'rr',
-      activeCampaigns: liveStatus?.count ?? 0,
-      totalMailed: Number(r.unique_properties || 0),
-      totalSends: Number(r.total_sent || 0),
-      totalDelivered: Number(r.total_delivered || 0),
-      prospects: 0,
-      leads: Number(r.leads || 0),
-      appointments: Number(r.appointments || 0),
-      contracts: Number(r.contracts || 0),
-      deals: Number(r.deals || 0),
-      totalCost: Number(r.total_cost || 0),
-      totalRevenue: Number(r.total_revenue || 0),
+      totalRevenue: 0,
       unattributedConversions: 0,
-    });
-  }
-
-  // Fill remaining missing domains from dm_property_conversions (source of truth)
-  // This catches the 10 domains missing from both aggregate tables (Bug #4)
-  for (const r of propertyRows) {
-    const d = String(r.domain || '');
-    if (domainMap.has(d)) continue;
-    const liveStatus = activeCampaignsMap.get(d);
-    const totalMailed = Number(r.total_mailed || 0);
-    const leads = Number(r.leads || 0);
-    domainMap.set(d, {
-      domain: d,
-      campaignType: liveStatus?.type || 'rr',
-      activeCampaigns: liveStatus?.count ?? 0,
-      totalMailed,
-      totalSends: Number(r.total_sends || 0),
-      totalDelivered: Number(r.total_delivered || 0),
-      prospects: totalMailed - leads, // mailed minus converted
-      leads,
-      appointments: Number(r.appointments || 0),
-      contracts: Number(r.contracts || 0),
-      deals: Number(r.deals || 0),
-      totalCost: Number(r.total_cost || 0),
-      totalRevenue: Number(r.total_revenue || 0),
-      unattributedConversions: Number(r.unattributed || 0),
     });
   }
 

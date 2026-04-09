@@ -355,12 +355,7 @@ export function DmPropertyDrilldownModal({
       ) : data.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 gap-3">
           <p style={{ color: 'var(--text-secondary)' }}>
-            No property-level data available yet
-          </p>
-          <p className="text-label" style={{ color: 'var(--text-tertiary)' }}>
-            The table shows {expectedCount} {status === 'mailed' ? 'mailed' : status + 's'} from
-            aggregate data, but the property-level detail table (dm_property_conversions) is still
-            populating. Check back after the next overnight sync.
+            No properties found for this filter
           </p>
         </div>
       ) : (
@@ -370,13 +365,8 @@ export function DmPropertyDrilldownModal({
             <span className="text-label" style={{ color: 'var(--text-secondary)' }}>
               {search
                 ? `${tableData.length} of ${data.length} properties`
-                : `${data.length} properties`
+                : `${data.length} ${data.length === 1 ? 'property' : 'properties'}`
               }
-              {data.length !== expectedCount && expectedCount > 0 && !search && (
-                <span style={{ color: 'var(--color-alert-500)' }}>
-                  {' '}(table shows {expectedCount} — data may still be syncing)
-                </span>
-              )}
             </span>
             <input
               type="text"

@@ -240,7 +240,9 @@ export async function getAlertsData(domain?: string): Promise<AlertsResult> {
   return data;
 }
 
-// Simplified merge query — only fields needed for alerts
+// dm_property_conversions is the SINGLE SOURCE OF TRUTH for conversion counts.
+// dm_client_funnel provides operational fields (mailed, cost) when available.
+// This mirrors getMergedClientData() in route.ts for full consistency.
 async function getMergedClientDataForAlerts(domain?: string): Promise<MergedDomainRow[]> {
   const [funnelRows, propertyRows] = await Promise.all([
     runAuroraQuery(`
@@ -249,12 +251,7 @@ async function getMergedClientDataForAlerts(domain?: string): Promise<MergedDoma
         COALESCE(total_properties_mailed, 0) as total_mailed,
         COALESCE(total_sends, 0) as total_sends,
         COALESCE(total_delivered, 0) as total_delivered,
-        COALESCE(leads, 0) as leads,
-        COALESCE(appointments, 0) as appointments,
-        COALESCE(contracts, 0) as contracts,
-        COALESCE(deals, 0) as deals,
-        COALESCE(total_cost, 0) as total_cost,
-        COALESCE(total_revenue, 0) as total_revenue
+        COALESCE(total_cost, 0) as total_cost
       FROM dm_client_funnel
       WHERE date = (SELECT MAX(date) FROM dm_client_funnel WHERE ${domainFilter(domain)})
         AND ${domainFilter(domain)}
@@ -277,41 +274,35 @@ async function getMergedClientDataForAlerts(domain?: string): Promise<MergedDoma
     `),
   ]);
 
-  // Build map from funnel (primary source)
-  const domainMap = new Map<string, MergedDomainRow>();
+  // Build operational data lookup from dm_client_funnel
+  const funnelMap = new Map<string, { totalMailed: number; totalSends: number; totalDelivered: number; totalCost: number }>();
   for (const r of funnelRows) {
     const d = String(r.domain || '');
-    domainMap.set(d, {
-      domain: d,
+    funnelMap.set(d, {
       totalMailed: Number(r.total_mailed || 0),
       totalSends: Number(r.total_sends || 0),
       totalDelivered: Number(r.total_delivered || 0),
+      totalCost: Number(r.total_cost || 0),
+    });
+  }
+
+  // dm_property_conversions drives all domains and conversion counts
+  const domainMap = new Map<string, MergedDomainRow>();
+  for (const r of propertyRows) {
+    const d = String(r.domain || '');
+    const funnel = funnelMap.get(d);
+    domainMap.set(d, {
+      domain: d,
+      totalMailed: funnel ? funnel.totalMailed : Number(r.total_mailed || 0),
+      totalSends: funnel ? funnel.totalSends : Number(r.total_sends || 0),
+      totalDelivered: funnel ? funnel.totalDelivered : Number(r.total_delivered || 0),
       leads: Number(r.leads || 0),
       appointments: Number(r.appointments || 0),
       contracts: Number(r.contracts || 0),
       deals: Number(r.deals || 0),
-      totalCost: Number(r.total_cost || 0),
+      totalCost: funnel ? funnel.totalCost : Number(r.total_cost || 0),
       totalRevenue: Number(r.total_revenue || 0),
     });
-  }
-
-  // Backfill from property_conversions for domains missing from funnel
-  for (const r of propertyRows) {
-    const d = String(r.domain || '');
-    if (!domainMap.has(d)) {
-      domainMap.set(d, {
-        domain: d,
-        totalMailed: Number(r.total_mailed || 0),
-        totalSends: Number(r.total_sends || 0),
-        totalDelivered: Number(r.total_delivered || 0),
-        leads: Number(r.leads || 0),
-        appointments: Number(r.appointments || 0),
-        contracts: Number(r.contracts || 0),
-        deals: Number(r.deals || 0),
-        totalCost: Number(r.total_cost || 0),
-        totalRevenue: Number(r.total_revenue || 0),
-      });
-    }
   }
 
   return Array.from(domainMap.values());
