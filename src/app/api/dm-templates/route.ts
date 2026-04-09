@@ -110,11 +110,11 @@ async function getTemplateLeaderboard(domain?: string) {
         SUM(total_sends) as total_sent,
         SUM(total_delivered) as total_delivered,
         COALESCE(SUM(total_cost), 0) as total_cost,
-        COUNT(DISTINCT CASE WHEN became_lead_at IS NOT NULL THEN property_id END) as leads_generated,
-        COUNT(DISTINCT CASE WHEN became_appointment_at IS NOT NULL THEN property_id END) as appointments_generated,
-        COUNT(DISTINCT CASE WHEN became_contract_at IS NOT NULL THEN property_id END) as contracts_generated,
-        COUNT(DISTINCT CASE WHEN became_deal_at IS NOT NULL THEN property_id END) as deals_generated,
-        COALESCE(SUM(CASE WHEN deal_revenue > 0 THEN deal_revenue ELSE 0 END), 0) as total_revenue
+        COUNT(DISTINCT CASE WHEN became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as leads_generated,
+        COUNT(DISTINCT CASE WHEN became_appointment_at IS NOT NULL AND became_appointment_at > first_sent_date THEN property_id END) as appointments_generated,
+        COUNT(DISTINCT CASE WHEN became_contract_at IS NOT NULL AND became_contract_at > first_sent_date THEN property_id END) as contracts_generated,
+        COUNT(DISTINCT CASE WHEN became_deal_at IS NOT NULL AND became_deal_at > first_sent_date THEN property_id END) as deals_generated,
+        COALESCE(SUM(CASE WHEN deal_revenue > 0 AND became_deal_at > first_sent_date THEN deal_revenue ELSE 0 END), 0) as total_revenue
       FROM dm_property_conversions
       WHERE ${domainFilter(domain)}
       GROUP BY domain, template_name, template_type

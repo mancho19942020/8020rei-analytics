@@ -43,6 +43,8 @@ interface DrilldownProperty {
   daysToDeal: number | null;
   attributionStatus: string;
   isBackfilled: boolean;
+  conversionConfidence: string;
+  shortConversionWarning: boolean;
 }
 
 interface DmPropertyDrilldownModalProps {
@@ -176,14 +178,27 @@ export function DmPropertyDrilldownModal({
         minWidth: 80,
         align: 'center',
         render: (value: CellValue, row: RowData) => {
-          const backfilled = Boolean(row?.isBackfilled);
+          const confidence = String(row?.conversionConfidence || 'clean');
+          const shortWarning = Boolean(row?.shortConversionWarning);
           return (
-            <span>
+            <span className="flex items-center gap-1">
               <AxisTag color={STATUS_TAG_COLORS[String(value)] || 'neutral'} size="sm">
                 {String(value || '')}
               </AxisTag>
-              {backfilled && (
-                <span className="text-xs ml-0.5" style={{ color: 'var(--text-tertiary)' }}>*</span>
+              {confidence === 'pre_send' && (
+                <AxisTooltip content="Conversion date is before first send — excluded from counts" placement="top">
+                  <span className="text-xs" style={{ color: 'var(--color-error-500)' }}>&#x26D4;</span>
+                </AxisTooltip>
+              )}
+              {confidence === 'flagged' && (
+                <AxisTooltip content="Dates may be inaccurate — possible late feedback upload" placement="top">
+                  <span className="text-xs" style={{ color: 'var(--color-alert-500)' }}>&#x26A0;</span>
+                </AxisTooltip>
+              )}
+              {shortWarning && (
+                <AxisTooltip content="Deal closed in under 30 days — unusually fast for cash conversion" placement="top">
+                  <span className="text-xs" style={{ color: 'var(--color-alert-500)' }}>&#x23F1;</span>
+                </AxisTooltip>
               )}
             </span>
           );
@@ -322,6 +337,8 @@ export function DmPropertyDrilldownModal({
         dealRevenue: p.dealRevenue ?? 0,
         isBackfilled: p.isBackfilled,
         daysToLead: p.daysToLead,
+        conversionConfidence: p.conversionConfidence || 'clean',
+        shortConversionWarning: p.shortConversionWarning || false,
       };
     });
 

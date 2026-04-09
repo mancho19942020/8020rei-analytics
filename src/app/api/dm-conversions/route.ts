@@ -15,6 +15,7 @@ import { requireAuth } from '@/lib/auth-guard';
 import { runAuroraQuery, isAuroraConfigured } from '@/lib/aurora';
 import { getCached, setCache } from '@/lib/cache';
 import { getAlertsData } from './get-alerts-data';
+import { groupByMSA } from '@/lib/msa-lookup';
 import type {
   DmFunnelOverview,
   DmClientPerformanceRow,
@@ -22,6 +23,7 @@ import type {
   DmDataQuality,
   DmAlert,
   RoasConfidence,
+  ConversionConfidence,
 } from '@/types/dm-conversions';
 
 const SEED_DOMAINS = "'8020rei_demo', '8020rei_migracion_test', '_test_debug', '_test_debug3', 'supertest_8020rei_com'";
@@ -33,6 +35,60 @@ function domainFilter(domain?: string | null): string {
     return `${EXCLUDE_SEED} AND domain = '${safe}'`;
   }
   return EXCLUDE_SEED;
+}
+
+/**
+ * Compute conversion confidence for a single property record.
+ * Handles the 4 cases from Lauren's meeting:
+ * 1. pre_send: conversion before first send (false flag, excluded from counts)
+ * 2. flagged: auto-dated late upload (isBackfilled, or lead+deal same day)
+ * 3. short_window: deal closed < 30 days after first send (suspicious)
+ * 4. clean: reasonable timeline
+ */
+function getConversionConfidence(
+  firstSentDate: string | null,
+  becameLeadAt: string | null,
+  becameDealAt: string | null,
+  daysToLead: number | null,
+  daysToDeal: number | null,
+  isBackfilled: boolean,
+): { conversionConfidence: ConversionConfidence; shortConversionWarning: boolean } {
+  const hasConversion = becameLeadAt || becameDealAt;
+  if (!hasConversion) {
+    return { conversionConfidence: 'clean', shortConversionWarning: false };
+  }
+
+  // Case 1: Conversion before first send — false flag
+  if (firstSentDate) {
+    const sent = new Date(firstSentDate);
+    if (becameLeadAt && new Date(becameLeadAt) <= sent) {
+      return { conversionConfidence: 'pre_send', shortConversionWarning: false };
+    }
+    if (becameDealAt && new Date(becameDealAt) <= sent) {
+      return { conversionConfidence: 'pre_send', shortConversionWarning: false };
+    }
+  }
+
+  // Case 2: Late feedback loop upload — isBackfilled or lead+deal on exact same day
+  if (isBackfilled) {
+    return { conversionConfidence: 'flagged', shortConversionWarning: false };
+  }
+  if (becameLeadAt && becameDealAt) {
+    const leadDay = becameLeadAt.substring(0, 10);
+    const dealDay = becameDealAt.substring(0, 10);
+    if (leadDay === dealDay) {
+      return { conversionConfidence: 'flagged', shortConversionWarning: false };
+    }
+  }
+
+  // Case 3: Suspiciously short conversion window (deal < 30 days)
+  const shortDeal = daysToDeal !== null && daysToDeal < 30 && daysToDeal >= 0;
+  if (shortDeal) {
+    return { conversionConfidence: 'short_window', shortConversionWarning: true };
+  }
+
+  // Case 4: Clean
+  return { conversionConfidence: 'clean', shortConversionWarning: false };
 }
 
 function getRoasConfidence(deals: number, revenue: number): RoasConfidence {
@@ -164,13 +220,14 @@ async function getMergedClientData(domain?: string): Promise<MergedDomainRow[]> 
         COUNT(DISTINCT property_id) as total_mailed,
         SUM(total_sends) as total_sends,
         SUM(total_delivered) as total_delivered,
-        COUNT(DISTINCT CASE WHEN became_lead_at IS NOT NULL THEN property_id END) as leads,
-        COUNT(DISTINCT CASE WHEN became_appointment_at IS NOT NULL THEN property_id END) as appointments,
-        COUNT(DISTINCT CASE WHEN became_contract_at IS NOT NULL THEN property_id END) as contracts,
-        COUNT(DISTINCT CASE WHEN became_deal_at IS NOT NULL THEN property_id END) as deals,
+        COUNT(DISTINCT CASE WHEN became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as leads,
+        COUNT(DISTINCT CASE WHEN became_appointment_at IS NOT NULL AND became_appointment_at > first_sent_date THEN property_id END) as appointments,
+        COUNT(DISTINCT CASE WHEN became_contract_at IS NOT NULL AND became_contract_at > first_sent_date THEN property_id END) as contracts,
+        COUNT(DISTINCT CASE WHEN became_deal_at IS NOT NULL AND became_deal_at > first_sent_date THEN property_id END) as deals,
         COALESCE(SUM(total_cost), 0) as total_cost,
-        COALESCE(SUM(CASE WHEN deal_revenue > 0 THEN deal_revenue ELSE 0 END), 0) as total_revenue,
-        COUNT(DISTINCT CASE WHEN attribution_status = 'unattributed' AND became_lead_at IS NOT NULL THEN property_id END) as unattributed
+        COALESCE(SUM(CASE WHEN deal_revenue > 0 AND became_deal_at > first_sent_date THEN deal_revenue ELSE 0 END), 0) as total_revenue,
+        COUNT(DISTINCT CASE WHEN attribution_status = 'unattributed' AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as unattributed,
+        COUNT(DISTINCT CASE WHEN (became_lead_at IS NOT NULL AND became_lead_at <= first_sent_date) OR (became_deal_at IS NOT NULL AND became_deal_at <= first_sent_date) THEN property_id END) as pre_send_excluded
       FROM dm_property_conversions
       WHERE ${domainFilter(domain)}
       GROUP BY domain
@@ -358,7 +415,7 @@ async function getClientPerformance(domain?: string) {
 }
 
 // ---------------------------------------------------------------------------
-// Geographic Breakdown — still requires dm_property_conversions (blocked)
+// Geographic Breakdown — county for dense markets, MSA for sparse markets
 // ---------------------------------------------------------------------------
 
 async function getGeoBreakdown(domain?: string) {
@@ -371,32 +428,43 @@ async function getGeoBreakdown(domain?: string) {
       COALESCE(state, 'Unknown') as state,
       COALESCE(county, 'Unknown') as county,
       COUNT(DISTINCT property_id) as total_mailed,
-      COUNT(DISTINCT CASE WHEN became_lead_at IS NOT NULL THEN property_id END) as leads,
-      COUNT(DISTINCT CASE WHEN became_deal_at IS NOT NULL THEN property_id END) as deals,
-      COALESCE(SUM(CASE WHEN deal_revenue > 0 THEN deal_revenue ELSE 0 END), 0) as total_revenue
+      COUNT(DISTINCT CASE WHEN became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as leads,
+      COUNT(DISTINCT CASE WHEN became_deal_at IS NOT NULL AND became_deal_at > first_sent_date THEN property_id END) as deals,
+      COALESCE(SUM(CASE WHEN deal_revenue > 0 AND became_deal_at > first_sent_date THEN deal_revenue ELSE 0 END), 0) as total_revenue
     FROM dm_property_conversions
     WHERE ${domainFilter(domain)}
     GROUP BY state, county
     HAVING COUNT(DISTINCT property_id) > 0
     ORDER BY leads DESC, total_mailed DESC
-    LIMIT 100
+    LIMIT 200
   `);
 
-  const data: DmGeoRow[] = rows.map((r: Record<string, unknown>) => {
-    const totalMailed = Number(r.total_mailed || 0);
-    const leads = Number(r.leads || 0);
-    const deals = Number(r.deals || 0);
-    return {
-      state: String(r.state || 'Unknown'),
-      county: String(r.county || 'Unknown'),
-      totalMailed,
-      leads,
-      deals,
-      leadConversionRate: totalMailed > 0 ? Number(((leads / totalMailed) * 100).toFixed(2)) : 0,
-      dealConversionRate: totalMailed > 0 ? Number(((deals / totalMailed) * 100).toFixed(2)) : 0,
-      totalRevenue: Number(Number(r.total_revenue || 0).toFixed(2)),
-    };
-  });
+  // Parse raw county rows
+  const rawRows = rows.map((r: Record<string, unknown>) => ({
+    state: String(r.state || 'Unknown'),
+    county: String(r.county || 'Unknown'),
+    totalMailed: Number(r.total_mailed || 0),
+    leads: Number(r.leads || 0),
+    deals: Number(r.deals || 0),
+    totalRevenue: Number(Number(r.total_revenue || 0).toFixed(2)),
+  }));
+
+  // Group: dense counties stay, sparse counties roll up to MSA
+  const grouped = groupByMSA(rawRows);
+
+  // Map to DmGeoRow with computed rates
+  const data: DmGeoRow[] = grouped.map(g => ({
+    geoLabel: g.geoLabel,
+    geoType: g.geoType,
+    state: g.state,
+    county: g.geoLabel, // backwards compat
+    totalMailed: g.totalMailed,
+    leads: g.leads,
+    deals: g.deals,
+    leadConversionRate: g.totalMailed > 0 ? Number(((g.leads / g.totalMailed) * 100).toFixed(2)) : 0,
+    dealConversionRate: g.totalMailed > 0 ? Number(((g.deals / g.totalMailed) * 100).toFixed(2)) : 0,
+    totalRevenue: g.totalRevenue,
+  }));
 
   setCache(cacheKey, data);
   return NextResponse.json({ success: true, data, cached: false });
@@ -453,6 +521,14 @@ async function getPropertyTimeline(propertyId: string | null, campaignId: string
     daysToDeal: r.days_to_deal !== null ? Number(r.days_to_deal) : null,
     leadsource: r.leadsource ? String(r.leadsource) : null,
     attributionStatus: String(r.attribution_status || 'prospect'),
+    ...getConversionConfidence(
+      r.first_sent_date ? String(r.first_sent_date) : null,
+      r.became_lead_at ? String(r.became_lead_at) : null,
+      r.became_deal_at ? String(r.became_deal_at) : null,
+      r.days_to_lead !== null ? Number(r.days_to_lead) : null,
+      r.days_to_deal !== null ? Number(r.days_to_deal) : null,
+      Boolean(r.is_backfilled),
+    ),
   }));
 
   return NextResponse.json({ success: true, data, cached: false });
@@ -493,7 +569,8 @@ async function getDataQuality(domain?: string) {
         COUNT(DISTINCT CASE WHEN attribution_status = 'attributed' THEN property_id END) as attributed,
         COUNT(DISTINCT CASE WHEN attribution_status = 'unattributed' THEN property_id END) as unattributed,
         COUNT(DISTINCT CASE WHEN is_backfilled = true THEN property_id END) as backfilled,
-        COUNT(DISTINCT CASE WHEN became_deal_at IS NOT NULL AND (deal_revenue IS NULL OR deal_revenue = 0) THEN property_id END) as zero_revenue_deals
+        COUNT(DISTINCT CASE WHEN became_deal_at IS NOT NULL AND (deal_revenue IS NULL OR deal_revenue = 0) THEN property_id END) as zero_revenue_deals,
+        COUNT(DISTINCT CASE WHEN (became_lead_at IS NOT NULL AND became_lead_at <= first_sent_date) OR (became_deal_at IS NOT NULL AND became_deal_at <= first_sent_date) THEN property_id END) as pre_send_conversions
       FROM dm_property_conversions
       WHERE ${domainFilter(domain)}
     `),
@@ -523,6 +600,7 @@ async function getDataQuality(domain?: string) {
     backfilledCount: backfilled,
     backfilledRate: totalProperties > 0 ? Number(((backfilled / totalProperties) * 100).toFixed(1)) : 0,
     zeroRevenueDealCount: Number(p.zero_revenue_deals || 0),
+    preSendConversions: Number(p.pre_send_conversions || 0),
     // From available tables
     totalTemplates: Number(t.total_templates || 0),
     totalClients: Number(f.total_clients || 0),
@@ -567,11 +645,11 @@ async function getConversionTrend(days: number, domain?: string) {
     runAuroraQuery(`
       SELECT
         CURRENT_DATE::TEXT as date,
-        COUNT(DISTINCT CASE WHEN became_lead_at IS NOT NULL THEN property_id END) as leads,
-        COUNT(DISTINCT CASE WHEN became_appointment_at IS NOT NULL THEN property_id END) as appointments,
-        COUNT(DISTINCT CASE WHEN became_contract_at IS NOT NULL THEN property_id END) as contracts,
-        COUNT(DISTINCT CASE WHEN became_deal_at IS NOT NULL THEN property_id END) as deals,
-        COALESCE(SUM(CASE WHEN deal_revenue > 0 THEN deal_revenue ELSE 0 END), 0) as total_revenue
+        COUNT(DISTINCT CASE WHEN became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as leads,
+        COUNT(DISTINCT CASE WHEN became_appointment_at IS NOT NULL AND became_appointment_at > first_sent_date THEN property_id END) as appointments,
+        COUNT(DISTINCT CASE WHEN became_contract_at IS NOT NULL AND became_contract_at > first_sent_date THEN property_id END) as contracts,
+        COUNT(DISTINCT CASE WHEN became_deal_at IS NOT NULL AND became_deal_at > first_sent_date THEN property_id END) as deals,
+        COALESCE(SUM(CASE WHEN deal_revenue > 0 AND became_deal_at > first_sent_date THEN deal_revenue ELSE 0 END), 0) as total_revenue
       FROM dm_property_conversions
       WHERE ${domainFilter(domain)}
     `),
@@ -639,8 +717,8 @@ async function getRoasTrend(days: number, domain?: string) {
       SELECT
         CURRENT_DATE::TEXT as date,
         COALESCE(SUM(total_cost), 0) as total_cost,
-        COALESCE(SUM(CASE WHEN deal_revenue > 0 THEN deal_revenue ELSE 0 END), 0) as total_revenue,
-        COUNT(DISTINCT CASE WHEN became_deal_at IS NOT NULL THEN property_id END) as deals
+        COALESCE(SUM(CASE WHEN deal_revenue > 0 AND became_deal_at > first_sent_date THEN deal_revenue ELSE 0 END), 0) as total_revenue,
+        COUNT(DISTINCT CASE WHEN became_deal_at IS NOT NULL AND became_deal_at > first_sent_date THEN property_id END) as deals
       FROM dm_property_conversions
       WHERE ${domainFilter(domain)}
     `),
@@ -815,6 +893,14 @@ async function getPropertyDrilldown(domain?: string, status?: string, campaignId
     daysToDeal: r.days_to_deal !== null ? Number(r.days_to_deal) : null,
     attributionStatus: String(r.attribution_status || 'prospect'),
     isBackfilled: Boolean(r.is_backfilled),
+    ...getConversionConfidence(
+      r.first_sent_date ? String(r.first_sent_date) : null,
+      r.became_lead_at ? String(r.became_lead_at) : null,
+      r.became_deal_at ? String(r.became_deal_at) : null,
+      r.days_to_lead !== null ? Number(r.days_to_lead) : null,
+      r.days_to_deal !== null ? Number(r.days_to_deal) : null,
+      Boolean(r.is_backfilled),
+    ),
   }));
 
   return NextResponse.json({ success: true, data, total: data.length, cached: false });

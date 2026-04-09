@@ -50,18 +50,23 @@ export async function getAlertsData(domain?: string): Promise<AlertsResult> {
 
   const [clientRows, templateRows] = await Promise.all([
     getMergedClientDataForAlerts(domain),
+    // Use dm_property_conversions (source of truth) with date validation for conversion counts.
+    // dm_template_performance is pre-aggregated and may include pre-send false positives.
     runAuroraQuery(`
       SELECT
         domain,
-        template_name,
-        COALESCE(total_sent, 0) as total_sent,
-        COALESCE(total_delivered, 0) as total_delivered,
-        COALESCE(delivery_rate, 0) as delivery_rate,
-        COALESCE(deals_generated, 0) as deals,
-        COALESCE(total_revenue, 0) as total_revenue,
-        COALESCE(leads_generated, 0) as leads
-      FROM dm_template_performance
+        COALESCE(template_name, 'Unknown template') as template_name,
+        SUM(total_sends) as total_sent,
+        SUM(total_delivered) as total_delivered,
+        CASE WHEN SUM(total_sends) > 0
+          THEN ROUND((SUM(total_delivered)::NUMERIC / SUM(total_sends)) * 100, 1)
+          ELSE 0 END as delivery_rate,
+        COUNT(DISTINCT CASE WHEN became_deal_at IS NOT NULL AND became_deal_at > first_sent_date THEN property_id END) as deals,
+        COALESCE(SUM(CASE WHEN deal_revenue > 0 AND became_deal_at > first_sent_date THEN deal_revenue ELSE 0 END), 0) as total_revenue,
+        COUNT(DISTINCT CASE WHEN became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as leads
+      FROM dm_property_conversions
       WHERE ${domainFilter(domain)}
+      GROUP BY domain, template_name
     `),
   ]);
 
@@ -262,12 +267,12 @@ async function getMergedClientDataForAlerts(domain?: string): Promise<MergedDoma
         COUNT(DISTINCT property_id) as total_mailed,
         SUM(total_sends) as total_sends,
         SUM(total_delivered) as total_delivered,
-        COUNT(DISTINCT CASE WHEN became_lead_at IS NOT NULL THEN property_id END) as leads,
-        COUNT(DISTINCT CASE WHEN became_appointment_at IS NOT NULL THEN property_id END) as appointments,
-        COUNT(DISTINCT CASE WHEN became_contract_at IS NOT NULL THEN property_id END) as contracts,
-        COUNT(DISTINCT CASE WHEN became_deal_at IS NOT NULL THEN property_id END) as deals,
+        COUNT(DISTINCT CASE WHEN became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as leads,
+        COUNT(DISTINCT CASE WHEN became_appointment_at IS NOT NULL AND became_appointment_at > first_sent_date THEN property_id END) as appointments,
+        COUNT(DISTINCT CASE WHEN became_contract_at IS NOT NULL AND became_contract_at > first_sent_date THEN property_id END) as contracts,
+        COUNT(DISTINCT CASE WHEN became_deal_at IS NOT NULL AND became_deal_at > first_sent_date THEN property_id END) as deals,
         COALESCE(SUM(total_cost), 0) as total_cost,
-        COALESCE(SUM(CASE WHEN deal_revenue > 0 THEN deal_revenue ELSE 0 END), 0) as total_revenue
+        COALESCE(SUM(CASE WHEN deal_revenue > 0 AND became_deal_at > first_sent_date THEN deal_revenue ELSE 0 END), 0) as total_revenue
       FROM dm_property_conversions
       WHERE ${domainFilter(domain)}
       GROUP BY domain

@@ -18,6 +18,7 @@ interface DmDataQualityData {
   backfilledCount: number;
   backfilledRate: number;
   zeroRevenueDealCount: number;
+  preSendConversions?: number;
   totalTemplates?: number;
   totalClients?: number;
   deliveryIssues?: number;
@@ -94,6 +95,14 @@ export function DmDataQualityWidget({ data }: DmDataQualityWidgetProps) {
             type={data.zeroRevenueDealCount > 0 ? 'bad' : 'default'}
             tooltip="Deals that closed but have no revenue recorded."
           />
+          {(data.preSendConversions ?? 0) > 0 && (
+            <AxisPill
+              label="Pre-send conversions"
+              value={data.preSendConversions ?? 0}
+              type="bad"
+              tooltip="Properties with a conversion date before the first send date. These are excluded from all lead/deal counts as false positives."
+            />
+          )}
         </>
       ) : (
         <div

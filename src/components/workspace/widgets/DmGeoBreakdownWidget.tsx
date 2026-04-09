@@ -8,8 +8,8 @@
 'use client';
 
 import { useMemo } from 'react';
-import { AxisTable } from '@/components/axis';
-import type { Column, CellValue } from '@/types/table';
+import { AxisTable, AxisTag } from '@/components/axis';
+import type { Column, CellValue, RowData } from '@/types/table';
 import type { DmGeoRow } from '@/types/dm-conversions';
 
 interface DmGeoBreakdownWidgetProps {
@@ -25,20 +25,28 @@ function formatCurrency(value: number): string {
 export function DmGeoBreakdownWidget({ data }: DmGeoBreakdownWidgetProps) {
   const columns: Column[] = useMemo(() => [
     {
-      field: 'state',
-      header: 'State',
-      width: 70,
-      render: (value: CellValue) => (
-        <span className="font-medium" style={{ color: 'var(--text-primary)' }}>
-          {String(value || '')}
-        </span>
-      ),
+      field: 'geoLabel',
+      header: 'Market',
+      width: 180,
+      minWidth: 120,
+      render: (value: CellValue, row: RowData) => {
+        const geoType = String(row?.geoType || 'county');
+        return (
+          <span className="flex items-center gap-1.5">
+            <span className="font-medium" style={{ color: 'var(--text-primary)' }}>
+              {String(value || '')}
+            </span>
+            <AxisTag color={geoType === 'county' ? 'info' : 'neutral'} size="sm">
+              {geoType === 'county' ? 'County' : 'MSA'}
+            </AxisTag>
+          </span>
+        );
+      },
     },
     {
-      field: 'county',
-      header: 'County',
-      width: 120,
-      minWidth: 80,
+      field: 'state',
+      header: 'State',
+      width: 60,
     },
     {
       field: 'totalMailed',
@@ -85,9 +93,10 @@ export function DmGeoBreakdownWidget({ data }: DmGeoBreakdownWidgetProps) {
 
   const tableData = useMemo(() =>
     data.map((g, i) => ({
-      id: `${g.state}-${g.county}-${i}`,
+      id: `${g.state}-${g.geoLabel || g.county}-${i}`,
+      geoLabel: g.geoLabel || g.county,
+      geoType: g.geoType || 'county',
       state: g.state,
-      county: g.county,
       totalMailed: g.totalMailed,
       leads: g.leads,
       deals: g.deals,

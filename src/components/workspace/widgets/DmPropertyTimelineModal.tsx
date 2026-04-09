@@ -181,7 +181,16 @@ export function DmPropertyTimelineModal({ isOpen, onClose, propertyId, domain }:
                         {entry.dealRevenue !== null && ` — $${entry.dealRevenue.toLocaleString()}`}
                       </span>
                     )}
-                    {entry.isBackfilled && (
+                    {entry.conversionConfidence === 'pre_send' && (
+                      <AxisTag color="error" size="sm">Pre-send conversion (excluded)</AxisTag>
+                    )}
+                    {entry.conversionConfidence === 'flagged' && (
+                      <AxisTag color="alert" size="sm">Late upload — dates may be inaccurate</AxisTag>
+                    )}
+                    {entry.shortConversionWarning && (
+                      <AxisTag color="alert" size="sm">Fast close (&lt;30d)</AxisTag>
+                    )}
+                    {entry.isBackfilled && entry.conversionConfidence !== 'flagged' && (
                       <AxisTag color="alert" size="sm">Backfilled dates</AxisTag>
                     )}
                     {entry.attributionStatus === 'unattributed' && (

@@ -16,6 +16,16 @@ export type AttributionStatus = 'attributed' | 'other_campaign' | 'unattributed'
 /** ROAS confidence level — applied server-side based on data integrity rules */
 export type RoasConfidence = 'confident' | 'low_sample' | 'revenue_no_deal' | 'none';
 
+/**
+ * Conversion confidence — flags data integrity issues on individual property conversions.
+ * - clean: Conversion date is after first send with a reasonable time gap
+ * - flagged: Conversion date is after first send but may be an auto-dated late upload
+ *   (e.g., lead and deal on same day, or isBackfilled=true, or conversion within 2 days of sync)
+ * - pre_send: Conversion date is before or equal to first send date (excluded from counts)
+ * - short_window: Deal closed within 30 days of first send (suspicious for cash deals)
+ */
+export type ConversionConfidence = 'clean' | 'flagged' | 'pre_send' | 'short_window';
+
 // ---------------------------------------------------------------------------
 // dm_property_conversions
 // ---------------------------------------------------------------------------
@@ -50,6 +60,10 @@ export interface DmPropertyConversion {
   daysToDeal: number | null;
   leadsource: string | null;
   attributionStatus: AttributionStatus;
+  /** Data integrity: confidence level for this property's conversion dates */
+  conversionConfidence: ConversionConfidence;
+  /** True when days_to_deal < 30 — suspicious for cash conversion cycle */
+  shortConversionWarning: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -155,7 +169,12 @@ export interface DmClientPerformanceRow {
 }
 
 export interface DmGeoRow {
+  /** Display label — county name or MSA name */
+  geoLabel: string;
+  /** 'county' for dense markets, 'msa' for rolled-up metro areas */
+  geoType: 'county' | 'msa';
   state: string;
+  /** @deprecated Use geoLabel instead — kept for backwards compat during migration */
   county: string;
   totalMailed: number;
   leads: number;
@@ -173,6 +192,7 @@ export interface DmDataQuality {
   backfilledCount: number;
   backfilledRate: number;
   zeroRevenueDealCount: number;
+  preSendConversions: number;
 }
 
 // ---------------------------------------------------------------------------
