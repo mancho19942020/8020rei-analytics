@@ -199,37 +199,51 @@ async function sendThreadedDigest(
   if (!threadTs || threadTs === 'webhook') return;
 
   // 2. Post NEW alerts as thread replies (full detail)
+  // Slack has a 50-block limit per message. Each alert ~3 blocks, so chunk at 15.
   if (newAlerts.length > 0) {
-    await sendSlackThreadReply(threadTs, {
-      text: `${newAlerts.length} new alert(s)`,
-      blocks: [
-        {
-          type: 'section',
-          text: { type: 'mrkdwn', text: ':new: *New alerts*' },
-        },
-        { type: 'divider' },
-        ...newAlerts.flatMap(a => formatAlertBlocks(a)),
-      ],
-      unfurl_links: false,
-    }, channelId);
+    const CHUNK_SIZE = 15;
+    for (let i = 0; i < newAlerts.length; i += CHUNK_SIZE) {
+      const chunk = newAlerts.slice(i, i + CHUNK_SIZE);
+      const isFirst = i === 0;
+      const headerBlocks: SlackBlock[] = isFirst
+        ? [
+            { type: 'section', text: { type: 'mrkdwn', text: ':new: *New alerts*' } },
+            { type: 'divider' },
+          ]
+        : [
+            { type: 'section', text: { type: 'mrkdwn', text: `:new: *New alerts (continued ${i + 1}–${Math.min(i + CHUNK_SIZE, newAlerts.length)} of ${newAlerts.length})*` } },
+            { type: 'divider' },
+          ];
+      await sendSlackThreadReply(threadTs, {
+        text: `${chunk.length} new alert(s)${isFirst ? '' : ' (continued)'}`,
+        blocks: [...headerBlocks, ...chunk.flatMap(a => formatAlertBlocks(a))],
+        unfurl_links: false,
+      }, channelId);
+    }
   }
 
   // 3. Post PERSISTENT alerts as thread reply
   if (persistent.length > 0) {
     if (force) {
-      // Full detail for persistent alerts when forced
-      await sendSlackThreadReply(threadTs, {
-        text: `${persistent.length} persistent alert(s)`,
-        blocks: [
-          {
-            type: 'section',
-            text: { type: 'mrkdwn', text: ':repeat: *Persistent alerts*' },
-          },
-          { type: 'divider' },
-          ...persistent.flatMap(p => formatAlertBlocks(p.alert, p.delta)),
-        ],
-        unfurl_links: false,
-      }, channelId);
+      const CHUNK_SIZE = 15;
+      for (let i = 0; i < persistent.length; i += CHUNK_SIZE) {
+        const chunk = persistent.slice(i, i + CHUNK_SIZE);
+        const isFirst = i === 0;
+        const headerBlocks: SlackBlock[] = isFirst
+          ? [
+              { type: 'section', text: { type: 'mrkdwn', text: ':repeat: *Persistent alerts*' } },
+              { type: 'divider' },
+            ]
+          : [
+              { type: 'section', text: { type: 'mrkdwn', text: `:repeat: *Persistent alerts (continued ${i + 1}–${Math.min(i + CHUNK_SIZE, persistent.length)} of ${persistent.length})*` } },
+              { type: 'divider' },
+            ];
+        await sendSlackThreadReply(threadTs, {
+          text: `${chunk.length} persistent alert(s)${isFirst ? '' : ' (continued)'}`,
+          blocks: [...headerBlocks, ...chunk.flatMap(p => formatAlertBlocks(p.alert, p.delta))],
+          unfurl_links: false,
+        }, channelId);
+      }
     } else {
       // Brief summary for persistent alerts
       const lines = persistent.map(p => {
