@@ -300,12 +300,14 @@ async function getMergedClientData(domain?: string, days?: number): Promise<Merg
     const liveStatus = activeCampaignsMap.get(d);
     const funnel = funnelMap.get(d);
 
-    // Operational fields: prefer dm_client_funnel when available (has more accurate mailed/cost)
-    // Conversion fields: ALWAYS from dm_property_conversions (single source of truth)
-    const totalMailed = funnel ? funnel.totalMailed : Number(r.total_mailed || 0);
-    const totalSends = funnel ? funnel.totalSends : Number(r.total_sends || 0);
-    const totalDelivered = funnel ? funnel.totalDelivered : Number(r.total_delivered || 0);
-    const totalCost = funnel ? funnel.totalCost : Number(r.total_cost || 0);
+    // When date-filtered (days < 365): use dm_property_conversions for ALL fields
+    // so mailed/cost/conversions are all from the same time window.
+    // When all-time: prefer dm_client_funnel for operational fields (more complete cumulative data).
+    const isDateFiltered = days !== undefined && days < 365;
+    const totalMailed = isDateFiltered ? Number(r.total_mailed || 0) : (funnel ? funnel.totalMailed : Number(r.total_mailed || 0));
+    const totalSends = isDateFiltered ? Number(r.total_sends || 0) : (funnel ? funnel.totalSends : Number(r.total_sends || 0));
+    const totalDelivered = isDateFiltered ? Number(r.total_delivered || 0) : (funnel ? funnel.totalDelivered : Number(r.total_delivered || 0));
+    const totalCost = isDateFiltered ? Number(r.total_cost || 0) : (funnel ? funnel.totalCost : Number(r.total_cost || 0));
     const leads = Number(r.leads || 0);
 
     domainMap.set(d, {
