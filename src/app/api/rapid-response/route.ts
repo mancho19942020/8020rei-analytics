@@ -21,6 +21,8 @@ import type {
   RrAlert,
   RrStatusBreakdown,
   RrCostPoint,
+  RrQ2Goal,
+  RrQ2GoalClientRow,
 } from '@/types/rapid-response';
 
 // Exclude seed/test domains — real data will use production client domains
@@ -72,6 +74,8 @@ export async function GET(request: NextRequest) {
         return await getStatusBreakdown(days, domain);
       case 'domain-list':
         return await getDomainList();
+      case 'q2-goal':
+        return await getQ2Goal(domain);
       default:
         return NextResponse.json(
           { success: false, error: `Unknown type: ${type}` },
@@ -123,7 +127,7 @@ async function getOverview(days: number, domain?: string) {
         COALESCE(AVG(delivery_rate_30d), 0) as avg_delivery_rate
       FROM rr_daily_metrics
       WHERE date >= CURRENT_DATE - INTERVAL '${days} days'
-      AND ${EXCLUDE_SEED}
+      AND ${domainFilter(domain)}
     `),
 
     // PCM Health: latest per-domain alignment check
@@ -146,7 +150,7 @@ async function getOverview(days: number, domain?: string) {
   const todayRows = await runAuroraQuery(`
     SELECT COALESCE(SUM(sends_total), 0) as sends_today
     FROM rr_daily_metrics
-    WHERE date = CURRENT_DATE AND ${EXCLUDE_SEED}
+    WHERE date = CURRENT_DATE AND ${domainFilter(domain)}
   `);
   const sendsToday = Number(todayRows[0]?.sends_today || 0);
 
@@ -231,7 +235,7 @@ async function getDailyTrend(days: number, domain?: string) {
       follow_up_sent, follow_up_failed
     FROM rr_daily_metrics
     WHERE date >= CURRENT_DATE - INTERVAL '${days} days'
-      AND ${EXCLUDE_SEED}
+      AND ${domainFilter(domain)}
     ORDER BY date ASC
   `);
 
@@ -361,7 +365,7 @@ async function getStatusBreakdown(days: number, domain?: string) {
       COALESCE(SUM(sends_error), 0) as error
     FROM rr_daily_metrics
     WHERE date >= CURRENT_DATE - INTERVAL '${days} days'
-      AND ${EXCLUDE_SEED}
+      AND ${domainFilter(domain)}
   `);
 
   const r = rows[0] || {};
@@ -395,7 +399,7 @@ async function getCostTrend(days: number, domain?: string) {
       COALESCE(SUM(sends_total), 0) as sends_total
     FROM rr_daily_metrics
     WHERE date >= CURRENT_DATE - INTERVAL '${days} days'
-      AND ${EXCLUDE_SEED}
+      AND ${domainFilter(domain)}
     GROUP BY date
     ORDER BY date ASC
   `);
@@ -437,7 +441,7 @@ async function getAlerts(days: number, domain?: string) {
         COALESCE(AVG(pcm_submission_rate), 0) as avg_pcm_rate
       FROM rr_daily_metrics
       WHERE date >= CURRENT_DATE - INTERVAL '${days} days'
-      AND ${EXCLUDE_SEED}
+      AND ${domainFilter(domain)}
     `),
     runAuroraQuery(`
       SELECT DISTINCT ON (domain)
@@ -450,7 +454,7 @@ async function getAlerts(days: number, domain?: string) {
     runAuroraQuery(`
       SELECT COALESCE(SUM(sends_total), 0) as sends_today
       FROM rr_daily_metrics
-      WHERE date = CURRENT_DATE AND ${EXCLUDE_SEED}
+      WHERE date = CURRENT_DATE AND ${domainFilter(domain)}
     `),
   ]);
 
@@ -645,29 +649,32 @@ async function getAlerts(days: number, domain?: string) {
   // DM data-integrity alerts (moved from business results — product issues)
   // -------------------------------------------------------------------------
 
+  // Source of truth: dm_property_conversions for all conversion + delivery data
+  // Per unified data model: never use dm_template_performance.leads_generated/deals_generated
+  // or dm_client_funnel.leads/deals for alert triggers.
   const [dmTemplateRows, dmClientRows] = await Promise.all([
     runAuroraQuery(`
       SELECT
         domain,
-        template_name,
-        COALESCE(total_sent, 0) as total_sent,
-        COALESCE(total_delivered, 0) as total_delivered,
-        COALESCE(delivery_rate, 0) as delivery_rate,
-        COALESCE(deals_generated, 0) as deals,
-        COALESCE(total_revenue, 0) as total_revenue,
-        COALESCE(leads_generated, 0) as leads
-      FROM dm_template_performance
+        COALESCE(template_name, 'Unknown template') as template_name,
+        SUM(total_sends) as total_sent,
+        SUM(total_delivered) as total_delivered,
+        COUNT(DISTINCT CASE WHEN became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as leads,
+        COUNT(DISTINCT CASE WHEN became_deal_at IS NOT NULL AND became_deal_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as deals,
+        COALESCE(SUM(CASE WHEN deal_revenue > 0 AND became_deal_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN deal_revenue ELSE 0 END), 0) as total_revenue
+      FROM dm_property_conversions
       WHERE ${domainFilter(domain)}
+      GROUP BY domain, template_name
     `),
     runAuroraQuery(`
       SELECT
         domain,
-        COALESCE(leads, 0) as leads,
-        COALESCE(deals, 0) as deals,
-        COALESCE(unattributed_conversions, 0) as unattributed_conversions
-      FROM dm_client_funnel
-      WHERE date = (SELECT MAX(date) FROM dm_client_funnel WHERE ${domainFilter(domain)})
-        AND ${domainFilter(domain)}
+        COUNT(DISTINCT CASE WHEN became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as leads,
+        COUNT(DISTINCT CASE WHEN became_deal_at IS NOT NULL AND became_deal_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as deals,
+        COUNT(DISTINCT CASE WHEN attribution_status = 'unattributed' AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as unattributed
+      FROM dm_property_conversions
+      WHERE ${domainFilter(domain)}
+      GROUP BY domain
     `),
   ]);
 
@@ -722,7 +729,7 @@ async function getAlerts(days: number, domain?: string) {
   for (const row of dmClientRows) {
     const clientLeads = Number(row.leads || 0);
     const clientDeals = Number(row.deals || 0);
-    const unattributed = Number(row.unattributed_conversions || 0);
+    const unattributed = Number(row.unattributed || 0);
     const clientDomain = String(row.domain || '');
     const totalConversions = clientLeads + clientDeals;
 
@@ -766,6 +773,137 @@ async function getAlerts(days: number, domain?: string) {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Q2 Volume Goal — tracks progress toward 400K DM pieces in Q2 2026
+// Source: dm_volume_summary preferred (daily_sends), falls back to rr_daily_metrics
+// until dm_volume_summary accumulates daily data over multiple cron cycles.
+// ---------------------------------------------------------------------------
+
+const Q2_TARGET = 400_000;
+const Q2_START = '2026-04-01';
+const Q2_END = '2026-06-30';
+
+async function getQ2Goal(domain?: string): Promise<ReturnType<typeof NextResponse.json>> {
+  const cacheKey = `rapid-response:q2-goal:${domain || 'all'}`;
+  const cached = getCached(cacheKey);
+  if (cached) return NextResponse.json({ success: true, data: cached, cached: true });
+
+  // Try dm_volume_summary first (preferred source once daily data populates)
+  const vsCheck = await runAuroraQuery(`
+    SELECT COALESCE(SUM(daily_sends), 0) as total
+    FROM dm_volume_summary
+    WHERE date >= '${Q2_START}' AND date <= '${Q2_END}'
+      AND daily_sends IS NOT NULL AND daily_sends > 0
+      AND ${domainFilter(domain)}
+  `);
+  const vsHasData = Number(vsCheck[0]?.total || 0) > 0;
+
+  let summaryRows, clientRows;
+
+  if (vsHasData) {
+    // dm_volume_summary has daily data — use it (preferred)
+    [summaryRows, clientRows] = await Promise.all([
+      runAuroraQuery(`
+        SELECT
+          COALESCE(SUM(daily_sends), 0) as total_sends,
+          COALESCE(SUM(daily_delivered), 0) as total_delivered,
+          COALESCE(SUM(daily_cost), 0) as total_cost,
+          COUNT(DISTINCT date) as days_with_data,
+          COUNT(DISTINCT domain) as active_clients
+        FROM dm_volume_summary
+        WHERE date >= '${Q2_START}' AND date <= '${Q2_END}'
+          AND ${domainFilter(domain)}
+      `),
+      runAuroraQuery(`
+        SELECT
+          domain,
+          campaign_type,
+          SUM(daily_sends) as total_sends,
+          MAX(cumulative_sends) as lifetime_sends
+        FROM dm_volume_summary
+        WHERE date >= '${Q2_START}' AND date <= '${Q2_END}'
+          AND ${domainFilter(domain)}
+        GROUP BY domain, campaign_type
+        ORDER BY total_sends DESC
+      `),
+    ]);
+  } else {
+    // Fallback: rr_daily_metrics (available since Apr 3, has Q2 data)
+    [summaryRows, clientRows] = await Promise.all([
+      runAuroraQuery(`
+        SELECT
+          COALESCE(SUM(sends_total), 0) as total_sends,
+          0 as total_delivered,
+          COALESCE(SUM(cost_total), 0) as total_cost,
+          COUNT(DISTINCT date) as days_with_data,
+          COUNT(DISTINCT domain) as active_clients
+        FROM rr_daily_metrics
+        WHERE date >= '${Q2_START}' AND date <= '${Q2_END}'
+          AND ${domainFilter(domain)}
+      `),
+      runAuroraQuery(`
+        SELECT
+          domain,
+          campaign_type,
+          SUM(sends_total) as total_sends,
+          0 as lifetime_sends
+        FROM rr_daily_metrics
+        WHERE date >= '${Q2_START}' AND date <= '${Q2_END}'
+          AND ${domainFilter(domain)}
+        GROUP BY domain, campaign_type
+        ORDER BY total_sends DESC
+      `),
+    ]);
+  }
+
+  const summary = summaryRows[0] || {};
+  const currentSends = Number(summary.total_sends || 0);
+  const deliveredCount = Number(summary.total_delivered || 0);
+  const totalCost = Number(summary.total_cost || 0);
+  const activeClients = Number(summary.active_clients || 0);
+
+  // Calculate elapsed and remaining days in Q2
+  const now = new Date();
+  const q2Start = new Date(Q2_START);
+  const q2End = new Date(Q2_END);
+  const effectiveNow = now > q2End ? q2End : now < q2Start ? q2Start : now;
+  const daysElapsed = Math.max(1, Math.floor((effectiveNow.getTime() - q2Start.getTime()) / 86400000));
+  const totalQ2Days = Math.floor((q2End.getTime() - q2Start.getTime()) / 86400000);
+  const daysRemaining = Math.max(0, totalQ2Days - daysElapsed);
+
+  const progressPercent = Q2_TARGET > 0 ? Number(((currentSends / Q2_TARGET) * 100).toFixed(1)) : 0;
+  const weeksElapsed = Math.max(1, daysElapsed / 7);
+  const weeksRemaining = Math.max(0.1, daysRemaining / 7);
+  const weeklyPace = Math.round(currentSends / weeksElapsed);
+  const remaining = Q2_TARGET - currentSends;
+  const requiredWeeklyPace = remaining > 0 ? Math.round(remaining / weeksRemaining) : 0;
+
+  const clientBreakdown: RrQ2GoalClientRow[] = clientRows.map((r: Record<string, unknown>) => ({
+    domain: String(r.domain || ''),
+    campaignType: String(r.campaign_type || 'rr'),
+    totalSends: Number(r.total_sends || 0),
+    lifetimeSends: Number(r.lifetime_sends || 0),
+  }));
+
+  const data: RrQ2Goal = {
+    target: Q2_TARGET,
+    currentSends,
+    deliveredCount,
+    totalCost,
+    daysElapsed,
+    daysRemaining,
+    activeClients,
+    progressPercent,
+    weeklyPace,
+    requiredWeeklyPace,
+    onTrack: weeklyPace >= requiredWeeklyPace,
+    clientBreakdown,
+  };
+
+  setCache(cacheKey, data);
+  return NextResponse.json({ success: true, data, cached: false });
+}
 
 // ---------------------------------------------------------------------------
 // Domain List

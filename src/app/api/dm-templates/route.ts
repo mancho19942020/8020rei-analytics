@@ -111,10 +111,10 @@ async function getTemplateLeaderboard(domain?: string) {
         SUM(total_delivered) as total_delivered,
         COALESCE(SUM(total_cost), 0) as total_cost,
         COUNT(DISTINCT CASE WHEN became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as leads_generated,
-        COUNT(DISTINCT CASE WHEN became_appointment_at IS NOT NULL AND became_appointment_at > first_sent_date THEN property_id END) as appointments_generated,
-        COUNT(DISTINCT CASE WHEN became_contract_at IS NOT NULL AND became_contract_at > first_sent_date THEN property_id END) as contracts_generated,
-        COUNT(DISTINCT CASE WHEN became_deal_at IS NOT NULL AND became_deal_at > first_sent_date THEN property_id END) as deals_generated,
-        COALESCE(SUM(CASE WHEN deal_revenue > 0 AND became_deal_at > first_sent_date THEN deal_revenue ELSE 0 END), 0) as total_revenue
+        COUNT(DISTINCT CASE WHEN became_appointment_at IS NOT NULL AND became_appointment_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as appointments_generated,
+        COUNT(DISTINCT CASE WHEN became_contract_at IS NOT NULL AND became_contract_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as contracts_generated,
+        COUNT(DISTINCT CASE WHEN became_deal_at IS NOT NULL AND became_deal_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as deals_generated,
+        COALESCE(SUM(CASE WHEN deal_revenue > 0 AND became_deal_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN deal_revenue ELSE 0 END), 0) as total_revenue
       FROM dm_property_conversions
       WHERE ${domainFilter(domain)}
       GROUP BY domain, template_name, template_type
@@ -201,41 +201,72 @@ async function getTemplateDetail(templateId: string | null, domain?: string) {
 
   const safeId = templateId.replace(/[^0-9]/g, '');
 
-  const rows = await runAuroraQuery(`
-    SELECT *
-    FROM dm_template_performance
-    WHERE template_id = ${safeId}
-      AND ${domainFilter(domain)}
-    ORDER BY leads_generated DESC
-  `);
+  // Source of truth: dm_property_conversions for conversions + volume
+  // dm_template_performance for metadata only (avg_days_to_lead, campaigns_using)
+  const [pcRows, metaRows] = await Promise.all([
+    runAuroraQuery(`
+      SELECT
+        domain,
+        template_id,
+        COALESCE(template_name, 'Unknown template') as template_name,
+        COUNT(DISTINCT property_id) as unique_properties,
+        SUM(total_sends) as total_sent,
+        SUM(total_delivered) as total_delivered,
+        COALESCE(SUM(total_cost), 0) as total_cost,
+        COUNT(DISTINCT CASE WHEN became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as leads,
+        COUNT(DISTINCT CASE WHEN became_appointment_at IS NOT NULL AND became_appointment_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as appointments,
+        COUNT(DISTINCT CASE WHEN became_contract_at IS NOT NULL AND became_contract_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as contracts,
+        COUNT(DISTINCT CASE WHEN became_deal_at IS NOT NULL AND became_deal_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as deals,
+        COALESCE(SUM(CASE WHEN deal_revenue > 0 AND became_deal_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN deal_revenue ELSE 0 END), 0) as total_revenue
+      FROM dm_property_conversions
+      WHERE template_id = ${safeId}
+        AND ${domainFilter(domain)}
+      GROUP BY domain, template_id, template_name
+    `),
+    runAuroraQuery(`
+      SELECT domain, template_type, avg_days_to_lead, campaigns_using
+      FROM dm_template_performance
+      WHERE template_id = ${safeId}
+        AND ${domainFilter(domain)}
+    `),
+  ]);
 
-  const data: DmTemplatePerformance[] = rows.map((r: Record<string, unknown>) => {
-    const deals = Number(r.deals_generated || 0);
+  // Build metadata lookup
+  const metaMap = new Map<string, Record<string, unknown>>();
+  for (const m of metaRows) metaMap.set(String(m.domain || ''), m);
+
+  const data: DmTemplatePerformance[] = pcRows.map((r: Record<string, unknown>) => {
+    const dom = String(r.domain || '');
+    const meta = metaMap.get(dom) || {};
+    const deals = Number(r.deals || 0);
+    const leads = Number(r.leads || 0);
     const revenue = Number(r.total_revenue || 0);
     const delivered = Number(r.total_delivered || 0);
-    const leads = Number(r.leads_generated || 0);
+    const totalSent = Number(r.total_sent || 0);
+    const uniqueProps = Number(r.unique_properties || 0);
+    const cost = Number(r.total_cost || 0);
     const confidence = getRoasConfidence(deals, revenue);
 
     return {
-      domain: String(r.domain || ''),
+      domain: dom,
       templateId: Number(r.template_id || 0),
       templateName: String(r.template_name || ''),
-      templateType: String(r.template_type || ''),
-      totalSent: Number(r.total_sent || 0),
+      templateType: String(meta.template_type || ''),
+      totalSent,
       totalDelivered: delivered,
-      deliveryRate: Number(r.delivery_rate || 0),
-      totalCost: Number(Number(r.total_cost || 0).toFixed(2)),
-      uniqueProperties: Number(r.unique_properties || 0),
+      deliveryRate: totalSent > 0 ? Number(((delivered / totalSent) * 100).toFixed(1)) : 0,
+      totalCost: Number(cost.toFixed(2)),
+      uniqueProperties: uniqueProps,
       leadsGenerated: leads,
-      appointmentsGenerated: Number(r.appointments_generated || 0),
-      contractsGenerated: Number(r.contracts_generated || 0),
+      appointmentsGenerated: Number(r.appointments || 0),
+      contractsGenerated: Number(r.contracts || 0),
       dealsGenerated: deals,
-      leadConversionRate: Number(r.lead_conversion_rate || 0),
-      dealConversionRate: Number(r.deal_conversion_rate || 0),
+      leadConversionRate: uniqueProps > 0 ? Number(((leads / uniqueProps) * 100).toFixed(1)) : 0,
+      dealConversionRate: uniqueProps > 0 ? Number(((deals / uniqueProps) * 100).toFixed(1)) : 0,
       totalRevenue: Number(revenue.toFixed(2)),
-      roas: confidence === 'revenue_no_deal' ? 0 : Number(r.roas || 0),
-      avgDaysToLead: Number(Number(r.avg_days_to_lead || 0).toFixed(0)),
-      campaignsUsing: Number(r.campaigns_using || 0),
+      roas: confidence === 'revenue_no_deal' ? 0 : (cost > 0 ? Number((revenue / cost).toFixed(1)) : 0),
+      avgDaysToLead: Number(Number(meta.avg_days_to_lead || 0).toFixed(0)),
+      campaignsUsing: Number(meta.campaigns_using || 0),
       roasConfidence: confidence,
       deliveryWarning: delivered === 0 && leads > 0,
     };

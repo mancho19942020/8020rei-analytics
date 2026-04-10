@@ -57,6 +57,12 @@ interface DmPropertyDrilldownModalProps {
   campaignId?: number;
   /** Optional campaign name for the modal title */
   campaignName?: string;
+  /** Optional template name filter (for Template Leaderboard drilldown) */
+  templateName?: string;
+  /** Optional county filter (for Geographic Breakdown drilldown) */
+  county?: string;
+  /** Optional state filter (for Geographic Breakdown drilldown) */
+  state?: string;
 }
 
 const STATUS_LABELS: Record<DrilldownStatus, string> = {
@@ -103,6 +109,9 @@ export function DmPropertyDrilldownModal({
   expectedCount,
   campaignId,
   campaignName,
+  templateName,
+  county,
+  state,
 }: DmPropertyDrilldownModalProps) {
   const [data, setData] = useState<DrilldownProperty[]>([]);
   const [loading, setLoading] = useState(false);
@@ -120,6 +129,9 @@ export function DmPropertyDrilldownModal({
       try {
         let url = `/api/dm-conversions?type=property-drilldown&domain=${encodeURIComponent(domain)}&status=${status}`;
         if (campaignId) url += `&campaignId=${campaignId}`;
+        if (templateName) url += `&templateName=${encodeURIComponent(templateName)}`;
+        if (county) url += `&county=${encodeURIComponent(county)}`;
+        if (state) url += `&state=${encodeURIComponent(state)}`;
         const res = await authFetch(url).then(r => r.json());
         if (!cancelled) {
           if (res.success) {
@@ -136,12 +148,17 @@ export function DmPropertyDrilldownModal({
     };
     fetchData();
     return () => { cancelled = true; };
-  }, [open, domain, status, campaignId]);
+  }, [open, domain, status, campaignId, templateName, county, state]);
 
   const domainLabel = domain === '_all' ? 'All clients' : formatDomain(domain);
-  const title = campaignName
-    ? `${domainLabel} — ${campaignName} — ${STATUS_LABELS[status]}`
-    : `${domainLabel} — ${STATUS_LABELS[status]}`;
+  const contextParts = [domainLabel];
+  if (campaignName) contextParts.push(campaignName);
+  if (templateName) contextParts.push(templateName);
+  if (county && state) contextParts.push(`${county}, ${state}`);
+  else if (state) contextParts.push(state);
+  else if (county) contextParts.push(county);
+  contextParts.push(STATUS_LABELS[status]);
+  const title = contextParts.join(' — ');
 
   const showConversionDate = !['mailed', 'sent', 'delivered'].includes(status);
   const isSendView = status === 'sent' || status === 'delivered' || status === 'mailed';

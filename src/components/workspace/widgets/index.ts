@@ -81,6 +81,8 @@ export { RrStatusBreakdownWidget } from './RrStatusBreakdownWidget';
 export { RrAlertsFeedWidget } from './RrAlertsFeedWidget';
 export { RrCampaignTableWidget } from './RrCampaignTableWidget';
 export { RrCostOverviewWidget } from './RrCostOverviewWidget';
+export { RrQ2GoalWidget } from './RrQ2GoalWidget';
+export { RrQ2TopContributorsWidget } from './RrQ2TopContributorsWidget';
 
 // Features > 8020REI > DM Campaign Business Results tab widgets
 export { DmAlertsFeedWidget } from './DmAlertsFeedWidget';

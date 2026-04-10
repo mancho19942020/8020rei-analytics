@@ -137,6 +137,9 @@ export async function GET(request: NextRequest) {
           params.get('domain') || undefined,
           params.get('status') || 'mailed',
           params.get('campaignId') || undefined,
+          params.get('templateName') || undefined,
+          params.get('county') || undefined,
+          params.get('state') || undefined,
         );
       case 'domain-list':
         return await getDomainList();
@@ -178,6 +181,7 @@ interface MergedDomainRow {
   totalCost: number;
   totalRevenue: number;
   unattributedConversions: number;
+  syncWarning?: string | null;
 }
 
 async function getMergedClientData(domain?: string): Promise<MergedDomainRow[]> {
@@ -221,11 +225,11 @@ async function getMergedClientData(domain?: string): Promise<MergedDomainRow[]> 
         SUM(total_sends) as total_sends,
         SUM(total_delivered) as total_delivered,
         COUNT(DISTINCT CASE WHEN became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as leads,
-        COUNT(DISTINCT CASE WHEN became_appointment_at IS NOT NULL AND became_appointment_at > first_sent_date THEN property_id END) as appointments,
-        COUNT(DISTINCT CASE WHEN became_contract_at IS NOT NULL AND became_contract_at > first_sent_date THEN property_id END) as contracts,
-        COUNT(DISTINCT CASE WHEN became_deal_at IS NOT NULL AND became_deal_at > first_sent_date THEN property_id END) as deals,
+        COUNT(DISTINCT CASE WHEN became_appointment_at IS NOT NULL AND became_appointment_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as appointments,
+        COUNT(DISTINCT CASE WHEN became_contract_at IS NOT NULL AND became_contract_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as contracts,
+        COUNT(DISTINCT CASE WHEN became_deal_at IS NOT NULL AND became_deal_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as deals,
         COALESCE(SUM(total_cost), 0) as total_cost,
-        COALESCE(SUM(CASE WHEN deal_revenue > 0 AND became_deal_at > first_sent_date THEN deal_revenue ELSE 0 END), 0) as total_revenue,
+        COALESCE(SUM(CASE WHEN deal_revenue > 0 AND became_deal_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN deal_revenue ELSE 0 END), 0) as total_revenue,
         COUNT(DISTINCT CASE WHEN attribution_status = 'unattributed' AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as unattributed,
         COUNT(DISTINCT CASE WHEN (became_lead_at IS NOT NULL AND became_lead_at <= first_sent_date) OR (became_deal_at IS NOT NULL AND became_deal_at <= first_sent_date) THEN property_id END) as pre_send_excluded
       FROM dm_property_conversions
@@ -233,6 +237,34 @@ async function getMergedClientData(domain?: string): Promise<MergedDomainRow[]> 
       GROUP BY domain
     `),
   ]);
+
+  // Check sync coverage: compare dm_property_conversions count vs dm_volume_summary cumulative
+  // If a domain has < 90% coverage, flag it so the UI can show a warning
+  const coverageRows = await runAuroraQuery(`
+    SELECT
+      vs.domain,
+      vs.cumulative_sends as expected_sends,
+      COALESCE(pc.actual_sends, 0) as actual_sends,
+      CASE WHEN vs.cumulative_sends > 0
+        THEN ROUND((COALESCE(pc.actual_sends, 0)::NUMERIC / vs.cumulative_sends) * 100, 0)
+        ELSE 100 END as coverage_pct
+    FROM dm_volume_summary vs
+    LEFT JOIN (
+      SELECT domain, SUM(total_sends) as actual_sends
+      FROM dm_property_conversions
+      GROUP BY domain
+    ) pc ON vs.domain = pc.domain
+    WHERE vs.cumulative_sends > 0
+      AND CASE WHEN vs.cumulative_sends > 0
+        THEN ROUND((COALESCE(pc.actual_sends, 0)::NUMERIC / vs.cumulative_sends) * 100, 0)
+        ELSE 100 END < 90
+  `);
+  const syncWarnings = new Map<string, string>();
+  for (const r of coverageRows) {
+    const d = String(r.domain || '');
+    const pct = Number(r.coverage_pct || 0);
+    syncWarnings.set(d, `Data sync in progress — ${pct}% of property records loaded. Conversion numbers (leads, deals, revenue) may be lower than actual. This resolves automatically with each nightly sync.`);
+  }
 
   // Build active campaigns lookup
   const activeCampaignsMap = new Map<string, { count: number; type: string }>();
@@ -290,6 +322,7 @@ async function getMergedClientData(domain?: string): Promise<MergedDomainRow[]> 
       totalCost,
       totalRevenue: Number(r.total_revenue || 0),
       unattributedConversions: Number(r.unattributed || 0),
+      syncWarning: syncWarnings.get(d) || null,
     });
   }
 
@@ -404,6 +437,7 @@ async function getClientPerformance(domain?: string) {
       dealConversionRate: row.totalMailed > 0 ? Number(((row.deals / row.totalMailed) * 100).toFixed(2)) : 0,
       roasConfidence: confidence,
       unattributedConversions: row.unattributedConversions,
+      syncWarning: row.syncWarning || null,
     };
   });
 
@@ -429,8 +463,8 @@ async function getGeoBreakdown(domain?: string) {
       COALESCE(county, 'Unknown') as county,
       COUNT(DISTINCT property_id) as total_mailed,
       COUNT(DISTINCT CASE WHEN became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as leads,
-      COUNT(DISTINCT CASE WHEN became_deal_at IS NOT NULL AND became_deal_at > first_sent_date THEN property_id END) as deals,
-      COALESCE(SUM(CASE WHEN deal_revenue > 0 AND became_deal_at > first_sent_date THEN deal_revenue ELSE 0 END), 0) as total_revenue
+      COUNT(DISTINCT CASE WHEN became_deal_at IS NOT NULL AND became_deal_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as deals,
+      COALESCE(SUM(CASE WHEN deal_revenue > 0 AND became_deal_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN deal_revenue ELSE 0 END), 0) as total_revenue
     FROM dm_property_conversions
     WHERE ${domainFilter(domain)}
     GROUP BY state, county
@@ -543,34 +577,32 @@ async function getDataQuality(domain?: string) {
   const cached = getCached(cacheKey);
   if (cached) return NextResponse.json({ success: true, data: cached, cached: true });
 
-  // Get counts from tables that have data
+  // Source of truth: dm_property_conversions for all quality metrics
+  // dm_template_performance only for template count + delivery issues (operational)
+  // dm_client_funnel only for total_clients count
   const [templateRows, funnelRows, propertyRows] = await Promise.all([
     runAuroraQuery(`
       SELECT
-        COUNT(*) as total_templates,
-        COUNT(CASE WHEN total_delivered = 0 AND total_sent > 0 THEN 1 END) as delivery_issues,
-        COUNT(CASE WHEN deals_generated = 0 AND total_revenue > 0 THEN 1 END) as revenue_mismatch
+        COUNT(DISTINCT template_id) as total_templates,
+        COUNT(DISTINCT CASE WHEN total_delivered = 0 AND total_sent > 0 THEN template_id END) as delivery_issues
       FROM dm_template_performance
       WHERE ${domainFilter(domain)}
     `),
     runAuroraQuery(`
-      SELECT
-        COUNT(DISTINCT domain) as total_clients,
-        COALESCE(SUM(unattributed_conversions), 0) as total_unattributed,
-        COALESCE(SUM(leads + appointments + contracts + deals), 0) as total_conversions
+      SELECT COUNT(DISTINCT domain) as total_clients
       FROM dm_client_funnel
       WHERE date = (SELECT MAX(date) FROM dm_client_funnel WHERE ${domainFilter(domain)})
         AND ${domainFilter(domain)}
     `),
-    // This will return 0 rows until dm_property_conversions populates
     runAuroraQuery(`
       SELECT
         COUNT(DISTINCT property_id) as total_properties,
         COUNT(DISTINCT CASE WHEN attribution_status = 'attributed' THEN property_id END) as attributed,
         COUNT(DISTINCT CASE WHEN attribution_status = 'unattributed' THEN property_id END) as unattributed,
         COUNT(DISTINCT CASE WHEN is_backfilled = true THEN property_id END) as backfilled,
-        COUNT(DISTINCT CASE WHEN became_deal_at IS NOT NULL AND (deal_revenue IS NULL OR deal_revenue = 0) THEN property_id END) as zero_revenue_deals,
-        COUNT(DISTINCT CASE WHEN (became_lead_at IS NOT NULL AND became_lead_at <= first_sent_date) OR (became_deal_at IS NOT NULL AND became_deal_at <= first_sent_date) THEN property_id END) as pre_send_conversions
+        COUNT(DISTINCT CASE WHEN became_deal_at IS NOT NULL AND (deal_revenue IS NULL OR deal_revenue = 0) AND became_deal_at > first_sent_date THEN property_id END) as zero_revenue_deals,
+        COUNT(DISTINCT CASE WHEN (became_lead_at IS NOT NULL AND became_lead_at <= first_sent_date) OR (became_deal_at IS NOT NULL AND became_deal_at <= first_sent_date) THEN property_id END) as pre_send_conversions,
+        COUNT(DISTINCT CASE WHEN deal_revenue > 0 AND (became_deal_at IS NULL OR became_deal_at <= first_sent_date) THEN property_id END) as revenue_mismatch
       FROM dm_property_conversions
       WHERE ${domainFilter(domain)}
     `),
@@ -605,7 +637,7 @@ async function getDataQuality(domain?: string) {
     totalTemplates: Number(t.total_templates || 0),
     totalClients: Number(f.total_clients || 0),
     deliveryIssues: Number(t.delivery_issues || 0),
-    revenueMismatch: Number(t.revenue_mismatch || 0),
+    revenueMismatch: Number(p.revenue_mismatch || 0),
     propertyDataAvailable: totalProperties > 0,
   };
 
@@ -646,10 +678,10 @@ async function getConversionTrend(days: number, domain?: string) {
       SELECT
         CURRENT_DATE::TEXT as date,
         COUNT(DISTINCT CASE WHEN became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as leads,
-        COUNT(DISTINCT CASE WHEN became_appointment_at IS NOT NULL AND became_appointment_at > first_sent_date THEN property_id END) as appointments,
-        COUNT(DISTINCT CASE WHEN became_contract_at IS NOT NULL AND became_contract_at > first_sent_date THEN property_id END) as contracts,
-        COUNT(DISTINCT CASE WHEN became_deal_at IS NOT NULL AND became_deal_at > first_sent_date THEN property_id END) as deals,
-        COALESCE(SUM(CASE WHEN deal_revenue > 0 AND became_deal_at > first_sent_date THEN deal_revenue ELSE 0 END), 0) as total_revenue
+        COUNT(DISTINCT CASE WHEN became_appointment_at IS NOT NULL AND became_appointment_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as appointments,
+        COUNT(DISTINCT CASE WHEN became_contract_at IS NOT NULL AND became_contract_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as contracts,
+        COUNT(DISTINCT CASE WHEN became_deal_at IS NOT NULL AND became_deal_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as deals,
+        COALESCE(SUM(CASE WHEN deal_revenue > 0 AND became_deal_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN deal_revenue ELSE 0 END), 0) as total_revenue
       FROM dm_property_conversions
       WHERE ${domainFilter(domain)}
     `),
@@ -717,8 +749,8 @@ async function getRoasTrend(days: number, domain?: string) {
       SELECT
         CURRENT_DATE::TEXT as date,
         COALESCE(SUM(total_cost), 0) as total_cost,
-        COALESCE(SUM(CASE WHEN deal_revenue > 0 AND became_deal_at > first_sent_date THEN deal_revenue ELSE 0 END), 0) as total_revenue,
-        COUNT(DISTINCT CASE WHEN became_deal_at IS NOT NULL AND became_deal_at > first_sent_date THEN property_id END) as deals
+        COALESCE(SUM(CASE WHEN deal_revenue > 0 AND became_deal_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN deal_revenue ELSE 0 END), 0) as total_revenue,
+        COUNT(DISTINCT CASE WHEN became_deal_at IS NOT NULL AND became_deal_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as deals
       FROM dm_property_conversions
       WHERE ${domainFilter(domain)}
     `),
@@ -775,7 +807,7 @@ async function getAlerts(domain?: string) {
 // Clickable numbers in client performance table open this.
 // ---------------------------------------------------------------------------
 
-async function getPropertyDrilldown(domain?: string, status?: string, campaignId?: string) {
+async function getPropertyDrilldown(domain?: string, status?: string, campaignId?: string, templateName?: string, county?: string, state?: string) {
   if (!domain) {
     return NextResponse.json({ success: false, error: 'domain is required' }, { status: 400 });
   }
@@ -793,6 +825,36 @@ async function getPropertyDrilldown(domain?: string, status?: string, campaignId
   if (campaignId) {
     const safeCampaignId = campaignId.replace(/[^0-9]/g, '');
     filter += ` AND campaign_id = ${safeCampaignId}`;
+  }
+
+  // Optional: filter by template (used by Template Leaderboard drilldown)
+  // 'Unknown template' is a display label for NULL template_name in the leaderboard
+  if (templateName) {
+    if (templateName === 'Unknown template') {
+      filter += ` AND template_name IS NULL`;
+    } else {
+      const safeName = templateName.replace(/'/g, "''");
+      filter += ` AND template_name = '${safeName}'`;
+    }
+  }
+
+  // Optional: filter by geography (used by Geo Breakdown drilldown)
+  // 'Unknown' is a display label for NULL county/state in the geo breakdown
+  if (county) {
+    if (county === 'Unknown') {
+      filter += ` AND county IS NULL`;
+    } else {
+      const safeCounty = county.replace(/'/g, "''");
+      filter += ` AND county = '${safeCounty}'`;
+    }
+  }
+  if (state) {
+    if (state === 'Unknown') {
+      filter += ` AND state IS NULL`;
+    } else {
+      const safeState = state.replace(/'/g, "''");
+      filter += ` AND state = '${safeState}'`;
+    }
   }
 
   // Build status filter based on which column was clicked

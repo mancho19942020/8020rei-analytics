@@ -166,6 +166,8 @@ export interface DmClientPerformanceRow {
   /** Data integrity: ROAS confidence level */
   roasConfidence: RoasConfidence;
   unattributedConversions: number;
+  /** Sync warning — shown when property data is still loading for this domain */
+  syncWarning?: string | null;
 }
 
 export interface DmGeoRow {

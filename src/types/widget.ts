@@ -101,6 +101,8 @@ export type WidgetType =
   | 'rr-alerts-feed'
   | 'rr-campaign-table'
   | 'rr-cost-overview'
+  | 'rr-q2-goal'
+  | 'rr-q2-top-contributors'
   // Features > 8020REI > DM Campaign Business Results tab widgets
   | 'dm-alerts-feed'
   | 'dm-funnel-overview'

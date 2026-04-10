@@ -2,13 +2,16 @@
  * DM Geographic Breakdown Widget
  *
  * Table showing conversion rates by state/county.
+ * Clickable: Mailed, Leads, Deals open property drilldown modal filtered by geography.
  * Uses AxisTable for consistent rendering.
  */
 
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { AxisTable, AxisTag } from '@/components/axis';
+import { DmPropertyDrilldownModal } from './DmPropertyDrilldownModal';
+import type { DrilldownStatus } from './DmPropertyDrilldownModal';
 import type { Column, CellValue, RowData } from '@/types/table';
 import type { DmGeoRow } from '@/types/dm-conversions';
 
@@ -23,6 +26,45 @@ function formatCurrency(value: number): string {
 }
 
 export function DmGeoBreakdownWidget({ data }: DmGeoBreakdownWidgetProps) {
+  const [drilldown, setDrilldown] = useState<{
+    open: boolean;
+    domain: string;
+    status: DrilldownStatus;
+    count: number;
+    county?: string;
+    state?: string;
+  }>({ open: false, domain: '_all', status: 'mailed', count: 0 });
+
+  const openDrilldown = useCallback((county: string | undefined, state: string, status: DrilldownStatus, count: number) => {
+    setDrilldown({ open: true, domain: '_all', status, count, county, state });
+  }, []);
+
+  const closeDrilldown = useCallback(() => {
+    setDrilldown(prev => ({ ...prev, open: false }));
+  }, []);
+
+  function renderClickable(value: CellValue, row: RowData, status: DrilldownStatus) {
+    const count = Number(value || 0);
+    if (count === 0) return <span style={{ color: 'var(--text-tertiary)' }}>0</span>;
+    const geoType = String(row?.geoType || 'county');
+    const county = geoType === 'county' ? String(row?.county || row?.geoLabel || '') : undefined;
+    const state = String(row?.state || '');
+    return (
+      <button
+        type="button"
+        className="cursor-pointer hover:underline font-medium bg-transparent border-0 p-0"
+        style={{ color: 'var(--color-main-500)' }}
+        onClick={(e) => {
+          e.stopPropagation();
+          openDrilldown(county, state, status, count);
+        }}
+        title={`View ${count} properties`}
+      >
+        {count.toLocaleString()}
+      </button>
+    );
+  }
+
   const columns: Column[] = useMemo(() => [
     {
       field: 'geoLabel',
@@ -51,27 +93,34 @@ export function DmGeoBreakdownWidget({ data }: DmGeoBreakdownWidgetProps) {
     {
       field: 'totalMailed',
       header: 'Mailed',
+      headerTooltip: 'Unique properties mailed in this geographic area. Click to see properties.',
       type: 'number',
       width: 80,
       align: 'center',
+      render: (value: CellValue, row: RowData) => renderClickable(value, row, 'mailed'),
     },
     {
       field: 'leads',
       header: 'Leads',
+      headerTooltip: 'Properties that became leads in this area. Click to see properties.',
       type: 'number',
       width: 70,
       align: 'center',
+      render: (value: CellValue, row: RowData) => renderClickable(value, row, 'lead'),
     },
     {
       field: 'deals',
       header: 'Deals',
+      headerTooltip: 'Properties that reached deal status in this area. Click to see properties.',
       type: 'number',
       width: 70,
       align: 'center',
+      render: (value: CellValue, row: RowData) => renderClickable(value, row, 'deal'),
     },
     {
       field: 'leadConversionRate',
       header: 'Lead %',
+      headerTooltip: 'Lead conversion rate for this area: leads divided by mailed properties.',
       width: 80,
       align: 'center',
       render: (value: CellValue) => (
@@ -96,6 +145,7 @@ export function DmGeoBreakdownWidget({ data }: DmGeoBreakdownWidgetProps) {
       id: `${g.state}-${g.geoLabel || g.county}-${i}`,
       geoLabel: g.geoLabel || g.county,
       geoType: g.geoType || 'county',
+      county: g.county,
       state: g.state,
       totalMailed: g.totalMailed,
       leads: g.leads,
@@ -122,17 +172,28 @@ export function DmGeoBreakdownWidget({ data }: DmGeoBreakdownWidgetProps) {
   }
 
   return (
-    <div className="h-full overflow-hidden">
-      <AxisTable
-        columns={columns}
-        data={tableData}
-        rowKey="id"
-        sortable
-        paginated
-        resizable
-        defaultPageSize={15}
-        emptyMessage="No geographic data available yet"
+    <>
+      <div className="h-full overflow-hidden">
+        <AxisTable
+          columns={columns}
+          data={tableData}
+          rowKey="id"
+          sortable
+          paginated
+          resizable
+          defaultPageSize={15}
+          emptyMessage="No geographic data available yet"
+        />
+      </div>
+      <DmPropertyDrilldownModal
+        open={drilldown.open}
+        onClose={closeDrilldown}
+        domain={drilldown.domain}
+        status={drilldown.status}
+        expectedCount={drilldown.count}
+        county={drilldown.county}
+        state={drilldown.state}
       />
-    </div>
+    </>
   );
 }

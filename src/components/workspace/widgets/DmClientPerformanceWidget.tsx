@@ -90,18 +90,28 @@ export function DmClientPerformanceWidget({ data, onDomainClick }: DmClientPerfo
       header: 'Client',
       width: 150,
       minWidth: 120,
-      render: (value: CellValue) => (
-        <span
-          className="font-medium cursor-pointer hover:underline"
-          style={{ color: 'var(--color-main-500)' }}
-          onClick={(e) => {
-            e.stopPropagation();
-            onDomainClick?.(String(value || ''));
-          }}
-        >
-          {formatDomain(String(value || ''))}
-        </span>
-      ),
+      render: (value: CellValue, row: RowData) => {
+        const warning = row?.syncWarning ? String(row.syncWarning) : null;
+        return (
+          <span className="flex items-center gap-1">
+            <span
+              className="font-medium cursor-pointer hover:underline"
+              style={{ color: 'var(--color-main-500)' }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDomainClick?.(String(value || ''));
+              }}
+            >
+              {formatDomain(String(value || ''))}
+            </span>
+            {warning && (
+              <AxisTooltip content={warning} placement="top" maxWidth={320}>
+                <span style={{ color: 'var(--color-warning-500)', cursor: 'help', fontSize: '14px' }}>&#9888;</span>
+              </AxisTooltip>
+            )}
+          </span>
+        );
+      },
     },
     {
       field: 'status',
@@ -283,6 +293,7 @@ export function DmClientPerformanceWidget({ data, onDomainClick }: DmClientPerfo
       totalRevenue: c.totalRevenue,
       roas: c.roas,
       roasConfidence: c.roasConfidence,
+      syncWarning: c.syncWarning || null,
     })),
   [data]);
 

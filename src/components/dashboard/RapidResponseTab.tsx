@@ -25,6 +25,8 @@ import {
   RrAlertsFeedWidget,
   RrCampaignTableWidget,
   RrCostOverviewWidget,
+  RrQ2GoalWidget,
+  RrQ2TopContributorsWidget,
   DmAlertsFeedWidget,
   DmFunnelOverviewWidget,
   DmClientPerformanceWidget,
@@ -55,6 +57,7 @@ import type {
   RrAlert,
   RrStatusBreakdown,
   RrCostPoint,
+  RrQ2Goal,
 } from '@/types/rapid-response';
 import type {
   DmFunnelOverview,
@@ -80,6 +83,7 @@ interface RapidResponseData {
   campaigns: RrCampaignSnapshot[];
   alerts: RrAlert[];
   costTrend: RrCostPoint[];
+  q2Goal: RrQ2Goal | null;
 }
 
 interface BusinessResultsData {
@@ -210,7 +214,7 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
       try {
         const dp = buildDateQueryString(days, startDate, endDate);
         const domainParam = selectedDomain ? `&domain=${encodeURIComponent(selectedDomain)}` : '';
-        const [overviewRes, trendRes, campaignRes, alertsRes, statusRes, costRes] =
+        const [overviewRes, trendRes, campaignRes, alertsRes, statusRes, costRes, q2GoalRes] =
           await Promise.all([
             authFetch(`/api/rapid-response?type=overview&${dp}${domainParam}`).then(r => r.json()),
             authFetch(`/api/rapid-response?type=daily-trend&${dp}${domainParam}`).then(r => r.json()),
@@ -218,6 +222,7 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
             authFetch(`/api/rapid-response?type=alerts&${dp}${domainParam}`).then(r => r.json()),
             authFetch(`/api/rapid-response?type=status-breakdown&${dp}${domainParam}`).then(r => r.json()),
             authFetch(`/api/rapid-response?type=cost-trend&${dp}${domainParam}`).then(r => r.json()),
+            authFetch(`/api/rapid-response?type=q2-goal${domainParam}`).then(r => r.json()),
           ]);
 
         setData({
@@ -230,11 +235,12 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
           campaigns: campaignRes.success ? campaignRes.data : [],
           alerts: alertsRes.success ? alertsRes.data.alerts : [],
           costTrend: costRes.success ? costRes.data : [],
+          q2Goal: q2GoalRes.success ? q2GoalRes.data : null,
         });
 
-        const allSuccess = [overviewRes, trendRes, campaignRes, alertsRes, statusRes, costRes].every(r => r.success);
+        const allSuccess = [overviewRes, trendRes, campaignRes, alertsRes, statusRes, costRes, q2GoalRes].every(r => r.success);
         if (!allSuccess) {
-          const firstError = [overviewRes, trendRes, campaignRes, alertsRes, statusRes, costRes].find(r => !r.success);
+          const firstError = [overviewRes, trendRes, campaignRes, alertsRes, statusRes, costRes, q2GoalRes].find(r => !r.success);
           setError(firstError?.error || 'Some data failed to load');
         }
       } catch (err) {
@@ -345,6 +351,12 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
         'rr-alerts-feed': <RrAlertsFeedWidget data={data.alerts} />,
         'rr-campaign-table': <RrCampaignTableWidget data={data.campaigns} onDomainClick={setSelectedDomain} />,
         'rr-cost-overview': <RrCostOverviewWidget data={data.costTrend} />,
+        'rr-q2-goal': data.q2Goal
+          ? <RrQ2GoalWidget data={data.q2Goal} />
+          : null,
+        'rr-q2-top-contributors': data.q2Goal
+          ? <RrQ2TopContributorsWidget data={data.q2Goal.clientBreakdown} target={data.q2Goal.target} onDomainClick={setSelectedDomain} />
+          : null,
       };
     }, [data]);
 

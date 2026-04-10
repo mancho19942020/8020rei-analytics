@@ -3,12 +3,15 @@
  *
  * Sortable table ranking templates by performance: domain, sent, delivered, leads, deals, ROAS.
  * Includes data integrity indicators (ROAS confidence, delivery warnings).
+ * Clickable: Sent, Delivered, Leads, Deals open property drilldown modal filtered by template.
  */
 
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { AxisTable, AxisTag, AxisTooltip } from '@/components/axis';
+import { DmPropertyDrilldownModal } from './DmPropertyDrilldownModal';
+import type { DrilldownStatus } from './DmPropertyDrilldownModal';
 import type { Column, CellValue, RowData } from '@/types/table';
 import type { DmTemplatePerformance } from '@/types/dm-conversions';
 
@@ -34,6 +37,46 @@ function formatDomain(domain: string): string {
 }
 
 export function DmTemplateLeaderboardWidget({ data }: DmTemplateLeaderboardWidgetProps) {
+  const [drilldown, setDrilldown] = useState<{
+    open: boolean;
+    domain: string;
+    templateName: string;
+    status: DrilldownStatus;
+    count: number;
+  }>({ open: false, domain: '', templateName: '', status: 'sent', count: 0 });
+
+  const openDrilldown = useCallback((domain: string, templateName: string, status: DrilldownStatus, count: number) => {
+    setDrilldown({ open: true, domain, templateName, status, count });
+  }, []);
+
+  const closeDrilldown = useCallback(() => {
+    setDrilldown(prev => ({ ...prev, open: false }));
+  }, []);
+
+  function renderClickable(value: CellValue, row: RowData, status: DrilldownStatus) {
+    const count = Number(value || 0);
+    if (count === 0) return <span style={{ color: 'var(--text-tertiary)' }}>0</span>;
+    return (
+      <button
+        type="button"
+        className="cursor-pointer hover:underline font-medium bg-transparent border-0 p-0"
+        style={{ color: 'var(--color-main-500)' }}
+        onClick={(e) => {
+          e.stopPropagation();
+          openDrilldown(
+            String(row?.domain || ''),
+            String(row?.templateName || ''),
+            status,
+            count,
+          );
+        }}
+        title={`View ${count} properties`}
+      >
+        {count.toLocaleString()}
+      </button>
+    );
+  }
+
   const columns: Column[] = useMemo(() => [
     {
       field: 'domainDisplay',
@@ -105,51 +148,65 @@ export function DmTemplateLeaderboardWidget({ data }: DmTemplateLeaderboardWidge
     {
       field: 'totalSent',
       header: 'Sent',
+      headerTooltip: 'Total mail pieces sent using this template (all-time, cumulative). Click to see properties.',
       type: 'number',
       width: 80,
       minWidth: 60,
       align: 'center',
+      render: (value: CellValue, row: RowData) => renderClickable(value, row, 'sent'),
     },
     {
       field: 'totalDelivered',
       header: 'Delivered',
+      headerTooltip: 'Total mail pieces confirmed delivered for this template (all-time, cumulative). Click to see properties.',
       width: 90,
       minWidth: 70,
       align: 'center',
       render: (value: CellValue, row: RowData) => {
         const delivered = Number(value || 0);
         const warning = row?.deliveryWarning === true;
+        if (delivered === 0 && !warning) return <span style={{ color: 'var(--text-tertiary)' }}>0</span>;
         return (
-          <span style={{ color: warning ? 'var(--color-alert-500)' : 'var(--text-primary)' }}>
+          <button
+            type="button"
+            className="cursor-pointer hover:underline font-medium bg-transparent border-0 p-0"
+            style={{ color: warning ? 'var(--color-alert-500)' : 'var(--color-main-500)' }}
+            onClick={(e) => {
+              e.stopPropagation();
+              openDrilldown(String(row?.domain || ''), String(row?.templateName || ''), 'delivered', delivered);
+            }}
+            title={warning ? 'No delivery data — leads exist without confirmed delivery' : `View ${delivered} delivered properties`}
+          >
             {delivered.toLocaleString()}
-            {warning && (
-              <span title="No delivery data — leads exist without confirmed delivery" style={{ marginLeft: '4px' }}>
-                ⚠
-              </span>
-            )}
-          </span>
+            {warning && <span style={{ marginLeft: '4px' }}>&#9888;</span>}
+          </button>
         );
       },
     },
     {
       field: 'leadsGenerated',
       header: 'Leads',
+      headerTooltip: 'Properties that became leads after receiving mail from this template. Click to see properties.',
       type: 'number',
       width: 70,
       minWidth: 60,
       align: 'center',
+      render: (value: CellValue, row: RowData) => renderClickable(value, row, 'lead'),
     },
     {
       field: 'dealsGenerated',
       header: 'Deals',
+      headerTooltip: 'Properties that reached deal status after receiving mail from this template. Click to see properties.',
       type: 'number',
       width: 70,
       minWidth: 60,
       align: 'center',
+      render: (value: CellValue, row: RowData) => renderClickable(value, row, 'deal'),
     },
     {
       field: 'leadConversionRate',
       header: 'Lead %',
+      headerTooltip: 'Lead conversion rate: leads generated divided by unique properties mailed with this template.',
       width: 70,
       minWidth: 60,
       align: 'center',
@@ -175,7 +232,7 @@ export function DmTemplateLeaderboardWidget({ data }: DmTemplateLeaderboardWidge
               placement="top"
               maxWidth={280}
             >
-              <span style={{ color: 'var(--text-tertiary)' }}>— ⚠</span>
+              <span style={{ color: 'var(--text-tertiary)' }}>— &#9888;</span>
             </AxisTooltip>
           );
         }
@@ -212,6 +269,7 @@ export function DmTemplateLeaderboardWidget({ data }: DmTemplateLeaderboardWidge
   const tableData = useMemo(() =>
     data.map(t => ({
       id: `${t.domain}-${t.templateId}`,
+      domain: t.domain,
       domainDisplay: formatDomain(t.domain),
       templateName: t.templateName,
       templateType: t.templateType,
@@ -227,17 +285,27 @@ export function DmTemplateLeaderboardWidget({ data }: DmTemplateLeaderboardWidge
   [data]);
 
   return (
-    <div className="h-full overflow-hidden">
-      <AxisTable
-        columns={columns}
-        data={tableData}
-        rowKey="id"
-        sortable
-        paginated
-        resizable
-        defaultPageSize={10}
-        emptyMessage="No template performance data available yet"
+    <>
+      <div className="h-full overflow-hidden">
+        <AxisTable
+          columns={columns}
+          data={tableData}
+          rowKey="id"
+          sortable
+          paginated
+          resizable
+          defaultPageSize={10}
+          emptyMessage="No template performance data available yet"
+        />
+      </div>
+      <DmPropertyDrilldownModal
+        open={drilldown.open}
+        onClose={closeDrilldown}
+        domain={drilldown.domain}
+        status={drilldown.status}
+        expectedCount={drilldown.count}
+        templateName={drilldown.templateName}
       />
-    </div>
+    </>
   );
 }

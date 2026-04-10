@@ -129,6 +129,32 @@ export interface RrAlert {
 }
 
 // ---------------------------------------------------------------------------
+// Q2 Volume Goal (from rr_daily_metrics, Q2 2026 date range)
+// ---------------------------------------------------------------------------
+
+export interface RrQ2GoalClientRow {
+  domain: string;
+  campaignType: string;
+  totalSends: number;
+  lifetimeSends: number;
+}
+
+export interface RrQ2Goal {
+  target: number;
+  currentSends: number;
+  deliveredCount: number;
+  totalCost: number;
+  daysElapsed: number;
+  daysRemaining: number;
+  activeClients: number;
+  progressPercent: number;
+  weeklyPace: number;
+  requiredWeeklyPace: number;
+  onTrack: boolean;
+  clientBreakdown: RrQ2GoalClientRow[];
+}
+
+// ---------------------------------------------------------------------------
 // Aggregated data for the tab
 // ---------------------------------------------------------------------------
 
