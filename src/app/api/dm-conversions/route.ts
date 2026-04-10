@@ -117,11 +117,11 @@ export async function GET(request: NextRequest) {
   try {
     switch (type) {
       case 'funnel-overview':
-        return await getFunnelOverview(domain);
+        return await getFunnelOverview(days, domain);
       case 'client-performance':
-        return await getClientPerformance(domain);
+        return await getClientPerformance(days, domain);
       case 'geo-breakdown':
-        return await getGeoBreakdown(domain);
+        return await getGeoBreakdown(days, domain);
       case 'property-timeline':
         return await getPropertyTimeline(params.get('propertyId'), params.get('campaignId'), domain);
       case 'data-quality':
@@ -184,7 +184,7 @@ interface MergedDomainRow {
   syncWarning?: string | null;
 }
 
-async function getMergedClientData(domain?: string): Promise<MergedDomainRow[]> {
+async function getMergedClientData(domain?: string, days?: number): Promise<MergedDomainRow[]> {
   // dm_property_conversions is the SINGLE SOURCE OF TRUTH for all conversion counts
   // (leads, appointments, contracts, deals, revenue). This guarantees that the numbers
   // shown in tables always match what users see in the property drilldown modal.
@@ -234,6 +234,7 @@ async function getMergedClientData(domain?: string): Promise<MergedDomainRow[]> 
         COUNT(DISTINCT CASE WHEN (became_lead_at IS NOT NULL AND became_lead_at <= first_sent_date) OR (became_deal_at IS NOT NULL AND became_deal_at <= first_sent_date) THEN property_id END) as pre_send_excluded
       FROM dm_property_conversions
       WHERE ${domainFilter(domain)}
+        ${days && days < 365 ? `AND first_sent_date >= CURRENT_DATE - INTERVAL '${days} days'` : ''}
       GROUP BY domain
     `),
   ]);
@@ -357,13 +358,13 @@ async function getMergedClientData(domain?: string): Promise<MergedDomainRow[]> 
 // Funnel Overview — aggregated from merged client data (same source as table)
 // ---------------------------------------------------------------------------
 
-async function getFunnelOverview(domain?: string) {
-  const cacheKey = `dm-conversions:funnel:${domain || 'all'}`;
+async function getFunnelOverview(days: number, domain?: string) {
+  const cacheKey = `dm-conversions:funnel:${days}:${domain || 'all'}`;
   const cached = getCached(cacheKey);
   if (cached) return NextResponse.json({ success: true, data: cached, cached: true });
 
   // Use the same merged data source as client performance table
-  const mergedRows = await getMergedClientData(domain);
+  const mergedRows = await getMergedClientData(domain, days);
 
   // Sum across all domains
   let totalMailed = 0, totalDelivered = 0, prospects = 0, leads = 0;
@@ -410,12 +411,12 @@ async function getFunnelOverview(domain?: string) {
 // Client Performance — uses shared merged data (same source as funnel)
 // ---------------------------------------------------------------------------
 
-async function getClientPerformance(domain?: string) {
-  const cacheKey = `dm-conversions:client-perf:${domain || 'all'}`;
+async function getClientPerformance(days: number, domain?: string) {
+  const cacheKey = `dm-conversions:client-perf:${days}:${domain || 'all'}`;
   const cached = getCached(cacheKey);
   if (cached) return NextResponse.json({ success: true, data: cached, cached: true });
 
-  const mergedRows = await getMergedClientData(domain);
+  const mergedRows = await getMergedClientData(domain, days);
 
   const data: DmClientPerformanceRow[] = mergedRows.map((row) => {
     const confidence = getRoasConfidence(row.deals, row.totalRevenue);
@@ -452,10 +453,12 @@ async function getClientPerformance(domain?: string) {
 // Geographic Breakdown — county for dense markets, MSA for sparse markets
 // ---------------------------------------------------------------------------
 
-async function getGeoBreakdown(domain?: string) {
-  const cacheKey = `dm-conversions:geo:${domain || 'all'}`;
+async function getGeoBreakdown(days: number, domain?: string) {
+  const cacheKey = `dm-conversions:geo:${days}:${domain || 'all'}`;
   const cached = getCached(cacheKey);
   if (cached) return NextResponse.json({ success: true, data: cached, cached: true });
+
+  const dateFilter = days && days < 365 ? `AND first_sent_date >= CURRENT_DATE - INTERVAL '${days} days'` : '';
 
   const rows = await runAuroraQuery(`
     SELECT
@@ -467,6 +470,7 @@ async function getGeoBreakdown(domain?: string) {
       COALESCE(SUM(CASE WHEN deal_revenue > 0 AND became_deal_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN deal_revenue ELSE 0 END), 0) as total_revenue
     FROM dm_property_conversions
     WHERE ${domainFilter(domain)}
+      ${dateFilter}
     GROUP BY state, county
     HAVING COUNT(DISTINCT property_id) > 0
     ORDER BY leads DESC, total_mailed DESC

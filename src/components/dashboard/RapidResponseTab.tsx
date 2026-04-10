@@ -165,10 +165,10 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
         const domainParam = selectedDomain ? `&domain=${encodeURIComponent(selectedDomain)}` : '';
         const [funnelRes, clientRes, templateRes, geoRes, qualityRes, alertsRes, convTrendRes, roasTrendRes] =
           await Promise.all([
-            authFetch(`/api/dm-conversions?type=funnel-overview${domainParam}`).then(r => r.json()),
-            authFetch(`/api/dm-conversions?type=client-performance${domainParam}`).then(r => r.json()),
+            authFetch(`/api/dm-conversions?type=funnel-overview&${dp}${domainParam}`).then(r => r.json()),
+            authFetch(`/api/dm-conversions?type=client-performance&${dp}${domainParam}`).then(r => r.json()),
             authFetch(`/api/dm-templates?type=template-leaderboard${domainParam}`).then(r => r.json()),
-            authFetch(`/api/dm-conversions?type=geo-breakdown${domainParam}`).then(r => r.json()),
+            authFetch(`/api/dm-conversions?type=geo-breakdown&${dp}${domainParam}`).then(r => r.json()),
             authFetch(`/api/dm-conversions?type=data-quality${domainParam}`).then(r => r.json()),
             authFetch(`/api/dm-conversions?type=alerts${domainParam}`).then(r => r.json()),
             authFetch(`/api/dm-conversions?type=conversion-trend&${dp}${domainParam}`).then(r => r.json()),

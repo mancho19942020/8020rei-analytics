@@ -404,10 +404,11 @@ These are documented, known issues — NOT violations. Do not flag them during a
 
 | Gap | Description | Status | Impact |
 |-----|------------|--------|--------|
-| `dm_property_conversions` undercounting | Sync from monolith captures ~28% of true volume. Hall of Fame (44K sends) is nearly absent. | Pending — PR #1863 fix merged, awaiting deployment + re-sync | Business Results shows lower totals than reality |
+| `dm_property_conversions` undercounting | Hall of Fame at ~45% coverage (20K of 44K properties synced). Batch upsert fix deployed — each nightly cron closes the gap. | Closing — estimated 2-3 more nightly cycles | Conversion numbers undercounted for Hall of Fame. Sync warning badge displayed. |
+| PCM inflation (PENDING) | All send/cost numbers are inflated ~3.2x because the monolith counts on-hold/protected/error records as "sent." Fix merged to `dev`, NOT yet in production. | Pending production deploy | When deployed: sends drop from ~74K to ~23K, cost from ~$80K to ~$17K. Only records with `vendor_id IS NOT NULL` are real sends. |
 | `rr_daily_metrics` limited history | Only has data from March 2026 onward (Layer 1 sync deployed recently) | By design — accumulating over time | Operational Health trend charts have limited historical range |
 | Zero Smart Drop data | `campaign_type = 'smartdrop'` returns 0 rows in all tables | Smart Drop not yet used in production | Campaign type breakdown will show 100% Rapid Response until Smart Drop launches |
-| Pre-send exclusions | Properties with conversions before first send are excluded from counts | Intentional — these are false positives | Conversion counts may be lower than raw DB counts |
+| Pre-send exclusions | Properties with conversions before first send are excluded from counts. Cascading filter: deals/appointments/contracts also require valid lead. | Intentional — prevents impossible funnels (deals > leads) | Conversion counts may be lower than raw DB counts |
 | ROAS `low_sample` flags | ROAS with < 3 deals is marked `low_sample`, not `confident` | By design — Lauren's meeting requirement | Some clients show ROAS with confidence warnings |
 
 When building new features, verify that your widget handles these gaps gracefully (e.g., shows a warning badge, not a broken state).
