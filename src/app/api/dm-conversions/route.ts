@@ -331,26 +331,30 @@ async function getMergedClientData(domain?: string, days?: number): Promise<Merg
 
   // Add domains that exist in dm_client_funnel but not in dm_property_conversions
   // (show operational data with zero conversions — we can't verify conversions without property records)
-  for (const r of funnelRows) {
-    const d = String(r.domain || '');
-    if (domainMap.has(d)) continue;
-    const liveStatus = activeCampaignsMap.get(d);
-    domainMap.set(d, {
-      domain: d,
-      campaignType: liveStatus?.type || String(r.campaign_type || 'rr'),
-      activeCampaigns: liveStatus?.count ?? Number(r.active_campaigns || 0),
-      totalMailed: Number(r.total_mailed || 0),
-      totalSends: Number(r.total_sends || 0),
-      totalDelivered: Number(r.total_delivered || 0),
-      prospects: Number(r.total_mailed || 0),
-      leads: 0,
-      appointments: 0,
-      contracts: 0,
-      deals: 0,
-      totalCost: Number(r.total_cost || 0),
-      totalRevenue: 0,
-      unattributedConversions: 0,
-    });
+  // Skip this when date-filtered: domains with no sends in the time window shouldn't appear
+  const isDateFiltered = days !== undefined && days < 365;
+  if (!isDateFiltered) {
+    for (const r of funnelRows) {
+      const d = String(r.domain || '');
+      if (domainMap.has(d)) continue;
+      const liveStatus = activeCampaignsMap.get(d);
+      domainMap.set(d, {
+        domain: d,
+        campaignType: liveStatus?.type || String(r.campaign_type || 'rr'),
+        activeCampaigns: liveStatus?.count ?? Number(r.active_campaigns || 0),
+        totalMailed: Number(r.total_mailed || 0),
+        totalSends: Number(r.total_sends || 0),
+        totalDelivered: Number(r.total_delivered || 0),
+        prospects: Number(r.total_mailed || 0),
+        leads: 0,
+        appointments: 0,
+        contracts: 0,
+        deals: 0,
+        totalCost: Number(r.total_cost || 0),
+        totalRevenue: 0,
+        unattributedConversions: 0,
+      });
+    }
   }
 
   return Array.from(domainMap.values());
