@@ -382,3 +382,78 @@ export function getBugsByOriginQuery(): string {
     ORDER BY count DESC
   `;
 }
+
+// ============================================================================
+// WEEKLY REPORT QUERIES
+// ============================================================================
+
+const SUGGESTIONS_TABLE = `\`${PRODUCT_PROJECT}.asana.tasks_unique\``;
+
+/** Deliverables completed in the last N days from the AI Task Board */
+export function getWeeklyDeliverablesQuery(days: number = 7): string {
+  return `
+    SELECT
+      gid,
+      name,
+      COALESCE(assignee_name, 'Unassigned') as assignee_name,
+      business_impact,
+      FORMAT_TIMESTAMP('%Y-%m-%d', completed_at) as completed_at,
+      feature_type
+    FROM ${AI_TABLE}
+    WHERE completed_at >= TIMESTAMP(DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))
+      AND section = 'Done'
+    ORDER BY COALESCE(business_impact, 0) DESC, completed_at DESC
+  `;
+}
+
+/** Bug status summary for the weekly report */
+export function getWeeklyBugStatusQuery(days: number = 7): string {
+  return `
+    SELECT
+      COUNTIF(created_at >= TIMESTAMP(DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))) as reported_this_week,
+      COUNTIF(completed_at >= TIMESTAMP(DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY)) AND section = 'Done') as closed_this_week,
+      COUNTIF(section != 'Done') as open,
+      COUNTIF(created_at >= TIMESTAMP(DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY)) AND origin = 'Clients') as customer_reported,
+      COUNTIF(created_at >= TIMESTAMP(DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY)) AND (origin != 'Clients' OR origin IS NULL)) as internal_product
+    FROM ${BUGS_TABLE}
+    WHERE type = 'Bug'
+  `;
+}
+
+/** Critical bugs (High + Highest priority) summary */
+export function getWeeklyCriticalBugsQuery(days: number = 7): string {
+  return `
+    SELECT
+      COUNTIF(created_at >= TIMESTAMP(DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))) as reported_this_week,
+      COUNTIF(completed_at >= TIMESTAMP(DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY)) AND section = 'Done') as closed_this_week,
+      COUNTIF(section != 'Done') as open
+    FROM ${BUGS_TABLE}
+    WHERE type = 'Bug' AND bug_priority IN ('High', 'Highest')
+  `;
+}
+
+/** Data inquiries summary */
+export function getWeeklyDataInquiriesQuery(days: number = 7): string {
+  return `
+    SELECT
+      COUNTIF(created_at >= TIMESTAMP(DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))) as reported_this_week,
+      COUNTIF(section != 'Done') as open
+    FROM ${BUGS_TABLE}
+    WHERE type = 'Data inquiry'
+  `;
+}
+
+/** Suggestions board summary — uses tasks table (tasks_unique doesn't include this project) */
+export function getWeeklySuggestionsQuery(days: number = 7): string {
+  const SUGGESTIONS_TASKS = `\`${PRODUCT_PROJECT}.asana.tasks\``;
+  return `
+    SELECT
+      COUNTIF(created_at >= TIMESTAMP(DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))) as new_this_week,
+      COUNTIF(TRIM(section) LIKE '%Under Review%') as under_review,
+      COUNTIF(TRIM(section) LIKE '%In Progress%') as in_execution,
+      COUNTIF(TRIM(section) LIKE '%In Backlog%') as in_backlog,
+      COUNTIF(TRIM(section) LIKE '%Implemented%') as delivered
+    FROM ${SUGGESTIONS_TASKS}
+    WHERE project_name LIKE '%Suggestions Board%'
+  `;
+}
