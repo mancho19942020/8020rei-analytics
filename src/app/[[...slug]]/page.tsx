@@ -846,7 +846,11 @@ function Dashboard({ slug }: { slug: string[] }) {
 
           {/* Weekly Report Tab */}
           {activeMainSection === 'product-tasks' && activeSubsection === 'weekly-report' && (
-            <WeeklyReportTab />
+            <WeeklyReportTab
+              days={days}
+              startDate={startDate}
+              endDate={endDate}
+            />
           )}
 
           {/* Platform Analytics Tab (German only) */}

@@ -23,9 +23,14 @@ export async function GET(request: NextRequest) {
   if (authError) return authError;
 
   const searchParams = request.nextUrl.searchParams;
+  const startDate = searchParams.get('startDate') || undefined;
+  const endDate = searchParams.get('endDate') || undefined;
   const days = parseInt(searchParams.get('days') || '7');
 
-  const cacheKey = `weekly-report-v1:${days}`;
+  const cacheKey = startDate && endDate
+    ? `weekly-report-v1:${startDate}_${endDate}`
+    : `weekly-report-v1:${days}`;
+
   const cached = getCached<WeeklyReportData>(cacheKey);
   if (cached) {
     return NextResponse.json({ success: true, data: cached, cached: true, timestamp: new Date().toISOString() });
@@ -33,16 +38,15 @@ export async function GET(request: NextRequest) {
 
   try {
     const [deliverables, bugRows, criticalRows, inquiryRows, suggestionRows] = await Promise.all([
-      runProductQuery<WeeklyDeliverable>(getWeeklyDeliverablesQuery(days)),
-      runProductQuery<WeeklyBugStatus>(getWeeklyBugStatusQuery(days)),
-      runProductQuery<WeeklyCriticalBugs>(getWeeklyCriticalBugsQuery(days)),
-      runProductQuery<WeeklyDataInquiries>(getWeeklyDataInquiriesQuery(days)),
-      runProductQuery<WeeklySuggestions>(getWeeklySuggestionsQuery(days)),
+      runProductQuery<WeeklyDeliverable>(getWeeklyDeliverablesQuery(days, startDate, endDate)),
+      runProductQuery<WeeklyBugStatus>(getWeeklyBugStatusQuery(days, startDate, endDate)),
+      runProductQuery<WeeklyCriticalBugs>(getWeeklyCriticalBugsQuery(days, startDate, endDate)),
+      runProductQuery<WeeklyDataInquiries>(getWeeklyDataInquiriesQuery(days, startDate, endDate)),
+      runProductQuery<WeeklySuggestions>(getWeeklySuggestionsQuery(days, startDate, endDate)),
     ]);
 
-    const weekEnd = new Date();
-    const weekStart = new Date();
-    weekStart.setDate(weekEnd.getDate() - days);
+    const rangeEnd = endDate ? new Date(endDate) : new Date();
+    const rangeStart = startDate ? new Date(startDate) : new Date(rangeEnd.getTime() - days * 86400000);
 
     const data: WeeklyReportData = {
       deliverables,
@@ -50,8 +54,8 @@ export async function GET(request: NextRequest) {
       critical_bugs: criticalRows[0] || { reported_this_week: 0, closed_this_week: 0, open: 0 },
       data_inquiries: inquiryRows[0] || { reported_this_week: 0, open: 0 },
       suggestions: suggestionRows[0] || { new_this_week: 0, under_review: 0, in_execution: 0, in_backlog: 0, delivered: 0 },
-      week_start: weekStart.toISOString().split('T')[0],
-      week_end: weekEnd.toISOString().split('T')[0],
+      week_start: rangeStart.toISOString().split('T')[0],
+      week_end: rangeEnd.toISOString().split('T')[0],
     };
 
     setCache(cacheKey, data);
