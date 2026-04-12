@@ -60,6 +60,7 @@ const AiTaskBoardTab = dynamic(() => import('@/components/dashboard/AiTaskBoardT
 const BugsDiBoardTab = dynamic(() => import('@/components/dashboard/BugsDiBoardTab').then(m => m.BugsDiBoardTab), { loading: TabSkeleton, ssr: false });
 const PlatformAnalyticsTab = dynamic(() => import('@/components/dashboard/PlatformAnalyticsTab').then(m => m.PlatformAnalyticsTab), { loading: TabSkeleton, ssr: false });
 const WeeklyReportTab = dynamic(() => import('@/components/dashboard/WeeklyReportTab').then(m => m.WeeklyReportTab), { loading: TabSkeleton, ssr: false });
+const IntegrationStatusTab = dynamic(() => import('@/components/dashboard/IntegrationStatusTab').then(m => m.IntegrationStatusTab), { loading: TabSkeleton, ssr: false });
 
 interface MetricValues {
   total_users: number;
@@ -851,6 +852,11 @@ function Dashboard({ slug }: { slug: string[] }) {
               startDate={startDate}
               endDate={endDate}
             />
+          )}
+
+          {/* Features Adoption / Integration Status Tab */}
+          {activeMainSection === 'product-tasks' && activeSubsection === 'features-adoption' && (
+            <IntegrationStatusTab />
           )}
 
           {/* Platform Analytics Tab (German only) */}

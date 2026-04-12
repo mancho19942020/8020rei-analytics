@@ -335,6 +335,50 @@ export function getTeamWorkloadQuery(dateRange: DateRangeParams = {}): string {
   `;
 }
 
+// ============================================================================
+// INTEGRATION STATUS QUERIES (feedback_clients_unique)
+// Salesforce integration health: deal/lead sync gaps per client
+// Window is always fixed at 30 days — this is a business definition,
+// not driven by the global date filter.
+// ============================================================================
+
+/**
+ * Integration Status Summary — Salesforce
+ *
+ * Counts:
+ *  - total_integrated: clients with active Salesforce integration
+ *  - deal_issues: integrated clients with no deals in the last 30 days
+ *  - lead_issues: integrated clients with no leads in the last 30 days
+ */
+export function getIntegrationStatusQuery(): string {
+  return `
+    WITH integrated AS (
+      SELECT DISTINCT domain_name
+      FROM ${TABLE}
+      WHERE client_salesforce_integration IN ('Integrated 2-way', 'CRM → 8020REI')
+    ),
+    deals_recent AS (
+      SELECT DISTINCT domain_name
+      FROM ${TABLE}
+      WHERE LOWER(record_type) = 'deal'
+        AND date >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
+    ),
+    leads_recent AS (
+      SELECT DISTINCT domain_name
+      FROM ${TABLE}
+      WHERE LOWER(record_type) = 'lead'
+        AND date >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
+    )
+    SELECT
+      COUNT(DISTINCT i.domain_name)              AS total_integrated,
+      COUNTIF(d.domain_name IS NULL)             AS deal_issues,
+      COUNTIF(l.domain_name IS NULL)             AS lead_issues
+    FROM integrated i
+    LEFT JOIN deals_recent d ON i.domain_name = d.domain_name
+    LEFT JOIN leads_recent l ON i.domain_name = l.domain_name
+  `;
+}
+
 /**
  * Delivery Timeline - issues with due dates and delay
  */
