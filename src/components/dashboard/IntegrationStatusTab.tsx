@@ -2,9 +2,13 @@
  * IntegrationStatusTab — Features Adoption / Critical Bugs & Delays
  *
  * Executive summary: Integration Status Update.
- * First section: Salesforce deal & lead sync health.
+ * Sections:
+ *  - Salesforce: deal & lead sync health (BigQuery)
+ *  - Rapid Response: active clients + letters sent last week (Aurora)
  *
- * Data source: bigquery-467404.domain.feedback_clients_unique
+ * Data sources:
+ *  - bigquery-467404.domain.feedback_clients_unique
+ *  - Aurora: rr_campaign_snapshots, rr_daily_metrics
  */
 
 'use client';
@@ -80,10 +84,18 @@ function SectionCard({
   );
 }
 
+// ─── Rapid Response summary type ──────────────────────────────────────────────
+
+interface RrSummary {
+  active_clients: number;
+  letters_last_week: number;
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function IntegrationStatusTab() {
   const [data, setData] = useState<IntegrationStatusData | null>(null);
+  const [rrData, setRrData] = useState<RrSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -91,10 +103,19 @@ export function IntegrationStatusTab() {
     setLoading(true);
     setError(null);
     try {
-      const res = await authFetch('/api/metrics/integration-status');
-      const json = await res.json();
-      if (!json.success) throw new Error(json.error || 'Unknown error');
-      setData(json.data);
+      const [sfRes, rrRes] = await Promise.all([
+        authFetch('/api/metrics/integration-status'),
+        authFetch('/api/rapid-response?type=integration-summary'),
+      ]);
+      const sfJson = await sfRes.json();
+      const rrJson = await rrRes.json();
+
+      if (!sfJson.success) throw new Error(sfJson.error || 'Failed to load Salesforce data');
+      setData(sfJson.data);
+
+      // RR may not be configured — show zeros rather than failing
+      if (rrJson.success) setRrData(rrJson.data);
+      else setRrData({ active_clients: 0, letters_last_week: 0 });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load report');
     } finally {
@@ -108,6 +129,7 @@ export function IntegrationStatusTab() {
     return (
       <div className="p-6 flex flex-col gap-4 max-w-3xl mx-auto">
         <AxisSkeleton variant="custom" width="280px" height="24px" />
+        <AxisSkeleton variant="custom" width="100%" height="120px" />
         <AxisSkeleton variant="custom" width="100%" height="120px" />
       </div>
     );
@@ -136,7 +158,7 @@ export function IntegrationStatusTab() {
         <h1 className="text-base font-semibold text-content-primary">
           Integration status update
         </h1>
-        <p className="text-xs text-content-tertiary mt-0.5">As of {as_of} — last 30 days window</p>
+        <p className="text-xs text-content-tertiary mt-0.5">As of {as_of}</p>
       </div>
 
       {/* Salesforce integration health */}
@@ -158,6 +180,23 @@ export function IntegrationStatusTab() {
             value={salesforce.lead_issues}
             sub="No leads synced in 30 days"
             accent={salesforce.lead_issues > 0 ? 'alert' : 'success'}
+          />
+        </div>
+      </SectionCard>
+
+      {/* Rapid Response */}
+      <SectionCard title="Rapid Response" accent="info">
+        <div className="grid grid-cols-2 gap-3">
+          <KpiCard
+            label="Active clients"
+            value={rrData?.active_clients ?? '—'}
+            accent="neutral"
+          />
+          <KpiCard
+            label="Letters sent"
+            value={rrData?.letters_last_week?.toLocaleString() ?? '—'}
+            sub="Last 7 days"
+            accent="neutral"
           />
         </div>
       </SectionCard>

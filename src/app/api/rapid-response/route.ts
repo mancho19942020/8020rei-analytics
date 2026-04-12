@@ -76,6 +76,8 @@ export async function GET(request: NextRequest) {
         return await getDomainList();
       case 'q2-goal':
         return await getQ2Goal(domain);
+      case 'integration-summary':
+        return await getIntegrationSummary();
       default:
         return NextResponse.json(
           { success: false, error: `Unknown type: ${type}` },
@@ -1004,4 +1006,38 @@ function computeSystemStatus(
     detail: `${pulse.activeCampaigns} active campaigns, ${pulse.sendsToday} sends today, ${quality.deliveryRate30d}% delivery rate.`,
     lastSyncAt,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Integration Summary — lightweight KPIs for the Integration Status tab
+// Returns: active client count + letters sent last 7 days
+// ---------------------------------------------------------------------------
+
+async function getIntegrationSummary() {
+  const cacheKey = 'rapid-response:integration-summary:7d';
+  const cached = getCached(cacheKey);
+  if (cached) return NextResponse.json({ success: true, data: cached, cached: true });
+
+  const [clientRows, lettersRows] = await Promise.all([
+    runAuroraQuery(`
+      SELECT COUNT(DISTINCT domain) AS active_clients
+      FROM rr_campaign_snapshots
+      WHERE ${EXCLUDE_SEED}
+        AND status = 'active'
+    `),
+    runAuroraQuery(`
+      SELECT COALESCE(SUM(sends_total), 0) AS letters_last_week
+      FROM rr_daily_metrics
+      WHERE ${EXCLUDE_SEED}
+        AND date >= CURRENT_DATE - INTERVAL '7 days'
+    `),
+  ]);
+
+  const data = {
+    active_clients: Number(clientRows[0]?.active_clients || 0),
+    letters_last_week: Number(lettersRows[0]?.letters_last_week || 0),
+  };
+
+  setCache(cacheKey, data);
+  return NextResponse.json({ success: true, data, cached: false });
 }
