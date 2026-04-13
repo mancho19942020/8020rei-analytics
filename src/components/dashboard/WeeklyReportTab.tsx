@@ -75,6 +75,43 @@ function SubLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
+// ─── Copy Button ──────────────────────────────────────────────────────────────
+
+function CopyButton({ buildText }: { buildText: () => string }) {
+  const [copied, setCopied] = useState(false);
+
+  function handleCopy() {
+    navigator.clipboard.writeText(buildText()).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  return (
+    <button
+      onClick={handleCopy}
+      title="Copy as text for Asana"
+      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium text-content-secondary bg-surface-raised hover:bg-surface-raised/80 border border-stroke transition-colors"
+    >
+      {copied ? (
+        <>
+          <svg className="w-3.5 h-3.5 text-success-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+          </svg>
+          Copied
+        </>
+      ) : (
+        <>
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" />
+          </svg>
+          Copy for Asana
+        </>
+      )}
+    </button>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 interface WeeklyReportTabProps {
@@ -107,6 +144,45 @@ export function WeeklyReportTab({ days, startDate, endDate }: WeeklyReportTabPro
   }, [days, startDate, endDate]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  function buildAsanaText(): string {
+    if (!data) return '';
+    const { deliverables, bugs, critical_bugs, data_inquiries, suggestions, week_start, week_end } = data;
+    const fromPastWeeks = bugs.closed_this_week > bugs.reported_this_week
+      ? bugs.closed_this_week - bugs.reported_this_week
+      : 0;
+
+    const lines: string[] = [
+      `Weekly Delivery & Quality Report — ${week_start} to ${week_end}`,
+      '',
+      '✅ Deliverables complete',
+      `• Completed this period: ${deliverables.length}`,
+      '',
+      '🐛 Bug status',
+      'Critical bugs (high + highest priority)',
+      `• Reported: ${critical_bugs.reported_this_week}`,
+      `• Closed: ${critical_bugs.closed_this_week}`,
+      `• Open: ${critical_bugs.open}`,
+      '',
+      'All bugs',
+      `• Reported: ${bugs.reported_this_week}`,
+      `• Closed: ${bugs.closed_this_week}${fromPastWeeks > 0 ? ` (${fromPastWeeks} from past weeks)` : ''}`,
+      `• Open: ${bugs.open}`,
+      `• Internal: ${bugs.internal_product} · Customer: ${bugs.customer_reported}`,
+      '',
+      '📋 Requests — data inquiries',
+      `• Reported: ${data_inquiries.reported_this_week}`,
+      `• Open: ${data_inquiries.open}`,
+      '',
+      '💡 Suggestions',
+      `• New this period: ${suggestions.new_this_week}`,
+      `• Under review: ${suggestions.under_review}`,
+      `• In execution: ${suggestions.in_execution}`,
+      `• In backlog: ${suggestions.in_backlog}`,
+      `• Implemented: ${suggestions.delivered}`,
+    ];
+    return lines.join('\n');
+  }
 
   if (loading) {
     return (
@@ -143,11 +219,14 @@ export function WeeklyReportTab({ days, startDate, endDate }: WeeklyReportTabPro
     <div className="p-6 max-w-3xl mx-auto flex flex-col gap-4">
 
       {/* Header */}
-      <div>
-        <h1 className="text-base font-semibold text-content-primary">
-          Weekly delivery &amp; quality report
-        </h1>
-        <p className="text-xs text-content-tertiary mt-0.5">{week_start} – {week_end}</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-base font-semibold text-content-primary">
+            Weekly delivery &amp; quality report
+          </h1>
+          <p className="text-xs text-content-tertiary mt-0.5">{week_start} – {week_end}</p>
+        </div>
+        <CopyButton buildText={buildAsanaText} />
       </div>
 
       {/* Deliverables */}
