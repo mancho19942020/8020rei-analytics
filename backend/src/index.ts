@@ -24,6 +24,7 @@ dotenv.config();
 import { analyticsRoutes } from './routes/analytics.js';
 import { healthRoutes } from './routes/health.js';
 import { propertiesApiRoutes } from './routes/properties-api.js';
+import { pcmValidationRoutes } from './routes/pcm-validation.js';
 import { requireAuth } from './auth/middleware.js';
 
 // Create Fastify instance
@@ -77,6 +78,9 @@ async function registerRoutes() {
   // Properties API routes (AWS Aurora)
   await fastify.register(propertiesApiRoutes, { prefix: '/api/v1/properties-api' });
 
+  // PCM Validation routes (PostcardMania reconciliation)
+  await fastify.register(pcmValidationRoutes, { prefix: '/api/v1/pcm-validation' });
+
   // Future routes (to be implemented):
   // await fastify.register(salesforceRoutes, { prefix: '/api/v1/salesforce' });
   // await fastify.register(pipelinesRoutes, { prefix: '/api/v1/pipelines' });
@@ -104,6 +108,7 @@ async function start() {
 ║  Health check: http://${host}:${port}/api/health               ║
 ║  Analytics API: http://${host}:${port}/api/v1/analytics        ║
 ║  Properties API: http://${host}:${port}/api/v1/properties-api  ║
+║  PCM Validation: http://${host}:${port}/api/v1/pcm-validation  ║
 ╚═══════════════════════════════════════════════════════════╝
     `);
   } catch (err) {

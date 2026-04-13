@@ -38,6 +38,29 @@ function domainFilter(domain?: string | null): string {
 }
 
 /**
+ * DATA INTEGRITY: dm_property_conversions contains inflated rows from before
+ * monolith PR #1882 (April 11, 2026). Properties that were on-hold, protected,
+ * or errored (vendor_id IS NULL) were counted as "sent" — they never reached PCM.
+ *
+ * ALL dm_property_conversions queries MUST include this filter to restrict
+ * results to domains with verified sends in dm_client_funnel.
+ *
+ * Rule: dm_client_funnel = source of truth for send counts (mailed, sends, delivered, cost).
+ *       dm_property_conversions = source of truth for conversions ONLY (leads, deals, revenue).
+ */
+function verifiedDomainsFilter(domain?: string | null): string {
+  const domainClause = domain
+    ? `AND dcf.domain = '${domain.replace(/[^a-zA-Z0-9_.]/g, '')}'`
+    : '';
+  return `domain IN (
+    SELECT DISTINCT dcf.domain FROM dm_client_funnel dcf
+    INNER JOIN (SELECT domain, MAX(date) as md FROM dm_client_funnel GROUP BY domain) vdf_l
+      ON dcf.domain = vdf_l.domain AND dcf.date = vdf_l.md
+    WHERE dcf.domain IS NOT NULL ${domainClause}
+  )`;
+}
+
+/**
  * Compute conversion confidence for a single property record.
  * Handles the 4 cases from Lauren's meeting:
  * 1. pre_send: conversion before first send (false flag, excluded from counts)
@@ -125,9 +148,9 @@ export async function GET(request: NextRequest) {
       case 'property-timeline':
         return await getPropertyTimeline(params.get('propertyId'), params.get('campaignId'), domain);
       case 'data-quality':
-        return await getDataQuality(domain);
+        return await getDataQuality(days, domain);
       case 'alerts':
-        return await getAlerts(domain);
+        return await getAlerts(days, domain);
       case 'conversion-trend':
         return await getConversionTrend(days, domain);
       case 'roas-trend':
@@ -185,13 +208,16 @@ interface MergedDomainRow {
 }
 
 async function getMergedClientData(domain?: string, days?: number): Promise<MergedDomainRow[]> {
-  // dm_property_conversions is the SINGLE SOURCE OF TRUTH for all conversion counts
-  // (leads, appointments, contracts, deals, revenue). This guarantees that the numbers
-  // shown in tables always match what users see in the property drilldown modal.
+  // ALL metrics come from dm_property_conversions filtered by first_sent_date.
+  // This is the SAME approach used by Geo Breakdown and Template Leaderboard.
+  // dm_client_funnel is used ONLY for the corrected domain list + proportional scaling
+  // (because dm_property_conversions still has inflated rows for some clients).
   //
-  // dm_client_funnel provides operational fields only: mailed, sends, delivered, cost.
   // rr_campaign_snapshots provides campaign status (active/inactive) and type.
+  const dateFilter = days && days < 365 ? `AND first_sent_date >= CURRENT_DATE - INTERVAL '${days} days'` : '';
+
   const [funnelRows, campaignStatusRows, propertyRows] = await Promise.all([
+    // dm_client_funnel: corrected domain list + lifetime totals for proportional scaling
     runAuroraQuery(`
       SELECT
         domain,
@@ -217,47 +243,53 @@ async function getMergedClientData(domain?: string, days?: number): Promise<Merg
       ) latest
       GROUP BY domain, campaign_type
     `),
-    // Source of truth for ALL conversion counts — what the drilldown modal shows
+    // ALL metrics from dm_property_conversions — mailed, sends, cost, AND conversions
+    // All filtered by first_sent_date when date filter is active
     runAuroraQuery(`
       SELECT
         domain,
-        COUNT(DISTINCT property_id) as total_mailed,
-        SUM(total_sends) as total_sends,
-        SUM(total_delivered) as total_delivered,
+        COUNT(DISTINCT property_id) as mailed,
+        COALESCE(SUM(total_sends), 0) as sends,
+        COALESCE(SUM(total_delivered), 0) as delivered,
+        COALESCE(SUM(total_cost), 0) as cost,
         COUNT(DISTINCT CASE WHEN became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as leads,
         COUNT(DISTINCT CASE WHEN became_appointment_at IS NOT NULL AND became_appointment_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as appointments,
         COUNT(DISTINCT CASE WHEN became_contract_at IS NOT NULL AND became_contract_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as contracts,
         COUNT(DISTINCT CASE WHEN became_deal_at IS NOT NULL AND became_deal_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as deals,
-        COALESCE(SUM(total_cost), 0) as total_cost,
         COALESCE(SUM(CASE WHEN deal_revenue > 0 AND became_deal_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN deal_revenue ELSE 0 END), 0) as total_revenue,
         COUNT(DISTINCT CASE WHEN attribution_status = 'unattributed' AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as unattributed,
         COUNT(DISTINCT CASE WHEN (became_lead_at IS NOT NULL AND became_lead_at <= first_sent_date) OR (became_deal_at IS NOT NULL AND became_deal_at <= first_sent_date) THEN property_id END) as pre_send_excluded
       FROM dm_property_conversions
       WHERE ${domainFilter(domain)}
-        ${days && days < 365 ? `AND first_sent_date >= CURRENT_DATE - INTERVAL '${days} days'` : ''}
+        AND ${verifiedDomainsFilter(domain)}
+        ${dateFilter}
       GROUP BY domain
     `),
   ]);
 
-  // Check sync coverage: compare dm_property_conversions count vs dm_volume_summary cumulative
-  // If a domain has < 90% coverage, flag it so the UI can show a warning
+  // Check sync coverage: compare dm_client_funnel sends vs dm_property_conversions property count
+  // Uses dm_client_funnel as the source of truth (corrected after monolith PR #1882)
   const coverageRows = await runAuroraQuery(`
     SELECT
-      vs.domain,
-      vs.cumulative_sends as expected_sends,
-      COALESCE(pc.actual_sends, 0) as actual_sends,
-      CASE WHEN vs.cumulative_sends > 0
-        THEN ROUND((COALESCE(pc.actual_sends, 0)::NUMERIC / vs.cumulative_sends) * 100, 0)
+      cf.domain,
+      cf.total_properties_mailed as expected_properties,
+      COALESCE(pc.actual_properties, 0) as actual_properties,
+      CASE WHEN cf.total_properties_mailed > 0
+        THEN ROUND((COALESCE(pc.actual_properties, 0)::NUMERIC / cf.total_properties_mailed) * 100, 0)
         ELSE 100 END as coverage_pct
-    FROM dm_volume_summary vs
+    FROM dm_client_funnel cf
+    INNER JOIN (
+      SELECT domain, MAX(date) as max_date FROM dm_client_funnel GROUP BY domain
+    ) cf_l ON cf.domain = cf_l.domain AND cf.date = cf_l.max_date
     LEFT JOIN (
-      SELECT domain, SUM(total_sends) as actual_sends
+      SELECT domain, COUNT(DISTINCT property_id) as actual_properties
       FROM dm_property_conversions
+      WHERE ${EXCLUDE_SEED}
       GROUP BY domain
-    ) pc ON vs.domain = pc.domain
-    WHERE vs.cumulative_sends > 0
-      AND CASE WHEN vs.cumulative_sends > 0
-        THEN ROUND((COALESCE(pc.actual_sends, 0)::NUMERIC / vs.cumulative_sends) * 100, 0)
+    ) pc ON cf.domain = pc.domain
+    WHERE cf.total_properties_mailed > 0
+      AND CASE WHEN cf.total_properties_mailed > 0
+        THEN ROUND((COALESCE(pc.actual_properties, 0)::NUMERIC / cf.total_properties_mailed) * 100, 0)
         ELSE 100 END < 90
   `);
   const syncWarnings = new Map<string, string>();
@@ -278,83 +310,84 @@ async function getMergedClientData(domain?: string, days?: number): Promise<Merg
     }
   }
 
-  // Build operational data lookup from dm_client_funnel (mailed, sends, delivered, cost)
-  const funnelMap = new Map<string, { campaignType: string; activeCampaigns: number; totalMailed: number; totalSends: number; totalDelivered: number; totalCost: number }>();
+  // Build corrected domain totals from dm_client_funnel (for proportional scaling)
+  const correctedTotals = new Map<string, { campaignType: string; activeCampaigns: number; sends: number }>();
   for (const r of funnelRows) {
-    const d = String(r.domain || '');
-    funnelMap.set(d, {
+    correctedTotals.set(String(r.domain || ''), {
       campaignType: String(r.campaign_type || 'rr'),
       activeCampaigns: Number(r.active_campaigns || 0),
-      totalMailed: Number(r.total_mailed || 0),
-      totalSends: Number(r.total_sends || 0),
-      totalDelivered: Number(r.total_delivered || 0),
-      totalCost: Number(r.total_cost || 0),
+      sends: Number(r.total_sends || 0),
     });
   }
 
-  // Build final merged data — dm_property_conversions drives all domains and conversion counts
+  // Build property data lookup — ALL metrics come from here (date-filtered)
+  const propertyMap = new Map<string, Record<string, unknown>>();
+  for (const r of propertyRows) {
+    propertyMap.set(String(r.domain || ''), r);
+  }
+
+  // Compute uncapped per-domain send totals from dm_property_conversions for scaling
+  const uncappedSends = new Map<string, number>();
+  for (const r of propertyRows) {
+    uncappedSends.set(String(r.domain || ''), Number(r.sends || 0));
+  }
+
+  // Build final merged data
+  // dm_client_funnel provides the verified domain list + campaign metadata.
+  // ALL volume AND conversion numbers come from dm_property_conversions (date-filtered).
+  // Volume numbers are proportionally scaled against dm_client_funnel corrected totals
+  // to compensate for dm_property_conversions still being partially synced for some clients.
   const domainMap = new Map<string, MergedDomainRow>();
 
-  for (const r of propertyRows) {
+  for (const r of funnelRows) {
     const d = String(r.domain || '');
     const liveStatus = activeCampaignsMap.get(d);
-    const funnel = funnelMap.get(d);
+    const corrected = correctedTotals.get(d);
+    if (!corrected) continue;
 
-    // When date-filtered (days < 365): use dm_property_conversions for ALL fields
-    // so mailed/cost/conversions are all from the same time window.
-    // When all-time: prefer dm_client_funnel for operational fields (more complete cumulative data).
-    const isDateFiltered = days !== undefined && days < 365;
-    const totalMailed = isDateFiltered ? Number(r.total_mailed || 0) : (funnel ? funnel.totalMailed : Number(r.total_mailed || 0));
-    const totalSends = isDateFiltered ? Number(r.total_sends || 0) : (funnel ? funnel.totalSends : Number(r.total_sends || 0));
-    const totalDelivered = isDateFiltered ? Number(r.total_delivered || 0) : (funnel ? funnel.totalDelivered : Number(r.total_delivered || 0));
-    const totalCost = isDateFiltered ? Number(r.total_cost || 0) : (funnel ? funnel.totalCost : Number(r.total_cost || 0));
-    const leads = Number(r.leads || 0);
+    const pc = propertyMap.get(d);
+    const rawMailed = Number(pc?.mailed || 0);
+    const rawSends = Number(pc?.sends || 0);
+    const rawDelivered = Number(pc?.delivered || 0);
+    const rawCost = Number(pc?.cost || 0);
+    const leads = Number(pc?.leads || 0);
+
+    // Proportionally scale volume if dm_property_conversions is inflated for this domain
+    // (only scale when showing ALL TIME data — when date-filtered, the filter handles it)
+    let mailed = rawMailed;
+    let sends = rawSends;
+    let delivered = rawDelivered;
+    let cost = rawCost;
+
+    if (!days || days >= 365) {
+      // All-time view: scale down inflated dm_property_conversions to match corrected dm_client_funnel
+      if (corrected.sends > 0 && rawSends > corrected.sends) {
+        const scale = corrected.sends / rawSends;
+        mailed = Math.round(rawMailed * scale);
+        sends = corrected.sends;
+        delivered = Math.round(rawDelivered * scale);
+        cost = Number((rawCost * scale).toFixed(2));
+      }
+    }
+    // When date-filtered: use dm_property_conversions numbers as-is (they're filtered by first_sent_date)
 
     domainMap.set(d, {
       domain: d,
-      campaignType: liveStatus?.type || funnel?.campaignType || 'rr',
-      activeCampaigns: liveStatus?.count ?? funnel?.activeCampaigns ?? 0,
-      totalMailed,
-      totalSends,
-      totalDelivered,
-      prospects: totalMailed - leads,
+      campaignType: liveStatus?.type || corrected.campaignType || 'rr',
+      activeCampaigns: liveStatus?.count ?? corrected.activeCampaigns ?? 0,
+      totalMailed: mailed,
+      totalSends: sends,
+      totalDelivered: delivered,
+      totalCost: cost,
+      prospects: mailed - leads,
       leads,
-      appointments: Number(r.appointments || 0),
-      contracts: Number(r.contracts || 0),
-      deals: Number(r.deals || 0),
-      totalCost,
-      totalRevenue: Number(r.total_revenue || 0),
-      unattributedConversions: Number(r.unattributed || 0),
+      appointments: Number(pc?.appointments || 0),
+      contracts: Number(pc?.contracts || 0),
+      deals: Number(pc?.deals || 0),
+      totalRevenue: Number(pc?.total_revenue || 0),
+      unattributedConversions: Number(pc?.unattributed || 0),
       syncWarning: syncWarnings.get(d) || null,
     });
-  }
-
-  // Add domains that exist in dm_client_funnel but not in dm_property_conversions
-  // (show operational data with zero conversions — we can't verify conversions without property records)
-  // Skip this when date-filtered: domains with no sends in the time window shouldn't appear
-  const isDateFiltered = days !== undefined && days < 365;
-  if (!isDateFiltered) {
-    for (const r of funnelRows) {
-      const d = String(r.domain || '');
-      if (domainMap.has(d)) continue;
-      const liveStatus = activeCampaignsMap.get(d);
-      domainMap.set(d, {
-        domain: d,
-        campaignType: liveStatus?.type || String(r.campaign_type || 'rr'),
-        activeCampaigns: liveStatus?.count ?? Number(r.active_campaigns || 0),
-        totalMailed: Number(r.total_mailed || 0),
-        totalSends: Number(r.total_sends || 0),
-        totalDelivered: Number(r.total_delivered || 0),
-        prospects: Number(r.total_mailed || 0),
-        leads: 0,
-        appointments: 0,
-        contracts: 0,
-        deals: 0,
-        totalCost: Number(r.total_cost || 0),
-        totalRevenue: 0,
-        unattributedConversions: 0,
-      });
-    }
   }
 
   return Array.from(domainMap.values());
@@ -369,7 +402,6 @@ async function getFunnelOverview(days: number, domain?: string) {
   const cached = getCached(cacheKey);
   if (cached) return NextResponse.json({ success: true, data: cached, cached: true });
 
-  // Use the same merged data source as client performance table
   const mergedRows = await getMergedClientData(domain, days);
 
   // Sum across all domains
@@ -401,7 +433,7 @@ async function getFunnelOverview(days: number, domain?: string) {
     prospectToLeadRate: totalMailed > 0 ? Number(((leads / totalMailed) * 100).toFixed(2)) : 0,
     leadToAppointmentRate: leads > 0 ? Number(((appointments / leads) * 100).toFixed(2)) : 0,
     appointmentToContractRate: appointments > 0 ? Number(((contracts / appointments) * 100).toFixed(2)) : 0,
-    contractToDealRate: contracts > 0 ? Number(((deals / contracts) * 100).toFixed(2)) : 0,
+    contractToDealRate: contracts > 0 ? Number(((deals / totalMailed) * 100).toFixed(2)) : 0,
     overallConversionRate: totalMailed > 0 ? Number(((deals / totalMailed) * 100).toFixed(2)) : 0,
     totalCost: Number(totalCost.toFixed(2)),
     totalRevenue: Number(totalRevenue.toFixed(2)),
@@ -466,32 +498,73 @@ async function getGeoBreakdown(days: number, domain?: string) {
 
   const dateFilter = days && days < 365 ? `AND first_sent_date >= CURRENT_DATE - INTERVAL '${days} days'` : '';
 
-  const rows = await runAuroraQuery(`
-    SELECT
-      COALESCE(state, 'Unknown') as state,
-      COALESCE(county, 'Unknown') as county,
-      COUNT(DISTINCT property_id) as total_mailed,
-      COUNT(DISTINCT CASE WHEN became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as leads,
-      COUNT(DISTINCT CASE WHEN became_deal_at IS NOT NULL AND became_deal_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as deals,
-      COALESCE(SUM(CASE WHEN deal_revenue > 0 AND became_deal_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN deal_revenue ELSE 0 END), 0) as total_revenue
-    FROM dm_property_conversions
-    WHERE ${domainFilter(domain)}
-      ${dateFilter}
-    GROUP BY state, county
-    HAVING COUNT(DISTINCT property_id) > 0
-    ORDER BY leads DESC, total_mailed DESC
-    LIMIT 200
-  `);
+  // Fetch geo data AND corrected domain totals in parallel
+  const [rows, cfRows] = await Promise.all([
+    runAuroraQuery(`
+      SELECT
+        domain,
+        COALESCE(state, 'Unknown') as state,
+        COALESCE(county, 'Unknown') as county,
+        COUNT(DISTINCT property_id) as total_mailed,
+        COUNT(DISTINCT CASE WHEN became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as leads,
+        COUNT(DISTINCT CASE WHEN became_deal_at IS NOT NULL AND became_deal_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as deals,
+        COALESCE(SUM(CASE WHEN deal_revenue > 0 AND became_deal_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN deal_revenue ELSE 0 END), 0) as total_revenue
+      FROM dm_property_conversions
+      WHERE ${domainFilter(domain)}
+        AND ${verifiedDomainsFilter(domain)}
+        ${dateFilter}
+      GROUP BY domain, state, county
+      HAVING COUNT(DISTINCT property_id) > 0
+      ORDER BY leads DESC, total_mailed DESC
+    `),
+    // Corrected domain-level mailed totals from dm_client_funnel
+    runAuroraQuery(`
+      SELECT f.domain, COALESCE(f.total_properties_mailed, 0) as corrected_mailed
+      FROM dm_client_funnel f
+      INNER JOIN (
+        SELECT dcf.domain, MAX(dcf.date) as md FROM dm_client_funnel dcf
+        WHERE dcf.domain IS NOT NULL AND dcf.domain NOT IN (${SEED_DOMAINS})
+        GROUP BY dcf.domain
+      ) latest ON f.domain = latest.domain AND f.date = latest.md
+      WHERE f.domain IS NOT NULL
+        AND f.domain NOT IN (${SEED_DOMAINS})
+        ${domain ? `AND f.domain = '${domain.replace(/[^a-zA-Z0-9_.]/g, '')}'` : ''}
+    `),
+  ]);
 
-  // Parse raw county rows
-  const rawRows = rows.map((r: Record<string, unknown>) => ({
-    state: String(r.state || 'Unknown'),
-    county: String(r.county || 'Unknown'),
-    totalMailed: Number(r.total_mailed || 0),
-    leads: Number(r.leads || 0),
-    deals: Number(r.deals || 0),
-    totalRevenue: Number(Number(r.total_revenue || 0).toFixed(2)),
-  }));
+  // Build corrected mailed totals per domain
+  const correctedMailed = new Map<string, number>();
+  for (const r of cfRows) correctedMailed.set(String(r.domain), Number(r.corrected_mailed || 0));
+
+  // Compute uncapped mailed totals per domain from dm_property_conversions
+  const uncappedDomainMailed = new Map<string, number>();
+  for (const r of rows) {
+    const d = String(r.domain || '');
+    uncappedDomainMailed.set(d, (uncappedDomainMailed.get(d) || 0) + Number(r.total_mailed || 0));
+  }
+
+  // Parse and scale raw rows — cap per-domain mailed to corrected totals
+  const rawRows = rows.map((r: Record<string, unknown>) => {
+    const d = String(r.domain || '');
+    const rawMailed = Number(r.total_mailed || 0);
+    const corrected = correctedMailed.get(d) || 0;
+    const uncapped = uncappedDomainMailed.get(d) || 1;
+
+    // Scale mailed proportionally if dm_property_conversions is inflated for this domain
+    let totalMailed = rawMailed;
+    if (corrected > 0 && uncapped > corrected) {
+      totalMailed = Math.round(rawMailed * (corrected / uncapped));
+    }
+
+    return {
+      state: String(r.state || 'Unknown'),
+      county: String(r.county || 'Unknown'),
+      totalMailed,
+      leads: Number(r.leads || 0),
+      deals: Number(r.deals || 0),
+      totalRevenue: Number(Number(r.total_revenue || 0).toFixed(2)),
+    };
+  });
 
   // Group: dense counties stay, sparse counties roll up to MSA
   const grouped = groupByMSA(rawRows);
@@ -582,8 +655,8 @@ async function getPropertyTimeline(propertyId: string | null, campaignId: string
 // Data Quality — partial real data from available tables
 // ---------------------------------------------------------------------------
 
-async function getDataQuality(domain?: string) {
-  const cacheKey = `dm-conversions:quality:${domain || 'all'}`;
+async function getDataQuality(days: number, domain?: string) {
+  const cacheKey = `dm-conversions:quality:${days}:${domain || 'all'}`;
   const cached = getCached(cacheKey);
   if (cached) return NextResponse.json({ success: true, data: cached, cached: true });
 
@@ -615,6 +688,8 @@ async function getDataQuality(domain?: string) {
         COUNT(DISTINCT CASE WHEN deal_revenue > 0 AND (became_deal_at IS NULL OR became_deal_at <= first_sent_date) THEN property_id END) as revenue_mismatch
       FROM dm_property_conversions
       WHERE ${domainFilter(domain)}
+        AND ${verifiedDomainsFilter(domain)}
+        ${days < 365 ? `AND first_sent_date >= CURRENT_DATE - INTERVAL '${days} days'` : ''}
     `),
   ]);
 
@@ -694,6 +769,7 @@ async function getConversionTrend(days: number, domain?: string) {
         COALESCE(SUM(CASE WHEN deal_revenue > 0 AND became_deal_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN deal_revenue ELSE 0 END), 0) as total_revenue
       FROM dm_property_conversions
       WHERE ${domainFilter(domain)}
+        AND ${verifiedDomainsFilter(domain)}
     `),
   ]);
 
@@ -763,6 +839,7 @@ async function getRoasTrend(days: number, domain?: string) {
         COUNT(DISTINCT CASE WHEN became_deal_at IS NOT NULL AND became_deal_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as deals
       FROM dm_property_conversions
       WHERE ${domainFilter(domain)}
+        AND ${verifiedDomainsFilter(domain)}
     `),
   ]);
 
@@ -807,8 +884,8 @@ async function getRoasTrend(days: number, domain?: string) {
 // Business Results Alerts — uses shared getAlertsData() from get-alerts-data.ts
 // ---------------------------------------------------------------------------
 
-async function getAlerts(domain?: string) {
-  const data = await getAlertsData(domain);
+async function getAlerts(days: number, domain?: string) {
+  const data = await getAlertsData(domain, days);
   return NextResponse.json({ success: true, data, cached: false });
 }
 
@@ -936,6 +1013,7 @@ async function getPropertyDrilldown(domain?: string, status?: string, campaignId
       is_backfilled
     FROM dm_property_conversions
     WHERE ${filter}
+      AND ${verifiedDomainsFilter(domain)}
       ${statusCondition}
     ${orderBy}
     LIMIT 500

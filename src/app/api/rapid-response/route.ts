@@ -39,6 +39,19 @@ function domainFilter(domain?: string | null): string {
   return EXCLUDE_SEED;
 }
 
+/** Restrict dm_property_conversions to domains verified in dm_client_funnel (corrected data) */
+function verifiedDomainsFilter(domain?: string | null): string {
+  const domainClause = domain
+    ? `AND dcf.domain = '${domain.replace(/[^a-zA-Z0-9_.]/g, '')}'`
+    : '';
+  return `domain IN (
+    SELECT DISTINCT dcf.domain FROM dm_client_funnel dcf
+    INNER JOIN (SELECT domain, MAX(date) as md FROM dm_client_funnel GROUP BY domain) vdf_l
+      ON dcf.domain = vdf_l.domain AND dcf.date = vdf_l.md
+    WHERE dcf.domain IS NOT NULL ${domainClause}
+  )`;
+}
+
 
 export async function GET(request: NextRequest) {
   const authError = await requireAuth(request);
@@ -63,7 +76,7 @@ export async function GET(request: NextRequest) {
       case 'daily-trend':
         return await getDailyTrend(days, domain);
       case 'campaign-list':
-        return await getCampaignList(domain);
+        return await getCampaignList(days, domain);
       case 'pcm-alignment':
         return await getPcmAlignment(domain);
       case 'alerts':
@@ -266,10 +279,16 @@ async function getDailyTrend(days: number, domain?: string) {
 // Campaign List
 // ---------------------------------------------------------------------------
 
-async function getCampaignList(domain?: string) {
-  const cacheKey = `rapid-response:campaign-list:${domain || 'all'}`;
+async function getCampaignList(days: number, domain?: string) {
+  const cacheKey = `rapid-response:campaign-list:${days}:${domain || 'all'}`;
   const cached = getCached(cacheKey);
   if (cached) return NextResponse.json({ success: true, data: cached, cached: true });
+
+  // Filter campaigns to those with activity in the date range.
+  // last_sent_date tracks when the campaign last sent mail.
+  const dateFilter = days < 365
+    ? `AND last_sent_date >= CURRENT_DATE - INTERVAL '${days} days'`
+    : '';
 
   const rows = await runAuroraQuery(`
     SELECT DISTINCT ON (domain, campaign_id)
@@ -280,6 +299,7 @@ async function getCampaignList(domain?: string) {
       smartdrop_authorization_status, snapshot_at
     FROM rr_campaign_snapshots
     WHERE ${domainFilter(domain)}
+      ${dateFilter}
     ORDER BY domain, campaign_id, snapshot_at DESC
   `);
 
@@ -664,6 +684,7 @@ async function getAlerts(days: number, domain?: string) {
         COALESCE(SUM(CASE WHEN deal_revenue > 0 AND became_deal_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN deal_revenue ELSE 0 END), 0) as total_revenue
       FROM dm_property_conversions
       WHERE ${domainFilter(domain)}
+        AND ${verifiedDomainsFilter(domain)}
       GROUP BY domain, template_name
     `),
     runAuroraQuery(`
@@ -674,6 +695,7 @@ async function getAlerts(days: number, domain?: string) {
         COUNT(DISTINCT CASE WHEN attribution_status = 'unattributed' AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as unattributed
       FROM dm_property_conversions
       WHERE ${domainFilter(domain)}
+        AND ${verifiedDomainsFilter(domain)}
       GROUP BY domain
     `),
   ]);
@@ -795,6 +817,7 @@ async function getQ2Goal(domain?: string): Promise<ReturnType<typeof NextRespons
     FROM dm_volume_summary
     WHERE date >= '${Q2_START}' AND date <= '${Q2_END}'
       AND daily_sends IS NOT NULL AND daily_sends > 0
+      AND (mail_class = 'all' OR mail_class IS NULL)
       AND ${domainFilter(domain)}
   `);
   const vsHasData = Number(vsCheck[0]?.total || 0) > 0;
@@ -813,18 +836,28 @@ async function getQ2Goal(domain?: string): Promise<ReturnType<typeof NextRespons
           COUNT(DISTINCT domain) as active_clients
         FROM dm_volume_summary
         WHERE date >= '${Q2_START}' AND date <= '${Q2_END}'
+          AND (mail_class = 'all' OR mail_class IS NULL)
           AND ${domainFilter(domain)}
       `),
+      // Use dm_client_funnel for lifetime_sends (corrected source of truth)
+      // instead of MAX(cumulative_sends) which includes inflated historical rows
       runAuroraQuery(`
         SELECT
-          domain,
-          campaign_type,
-          SUM(daily_sends) as total_sends,
-          MAX(cumulative_sends) as lifetime_sends
-        FROM dm_volume_summary
-        WHERE date >= '${Q2_START}' AND date <= '${Q2_END}'
-          AND ${domainFilter(domain)}
-        GROUP BY domain, campaign_type
+          vs.domain,
+          vs.campaign_type,
+          SUM(vs.daily_sends) as total_sends,
+          COALESCE(cf.total_sends, 0) as lifetime_sends
+        FROM dm_volume_summary vs
+        LEFT JOIN (
+          SELECT f.domain, f.total_sends
+          FROM dm_client_funnel f
+          INNER JOIN (SELECT domain, MAX(date) as md FROM dm_client_funnel GROUP BY domain) fl
+            ON f.domain = fl.domain AND f.date = fl.md
+        ) cf ON vs.domain = cf.domain
+        WHERE vs.date >= '${Q2_START}' AND vs.date <= '${Q2_END}'
+          AND (vs.mail_class = 'all' OR vs.mail_class IS NULL)
+          AND ${domainFilter(domain).replace(/domain /g, 'vs.domain ')}
+        GROUP BY vs.domain, vs.campaign_type, cf.total_sends
         ORDER BY total_sends DESC
       `),
     ]);

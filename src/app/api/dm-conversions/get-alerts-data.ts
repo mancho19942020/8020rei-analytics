@@ -20,6 +20,19 @@ function domainFilter(domain?: string | null): string {
   return EXCLUDE_SEED;
 }
 
+/** Restrict dm_property_conversions to domains verified in dm_client_funnel (corrected data) */
+function verifiedDomainsFilter(domain?: string | null): string {
+  const domainClause = domain
+    ? `AND dcf.domain = '${domain.replace(/[^a-zA-Z0-9_.]/g, '')}'`
+    : '';
+  return `domain IN (
+    SELECT DISTINCT dcf.domain FROM dm_client_funnel dcf
+    INNER JOIN (SELECT domain, MAX(date) as md FROM dm_client_funnel GROUP BY domain) vdf_l
+      ON dcf.domain = vdf_l.domain AND dcf.date = vdf_l.md
+    WHERE dcf.domain IS NOT NULL ${domainClause}
+  )`;
+}
+
 interface MergedDomainRow {
   domain: string;
   totalMailed: number;
@@ -43,8 +56,8 @@ interface AlertsResult {
   };
 }
 
-export async function getAlertsData(domain?: string): Promise<AlertsResult> {
-  const cacheKey = `dm-conversions:alerts:${domain || 'all'}`;
+export async function getAlertsData(domain?: string, days?: number): Promise<AlertsResult> {
+  const cacheKey = `dm-conversions:alerts:${days || 'all'}:${domain || 'all'}`;
   const cached = getCached(cacheKey);
   if (cached) return cached as AlertsResult;
 
@@ -66,6 +79,8 @@ export async function getAlertsData(domain?: string): Promise<AlertsResult> {
         COUNT(DISTINCT CASE WHEN became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as leads
       FROM dm_property_conversions
       WHERE ${domainFilter(domain)}
+        AND ${verifiedDomainsFilter(domain)}
+        ${days && days < 365 ? `AND first_sent_date >= CURRENT_DATE - INTERVAL '${days} days'` : ''}
       GROUP BY domain, template_name
     `),
   ]);
@@ -275,6 +290,7 @@ async function getMergedClientDataForAlerts(domain?: string): Promise<MergedDoma
         COALESCE(SUM(CASE WHEN deal_revenue > 0 AND became_deal_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN deal_revenue ELSE 0 END), 0) as total_revenue
       FROM dm_property_conversions
       WHERE ${domainFilter(domain)}
+        AND ${verifiedDomainsFilter(domain)}
       GROUP BY domain
     `),
   ]);

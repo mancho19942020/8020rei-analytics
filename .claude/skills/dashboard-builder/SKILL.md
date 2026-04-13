@@ -399,16 +399,46 @@ Cards sit **edge-to-edge** inside widgets with no gaps and no body padding.
 - `flush-cards` CSS class applies `border-bottom-left-radius: 0.5rem` on first child and `border-bottom-right-radius: 0.5rem` on last child
 - For vertical card stacks use `flush-cards-vertical` instead
 
-**Widget wrapper:**
-- Pass `flushBody` to `Widget` via `FLUSH_BODY_WIDGETS` set in `GridWorkspace.tsx`
-- `flushBody` removes `p-4` from the widget body so cards go edge-to-edge
+**Widget wrapper — `flushBody` (CRITICAL):**
+- Set `flushBody: true` on the widget definition in `defaultLayouts.ts` — this is the **only** place to set it
+- `flushBody` removes body padding so content goes edge-to-edge
+- The Widget type (`src/types/widget.ts`) has a `flushBody?: boolean` field — set it right next to `h`, `w`, `title`
+- A legacy `FLUSH_BODY_WIDGETS_LEGACY` Set exists in `GridWorkspace.tsx` for older widgets, but **never add to it** — always use the config field
+
+**Which widgets need `flushBody: true`?**
+- MetricCard rows (horizontal card strips)
+- AxisPill grids (`grid grid-cols-2` with `AxisPill` components)
+- Any widget where content should touch the widget edges without internal padding
 
 **Grid cell sizing:**
-- All flush card widgets use `h: 2` in their layout config (136px cell = 2 × 60px rows + 16px margin)
-- `minH: 2`, `maxH: 2` — locked to compact height
+- MetricCard flush widgets: `h: 2` (136px cell = 2 × 60px rows + 16px margin), locked `minH: 2`, `maxH: 2`
+- Pill-grid flush widgets: `h: 3` for up to 4 rows of pills (8 pills), `h: 2` for 2 rows (4 pills)
 - Widget header uses `py-2` (not `py-3`) for flush body widgets — saves 8px for card breathing room
 - Adjust `y` positions of widgets below accordingly
 - Bump layout storage key version when changing heights (forces fresh layout for users)
+
+### Widget Content Hugging Rule (MANDATORY)
+
+Widgets MUST hug their content — no dead space between the last content element and the widget border. This is a recurring issue that has been corrected multiple times.
+
+**How `flushBody` is enforced:**
+The `flushBody` field lives on the Widget type definition and is set in `defaultLayouts.ts` right next to `h`, `w`, and `title`. When defining a new widget, you MUST decide whether it needs flush body in the same place you decide its height. `GridWorkspace.tsx` reads `widgetConfig.flushBody` and passes it to the Widget wrapper. This eliminates the old pattern of maintaining a separate registry file.
+
+**Reference implementations:**
+- `DmDataQualityWidget` — pill grid, `h: 3`, `flushBody: true`, 8 pills
+- `PcmReconciliationOverviewWidget` — pill grid, `h: 3`, `flushBody: true`, 8 pills
+- `PcmMarginSummaryWidget` — MetricCard row, `h: 2`, `flushBody: true`, 4 cards
+
+**How to verify:** After building any widget, visually check in the browser that:
+1. Content fills the widget body with no large blank area at the bottom
+2. The gap between this widget and the next matches the 16px grid margin
+3. Compare against Data Quality or MetricCard widgets for reference
+
+**Common mistakes that cause dead space:**
+- Missing `flushBody: true` → body padding steals ~20px, pills overflow or widget needs to be taller
+- `h` value too large for content → grid cell taller than content, dead space appears
+- Compensating for clipping by increasing `h` instead of adding `flushBody: true`
+- Adding to the legacy `FLUSH_BODY_WIDGETS_LEGACY` Set instead of using the config field
 
 ---
 

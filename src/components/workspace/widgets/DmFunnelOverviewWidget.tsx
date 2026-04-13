@@ -173,6 +173,7 @@ export function DmFunnelOverviewWidget({ data, selectedDomain }: DmFunnelOvervie
         </div>
       </div>
 
+
       {/* Flowing funnel */}
       <div
         ref={containerRef}

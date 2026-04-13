@@ -52,8 +52,12 @@ Every metric MUST pull from its designated source-of-truth table. This is the si
 | Deals | `dm_property_conversions` | `became_deal_at IS NOT NULL AND became_deal_at > first_sent_date` | `/api/dm-conversions` | Business Results |
 | Revenue | `dm_property_conversions` | `deal_revenue` (only where `became_deal_at > first_sent_date`) | `/api/dm-conversions` | Business Results |
 | ROAS | Computed | `revenue / cost` with confidence flags | `/api/dm-conversions` | Business Results |
-| Cost (business) | `dm_client_funnel` | `total_cost` | `/api/dm-conversions` | Business Results |
+| Cost / Revenue (what users paid) | `dm_client_funnel` | `total_cost` | `/api/dm-conversions` | Business Results |
 | Cost (operational) | `rr_daily_metrics` | `cost_total`, `avg_unit_cost` | `/api/rapid-response` | Operational Health |
+| PCM Cost (what PCM charges us) | `dm_client_funnel` or `dm_volume_summary` | `total_pcm_cost` or `cumulative_pcm_cost` | `/api/pcm-validation?type=profitability-summary` | PCM & Profitability |
+| Margin (revenue - PCM cost) | `dm_client_funnel` or `dm_volume_summary` | `margin` or `cumulative_margin` | `/api/pcm-validation?type=profitability-summary` | PCM & Profitability |
+| Margin % | `dm_client_funnel` | `margin_pct` | `/api/pcm-validation?type=profitability-summary` | PCM & Profitability |
+| Profitability by mail class | **`dm_volume_summary`** | Filter `mail_class IN ('standard', 'first_class')` — NOT 'all' | `/api/pcm-validation?type=margin-by-mail-class` | PCM & Profitability |
 | Delivery rate | `rr_daily_metrics` | `delivery_rate_30d` | `/api/rapid-response` | Operational Health |
 | PCM alignment | `rr_pcm_alignment` | multiple columns | `/api/rapid-response` | Operational Health |
 | Template conversions | `dm_property_conversions` | GROUP BY template_id with `> first_sent_date` filter | `/api/dm-templates` | Business Results |
@@ -404,8 +408,9 @@ These are documented, known issues — NOT violations. Do not flag them during a
 
 | Gap | Description | Status | Impact |
 |-----|------------|--------|--------|
-| `dm_property_conversions` undercounting | Hall of Fame at ~45% coverage (20K of 44K properties synced). Batch upsert fix deployed — each nightly cron closes the gap. | Closing — estimated 2-3 more nightly cycles | Conversion numbers undercounted for Hall of Fame. Sync warning badge displayed. |
-| PCM inflation (PENDING) | All send/cost numbers are inflated ~3.2x because the monolith counts on-hold/protected/error records as "sent." Fix merged to `dev`, NOT yet in production. | Pending production deploy | When deployed: sends drop from ~74K to ~23K, cost from ~$80K to ~$17K. Only records with `vendor_id IS NOT NULL` are real sends. |
+| `dm_property_conversions` volume inflation | Individual property rows still have inflated `total_sends` from before PR #1882. Re-syncing through nightly cron. **Mitigation in place:** Template Leaderboard and Geo Breakdown now proportionally scale per-template/geo numbers to match corrected `dm_client_funnel` domain totals. | Closing — gap narrows each night | NEVER use `SUM(total_sends)` from `dm_property_conversions` as-is. Always cross-reference with `dm_client_funnel` corrected totals. |
+| PCM inflation — **RESOLVED** | Fix deployed Apr 11 (PR #1882, Release v1.129.0). Verified Apr 12. All counting queries now use `vendor_id IS NOT NULL`. Sends dropped from 74K → ~20K, cost from $80K → ~$19.5K, aligning with PCM's 23,884 recipients / $18,300 cost. | **Fixed in production** | The remaining gap (our ~20K vs PCM's 23.8K) closes as more clients sync. |
+| Profitability tracking (NEW) | PR #1887 adds `pcm_unit_cost` (what PCM charges us) alongside `unit_cost` (what we charge users). Aurora tables now have `cumulative_pcm_cost`, `margin`, `margin_pct`, and `mail_class` breakdown. | Aurora DDL done, PR pending merge | Standard mail: ~0.8% margin. First Class: NEGATIVE margin. Camilo investigating pricing adjustment. |
 | `rr_daily_metrics` limited history | Only has data from March 2026 onward (Layer 1 sync deployed recently) | By design — accumulating over time | Operational Health trend charts have limited historical range |
 | Zero Smart Drop data | `campaign_type = 'smartdrop'` returns 0 rows in all tables | Smart Drop not yet used in production | Campaign type breakdown will show 100% Rapid Response until Smart Drop launches |
 | Pre-send exclusions | Properties with conversions before first send are excluded from counts. Cascading filter: deals/appointments/contracts also require valid lead. | Intentional — prevents impossible funnels (deals > leads) | Conversion counts may be lower than raw DB counts |

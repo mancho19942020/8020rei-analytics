@@ -1234,7 +1234,7 @@ export const PRODUCT_PROJECTS_WIDGET_CATALOG: WidgetCatalogItem[] = [
 // Features > 8020REI > Rapid Response Tab
 // ---------------------------------------------------------------------------
 
-export const RAPID_RESPONSE_LAYOUT_STORAGE_KEY = 'rapid-response-layout-v3';
+export const RAPID_RESPONSE_LAYOUT_STORAGE_KEY = 'rapid-response-layout-v4';
 
 export const DEFAULT_RAPID_RESPONSE_LAYOUT: Widget[] = [
   // Layer 1: Alerts — first, so critical issues are immediately visible
@@ -1256,6 +1256,7 @@ export const DEFAULT_RAPID_RESPONSE_LAYOUT: Widget[] = [
     x: 0, y: 5,
     w: 4, h: 6,
     minW: 3, minH: 5, maxW: 6, maxH: 8,
+    timeBehavior: 'all-time',
   },
   {
     id: 'rr-q2-top-contributors',
@@ -1265,6 +1266,7 @@ export const DEFAULT_RAPID_RESPONSE_LAYOUT: Widget[] = [
     x: 4, y: 5,
     w: 8, h: 6,
     minW: 4, minH: 4, maxW: 12, maxH: 10,
+    timeBehavior: 'all-time',
   },
   // Layer 2: The Three Pillars
   {
@@ -1275,6 +1277,7 @@ export const DEFAULT_RAPID_RESPONSE_LAYOUT: Widget[] = [
     x: 0, y: 11,
     w: 4, h: 5,
     minW: 3, minH: 4, maxW: 6, maxH: 7,
+    timeBehavior: 'all-time',
   },
   {
     id: 'rr-quality-metrics',
@@ -1289,17 +1292,18 @@ export const DEFAULT_RAPID_RESPONSE_LAYOUT: Widget[] = [
     id: 'rr-pcm-health',
     type: 'rr-pcm-health',
     title: 'Is it aligned?',
-    tooltip: 'Monitors the connection between our platform and PCM (the print vendor). "Stale sent" means mailings stuck without a delivery update for 14+ days. "Orphaned orders" were sent but never got a tracking ID. "Sync gap" detects missing records between systems. These checks look at all historical data, not just the selected date range.',
+    tooltip: 'Monitors the connection between our platform and PCM (the print vendor). These checks look at all historical data, not just the selected date range.',
     x: 8, y: 11,
     w: 4, h: 5,
     minW: 3, minH: 4, maxW: 6, maxH: 7,
+    timeBehavior: 'all-time',
   },
   // Layer 3: Campaigns drill-down
   {
     id: 'rr-campaign-table',
     type: 'rr-campaign-table',
     title: 'Campaigns',
-    tooltip: 'A list of all DM campaigns across all clients. Shows the current status of each campaign (active, paused, disabled), total mailings sent and delivered, and any mailings currently on hold. This reflects the latest snapshot — updated every hour by the sync job.',
+    tooltip: 'Campaigns with mail activity in the selected period. Sent and Delivered show lifetime totals per campaign from the latest snapshot.',
     x: 0, y: 16,
     w: 12, h: 6,
     minW: 6, minH: 4, maxW: 12, maxH: 10,
@@ -1412,7 +1416,7 @@ export const RAPID_RESPONSE_WIDGET_CATALOG: WidgetCatalogItem[] = [
 // Features > 8020REI > DM Campaign Business Results Tab
 // ---------------------------------------------------------------------------
 
-export const DM_BUSINESS_RESULTS_LAYOUT_STORAGE_KEY = 'dm-business-results-layout-v1';
+export const DM_BUSINESS_RESULTS_LAYOUT_STORAGE_KEY = 'dm-business-results-layout-v2';
 
 export const DEFAULT_DM_BUSINESS_RESULTS_LAYOUT: Widget[] = [
   // Row 1: Business Alerts
@@ -1430,7 +1434,7 @@ export const DEFAULT_DM_BUSINESS_RESULTS_LAYOUT: Widget[] = [
     id: 'dm-funnel-overview',
     type: 'dm-funnel-overview',
     title: 'Conversion funnel',
-    tooltip: 'The full conversion funnel from mailed properties to closed deals. Shows how many properties pass through each stage and the conversion rate between steps.',
+    tooltip: 'The full conversion funnel from mailed properties to closed deals. All numbers filter by the selected date range based on when properties were first mailed.',
     x: 0, y: 5,
     w: 12, h: 6,
     minW: 6, minH: 4, maxW: 12, maxH: 10,
@@ -1440,7 +1444,7 @@ export const DEFAULT_DM_BUSINESS_RESULTS_LAYOUT: Widget[] = [
     id: 'dm-client-performance',
     type: 'dm-client-performance',
     title: 'Client performance',
-    tooltip: 'Per-client breakdown of conversions, spend, revenue, and ROAS. "Mailed" = unique properties that received mail (not total mail pieces). Click any number to see the actual properties. Click a client name to filter the board.',
+    tooltip: 'Per-client breakdown filtered by the selected date range. "Mailed" = unique properties first mailed in the period. Click any number to see the actual properties.',
     x: 0, y: 11,
     w: 12, h: 7,
     minW: 6, minH: 5, maxW: 12, maxH: 10,
@@ -1874,6 +1878,117 @@ export const PLATFORM_ANALYTICS_WIDGET_CATALOG: WidgetCatalogItem[] = [
   { type: 'pa-user-engagement', title: 'Time by section', description: 'Time distribution across sections', iconKey: 'donutChart', defaultSize: { w: 6, h: 5 } },
 ];
 
+// ─── PCM & Profitability Layout ─────────────────────────────────
+
+export const PCM_VALIDATION_LAYOUT_STORAGE_KEY = 'pcm-validation-layout-v2';
+
+export const DEFAULT_PCM_VALIDATION_LAYOUT: Widget[] = [
+  {
+    id: 'pcm-reconciliation-overview',
+    type: 'pcm-reconciliation-overview',
+    title: 'Reconciliation status',
+    tooltip: 'Connection status, PCM balance, and Aurora totals at a glance',
+    x: 0, y: 0, w: 12, h: 3,
+    minW: 8, minH: 3, maxH: 5,
+    flushBody: true,
+    timeBehavior: 'all-time',
+  },
+  {
+    id: 'pcm-volume-comparison',
+    type: 'pcm-volume-comparison',
+    title: 'Volume: 8020REI vs PCM',
+    tooltip: 'Compare Aurora total sends against PCM total orders',
+    x: 0, y: 3, w: 6, h: 5,
+    minW: 4, minH: 3, maxH: 8,
+    timeBehavior: 'all-time',
+  },
+  {
+    id: 'pcm-cost-analysis',
+    type: 'pcm-cost-analysis',
+    title: 'Cost analysis',
+    tooltip: 'Compare our unit cost vs PCM pricing',
+    x: 6, y: 3, w: 6, h: 5,
+    minW: 4, minH: 3, maxH: 8,
+    timeBehavior: 'all-time',
+  },
+  {
+    id: 'pcm-status-comparison',
+    type: 'pcm-status-comparison',
+    title: 'Status comparison',
+    tooltip: 'Aurora status distribution vs PCM status distribution',
+    x: 0, y: 8, w: 12, h: 5,
+    minW: 6, minH: 3, maxH: 8,
+  },
+  {
+    id: 'pcm-mismatch-table',
+    type: 'pcm-mismatch-table',
+    title: 'Domain breakdown',
+    tooltip: 'Per-client send totals — will show mismatches when PCM order access is resolved',
+    x: 0, y: 13, w: 12, h: 7,
+    minW: 8, minH: 4, maxH: 12,
+    timeBehavior: 'all-time',
+  },
+  // ─── Profitability widgets ───
+  {
+    id: 'pcm-price-alert',
+    type: 'pcm-price-alert',
+    title: 'Pricing alert',
+    tooltip: 'Margin health status — warning when below 5%, critical when negative',
+    x: 0, y: 20, w: 12, h: 3,
+    minW: 6, minH: 2, maxH: 5,
+    timeBehavior: 'all-time',
+  },
+  {
+    id: 'pcm-margin-summary',
+    type: 'pcm-margin-summary',
+    title: 'Margin summary',
+    tooltip: 'Total revenue, PCM cost, gross margin, and margin % across all clients',
+    x: 0, y: 23, w: 12, h: 2,
+    minW: 8, minH: 2, maxH: 2,
+    flushBody: true,
+    timeBehavior: 'all-time',
+  },
+  {
+    id: 'pcm-mail-class-comparison',
+    type: 'pcm-mail-class-comparison',
+    title: 'Margin by mail class',
+    tooltip: 'Standard vs First Class margins — identifies which mail class is unprofitable',
+    x: 0, y: 25, w: 6, h: 5,
+    minW: 4, minH: 3, maxH: 8,
+    timeBehavior: 'all-time',
+  },
+  {
+    id: 'pcm-margin-trend',
+    type: 'pcm-margin-trend',
+    title: 'Margin trend',
+    tooltip: 'Daily margin over time with revenue and PCM cost context',
+    x: 6, y: 25, w: 6, h: 5,
+    minW: 4, minH: 3, maxH: 8,
+  },
+  {
+    id: 'pcm-client-margins',
+    type: 'pcm-client-margins',
+    title: 'Per-client margins',
+    tooltip: 'Client-level profitability breakdown sorted by worst margins first',
+    x: 0, y: 30, w: 12, h: 7,
+    minW: 8, minH: 4, maxH: 12,
+    timeBehavior: 'all-time',
+  },
+];
+
+export const PCM_VALIDATION_WIDGET_CATALOG: WidgetCatalogItem[] = [
+  { type: 'pcm-reconciliation-overview', title: 'Reconciliation status', description: 'PCM connection, balance, and Aurora totals', iconKey: 'grid', defaultSize: { w: 12, h: 3 } },
+  { type: 'pcm-volume-comparison', title: 'Volume: 8020REI vs PCM', description: 'Send count comparison', iconKey: 'barChart', defaultSize: { w: 6, h: 5 } },
+  { type: 'pcm-cost-analysis', title: 'Cost analysis', description: 'Unit cost and total cost comparison', iconKey: 'lineChart', defaultSize: { w: 6, h: 5 } },
+  { type: 'pcm-status-comparison', title: 'Status comparison', description: 'Aurora vs PCM status distribution', iconKey: 'barChart', defaultSize: { w: 12, h: 5 } },
+  { type: 'pcm-mismatch-table', title: 'Domain breakdown', description: 'Per-client reconciliation detail', iconKey: 'table', defaultSize: { w: 12, h: 7 } },
+  { type: 'pcm-price-alert', title: 'Pricing alert', description: 'Margin health status with threshold warnings', iconKey: 'alert', defaultSize: { w: 12, h: 3 } },
+  { type: 'pcm-margin-summary', title: 'Margin summary', description: 'Revenue, PCM cost, gross margin, and margin %', iconKey: 'grid', defaultSize: { w: 12, h: 2 } },
+  { type: 'pcm-mail-class-comparison', title: 'Margin by mail class', description: 'Standard vs First Class profitability comparison', iconKey: 'barChart', defaultSize: { w: 6, h: 5 } },
+  { type: 'pcm-margin-trend', title: 'Margin trend', description: 'Daily margin over time with revenue and cost', iconKey: 'lineChart', defaultSize: { w: 6, h: 5 } },
+  { type: 'pcm-client-margins', title: 'Per-client margins', description: 'Client-level profitability table', iconKey: 'table', defaultSize: { w: 12, h: 7 } },
+];
+
 /**
  * Combined catalog lookup by tab name
  */
@@ -1894,4 +2009,5 @@ export const TAB_WIDGET_CATALOGS: Record<string, WidgetCatalogItem[]> = {
   'ai-task-board': AI_TASK_BOARD_WIDGET_CATALOG,
   'bugs-di-board': BUGS_DI_BOARD_WIDGET_CATALOG,
   'platform-analytics': PLATFORM_ANALYTICS_WIDGET_CATALOG,
+  'pcm-validation': PCM_VALIDATION_WIDGET_CATALOG,
 };

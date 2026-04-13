@@ -134,7 +134,18 @@ export type WidgetType =
   | 'pa-usage-trends'
   | 'pa-popular-sections'
   | 'pa-peak-hours'
-  | 'pa-user-engagement';
+  | 'pa-user-engagement'
+  // Features > 8020REI > DM Campaign PCM & Profitability tab widgets
+  | 'pcm-reconciliation-overview'
+  | 'pcm-volume-comparison'
+  | 'pcm-cost-analysis'
+  | 'pcm-status-comparison'
+  | 'pcm-mismatch-table'
+  | 'pcm-margin-summary'
+  | 'pcm-mail-class-comparison'
+  | 'pcm-client-margins'
+  | 'pcm-margin-trend'
+  | 'pcm-price-alert';
 
 /**
  * Widget Configuration
@@ -180,6 +191,22 @@ export interface Widget {
 
   /** Whether widget is static (cannot be moved/resized) */
   static?: boolean;
+
+  /**
+   * Remove body padding so content (metric cards, pill grids) goes edge-to-edge.
+   * SET THIS when the widget uses MetricCard rows, AxisPill grids, or any content
+   * that should fill the widget body without internal padding.
+   * When true, the Widget wrapper uses py-2 header (compact) and no body padding.
+   */
+  flushBody?: boolean;
+
+  /**
+   * How this widget responds to the date filter.
+   * - 'all-time': Widget always shows lifetime cumulative data regardless of date filter.
+   *   An "All time" tag appears next to the title so users know the filter doesn't apply.
+   * - 'date-filtered': Widget responds to the date filter (default, no tag shown).
+   */
+  timeBehavior?: 'all-time' | 'date-filtered';
 
   /** Widget-specific configuration */
   config?: Record<string, any>;
