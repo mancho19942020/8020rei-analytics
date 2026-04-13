@@ -361,7 +361,7 @@ export function getIntegrationStatusQuery(): string {
       SELECT DISTINCT domain_name
       FROM ${TABLE}
       WHERE LOWER(record_type) = 'deal'
-        AND date >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
+        AND date >= DATE_SUB(CURRENT_DATE(), INTERVAL 60 DAY)
     ),
     leads_recent AS (
       SELECT DISTINCT domain_name

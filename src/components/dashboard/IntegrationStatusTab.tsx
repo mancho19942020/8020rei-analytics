@@ -99,10 +99,6 @@ function UsageBar({ used, total, label }: { used: number; total: number; label: 
       <div className="h-2 w-full bg-surface-raised rounded-full overflow-hidden">
         <div className={`h-full rounded-full ${barColor}`} style={{ width: `${pct}%` }} />
       </div>
-      <div className="flex items-center justify-between text-xs text-content-tertiary">
-        <span>{used.toLocaleString()} used</span>
-        <span>{total.toLocaleString()} capacity</span>
-      </div>
     </div>
   );
 }
@@ -153,12 +149,13 @@ interface RrSummary {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-const ICEBERG_USED  = 197383;
-const ICEBERG_TOTAL = 977845;
+const ICEBERG_PURCHASED = 977845;
+const ICEBERG_SPENT     = 269423;
+const ICEBERG_REMAINING = 708422;
 
 // Rapid Response — static until Aurora query is fixed
 const RR_ACTIVE_CLIENTS  = 12;
-const RR_LETTERS_LAST_WEEK = 345;
+const RR_LETTERS_LAST_WEEK = 245;
 
 export function IntegrationStatusTab() {
   const [data, setData] = useState<IntegrationStatusData | null>(null);
@@ -195,18 +192,20 @@ export function IntegrationStatusTab() {
   function buildAsanaText(): string {
     if (!data) return '';
     const { salesforce, as_of } = data;
-    const icebergPct = ((ICEBERG_USED / ICEBERG_TOTAL) * 100).toFixed(1);
+    const icebergPct = ((ICEBERG_SPENT / ICEBERG_PURCHASED) * 100).toFixed(1);
 
     const lines: string[] = [
       `Integration Status Update — ${as_of}`,
       '',
       '📊 Salesforce',
       `• Clients integrated: ${salesforce.total_integrated}`,
-      `• Deal issues: ${salesforce.deal_issues} (no deals synced in 30 days)`,
+      `• Deal issues: ${salesforce.deal_issues} (no deals synced in 60 days)`,
       `• Lead issues: ${salesforce.lead_issues} (no leads synced in 30 days)`,
       '',
       '📦 Sticker Price',
-      `• Iceberg usage: ${ICEBERG_USED.toLocaleString()} / ${ICEBERG_TOTAL.toLocaleString()} (${icebergPct}%)`,
+      `• Purchased credits: ${ICEBERG_PURCHASED.toLocaleString()}`,
+      `• Spent credits: ${ICEBERG_SPENT.toLocaleString()} (${icebergPct}%)`,
+      `• Remaining credits: ${ICEBERG_REMAINING.toLocaleString()}`,
       '',
       '✉️ Rapid Response',
       `• Active clients: ${rrData?.active_clients ?? RR_ACTIVE_CLIENTS}`,
@@ -265,7 +264,7 @@ export function IntegrationStatusTab() {
           <KpiCard
             label="Deal issues"
             value={salesforce.deal_issues}
-            sub="No deals synced in 30 days"
+            sub="No deals synced in 60 days"
             accent={salesforce.deal_issues > 0 ? 'error' : 'success'}
           />
           <KpiCard
@@ -280,13 +279,14 @@ export function IntegrationStatusTab() {
       {/* Sticker Price — Iceberg usage (static until Iceberg API is connected) */}
       <SectionCard title="Sticker Price" accent="success">
         <UsageBar
-          used={ICEBERG_USED}
-          total={ICEBERG_TOTAL}
-          label="Iceberg queries"
+          used={ICEBERG_SPENT}
+          total={ICEBERG_PURCHASED}
+          label="Iceberg credits"
         />
-        <div className="mt-3 grid grid-cols-2 gap-3">
-          <KpiCard label="Queries used" value={ICEBERG_USED.toLocaleString()} accent="neutral" />
-          <KpiCard label="Total capacity" value={ICEBERG_TOTAL.toLocaleString()} accent="neutral" />
+        <div className="mt-3 grid grid-cols-3 gap-3">
+          <KpiCard label="Purchased credits" value={ICEBERG_PURCHASED.toLocaleString()} accent="neutral" />
+          <KpiCard label="Spent credits" value={ICEBERG_SPENT.toLocaleString()} accent="neutral" />
+          <KpiCard label="Remaining credits" value={ICEBERG_REMAINING.toLocaleString()} accent="success" />
         </div>
       </SectionCard>
 
