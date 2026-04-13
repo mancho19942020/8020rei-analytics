@@ -1028,17 +1028,14 @@ async function getIntegrationSummary() {
   `);
   const vsHasData = Number(vsCheck[0]?.total || 0) > 0;
 
-  const [clientRows, lettersRows] = await Promise.all([
-    // Active clients: latest snapshot per campaign, count distinct active domains
+  // Fetch latest snapshot per campaign — same query as overview/operational-health
+  const [pulseRows, lettersRows] = await Promise.all([
     runAuroraQuery(`
-      SELECT COUNT(DISTINCT domain) AS active_clients
-      FROM (
-        SELECT DISTINCT ON (domain, campaign_id) domain, status
-        FROM rr_campaign_snapshots
-        WHERE ${EXCLUDE_SEED}
-        ORDER BY domain, campaign_id, snapshot_at DESC
-      ) latest
-      WHERE status = 'active'
+      SELECT DISTINCT ON (domain, campaign_id)
+        domain, campaign_id, status
+      FROM rr_campaign_snapshots
+      WHERE ${EXCLUDE_SEED}
+      ORDER BY domain, campaign_id, snapshot_at DESC
     `),
     // Letters last 7 days: prefer dm_volume_summary (same source as DM Campaign tab)
     vsHasData
@@ -1056,8 +1053,11 @@ async function getIntegrationSummary() {
         `),
   ]);
 
+  // Count active campaigns the same way the overview/RR tab does — filter in JS
+  const activeCampaigns = pulseRows.filter((r: Record<string, unknown>) => r.status === 'active').length;
+
   const data = {
-    active_clients: Number(clientRows[0]?.active_clients || 0),
+    active_clients: activeCampaigns,
     letters_last_week: Number(lettersRows[0]?.letters_last_week || 0),
   };
 
