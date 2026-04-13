@@ -856,7 +856,7 @@ function Dashboard({ slug }: { slug: string[] }) {
 
           {/* Features Adoption / Integration Status Tab */}
           {activeMainSection === 'product-tasks' && activeSubsection === 'features-adoption' && (
-            <IntegrationStatusTab />
+            <IntegrationStatusTab days={days} startDate={startDate} endDate={endDate} />
           )}
 
           {/* Platform Analytics Tab (German only) */}

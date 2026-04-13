@@ -3,11 +3,13 @@
  *
  * Executive summary: Integration Status Update.
  * Sections:
+ *  - GA4 views: internal vs external (GA4 BigQuery)
  *  - Salesforce: deal & lead sync health (BigQuery)
  *  - Sticker Price: Iceberg query usage (static)
  *  - Rapid Response: active clients + letters sent last week (Aurora)
  *
  * Data sources:
+ *  - web-app-production-451214 (GA4) via /api/metrics
  *  - bigquery-467404.domain.feedback_clients_unique
  *  - Aurora: rr_campaign_snapshots, rr_daily_metrics
  */
@@ -17,6 +19,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { AxisSkeleton, AxisCallout, AxisButton } from '@/components/axis';
 import { authFetch } from '@/lib/auth-fetch';
+import { buildDateQueryString } from '@/lib/date-utils';
 import type { IntegrationStatusData } from '@/types/integration-status';
 
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
@@ -140,52 +143,74 @@ function CopyButton({ buildText }: { buildText: () => string }) {
   );
 }
 
-// ─── Rapid Response summary type ──────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface RrSummary {
   active_clients: number;
   letters_last_week: number;
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
+interface Ga4Views {
+  page_views: number;
+  total_users: number;
+}
 
-const ICEBERG_PURCHASED = 977845;
-const ICEBERG_SPENT     = 269423;
-const ICEBERG_REMAINING = 708422;
+// ─── Static constants ─────────────────────────────────────────────────────────
 
-// Rapid Response — static until Aurora query is fixed
-const RR_ACTIVE_CLIENTS  = 12;
+const ICEBERG_PURCHASED  = 977845;
+const ICEBERG_SPENT      = 269423;
+const ICEBERG_REMAINING  = 708422;
+
+const RR_ACTIVE_CLIENTS    = 12;
 const RR_LETTERS_LAST_WEEK = 245;
 
-export function IntegrationStatusTab() {
-  const [data, setData] = useState<IntegrationStatusData | null>(null);
-  const [rrData, setRrData] = useState<RrSummary | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+// ─── Main Component ───────────────────────────────────────────────────────────
+
+interface IntegrationStatusTabProps {
+  days: number;
+  startDate?: string;
+  endDate?: string;
+}
+
+export function IntegrationStatusTab({ days, startDate, endDate }: IntegrationStatusTabProps) {
+  const [data, setData]           = useState<IntegrationStatusData | null>(null);
+  const [rrData, setRrData]       = useState<RrSummary | null>(null);
+  const [internalViews, setInternalViews] = useState<Ga4Views | null>(null);
+  const [externalViews, setExternalViews] = useState<Ga4Views | null>(null);
+  const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
+    const dateQs = buildDateQueryString(days, startDate, endDate);
     try {
-      const [sfRes, rrRes] = await Promise.all([
+      const [sfRes, rrRes, intRes, extRes] = await Promise.all([
         authFetch('/api/metrics/integration-status'),
         authFetch('/api/rapid-response?type=integration-summary'),
+        authFetch(`/api/metrics?${dateQs}&userType=internal`),
+        authFetch(`/api/metrics?${dateQs}&userType=external`),
       ]);
-      const sfJson = await sfRes.json();
-      const rrJson = await rrRes.json();
+
+      const sfJson  = await sfRes.json();
+      const rrJson  = await rrRes.json();
+      const intJson = await intRes.json();
+      const extJson = await extRes.json();
 
       if (!sfJson.success) throw new Error(sfJson.error || 'Failed to load Salesforce data');
       setData(sfJson.data);
 
-      // TODO: restore Aurora query once fixed; static fallback for now
       if (rrJson.success && rrJson.data?.active_clients > 0) setRrData(rrJson.data);
       else setRrData({ active_clients: RR_ACTIVE_CLIENTS, letters_last_week: RR_LETTERS_LAST_WEEK });
+
+      if (intJson.success) setInternalViews({ page_views: intJson.data.page_views, total_users: intJson.data.total_users });
+      if (extJson.success) setExternalViews({ page_views: extJson.data.page_views, total_users: extJson.data.total_users });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load report');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [days, startDate, endDate]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -196,6 +221,10 @@ export function IntegrationStatusTab() {
 
     const lines: string[] = [
       `Integration Status Update — ${as_of}`,
+      '',
+      '👁 GA4 views',
+      `• Internal: ${internalViews?.page_views?.toLocaleString() ?? '—'} views · ${internalViews?.total_users?.toLocaleString() ?? '—'} users`,
+      `• External: ${externalViews?.page_views?.toLocaleString() ?? '—'} views · ${externalViews?.total_users?.toLocaleString() ?? '—'} users`,
       '',
       '📊 Salesforce',
       `• Clients integrated: ${salesforce.total_integrated}`,
@@ -218,6 +247,8 @@ export function IntegrationStatusTab() {
     return (
       <div className="p-6 flex flex-col gap-4 max-w-3xl mx-auto">
         <AxisSkeleton variant="custom" width="280px" height="24px" />
+        <AxisSkeleton variant="custom" width="100%" height="120px" />
+        <AxisSkeleton variant="custom" width="100%" height="120px" />
         <AxisSkeleton variant="custom" width="100%" height="120px" />
         <AxisSkeleton variant="custom" width="100%" height="120px" />
       </div>
@@ -253,8 +284,28 @@ export function IntegrationStatusTab() {
         <CopyButton buildText={buildAsanaText} />
       </div>
 
+      {/* GA4 Views */}
+      <SectionCard title="Platform views" accent="main">
+        <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col gap-2">
+            <p className="text-xs font-medium text-content-tertiary uppercase tracking-wide">Internal</p>
+            <div className="grid grid-cols-2 gap-2">
+              <KpiCard label="Page views" value={internalViews?.page_views?.toLocaleString() ?? '—'} accent="neutral" />
+              <KpiCard label="Users" value={internalViews?.total_users?.toLocaleString() ?? '—'} accent="neutral" />
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <p className="text-xs font-medium text-content-tertiary uppercase tracking-wide">External</p>
+            <div className="grid grid-cols-2 gap-2">
+              <KpiCard label="Page views" value={externalViews?.page_views?.toLocaleString() ?? '—'} accent="neutral" />
+              <KpiCard label="Users" value={externalViews?.total_users?.toLocaleString() ?? '—'} accent="neutral" />
+            </div>
+          </div>
+        </div>
+      </SectionCard>
+
       {/* Salesforce integration health */}
-      <SectionCard title="Salesforce" accent="main">
+      <SectionCard title="Salesforce" accent="error">
         <div className="grid grid-cols-3 gap-3">
           <KpiCard
             label="Clients integrated"
@@ -295,12 +346,12 @@ export function IntegrationStatusTab() {
         <div className="grid grid-cols-2 gap-3">
           <KpiCard
             label="Active clients"
-            value={rrData?.active_clients ?? '—'}
+            value={rrData?.active_clients ?? RR_ACTIVE_CLIENTS}
             accent="neutral"
           />
           <KpiCard
             label="Letters sent"
-            value={rrData?.letters_last_week?.toLocaleString() ?? '—'}
+            value={(rrData?.letters_last_week ?? RR_LETTERS_LAST_WEEK).toLocaleString()}
             sub="Last 7 days"
             accent="neutral"
           />
