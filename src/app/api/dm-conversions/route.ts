@@ -208,13 +208,21 @@ interface MergedDomainRow {
 }
 
 async function getMergedClientData(domain?: string, days?: number): Promise<MergedDomainRow[]> {
-  // ALL metrics come from dm_property_conversions filtered by first_sent_date.
-  // This is the SAME approach used by Geo Breakdown and Template Leaderboard.
-  // dm_client_funnel is used ONLY for the corrected domain list + proportional scaling
-  // (because dm_property_conversions still has inflated rows for some clients).
+  // HYBRID approach for volume + conversions:
   //
-  // rr_campaign_snapshots provides campaign status (active/inactive) and type.
-  const dateFilter = days && days < 365 ? `AND first_sent_date >= CURRENT_DATE - INTERVAL '${days} days'` : '';
+  // ALL-TIME (no date filter or days >= 365):
+  //   Volume (mailed, sends, delivered, cost) → dm_client_funnel (complete, 23,632 sends, 100% PCM match)
+  //   Conversions (leads, deals, revenue) → dm_property_conversions (partial sync but best source for conversions)
+  //
+  // DATE-FILTERED (days < 365):
+  //   ALL metrics → dm_property_conversions filtered by first_sent_date
+  //   This makes everything respond to the date filter together
+  //
+  // Why: dm_property_conversions only has ~1,136 of 23,632 properties synced so far.
+  // Using it for all-time volume shows 1,136 instead of 23,632 — a 95% undercount.
+  // dm_client_funnel has the correct all-time totals but can't be date-filtered.
+  const isDateFiltered = days && days < 365;
+  const dateFilter = isDateFiltered ? `AND first_sent_date >= CURRENT_DATE - INTERVAL '${days} days'` : '';
 
   const [funnelRows, campaignStatusRows, propertyRows] = await Promise.all([
     // dm_client_funnel: corrected domain list + lifetime totals for proportional scaling
@@ -333,53 +341,43 @@ async function getMergedClientData(domain?: string, days?: number): Promise<Merg
   }
 
   // Build final merged data
-  // dm_client_funnel provides the verified domain list + campaign metadata.
-  // ALL volume AND conversion numbers come from dm_property_conversions (date-filtered).
-  // Volume numbers are proportionally scaled against dm_client_funnel corrected totals
-  // to compensate for dm_property_conversions still being partially synced for some clients.
   const domainMap = new Map<string, MergedDomainRow>();
 
   for (const r of funnelRows) {
     const d = String(r.domain || '');
     const liveStatus = activeCampaignsMap.get(d);
-    const corrected = correctedTotals.get(d);
-    if (!corrected) continue;
+    const funnel = correctedTotals.get(d);
+    if (!funnel) continue;
 
     const pc = propertyMap.get(d);
-    const rawMailed = Number(pc?.mailed || 0);
-    const rawSends = Number(pc?.sends || 0);
-    const rawDelivered = Number(pc?.delivered || 0);
-    const rawCost = Number(pc?.cost || 0);
     const leads = Number(pc?.leads || 0);
 
-    // Proportionally scale volume if dm_property_conversions is inflated for this domain
-    // (only scale when showing ALL TIME data — when date-filtered, the filter handles it)
-    let mailed = rawMailed;
-    let sends = rawSends;
-    let delivered = rawDelivered;
-    let cost = rawCost;
+    let mailed: number, sends: number, delivered: number, cost: number;
 
-    if (!days || days >= 365) {
-      // All-time view: scale down inflated dm_property_conversions to match corrected dm_client_funnel
-      if (corrected.sends > 0 && rawSends > corrected.sends) {
-        const scale = corrected.sends / rawSends;
-        mailed = Math.round(rawMailed * scale);
-        sends = corrected.sends;
-        delivered = Math.round(rawDelivered * scale);
-        cost = Number((rawCost * scale).toFixed(2));
-      }
+    if (isDateFiltered) {
+      // DATE-FILTERED: all volume from dm_property_conversions (filtered by first_sent_date)
+      mailed = Number(pc?.mailed || 0);
+      sends = Number(pc?.sends || 0);
+      delivered = Number(pc?.delivered || 0);
+      cost = Number(pc?.cost || 0);
+    } else {
+      // ALL-TIME: volume from dm_client_funnel (complete, 23,632 sends, 100% PCM match)
+      mailed = Number(r.total_mailed || 0);
+      sends = Number(r.total_sends || 0);
+      delivered = Number(r.total_delivered || 0);
+      cost = Number(r.total_cost || 0);
     }
-    // When date-filtered: use dm_property_conversions numbers as-is (they're filtered by first_sent_date)
 
     domainMap.set(d, {
       domain: d,
-      campaignType: liveStatus?.type || corrected.campaignType || 'rr',
-      activeCampaigns: liveStatus?.count ?? corrected.activeCampaigns ?? 0,
+      campaignType: liveStatus?.type || funnel.campaignType || 'rr',
+      activeCampaigns: liveStatus?.count ?? funnel.activeCampaigns ?? 0,
       totalMailed: mailed,
       totalSends: sends,
       totalDelivered: delivered,
       totalCost: cost,
       prospects: mailed - leads,
+      // Conversions ALWAYS from dm_property_conversions (with date filter when active)
       leads,
       appointments: Number(pc?.appointments || 0),
       contracts: Number(pc?.contracts || 0),
