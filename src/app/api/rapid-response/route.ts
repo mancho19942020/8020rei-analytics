@@ -1020,15 +1020,8 @@ async function getIntegrationSummary() {
   const cached = getCached(cacheKey);
   if (cached) return NextResponse.json({ success: true, data: cached, cached: true });
 
-  // Check if dm_volume_summary has recent data (same check as q2-goal)
-  const vsCheck = await runAuroraQuery(`
-    SELECT COUNT(*) as total FROM dm_volume_summary
-    WHERE date >= CURRENT_DATE - INTERVAL '7 days'
-      AND ${EXCLUDE_SEED}
-  `);
-  const vsHasData = Number(vsCheck[0]?.total || 0) > 0;
-
-  // Fetch latest snapshot per campaign — same query as overview/operational-health
+  // Same query as operational-health overview: latest snapshot per (domain, campaign_id)
+  // then filter active in JS — mirrors exact logic in getOverview()
   const [pulseRows, lettersRows] = await Promise.all([
     runAuroraQuery(`
       SELECT DISTINCT ON (domain, campaign_id)
@@ -1037,23 +1030,14 @@ async function getIntegrationSummary() {
       WHERE ${EXCLUDE_SEED}
       ORDER BY domain, campaign_id, snapshot_at DESC
     `),
-    // Letters last 7 days: prefer dm_volume_summary (same source as DM Campaign tab)
-    vsHasData
-      ? runAuroraQuery(`
-          SELECT COALESCE(SUM(daily_sends), 0) AS letters_last_week
-          FROM dm_volume_summary
-          WHERE ${EXCLUDE_SEED}
-            AND date >= CURRENT_DATE - INTERVAL '7 days'
-        `)
-      : runAuroraQuery(`
-          SELECT COALESCE(SUM(sends_total), 0) AS letters_last_week
-          FROM rr_daily_metrics
-          WHERE ${EXCLUDE_SEED}
-            AND date >= CURRENT_DATE - INTERVAL '7 days'
-        `),
+    runAuroraQuery(`
+      SELECT COALESCE(SUM(sends_total), 0) AS letters_last_week
+      FROM rr_daily_metrics
+      WHERE ${EXCLUDE_SEED}
+        AND date >= CURRENT_DATE - INTERVAL '7 days'
+    `),
   ]);
 
-  // Count active campaigns the same way the overview/RR tab does — filter in JS
   const activeCampaigns = pulseRows.filter((r: Record<string, unknown>) => r.status === 'active').length;
 
   const data = {
