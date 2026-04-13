@@ -1010,7 +1010,9 @@ function computeSystemStatus(
 
 // ---------------------------------------------------------------------------
 // Integration Summary — lightweight KPIs for the Integration Status tab
-// Returns: active client count + letters sent last 7 days
+// Same source as DM Campaign tab:
+//   - active clients: rr_campaign_snapshots (latest status per campaign)
+//   - letters last 7 days: dm_volume_summary (preferred) → rr_daily_metrics (fallback)
 // ---------------------------------------------------------------------------
 
 async function getIntegrationSummary() {
@@ -1018,19 +1020,40 @@ async function getIntegrationSummary() {
   const cached = getCached(cacheKey);
   if (cached) return NextResponse.json({ success: true, data: cached, cached: true });
 
+  // Check if dm_volume_summary has recent data (same check as q2-goal)
+  const vsCheck = await runAuroraQuery(`
+    SELECT COUNT(*) as total FROM dm_volume_summary
+    WHERE date >= CURRENT_DATE - INTERVAL '7 days'
+      AND ${EXCLUDE_SEED}
+  `);
+  const vsHasData = Number(vsCheck[0]?.total || 0) > 0;
+
   const [clientRows, lettersRows] = await Promise.all([
+    // Active clients: latest snapshot per campaign, count distinct active domains
     runAuroraQuery(`
       SELECT COUNT(DISTINCT domain) AS active_clients
-      FROM rr_campaign_snapshots
-      WHERE ${EXCLUDE_SEED}
-        AND status = 'active'
+      FROM (
+        SELECT DISTINCT ON (domain, campaign_id) domain, status
+        FROM rr_campaign_snapshots
+        WHERE ${EXCLUDE_SEED}
+        ORDER BY domain, campaign_id, snapshot_at DESC
+      ) latest
+      WHERE status = 'active'
     `),
-    runAuroraQuery(`
-      SELECT COALESCE(SUM(sends_total), 0) AS letters_last_week
-      FROM rr_daily_metrics
-      WHERE ${EXCLUDE_SEED}
-        AND date >= CURRENT_DATE - INTERVAL '7 days'
-    `),
+    // Letters last 7 days: prefer dm_volume_summary (same source as DM Campaign tab)
+    vsHasData
+      ? runAuroraQuery(`
+          SELECT COALESCE(SUM(daily_sends), 0) AS letters_last_week
+          FROM dm_volume_summary
+          WHERE ${EXCLUDE_SEED}
+            AND date >= CURRENT_DATE - INTERVAL '7 days'
+        `)
+      : runAuroraQuery(`
+          SELECT COALESCE(SUM(sends_total), 0) AS letters_last_week
+          FROM rr_daily_metrics
+          WHERE ${EXCLUDE_SEED}
+            AND date >= CURRENT_DATE - INTERVAL '7 days'
+        `),
   ]);
 
   const data = {
