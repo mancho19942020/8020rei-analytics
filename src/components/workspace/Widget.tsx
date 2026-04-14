@@ -38,6 +38,9 @@ export interface WidgetComponentProps {
   /** Remove body padding so children (e.g. metric cards) go edge-to-edge */
   flushBody?: boolean;
 
+  /** Shows "All time" tag when widget always displays lifetime data regardless of date filter */
+  allTime?: boolean;
+
   /** Additional CSS classes */
   className?: string;
 }
@@ -52,6 +55,7 @@ export function Widget({
   onExport,
   headerExtra,
   flushBody = false,
+  allTime = false,
   className = '',
 }: WidgetComponentProps) {
   return (
@@ -96,6 +100,15 @@ export function Widget({
           {/* Title + Tooltip */}
           <h3 className="text-h4 font-semibold text-content-primary truncate flex items-center gap-1.5">
             {title}
+            {allTime && (
+              <span
+                className="inline-flex items-center text-xs font-medium px-1.5 py-0.5 rounded flex-shrink-0"
+                style={{ backgroundColor: 'var(--surface-base)', color: 'var(--text-tertiary)', fontSize: '10px' }}
+                title="This widget shows lifetime cumulative data and is not affected by the date filter"
+              >
+                All time
+              </span>
+            )}
             {tooltip && (
               <AxisTooltip content={tooltip} placement="bottom" maxWidth={280}>
                 <span className="inline-flex p-0.5 rounded-full text-content-tertiary hover:text-content-secondary cursor-help flex-shrink-0">

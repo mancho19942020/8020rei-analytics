@@ -25,8 +25,8 @@ import type {
   RrQ2GoalClientRow,
 } from '@/types/rapid-response';
 
-// Exclude seed/test domains — real data will use production client domains
-const SEED_DOMAINS = "'8020rei_demo', '8020rei_migracion_test'";
+// Exclude seed/test domains — must match the same list used in pcm-validation and dm-conversions
+const SEED_DOMAINS = "'8020rei_demo', '8020rei_migracion_test', '_test_debug', '_test_debug3', 'supertest_8020rei_com', 'sandbox_8020rei_com'";
 const EXCLUDE_SEED = `domain NOT IN (${SEED_DOMAINS})`;
 
 /** Build a WHERE clause that excludes seed domains AND optionally filters to a specific domain */
@@ -37,6 +37,19 @@ function domainFilter(domain?: string | null): string {
     return `${EXCLUDE_SEED} AND domain = '${safe}'`;
   }
   return EXCLUDE_SEED;
+}
+
+/** Restrict dm_property_conversions to domains verified in dm_client_funnel (corrected data) */
+function verifiedDomainsFilter(domain?: string | null): string {
+  const domainClause = domain
+    ? `AND dcf.domain = '${domain.replace(/[^a-zA-Z0-9_.]/g, '')}'`
+    : '';
+  return `domain IN (
+    SELECT DISTINCT dcf.domain FROM dm_client_funnel dcf
+    INNER JOIN (SELECT domain, MAX(date) as md FROM dm_client_funnel GROUP BY domain) vdf_l
+      ON dcf.domain = vdf_l.domain AND dcf.date = vdf_l.md
+    WHERE dcf.domain IS NOT NULL ${domainClause}
+  )`;
 }
 
 
@@ -63,7 +76,7 @@ export async function GET(request: NextRequest) {
       case 'daily-trend':
         return await getDailyTrend(days, domain);
       case 'campaign-list':
-        return await getCampaignList(domain);
+        return await getCampaignList(days, domain);
       case 'pcm-alignment':
         return await getPcmAlignment(domain);
       case 'alerts':
@@ -105,8 +118,11 @@ async function getOverview(days: number, domain?: string) {
   const cached = getCached(cacheKey);
   if (cached) return NextResponse.json({ success: true, data: cached, cached: true });
 
-  // Run all three pillar queries in parallel
-  const [pulseRows, qualityRows, pcmRows] = await Promise.all([
+  // Run all four queries in parallel — includes dm_client_funnel for cross-tab consistency
+  const domSubFilter = domain ? `AND dcf.domain = '${domain.replace(/[^a-zA-Z0-9_.]/g, '')}'` : '';
+  const domFFilter = domain ? `AND f.domain = '${domain.replace(/[^a-zA-Z0-9_.]/g, '')}'` : '';
+
+  const [pulseRows, qualityRows, pcmRows, funnelRows] = await Promise.all([
     // Operational Pulse: latest snapshot per campaign
     runAuroraQuery(`
       SELECT DISTINCT ON (domain, campaign_id)
@@ -118,15 +134,13 @@ async function getOverview(days: number, domain?: string) {
       ORDER BY domain, campaign_id, snapshot_at DESC
     `),
 
-    // Quality Metrics: aggregated daily metrics for last N days
+    // Quality Metrics: aggregated daily metrics for the selected period
     runAuroraQuery(`
       SELECT
         COALESCE(SUM(sends_total), 0) as sends_total,
         COALESCE(SUM(sends_success), 0) as sends_success,
         COALESCE(SUM(sends_error), 0) as sends_error,
-        COALESCE(SUM(delivered_count), 0) as delivered_count,
-        COALESCE(AVG(pcm_submission_rate), 0) as avg_pcm_rate,
-        COALESCE(AVG(delivery_rate_30d), 0) as avg_delivery_rate
+        COALESCE(SUM(delivered_count), 0) as delivered_count
       FROM rr_daily_metrics
       WHERE date >= CURRENT_DATE - INTERVAL '${days} days'
       AND ${domainFilter(domain)}
@@ -140,6 +154,27 @@ async function getOverview(days: number, domain?: string) {
       FROM rr_pcm_alignment
       WHERE ${domainFilter(domain)}
       ORDER BY domain, checked_at DESC
+    `),
+
+    // Corrected lifetime totals from dm_client_funnel — THE source of truth.
+    // Same table and query used by PCM & profitability tab and Business Results funnel.
+    // This ensures delivery rate matches across all three tabs.
+    runAuroraQuery(`
+      SELECT
+        COALESCE(SUM(f.total_sends), 0) as total_sends,
+        COALESCE(SUM(f.total_delivered), 0) as total_delivered
+      FROM dm_client_funnel f
+      INNER JOIN (
+        SELECT dcf.domain, MAX(dcf.date) as max_date
+        FROM dm_client_funnel dcf
+        WHERE dcf.domain IS NOT NULL
+          AND dcf.domain NOT IN (${SEED_DOMAINS})
+          ${domSubFilter}
+        GROUP BY dcf.domain
+      ) latest ON f.domain = latest.domain AND f.date = latest.max_date
+      WHERE f.domain IS NOT NULL
+        AND f.domain NOT IN (${SEED_DOMAINS})
+        ${domFFilter}
     `),
   ]);
 
@@ -173,15 +208,29 @@ async function getOverview(days: number, domain?: string) {
   };
 
   // Compute Quality Metrics
+  // Delivery rate uses dm_client_funnel (the corrected source of truth) — same table as
+  // PCM & profitability tab and Business Results funnel. This ensures the delivery rate
+  // shown here matches the other tabs exactly.
   const q = qualityRows[0] || {};
   const sendsTotal = Number(q.sends_total || 0);
   const sendsError = Number(q.sends_error || 0);
+  const deliveredCount = Number(q.delivered_count || 0);
+
+  // Lifetime totals from dm_client_funnel (same source as PCM & profitability tab)
+  const funnel = funnelRows[0] || {};
+  const funnelTotalSends = Number(funnel.total_sends || 0);
+  const funnelTotalDelivered = Number(funnel.total_delivered || 0);
+
   const qualityMetrics: RrQualityMetrics = {
-    deliveryRate30d: Number(Number(q.avg_delivery_rate || 0).toFixed(1)),
-    pcmSubmissionRate: Number(Number(q.avg_pcm_rate || 0).toFixed(1)),
+    deliveryRate30d: funnelTotalSends > 0
+      ? Number(((funnelTotalDelivered / funnelTotalSends) * 100).toFixed(1))
+      : 0,
+    lifetimeSent: funnelTotalSends,
+    lifetimeDelivered: funnelTotalDelivered,
+    pcmSubmissionRate: 0, // deprecated — widget now uses lifetimeSent/lifetimeDelivered
     errorRate: sendsTotal > 0 ? Number(((sendsError / sendsTotal) * 100).toFixed(1)) : 0,
     sendsTotal7d: sendsTotal,
-    deliveredTotal7d: Number(q.delivered_count || 0),
+    deliveredTotal7d: deliveredCount,
   };
 
   // Compute PCM Health (aggregated across all domains)
@@ -268,10 +317,16 @@ async function getDailyTrend(days: number, domain?: string) {
 // Campaign List
 // ---------------------------------------------------------------------------
 
-async function getCampaignList(domain?: string) {
-  const cacheKey = `rapid-response:campaign-list:${domain || 'all'}`;
+async function getCampaignList(days: number, domain?: string) {
+  const cacheKey = `rapid-response:campaign-list:${days}:${domain || 'all'}`;
   const cached = getCached(cacheKey);
   if (cached) return NextResponse.json({ success: true, data: cached, cached: true });
+
+  // Filter campaigns to those with activity in the date range.
+  // last_sent_date tracks when the campaign last sent mail.
+  const dateFilter = days < 365
+    ? `AND last_sent_date >= CURRENT_DATE - INTERVAL '${days} days'`
+    : '';
 
   const rows = await runAuroraQuery(`
     SELECT DISTINCT ON (domain, campaign_id)
@@ -282,6 +337,7 @@ async function getCampaignList(domain?: string) {
       smartdrop_authorization_status, snapshot_at
     FROM rr_campaign_snapshots
     WHERE ${domainFilter(domain)}
+      ${dateFilter}
     ORDER BY domain, campaign_id, snapshot_at DESC
   `);
 
@@ -666,6 +722,7 @@ async function getAlerts(days: number, domain?: string) {
         COALESCE(SUM(CASE WHEN deal_revenue > 0 AND became_deal_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN deal_revenue ELSE 0 END), 0) as total_revenue
       FROM dm_property_conversions
       WHERE ${domainFilter(domain)}
+        AND ${verifiedDomainsFilter(domain)}
       GROUP BY domain, template_name
     `),
     runAuroraQuery(`
@@ -676,6 +733,7 @@ async function getAlerts(days: number, domain?: string) {
         COUNT(DISTINCT CASE WHEN attribution_status = 'unattributed' AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as unattributed
       FROM dm_property_conversions
       WHERE ${domainFilter(domain)}
+        AND ${verifiedDomainsFilter(domain)}
       GROUP BY domain
     `),
   ]);
@@ -687,7 +745,7 @@ async function getAlerts(days: number, domain?: string) {
     const templateName = String(r.template_name || '');
     const templateDomain = String(r.domain || '');
 
-    if (deals === 0 && revenue > 0) {
+    if (deals === 0 && revenue > 500) {
       alerts.push({
         id: `rr-revenue-no-deal-${templateDomain}-${templateName}`,
         name: 'Revenue without matching deal status',
@@ -711,7 +769,7 @@ async function getAlerts(days: number, domain?: string) {
     const templateName = String(r.template_name || '');
     const templateDomain = String(r.domain || '');
 
-    if (totalSent > 50 && delivered === 0 && leads > 0) {
+    if (totalSent > 200 && delivered === 0 && leads > 0) {
       alerts.push({
         id: `rr-delivery-tracking-${templateDomain}-${templateName}`,
         name: 'Leads without delivery confirmation',
@@ -797,6 +855,7 @@ async function getQ2Goal(domain?: string): Promise<ReturnType<typeof NextRespons
     FROM dm_volume_summary
     WHERE date >= '${Q2_START}' AND date <= '${Q2_END}'
       AND daily_sends IS NOT NULL AND daily_sends > 0
+      AND (mail_class = 'all' OR mail_class IS NULL)
       AND ${domainFilter(domain)}
   `);
   const vsHasData = Number(vsCheck[0]?.total || 0) > 0;
@@ -815,18 +874,28 @@ async function getQ2Goal(domain?: string): Promise<ReturnType<typeof NextRespons
           COUNT(DISTINCT domain) as active_clients
         FROM dm_volume_summary
         WHERE date >= '${Q2_START}' AND date <= '${Q2_END}'
+          AND (mail_class = 'all' OR mail_class IS NULL)
           AND ${domainFilter(domain)}
       `),
+      // Use dm_client_funnel for lifetime_sends (corrected source of truth)
+      // instead of MAX(cumulative_sends) which includes inflated historical rows
       runAuroraQuery(`
         SELECT
-          domain,
-          campaign_type,
-          SUM(daily_sends) as total_sends,
-          MAX(cumulative_sends) as lifetime_sends
-        FROM dm_volume_summary
-        WHERE date >= '${Q2_START}' AND date <= '${Q2_END}'
-          AND ${domainFilter(domain)}
-        GROUP BY domain, campaign_type
+          vs.domain,
+          vs.campaign_type,
+          SUM(vs.daily_sends) as total_sends,
+          COALESCE(cf.total_sends, 0) as lifetime_sends
+        FROM dm_volume_summary vs
+        LEFT JOIN (
+          SELECT f.domain, f.total_sends
+          FROM dm_client_funnel f
+          INNER JOIN (SELECT domain, MAX(date) as md FROM dm_client_funnel GROUP BY domain) fl
+            ON f.domain = fl.domain AND f.date = fl.md
+        ) cf ON vs.domain = cf.domain
+        WHERE vs.date >= '${Q2_START}' AND vs.date <= '${Q2_END}'
+          AND (vs.mail_class = 'all' OR vs.mail_class IS NULL)
+          AND ${domainFilter(domain).replace(/domain /g, 'vs.domain ')}
+        GROUP BY vs.domain, vs.campaign_type, cf.total_sends
         ORDER BY total_sends DESC
       `),
     ]);

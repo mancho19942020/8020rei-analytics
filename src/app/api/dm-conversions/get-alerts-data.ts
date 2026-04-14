@@ -9,7 +9,8 @@ import { runAuroraQuery } from '@/lib/aurora';
 import { getCached, setCache } from '@/lib/cache';
 import type { DmAlert } from '@/types/dm-conversions';
 
-const SEED_DOMAINS = "'8020rei_demo', '8020rei_migracion_test', '_test_debug', '_test_debug3', 'supertest_8020rei_com'";
+// Exclude seed/test domains — must match the same list used in pcm-validation and rapid-response
+const SEED_DOMAINS = "'8020rei_demo', '8020rei_migracion_test', '_test_debug', '_test_debug3', 'supertest_8020rei_com', 'sandbox_8020rei_com'";
 const EXCLUDE_SEED = `domain NOT IN (${SEED_DOMAINS})`;
 
 function domainFilter(domain?: string | null): string {
@@ -18,6 +19,19 @@ function domainFilter(domain?: string | null): string {
     return `${EXCLUDE_SEED} AND domain = '${safe}'`;
   }
   return EXCLUDE_SEED;
+}
+
+/** Restrict dm_property_conversions to domains verified in dm_client_funnel (corrected data) */
+function verifiedDomainsFilter(domain?: string | null): string {
+  const domainClause = domain
+    ? `AND dcf.domain = '${domain.replace(/[^a-zA-Z0-9_.]/g, '')}'`
+    : '';
+  return `domain IN (
+    SELECT DISTINCT dcf.domain FROM dm_client_funnel dcf
+    INNER JOIN (SELECT domain, MAX(date) as md FROM dm_client_funnel GROUP BY domain) vdf_l
+      ON dcf.domain = vdf_l.domain AND dcf.date = vdf_l.md
+    WHERE dcf.domain IS NOT NULL ${domainClause}
+  )`;
 }
 
 interface MergedDomainRow {
@@ -43,8 +57,8 @@ interface AlertsResult {
   };
 }
 
-export async function getAlertsData(domain?: string): Promise<AlertsResult> {
-  const cacheKey = `dm-conversions:alerts:${domain || 'all'}`;
+export async function getAlertsData(domain?: string, days?: number): Promise<AlertsResult> {
+  const cacheKey = `dm-conversions:alerts:${days || 'all'}:${domain || 'all'}`;
   const cached = getCached(cacheKey);
   if (cached) return cached as AlertsResult;
 
@@ -66,6 +80,8 @@ export async function getAlertsData(domain?: string): Promise<AlertsResult> {
         COUNT(DISTINCT CASE WHEN became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as leads
       FROM dm_property_conversions
       WHERE ${domainFilter(domain)}
+        AND ${verifiedDomainsFilter(domain)}
+        ${days && days < 365 ? `AND first_sent_date >= CURRENT_DATE - INTERVAL '${days} days'` : ''}
       GROUP BY domain, template_name
     `),
   ]);
@@ -74,9 +90,12 @@ export async function getAlertsData(domain?: string): Promise<AlertsResult> {
   const now = new Date().toISOString();
 
   // BR-1: Underperforming campaign
+  // Industry response rate for DM in real estate is ~0.3-0.4%.
+  // At 0.3%, 2,000 mailings → ~6 expected leads (statistically meaningful).
+  // 5,000 mailings with 0 leads is genuinely critical.
   for (const row of clientRows) {
     const { totalMailed, leads, totalCost, totalRevenue, domain: clientDomain } = row;
-    if (totalMailed >= 500 && leads === 0) {
+    if (totalMailed >= 5000 && leads === 0) {
       const costNote = totalCost > 500
         ? ` The campaign has spent $${totalCost.toLocaleString()} with $0 revenue.`
         : '';
@@ -85,11 +104,26 @@ export async function getAlertsData(domain?: string): Promise<AlertsResult> {
         name: 'Underperforming campaign',
         severity: 'critical',
         category: 'dm-business-results',
-        description: `${clientDomain} has mailed ${totalMailed.toLocaleString()} properties with zero leads.${costNote} The template or targeting criteria may not be reaching the right audience.`,
+        description: `${clientDomain} has mailed ${totalMailed.toLocaleString()} properties with zero leads.${costNote} At industry-average response rates (~0.3%), this volume should have produced ~${Math.round(totalMailed * 0.003)} leads.`,
         entity: clientDomain,
         metrics: { current: leads, baseline: totalMailed },
         detected_at: now,
         action: `Review the template and targeting criteria with the client. Consider using a different template or changing the design of the current one, expanding the geographic area, or adjusting the property type filter.`,
+      });
+    } else if (totalMailed >= 2000 && leads === 0) {
+      const costNote = totalCost > 500
+        ? ` The campaign has spent $${totalCost.toLocaleString()} with $0 revenue.`
+        : '';
+      alerts.push({
+        id: `br-underperforming-${clientDomain}`,
+        name: 'Underperforming campaign',
+        severity: 'warning',
+        category: 'dm-business-results',
+        description: `${clientDomain} has mailed ${totalMailed.toLocaleString()} properties with zero leads.${costNote} At ~0.3% response rate, ~${Math.round(totalMailed * 0.003)} leads were expected. Volume may still be building.`,
+        entity: clientDomain,
+        metrics: { current: leads, baseline: totalMailed },
+        detected_at: now,
+        action: `Monitor for another cycle. If still zero leads after 5,000+ mailings, review template design and targeting criteria with the client.`,
       });
     }
   }
@@ -106,7 +140,7 @@ export async function getAlertsData(domain?: string): Promise<AlertsResult> {
     const hasPerforming = templates.some(t => t.leads > 0);
     if (!hasPerforming) continue;
     for (const t of templates) {
-      if (t.leads === 0 && t.sent >= 100) {
+      if (t.leads === 0 && t.sent >= 500) {
         const bestTemplate = templates.reduce((best, cur) => cur.leads > best.leads ? cur : best, templates[0]);
         alerts.push({
           id: `br-template-underperform-${d}-${t.name}`,
@@ -146,9 +180,11 @@ export async function getAlertsData(domain?: string): Promise<AlertsResult> {
   }
 
   // BR-4: Leads coming in but no deals closing
+  // Real estate deals take months to close. Raised from 5 to 10 leads
+  // to avoid false alarms on campaigns that are still in early pipeline.
   for (const row of clientRows) {
     const { leads, deals, domain: clientDomain } = row;
-    if (leads >= 5 && deals === 0) {
+    if (leads >= 10 && deals === 0) {
       alerts.push({
         id: `br-leads-no-deals-${clientDomain}`,
         name: 'Leads coming in but no deals closing',
@@ -164,15 +200,19 @@ export async function getAlertsData(domain?: string): Promise<AlertsResult> {
   }
 
   // BR-5: Stagnant campaign
+  // At 0.3% response rate, 500 sends → ~1.5 leads is EXPECTED.
+  // Only flag as stagnant at higher volumes where the lead count is clearly below expectations.
+  // 2,000 mailings → ~6 expected; getting 1-3 is genuinely below average.
   for (const row of clientRows) {
     const { totalMailed, leads, deals, domain: clientDomain } = row;
-    if (totalMailed >= 500 && leads > 0 && leads <= 2 && deals === 0) {
+    if (totalMailed >= 2000 && leads > 0 && leads <= 3 && deals === 0) {
+      const expectedLeads = Math.round(totalMailed * 0.003);
       alerts.push({
         id: `br-stagnant-${clientDomain}`,
         name: 'Stagnant campaign',
         severity: 'info',
         category: 'dm-business-results',
-        description: `${clientDomain} has mailed ${totalMailed.toLocaleString()} properties but only generated ${leads} lead${leads > 1 ? 's' : ''} with 0 deals. The campaign may have saturated its market.`,
+        description: `${clientDomain} has mailed ${totalMailed.toLocaleString()} properties but only generated ${leads} lead${leads > 1 ? 's' : ''} with 0 deals. At ~0.3% response rate, ~${expectedLeads} leads were expected.`,
         entity: clientDomain,
         metrics: { current: leads, baseline: totalMailed },
         detected_at: now,
@@ -184,14 +224,14 @@ export async function getAlertsData(domain?: string): Promise<AlertsResult> {
   // BR-6: Pipeline leakage
   for (const row of clientRows) {
     const { leads, appointments, contracts, deals, domain: clientDomain } = row;
-    if (leads < 3) continue;
+    if (leads < 5) continue;
     const stages: { from: string; to: string; fromCount: number; toCount: number }[] = [
       { from: 'leads', to: 'appointments', fromCount: leads, toCount: appointments },
       { from: 'appointments', to: 'contracts', fromCount: appointments, toCount: contracts },
       { from: 'contracts', to: 'deals', fromCount: contracts, toCount: deals },
     ];
     for (const stage of stages) {
-      if (stage.fromCount >= 3 && stage.toCount === 0) {
+      if (stage.fromCount >= 5 && stage.toCount === 0) {
         alerts.push({
           id: `br-pipeline-leak-${clientDomain}-${stage.from}-${stage.to}`,
           name: 'Pipeline leakage',
@@ -275,6 +315,7 @@ async function getMergedClientDataForAlerts(domain?: string): Promise<MergedDoma
         COALESCE(SUM(CASE WHEN deal_revenue > 0 AND became_deal_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN deal_revenue ELSE 0 END), 0) as total_revenue
       FROM dm_property_conversions
       WHERE ${domainFilter(domain)}
+        AND ${verifiedDomainsFilter(domain)}
       GROUP BY domain
     `),
   ]);

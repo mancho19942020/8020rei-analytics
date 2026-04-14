@@ -3938,7 +3938,7 @@
             </div>
             <div class="component-info">
               <div class="component-name">MetricCard</div>
-              <div class="component-desc">Flush stat card — no rounded corners, compact p-3/gap-2 padding. Label + trend% header, hero value (2.25rem/leading-40px). Cards sit edge-to-edge inside widgets via flex layout with flush-cards CSS class. No individual shadows. <strong>MANDATORY:</strong> Any widget using MetricCard must be registered in FLUSH_BODY_WIDGETS (GridWorkspace.tsx) so the Widget wrapper removes body padding. Without this, cards will be clipped and squeezed. Works with any card count (2-6).</div>
+              <div class="component-desc">Flush stat card — no rounded corners, compact p-3/gap-2 padding. Label + trend% header, hero value (2.25rem/leading-40px). Cards sit edge-to-edge inside widgets via flex layout with flush-cards CSS class. No individual shadows. <strong>MANDATORY:</strong> Any widget using MetricCard or AxisPill grids must set <code>flushBody: true</code> on the widget definition in defaultLayouts.ts so the Widget wrapper removes body padding. Without this, cards will be clipped and squeezed. Works with any card count (2-6).</div>
               <div class="component-props">
                 <span class="prop-tag">label</span>
                 <span class="prop-tag">value</span>

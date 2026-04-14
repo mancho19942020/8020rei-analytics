@@ -119,6 +119,7 @@ If auto-deploy fails, read `.claude/skills/deploy-to-cloud-run/SKILL.md` for the
 - `.claude/skills/deploy-to-cloud-run/` — **Auto-deploy protocol (MUST run after every git push)**
 - `.claude/skills/design-system-docs/` — Design system documentation and component patterns
 - `.claude/skills/data-consistency-guardian/` — **MUST run after creating or modifying any DM Campaign metric, widget, or API endpoint.** Enforces source-of-truth alignment, terminology consistency, tooltip coverage, and cross-section data integrity.
+- `.claude/skills/metrics-auditor/` — **MUST run after creating or modifying any widget, API endpoint, or query within the DM Campaign section.** Audits cross-tab data consistency across Operational Health, Business Results, and PCM & Profitability. Verifies delivery rates, test domain exclusions, terminology, source tables, and tooltip completeness. Run BEFORE presenting any DM Campaign work as complete.
 - `.claude/skills/design-kit-guardian/` — **MUST run after creating or modifying any UI component** (widgets, tabs, charts). Audits Axis Design System compliance: correct component usage, CSS variable tokens, BaseChart wrappers, dark mode. Run BEFORE presenting UI work as complete.
 - `.claude/skills/gcp-guardian/` — GCP security best practices
 

@@ -28,8 +28,8 @@ import type { RrAlert } from '@/types/rapid-response';
 import fs from 'fs';
 import path from 'path';
 
-// Exclude seed domains (same as main route)
-const SEED_DOMAINS = "'8020rei_demo', '8020rei_migracion_test'";
+// Exclude seed/test domains — must match the same list used in pcm-validation and rapid-response
+const SEED_DOMAINS = "'8020rei_demo', '8020rei_migracion_test', '_test_debug', '_test_debug3', 'supertest_8020rei_com', 'sandbox_8020rei_com'";
 const EXCLUDE_SEED = `domain NOT IN (${SEED_DOMAINS})`;
 
 export async function POST(request: NextRequest) {

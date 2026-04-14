@@ -72,7 +72,13 @@ export interface RrDailyMetric {
 }
 
 export interface RrQualityMetrics {
+  /** Lifetime delivery rate from dm_client_funnel (same source as PCM & profitability tab) */
   deliveryRate30d: number;
+  /** Lifetime total mail pieces sent (from dm_client_funnel) — for cross-tab verification */
+  lifetimeSent: number;
+  /** Lifetime total mail pieces delivered (from dm_client_funnel) — for cross-tab verification */
+  lifetimeDelivered: number;
+  /** @deprecated Use lifetimeSent. Previously: pre-computed pcm_submission_rate from rr_daily_metrics */
   pcmSubmissionRate: number;
   errorRate: number;
   sendsTotal7d: number;

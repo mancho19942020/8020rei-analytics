@@ -104,6 +104,18 @@ export { ApiTopClientsWidget } from './ApiTopClientsWidget';
 export { ApiErrorTrackerWidget } from './ApiErrorTrackerWidget';
 export { ApiRecentLogsWidget } from './ApiRecentLogsWidget';
 
+// Features > 8020REI > DM Campaign PCM & Profitability tab widgets
+export { PcmReconciliationOverviewWidget } from './PcmReconciliationOverviewWidget';
+export { PcmVolumeComparisonWidget } from './PcmVolumeComparisonWidget';
+export { PcmCostAnalysisWidget } from './PcmCostAnalysisWidget';
+export { PcmStatusComparisonWidget } from './PcmStatusComparisonWidget';
+export { PcmMismatchTableWidget } from './PcmMismatchTableWidget';
+export { PcmMarginSummaryWidget } from './PcmMarginSummaryWidget';
+export { PcmMailClassComparisonWidget } from './PcmMailClassComparisonWidget';
+export { PcmClientMarginsWidget } from './PcmClientMarginsWidget';
+export { PcmMarginTrendWidget } from './PcmMarginTrendWidget';
+export { PcmPriceAlertWidget } from './PcmPriceAlertWidget';
+
 // Product Tasks > Asana board widgets
 export { AsanaBoardOverviewWidget } from './AsanaBoardOverviewWidget';
 export { AsanaTasksTableWidget } from './AsanaTasksTableWidget';

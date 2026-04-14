@@ -16,8 +16,14 @@ import { GRID_CONFIG } from '@/lib/workspace/defaultLayouts';
 // Import react-grid-layout CSS
 import 'react-grid-layout/css/styles.css';
 
-/** Widget types whose body content goes edge-to-edge (no padding) */
-const FLUSH_BODY_WIDGETS = new Set<WidgetType>([
+/**
+ * Legacy flush-body registry — DEPRECATED, prefer `flushBody: true` in widget layout config.
+ *
+ * When adding a new widget that needs edge-to-edge content (metric cards, pill grids),
+ * set `flushBody: true` on the widget definition in defaultLayouts.ts instead of adding here.
+ * This Set is kept only for backward compatibility with widgets that don't yet have the flag.
+ */
+const FLUSH_BODY_WIDGETS_LEGACY = new Set<WidgetType>([
   'metrics',
   'engagement-metrics',
   'event-metrics',
@@ -33,6 +39,11 @@ const FLUSH_BODY_WIDGETS = new Set<WidgetType>([
   'pa-active-users',
   'asana-board-overview',
   'asana-bugs-overview',
+  'pcm-margin-summary',
+  'pcm-reconciliation-overview',
+  'rr-operational-pulse',
+  'rr-quality-metrics',
+  'rr-pcm-health',
 ]);
 
 export interface GridWorkspaceProps {
@@ -199,7 +210,8 @@ export function GridWorkspace({
               tooltip={widgetConfig.tooltip}
               headerExtra={headerExtras?.[widgetConfig.type]}
               editMode={editMode}
-              flushBody={FLUSH_BODY_WIDGETS.has(widgetConfig.type)}
+              flushBody={widgetConfig.flushBody ?? FLUSH_BODY_WIDGETS_LEGACY.has(widgetConfig.type)}
+              allTime={widgetConfig.timeBehavior === 'all-time'}
               onRemove={() => handleRemoveWidget(widgetConfig.id)}
               onSettings={onWidgetSettings ? () => onWidgetSettings(widgetConfig.id) : undefined}
               onExport={onWidgetExport ? () => onWidgetExport(widgetConfig.id) : undefined}

@@ -141,12 +141,43 @@ export function AxisSidebar({
         </div>
       </nav>
 
-      {/* Bottom zone: Version / branding */}
-      <div className={`flex-shrink-0 border-t border-stroke py-3 ${
-        collapsed ? 'px-2 text-center' : 'px-4'
+      {/* Bottom zone: Company switcher + version */}
+      <div className={`flex-shrink-0 border-t border-stroke ${
+        collapsed ? 'px-2 py-2' : 'px-3 py-2'
       }`}>
+        {/* Company switcher — disabled until 8020Roofing has data */}
+        {collapsed ? (
+          <AxisTooltip content="8020REI (switch disabled)" placement="right">
+            <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-surface-raised mx-auto">
+              <span className="text-xs font-bold" style={{ color: 'var(--color-main-500)' }}>REI</span>
+            </div>
+          </AxisTooltip>
+        ) : (
+          <div
+            className="flex items-center gap-3 px-3 py-2 rounded-lg bg-surface-raised"
+            style={{ opacity: 1 }}
+          >
+            <div
+              className="flex items-center justify-center w-8 h-8 rounded-md flex-shrink-0"
+              style={{ backgroundColor: 'var(--color-main-100)', color: 'var(--color-main-700)' }}
+            >
+              <span className="text-xs font-bold">REI</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>8020REI</div>
+              <div className="text-[10px]" style={{ color: 'var(--text-tertiary)' }}>Active workspace</div>
+            </div>
+            <AxisTooltip content="Company switching coming soon" placement="top">
+              <svg className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--text-tertiary)' }} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 15L12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9" />
+              </svg>
+            </AxisTooltip>
+          </div>
+        )}
         {!collapsed && (
-          <span className="text-xs text-content-tertiary">Metrics Hub v1.0</span>
+          <div className="mt-2 px-1">
+            <span className="text-[10px] text-content-tertiary">Metrics Hub v1.0</span>
+          </div>
         )}
       </div>
     </aside>

@@ -16,6 +16,7 @@ import { useState, useEffect, useMemo, useCallback, forwardRef, useImperativeHan
 import { buildDateQueryString } from '@/lib/date-utils';
 import { AxisSkeleton, AxisCallout, AxisButton, AxisTag, AxisDomainSearch } from '@/components/axis';
 import { GridWorkspace, WidgetCatalog, WidgetSettings } from '@/components/workspace';
+import { DmAlertsModal, getAlertCount } from '@/components/dashboard/DmAlertsModal';
 import {
   RrOperationalPulseWidget,
   RrQualityMetricsWidget,
@@ -36,6 +37,16 @@ import {
   DmGeoBreakdownWidget,
   DmDataQualityWidget,
   DmPropertyTimelineModal,
+  PcmReconciliationOverviewWidget,
+  PcmVolumeComparisonWidget,
+  PcmCostAnalysisWidget,
+  PcmStatusComparisonWidget,
+  PcmMismatchTableWidget,
+  PcmMarginSummaryWidget,
+  PcmMailClassComparisonWidget,
+  PcmClientMarginsWidget,
+  PcmMarginTrendWidget,
+  PcmPriceAlertWidget,
 } from '@/components/workspace/widgets';
 import {
   DEFAULT_RAPID_RESPONSE_LAYOUT,
@@ -44,6 +55,9 @@ import {
   DEFAULT_DM_BUSINESS_RESULTS_LAYOUT,
   DM_BUSINESS_RESULTS_LAYOUT_STORAGE_KEY,
   DM_BUSINESS_RESULTS_WIDGET_CATALOG,
+  DEFAULT_PCM_VALIDATION_LAYOUT,
+  PCM_VALIDATION_LAYOUT_STORAGE_KEY,
+  PCM_VALIDATION_WIDGET_CATALOG,
   loadLayout,
 } from '@/lib/workspace/defaultLayouts';
 import { Widget, TabHandle } from '@/types/widget';
@@ -67,6 +81,10 @@ import type {
   DmDataQuality,
   DmAlert,
 } from '@/types/dm-conversions';
+import type {
+  ProfitabilitySummary,
+  PriceAlertData,
+} from '@/types/pcm-validation';
 import { authFetch } from '@/lib/auth-fetch';
 
 // ---------------------------------------------------------------------------
@@ -129,6 +147,15 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
     const [brError, setBrError] = useState<string | null>(null);
     const [timelinePropertyId, setTimelinePropertyId] = useState<number | null>(null);
 
+    // PCM Validation state
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const [pcmData, setPcmData] = useState<any>(null);
+    const [pcmLoading, setPcmLoading] = useState(true);
+    const [pcmError, setPcmError] = useState<string | null>(null);
+
+    // Alerts modal state
+    const [alertsModalOpen, setAlertsModalOpen] = useState(false);
+
     // Load layout from localStorage or use default
     const [layout, setLayout] = useState<Widget[]>(() =>
       loadLayout(RAPID_RESPONSE_LAYOUT_STORAGE_KEY, DEFAULT_RAPID_RESPONSE_LAYOUT)
@@ -139,9 +166,14 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
       loadLayout(DM_BUSINESS_RESULTS_LAYOUT_STORAGE_KEY, DEFAULT_DM_BUSINESS_RESULTS_LAYOUT)
     );
 
+    // PCM Validation layout
+    const [pcmLayout, setPcmLayout] = useState<Widget[]>(() =>
+      loadLayout(PCM_VALIDATION_LAYOUT_STORAGE_KEY, DEFAULT_PCM_VALIDATION_LAYOUT)
+    );
+
     // Expose methods to parent via ref
     useImperativeHandle(ref, () => ({
-      resetLayout: activeSubTab === 'business-results' ? handleResetBrLayout : handleResetLayout,
+      resetLayout: activeSubTab === 'pcm-validation' ? handleResetPcmLayout : activeSubTab === 'business-results' ? handleResetBrLayout : handleResetLayout,
       openWidgetCatalog: () => setShowWidgetCatalog(true),
     }));
 
@@ -165,12 +197,12 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
         const domainParam = selectedDomain ? `&domain=${encodeURIComponent(selectedDomain)}` : '';
         const [funnelRes, clientRes, templateRes, geoRes, qualityRes, alertsRes, convTrendRes, roasTrendRes] =
           await Promise.all([
-            authFetch(`/api/dm-conversions?type=funnel-overview${domainParam}`).then(r => r.json()),
-            authFetch(`/api/dm-conversions?type=client-performance${domainParam}`).then(r => r.json()),
-            authFetch(`/api/dm-templates?type=template-leaderboard${domainParam}`).then(r => r.json()),
-            authFetch(`/api/dm-conversions?type=geo-breakdown${domainParam}`).then(r => r.json()),
-            authFetch(`/api/dm-conversions?type=data-quality${domainParam}`).then(r => r.json()),
-            authFetch(`/api/dm-conversions?type=alerts${domainParam}`).then(r => r.json()),
+            authFetch(`/api/dm-conversions?type=funnel-overview&${dp}${domainParam}`).then(r => r.json()),
+            authFetch(`/api/dm-conversions?type=client-performance&${dp}${domainParam}`).then(r => r.json()),
+            authFetch(`/api/dm-templates?type=template-leaderboard&${dp}${domainParam}`).then(r => r.json()),
+            authFetch(`/api/dm-conversions?type=geo-breakdown&${dp}${domainParam}`).then(r => r.json()),
+            authFetch(`/api/dm-conversions?type=data-quality&${dp}${domainParam}`).then(r => r.json()),
+            authFetch(`/api/dm-conversions?type=alerts&${dp}${domainParam}`).then(r => r.json()),
             authFetch(`/api/dm-conversions?type=conversion-trend&${dp}${domainParam}`).then(r => r.json()),
             authFetch(`/api/dm-conversions?type=roas-trend&${dp}${domainParam}`).then(r => r.json()),
           ]);
@@ -200,11 +232,98 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
       setBrLoading(false);
     }
 
+    async function fetchPcmValidation() {
+      setPcmLoading(true);
+      setPcmError(null);
+
+      try {
+        const domainParam = selectedDomain ? `&domain=${encodeURIComponent(selectedDomain)}` : '';
+        const dp = buildDateQueryString(days, startDate, endDate);
+        const [summaryRes, domainsRes, designsRes, statusRes, profSummaryRes, mailClassRes, clientMarginsRes, marginTrendRes] = await Promise.all([
+          authFetch(`/api/pcm-validation?type=summary&${dp}${domainParam}`).then(r => r.json()),
+          authFetch(`/api/pcm-validation?type=domain-breakdown&${dp}${domainParam}`).then(r => r.json()),
+          authFetch(`/api/pcm-validation?type=designs`).then(r => r.json()),
+          authFetch(`/api/pcm-validation?type=status-comparison&${dp}${domainParam}`).then(r => r.json()),
+          authFetch(`/api/pcm-validation?type=profitability-summary&${dp}${domainParam}`).then(r => r.json()).catch(() => ({ dataAvailable: false })),
+          authFetch(`/api/pcm-validation?type=margin-by-mail-class&${dp}${domainParam}`).then(r => r.json()).catch(() => ({ mailClasses: [], dataAvailable: false })),
+          authFetch(`/api/pcm-validation?type=client-margins&${dp}${domainParam}`).then(r => r.json()).catch(() => ({ clients: [], dataAvailable: false })),
+          authFetch(`/api/pcm-validation?type=margin-trend&${dp}${domainParam}`).then(r => r.json()).catch(() => ({ trend: [], dataAvailable: false })),
+        ]);
+
+        // Compute price alert from profitability data
+        const profSummary = profSummaryRes as ProfitabilitySummary;
+        const mailClasses = mailClassRes?.mailClasses || [];
+        const stdClass = mailClasses.find((m: { mailClass: string }) => m.mailClass === 'standard');
+        const fcClass = mailClasses.find((m: { mailClass: string }) => m.mailClass === 'first_class');
+
+        let priceAlert: PriceAlertData | null = null;
+        if (profSummary?.dataAvailable) {
+          const alerts: string[] = [];
+          let alertLevel: 'ok' | 'warning' | 'critical' = 'ok';
+
+          if (profSummary.marginPercent < 0) {
+            alertLevel = 'critical';
+            alerts.push(`Overall margin is negative (${profSummary.marginPercent.toFixed(1)}%) — losing money on every piece sent`);
+          } else if (profSummary.marginPercent < 5) {
+            alertLevel = 'warning';
+            alerts.push(`Overall margin is ${profSummary.marginPercent.toFixed(1)}% — below the 5% minimum threshold`);
+          }
+
+          if (stdClass && stdClass.marginPercent < 5) {
+            if (stdClass.marginPercent < 0) {
+              alertLevel = 'critical';
+              alerts.push(`Standard mail is losing money (${stdClass.marginPercent.toFixed(1)}% margin)`);
+            } else {
+              if (alertLevel === 'ok') alertLevel = 'warning';
+              alerts.push(`Standard mail margin is only ${stdClass.marginPercent.toFixed(1)}%`);
+            }
+          }
+
+          if (fcClass && fcClass.marginPercent < 0) {
+            alertLevel = 'critical';
+            alerts.push(`First Class mail is losing money (${fcClass.marginPercent.toFixed(1)}% margin, -$${Math.abs(fcClass.margin / (fcClass.sends || 1)).toFixed(3)}/piece)`);
+          } else if (fcClass && fcClass.marginPercent < 5) {
+            if (alertLevel === 'ok') alertLevel = 'warning';
+            alerts.push(`First Class mail margin is only ${fcClass.marginPercent.toFixed(1)}%`);
+          }
+
+          if (alerts.length === 0) {
+            alerts.push('All mail classes have healthy margins above 5%');
+          }
+
+          priceAlert = {
+            overallMarginPct: profSummary.marginPercent,
+            standardMarginPct: stdClass?.marginPercent ?? null,
+            firstClassMarginPct: fcClass?.marginPercent ?? null,
+            alertLevel,
+            alerts,
+          };
+        }
+
+        setPcmData({
+          summary: summaryRes,
+          domains: domainsRes,
+          designs: designsRes,
+          statusComparison: statusRes,
+          profitSummary: profSummary?.dataAvailable ? profSummary : null,
+          mailClassMargins: mailClassRes,
+          clientMargins: clientMarginsRes,
+          marginTrend: marginTrendRes,
+          priceAlert,
+        });
+      } catch (err) {
+        setPcmError(err instanceof Error ? err.message : 'Failed to fetch PCM data');
+      }
+
+      setPcmLoading(false);
+    }
+
     // Re-fetch when date range, domain, or sub-tab changes — same pattern as fetchData
     // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => {
       if (activeSubTab === 'operational-health') fetchData();
       if (activeSubTab === 'business-results') fetchBusinessResults();
+      if (activeSubTab === 'pcm-validation') fetchPcmValidation();
     }, [days, startDate, endDate, selectedDomain, activeSubTab]);
 
     async function fetchData() {
@@ -218,7 +337,7 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
           await Promise.all([
             authFetch(`/api/rapid-response?type=overview&${dp}${domainParam}`).then(r => r.json()),
             authFetch(`/api/rapid-response?type=daily-trend&${dp}${domainParam}`).then(r => r.json()),
-            authFetch(`/api/rapid-response?type=campaign-list${domainParam}`).then(r => r.json()),
+            authFetch(`/api/rapid-response?type=campaign-list&${dp}${domainParam}`).then(r => r.json()),
             authFetch(`/api/rapid-response?type=alerts&${dp}${domainParam}`).then(r => r.json()),
             authFetch(`/api/rapid-response?type=status-breakdown&${dp}${domainParam}`).then(r => r.json()),
             authFetch(`/api/rapid-response?type=cost-trend&${dp}${domainParam}`).then(r => r.json()),
@@ -333,6 +452,43 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
       handleBrLayoutChange(brLayout.filter(w => w.id !== widgetId));
     };
 
+    // PCM Validation layout handlers
+    const handlePcmLayoutChange = (newLayout: Widget[]) => {
+      setPcmLayout(newLayout);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(PCM_VALIDATION_LAYOUT_STORAGE_KEY, JSON.stringify(newLayout));
+      }
+    };
+
+    const handleResetPcmLayout = () => {
+      setPcmLayout(DEFAULT_PCM_VALIDATION_LAYOUT);
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(PCM_VALIDATION_LAYOUT_STORAGE_KEY);
+      }
+    };
+
+    const handlePcmAddWidget = (type: string, title: string, size: { w: number; h: number }) => {
+      const maxY = pcmLayout.reduce((max, w) => Math.max(max, w.y + w.h), 0);
+      const newWidget: Widget = {
+        id: `${type}-${Date.now()}`,
+        type: type as Widget['type'],
+        title,
+        x: 0,
+        y: maxY,
+        w: size.w,
+        h: size.h,
+      };
+      handlePcmLayoutChange([...pcmLayout, newWidget]);
+    };
+
+    const handlePcmUpdateWidget = (widgetId: string, updates: Partial<Widget>) => {
+      handlePcmLayoutChange(pcmLayout.map(w => (w.id === widgetId ? { ...w, ...updates } : w)));
+    };
+
+    const handlePcmDeleteWidget = (widgetId: string) => {
+      handlePcmLayoutChange(pcmLayout.filter(w => w.id !== widgetId));
+    };
+
     // Widget mapping
     const widgets = useMemo(() => {
       if (!data) return {};
@@ -379,26 +535,26 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
       };
     }, [brData, setSelectedDomain]);
 
-    // Header extras — alert count tag shown in the alerts widget header
-    const headerExtras = useMemo(() => {
-      if (!data) return {};
-      const alertCount = data.alerts.length;
-      return {
-        'rr-alerts-feed': alertCount > 0
-          ? <AxisTag color="error" size="sm" dot>{alertCount} active</AxisTag>
-          : <AxisTag color="success" size="sm" dot>All clear</AxisTag>,
-      };
-    }, [data]);
+    // Header extras (alerts moved to modal — these are now empty but kept for extensibility)
+    const headerExtras = useMemo(() => ({}), []);
+    const brHeaderExtras = useMemo(() => ({}), []);
 
-    const brHeaderExtras = useMemo(() => {
-      if (!brData) return {};
-      const alertCount = brData.alerts.length;
+    // PCM & Profitability widget mapping
+    const pcmWidgets = useMemo(() => {
+      if (!pcmData) return {};
       return {
-        'dm-alerts-feed': alertCount > 0
-          ? <AxisTag color="error" size="sm" dot>{alertCount} active</AxisTag>
-          : <AxisTag color="success" size="sm" dot>All clear</AxisTag>,
+        'pcm-reconciliation-overview': <PcmReconciliationOverviewWidget data={pcmData.summary} />,
+        'pcm-volume-comparison': <PcmVolumeComparisonWidget data={pcmData.summary} domains={pcmData.domains} />,
+        'pcm-cost-analysis': <PcmCostAnalysisWidget data={pcmData.summary} domains={pcmData.domains} />,
+        'pcm-status-comparison': <PcmStatusComparisonWidget data={pcmData.statusComparison} />,
+        'pcm-mismatch-table': <PcmMismatchTableWidget data={pcmData.domains} designs={pcmData.designs} />,
+        'pcm-margin-summary': <PcmMarginSummaryWidget data={pcmData.profitSummary} />,
+        'pcm-mail-class-comparison': <PcmMailClassComparisonWidget data={pcmData.mailClassMargins} />,
+        'pcm-client-margins': <PcmClientMarginsWidget data={pcmData.clientMargins} />,
+        'pcm-margin-trend': <PcmMarginTrendWidget data={pcmData.marginTrend} />,
+        'pcm-price-alert': <PcmPriceAlertWidget data={pcmData.priceAlert} />,
       };
-    }, [brData]);
+    }, [pcmData]);
 
     // Loading state — only block render for operational health
     // Business results has its own loading state handled inline
@@ -443,7 +599,7 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
           </div>
         )}
 
-        {/* Domain filter — shared across both sub-tabs */}
+        {/* Domain filter + alerts button — shared across all sub-tabs */}
         <div className="flex items-center gap-3 flex-wrap">
           <AxisDomainSearch
             domains={availableDomains}
@@ -456,7 +612,50 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
               Filtered: {selectedDomain.replace(/_8020rei_com$/i, '').replace(/_/g, ' ')}
             </AxisTag>
           )}
+          <div className="ml-auto">
+            {(() => {
+              const count = getAlertCount(activeSubTab, data?.alerts, brData?.alerts, pcmData?.priceAlert);
+              return (
+                <AxisButton
+                  variant={count > 0 ? 'outlined' : 'ghost'}
+                  size="sm"
+                  onClick={() => setAlertsModalOpen(true)}
+                  iconLeft={
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+                    </svg>
+                  }
+                >
+                  Alerts{count > 0 && (
+                    <span
+                      className="inline-flex items-center justify-center rounded-full text-xs font-semibold"
+                      style={{
+                        marginLeft: 6,
+                        minWidth: 20,
+                        height: 20,
+                        padding: '0 6px',
+                        backgroundColor: 'var(--color-error-500, #ef4444)',
+                        color: '#fff',
+                      }}
+                    >
+                      {count}
+                    </span>
+                  )}
+                </AxisButton>
+              );
+            })()}
+          </div>
         </div>
+
+        {/* Alerts Modal */}
+        <DmAlertsModal
+          open={alertsModalOpen}
+          onClose={() => setAlertsModalOpen(false)}
+          tab={activeSubTab as 'operational-health' | 'business-results' | 'pcm-validation'}
+          rrAlerts={data?.alerts}
+          dmAlerts={brData?.alerts}
+          priceAlert={pcmData?.priceAlert}
+        />
 
         {/* Operational Health sub-tab (current view) */}
         {activeSubTab === 'operational-health' && (
@@ -574,6 +773,55 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
                   onClose={() => setTimelinePropertyId(null)}
                   propertyId={timelinePropertyId}
                   domain={selectedDomain || undefined}
+                />
+              </>
+            )}
+          </>
+        )}
+
+        {/* PCM Validation sub-tab */}
+        {activeSubTab === 'pcm-validation' && (
+          <>
+            {(pcmLoading || !pcmData) ? (
+              <div className="space-y-4">
+                <AxisSkeleton variant="widget" height="80px" fullWidth />
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <AxisSkeleton variant="chart" height="240px" />
+                  <AxisSkeleton variant="chart" height="240px" />
+                </div>
+                <AxisSkeleton variant="chart" height="240px" />
+              </div>
+            ) : (
+              <>
+                {pcmError && (
+                  <AxisCallout type="alert" title="Partial data">
+                    <p>{pcmError}</p>
+                  </AxisCallout>
+                )}
+
+                <GridWorkspace
+                  layout={pcmLayout}
+                  onLayoutChange={handlePcmLayoutChange}
+                  editMode={editMode}
+                  widgets={pcmWidgets}
+                  onWidgetSettings={handleOpenWidgetSettings}
+                  onWidgetExport={handleWidgetExport}
+                />
+
+                <WidgetCatalog
+                  isOpen={showWidgetCatalog}
+                  onClose={() => setShowWidgetCatalog(false)}
+                  onAddWidget={handlePcmAddWidget}
+                  existingWidgets={pcmLayout}
+                  catalog={PCM_VALIDATION_WIDGET_CATALOG}
+                />
+
+                <WidgetSettings
+                  widget={selectedWidgetForSettings}
+                  isOpen={selectedWidgetForSettings !== null}
+                  onClose={() => setSelectedWidgetForSettings(null)}
+                  onSave={handlePcmUpdateWidget}
+                  onDelete={handlePcmDeleteWidget}
                 />
               </>
             )}

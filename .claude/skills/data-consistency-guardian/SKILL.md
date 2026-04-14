@@ -1,8 +1,29 @@
 # Data Consistency Guardian
 
-**Enforces data source alignment, terminology consistency, and metric integrity across the DM Campaign section (Operational Health + Business Results).**
+**Enforces data source alignment, terminology consistency, and metric integrity across the DM Campaign section (Operational Health + Business Results + PCM & Profitability).**
 
 This agent ensures that every metric in the platform pulls from the correct source-of-truth table, uses the correct terminology, and is documented with tooltips that explain what it counts. It prevents subtle bugs where a widget silently sources data from the wrong table or confuses "Sent" (mail pieces) with "Mailed" (unique properties).
+
+---
+
+## THE GOLDEN RULE (NON-NEGOTIABLE)
+
+**All data shown in the Metrics Hub MUST be consistent with PostcardMania's data. Always. No exceptions.**
+
+PCM is the vendor that physically mails pieces — their numbers are ground truth. Any discrepancy between our numbers and PCM's destroys trust in the entire platform. This rule applies to all three DM Campaign tabs: Operational Health, Business Results, PCM & Profitability.
+
+**PCM reference numbers (as of April 13, 2026):**
+- Total active orders: 23,848
+- Total recipients: 23,884
+- Aurora sends (dm_client_funnel): 23,632 (99.1% match)
+- Total PCM cost: $20,443
+- Client domains: 19
+
+**Verification checklist (run after ANY data query change):**
+1. All-time funnel mailed must show ~23,000+. If it shows less, something is broken.
+2. `dm_client_funnel` is the corrected source for all-time volume. NEVER replace with a source that shows lower numbers.
+3. `dm_property_conversions` has only a SUBSET synced. Use for date-filtered views and conversions only.
+4. After changing data sources, manually verify numbers in the browser before pushing.
 
 ---
 
@@ -52,8 +73,12 @@ Every metric MUST pull from its designated source-of-truth table. This is the si
 | Deals | `dm_property_conversions` | `became_deal_at IS NOT NULL AND became_deal_at > first_sent_date` | `/api/dm-conversions` | Business Results |
 | Revenue | `dm_property_conversions` | `deal_revenue` (only where `became_deal_at > first_sent_date`) | `/api/dm-conversions` | Business Results |
 | ROAS | Computed | `revenue / cost` with confidence flags | `/api/dm-conversions` | Business Results |
-| Cost (business) | `dm_client_funnel` | `total_cost` | `/api/dm-conversions` | Business Results |
+| Cost / Revenue (what users paid) | `dm_client_funnel` | `total_cost` | `/api/dm-conversions` | Business Results |
 | Cost (operational) | `rr_daily_metrics` | `cost_total`, `avg_unit_cost` | `/api/rapid-response` | Operational Health |
+| PCM Cost (what PCM charges us) | `dm_client_funnel` or `dm_volume_summary` | `total_pcm_cost` or `cumulative_pcm_cost` | `/api/pcm-validation?type=profitability-summary` | PCM & Profitability |
+| Margin (revenue - PCM cost) | `dm_client_funnel` or `dm_volume_summary` | `margin` or `cumulative_margin` | `/api/pcm-validation?type=profitability-summary` | PCM & Profitability |
+| Margin % | `dm_client_funnel` | `margin_pct` | `/api/pcm-validation?type=profitability-summary` | PCM & Profitability |
+| Profitability by mail class | **`dm_volume_summary`** | Filter `mail_class IN ('standard', 'first_class')` — NOT 'all' | `/api/pcm-validation?type=margin-by-mail-class` | PCM & Profitability |
 | Delivery rate | `rr_daily_metrics` | `delivery_rate_30d` | `/api/rapid-response` | Operational Health |
 | PCM alignment | `rr_pcm_alignment` | multiple columns | `/api/rapid-response` | Operational Health |
 | Template conversions | `dm_property_conversions` | GROUP BY template_id with `> first_sent_date` filter | `/api/dm-templates` | Business Results |
@@ -404,10 +429,12 @@ These are documented, known issues — NOT violations. Do not flag them during a
 
 | Gap | Description | Status | Impact |
 |-----|------------|--------|--------|
-| `dm_property_conversions` undercounting | Sync from monolith captures ~28% of true volume. Hall of Fame (44K sends) is nearly absent. | Pending — PR #1863 fix merged, awaiting deployment + re-sync | Business Results shows lower totals than reality |
+| `dm_property_conversions` volume inflation | Individual property rows still have inflated `total_sends` from before PR #1882. Re-syncing through nightly cron. **Mitigation in place:** Template Leaderboard and Geo Breakdown now proportionally scale per-template/geo numbers to match corrected `dm_client_funnel` domain totals. | Closing — gap narrows each night | NEVER use `SUM(total_sends)` from `dm_property_conversions` as-is. Always cross-reference with `dm_client_funnel` corrected totals. |
+| PCM inflation — **RESOLVED** | Fix deployed Apr 11 (PR #1882, Release v1.129.0). Verified Apr 12. All counting queries now use `vendor_id IS NOT NULL`. Sends dropped from 74K → ~20K, cost from $80K → ~$19.5K, aligning with PCM's 23,884 recipients / $18,300 cost. | **Fixed in production** | The remaining gap (our ~20K vs PCM's 23.8K) closes as more clients sync. |
+| Profitability tracking (NEW) | PR #1887 adds `pcm_unit_cost` (what PCM charges us) alongside `unit_cost` (what we charge users). Aurora tables now have `cumulative_pcm_cost`, `margin`, `margin_pct`, and `mail_class` breakdown. | Aurora DDL done, PR pending merge | Standard mail: ~0.8% margin. First Class: NEGATIVE margin. Camilo investigating pricing adjustment. |
 | `rr_daily_metrics` limited history | Only has data from March 2026 onward (Layer 1 sync deployed recently) | By design — accumulating over time | Operational Health trend charts have limited historical range |
 | Zero Smart Drop data | `campaign_type = 'smartdrop'` returns 0 rows in all tables | Smart Drop not yet used in production | Campaign type breakdown will show 100% Rapid Response until Smart Drop launches |
-| Pre-send exclusions | Properties with conversions before first send are excluded from counts | Intentional — these are false positives | Conversion counts may be lower than raw DB counts |
+| Pre-send exclusions | Properties with conversions before first send are excluded from counts. Cascading filter: deals/appointments/contracts also require valid lead. | Intentional — prevents impossible funnels (deals > leads) | Conversion counts may be lower than raw DB counts |
 | ROAS `low_sample` flags | ROAS with < 3 deals is marked `low_sample`, not `confident` | By design — Lauren's meeting requirement | Some clients show ROAS with confidence warnings |
 
 When building new features, verify that your widget handles these gaps gracefully (e.g., shows a warning badge, not a broken state).
