@@ -31,7 +31,7 @@ function formatTime(iso: string | null): string {
 export function RrOperationalPulseWidget({ data }: RrOperationalPulseWidgetProps) {
   const isHealthy = data.activeCampaigns > 0 && data.sendsToday > 0;
   return (
-    <div className="flex flex-col gap-2 h-full p-3 overflow-y-auto">
+    <div className="flex flex-col gap-2 h-full p-3 overflow-hidden">
       {/* Headline number */}
       <div className="flex items-baseline gap-2 pb-1 mb-1" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
         <span

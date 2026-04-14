@@ -48,13 +48,13 @@ export function AxisPill({
   tooltip,
   className = '',
 }: AxisPillProps) {
-  // Type-based value color classes with dark mode support
-  // Using lighter shades (300) in dark mode for better contrast on raised surfaces
-  const valueColorClass = {
-    default: 'text-content-primary',
-    good: 'text-success-700 dark:text-success-300',
-    bad: 'text-error-700 dark:text-error-300',
-  }[type];
+  // Value styling — good/bad get a tinted background badge for high contrast
+  const valueStyles: Record<PillType, { color: string; bg: string }> = {
+    default: { color: 'var(--text-primary)', bg: 'transparent' },
+    good: { color: 'var(--color-success-900)', bg: 'var(--color-success-100)' },
+    bad: { color: 'var(--color-error-900)', bg: 'var(--color-error-100)' },
+  };
+  const vs = valueStyles[type];
 
   return (
     <div
@@ -73,10 +73,19 @@ export function AxisPill({
         </span>
       )}
 
-      {/* Value */}
-      <span className={`text-h5 whitespace-nowrap tabular-nums ${valueColorClass}`}>
-        {value}
-      </span>
+      {/* Value — good/bad states get a tinted badge for clear contrast */}
+      {type === 'default' ? (
+        <span className="text-h5 whitespace-nowrap tabular-nums" style={{ color: vs.color }}>
+          {value}
+        </span>
+      ) : (
+        <span
+          className="text-h5 whitespace-nowrap tabular-nums px-2 py-0.5 rounded-md font-semibold"
+          style={{ color: vs.color, backgroundColor: vs.bg }}
+        >
+          {value}
+        </span>
+      )}
     </div>
   );
 }

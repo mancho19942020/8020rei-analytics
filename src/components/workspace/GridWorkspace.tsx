@@ -41,6 +41,9 @@ const FLUSH_BODY_WIDGETS_LEGACY = new Set<WidgetType>([
   'asana-bugs-overview',
   'pcm-margin-summary',
   'pcm-reconciliation-overview',
+  'rr-operational-pulse',
+  'rr-quality-metrics',
+  'rr-pcm-health',
 ]);
 
 export interface GridWorkspaceProps {

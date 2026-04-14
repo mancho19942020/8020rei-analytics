@@ -36,7 +36,7 @@ export function RrQualityMetricsWidget({ data }: RrQualityMetricsWidgetProps) {
       : 'var(--color-error-500)';
 
   return (
-    <div className="flex flex-col gap-2 h-full p-3 overflow-y-auto">
+    <div className="flex flex-col gap-2 h-full p-3 overflow-hidden">
       {/* Headline number — delivery rate from dm_client_funnel */}
       <div className="flex items-baseline gap-2 pb-1 mb-1" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
         <span
