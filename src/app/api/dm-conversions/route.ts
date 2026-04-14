@@ -60,6 +60,32 @@ function verifiedDomainsFilter(domain?: string | null): string {
   )`;
 }
 
+interface DateContext {
+  days: number;
+  startDate?: string;
+  endDate?: string;
+}
+
+/**
+ * Build a SQL date filter clause for a given date column.
+ * Handles both preset days (days=30) and custom ranges (startDate/endDate).
+ * Returns empty string if no filter should be applied (all-time view).
+ */
+function buildSqlDateFilter(
+  column: string,
+  days: number,
+  startDate?: string,
+  endDate?: string,
+): string {
+  if (!days || days <= 0 || days >= 365) return '';
+  if (startDate && endDate) {
+    const safeStart = startDate.replace(/[^0-9-]/g, '');
+    const safeEnd = endDate.replace(/[^0-9-]/g, '');
+    return `AND ${column} >= '${safeStart}' AND ${column} <= '${safeEnd}'`;
+  }
+  return `AND ${column} >= CURRENT_DATE - INTERVAL '${days} days'`;
+}
+
 /**
  * Compute conversion confidence for a single property record.
  * Handles the 4 cases from Lauren's meeting:
@@ -134,27 +160,41 @@ export async function GET(request: NextRequest) {
 
   const params = request.nextUrl.searchParams;
   const type = params.get('type') || 'funnel-overview';
-  const days = parseInt(params.get('days') || '90');
   const domain = params.get('domain') || undefined;
+
+  // Date filter: supports both preset days (days=30) and custom ranges (startDate/endDate).
+  // When startDate/endDate are provided, compute equivalent days for the threshold check.
+  const startDate = params.get('startDate') || undefined;
+  const endDate = params.get('endDate') || undefined;
+  let days: number;
+  if (startDate && endDate) {
+    const diffMs = new Date(endDate).getTime() - new Date(startDate).getTime();
+    days = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  } else {
+    days = parseInt(params.get('days') || '0');
+  }
+
+  // Package date context for all handlers
+  const dateCtx = { days, startDate, endDate };
 
   try {
     switch (type) {
       case 'funnel-overview':
-        return await getFunnelOverview(days, domain);
+        return await getFunnelOverview(dateCtx, domain);
       case 'client-performance':
-        return await getClientPerformance(days, domain);
+        return await getClientPerformance(dateCtx, domain);
       case 'geo-breakdown':
-        return await getGeoBreakdown(days, domain);
+        return await getGeoBreakdown(dateCtx, domain);
       case 'property-timeline':
         return await getPropertyTimeline(params.get('propertyId'), params.get('campaignId'), domain);
       case 'data-quality':
-        return await getDataQuality(days, domain);
+        return await getDataQuality(dateCtx, domain);
       case 'alerts':
-        return await getAlerts(days, domain);
+        return await getAlerts(dateCtx, domain);
       case 'conversion-trend':
-        return await getConversionTrend(days, domain);
+        return await getConversionTrend(dateCtx, domain);
       case 'roas-trend':
-        return await getRoasTrend(days, domain);
+        return await getRoasTrend(dateCtx, domain);
       case 'property-drilldown':
         return await getPropertyDrilldown(
           params.get('domain') || undefined,
@@ -207,22 +247,24 @@ interface MergedDomainRow {
   syncWarning?: string | null;
 }
 
-async function getMergedClientData(domain?: string, days?: number): Promise<MergedDomainRow[]> {
+async function getMergedClientData(domain?: string, dateCtx?: DateContext): Promise<MergedDomainRow[]> {
+  const days = dateCtx?.days;
+  const startDate = dateCtx?.startDate;
+  const endDate = dateCtx?.endDate;
   // HYBRID approach for volume + conversions:
   //
-  // ALL-TIME (no date filter or days >= 365):
+  // ALL-TIME (no date filter or range >= 365 days):
   //   Volume (mailed, sends, delivered, cost) → dm_client_funnel (complete, 23,632 sends, 100% PCM match)
-  //   Conversions (leads, deals, revenue) → dm_property_conversions (partial sync but best source for conversions)
+  //   Conversions (leads, deals, revenue) → dm_property_conversions (best source for conversions)
   //
-  // DATE-FILTERED (days < 365):
+  // DATE-FILTERED (preset days < 365 or custom range < 365 days):
   //   ALL metrics → dm_property_conversions filtered by first_sent_date
   //   This makes everything respond to the date filter together
   //
-  // Why: dm_property_conversions only has ~1,136 of 23,632 properties synced so far.
-  // Using it for all-time volume shows 1,136 instead of 23,632 — a 95% undercount.
-  // dm_client_funnel has the correct all-time totals but can't be date-filtered.
-  const isDateFiltered = days && days < 365;
-  const dateFilter = isDateFiltered ? `AND first_sent_date >= CURRENT_DATE - INTERVAL '${days} days'` : '';
+  // Why: dm_property_conversions only has a subset of properties synced so far.
+  // Using it for all-time volume undercounts. dm_client_funnel has correct all-time totals.
+  const isDateFiltered = days && days > 0 && days < 365;
+  const dateFilter = buildSqlDateFilter('first_sent_date', days || 0, startDate, endDate);
 
   const [funnelRows, campaignStatusRows, propertyRows] = await Promise.all([
     // dm_client_funnel: corrected domain list + lifetime totals for proportional scaling
@@ -395,12 +437,13 @@ async function getMergedClientData(domain?: string, days?: number): Promise<Merg
 // Funnel Overview — aggregated from merged client data (same source as table)
 // ---------------------------------------------------------------------------
 
-async function getFunnelOverview(days: number, domain?: string) {
+async function getFunnelOverview(dateCtx: DateContext, domain?: string) {
+  const { days } = dateCtx;
   const cacheKey = `dm-conversions:funnel:${days}:${domain || 'all'}`;
   const cached = getCached(cacheKey);
   if (cached) return NextResponse.json({ success: true, data: cached, cached: true });
 
-  const mergedRows = await getMergedClientData(domain, days);
+  const mergedRows = await getMergedClientData(domain, dateCtx);
 
   // Sum across all domains
   let totalMailed = 0, totalDelivered = 0, prospects = 0, leads = 0;
@@ -447,12 +490,13 @@ async function getFunnelOverview(days: number, domain?: string) {
 // Client Performance — uses shared merged data (same source as funnel)
 // ---------------------------------------------------------------------------
 
-async function getClientPerformance(days: number, domain?: string) {
+async function getClientPerformance(dateCtx: DateContext, domain?: string) {
+  const { days } = dateCtx;
   const cacheKey = `dm-conversions:client-perf:${days}:${domain || 'all'}`;
   const cached = getCached(cacheKey);
   if (cached) return NextResponse.json({ success: true, data: cached, cached: true });
 
-  const mergedRows = await getMergedClientData(domain, days);
+  const mergedRows = await getMergedClientData(domain, dateCtx);
 
   const data: DmClientPerformanceRow[] = mergedRows.map((row) => {
     const confidence = getRoasConfidence(row.deals, row.totalRevenue);
@@ -489,12 +533,13 @@ async function getClientPerformance(days: number, domain?: string) {
 // Geographic Breakdown — county for dense markets, MSA for sparse markets
 // ---------------------------------------------------------------------------
 
-async function getGeoBreakdown(days: number, domain?: string) {
-  const cacheKey = `dm-conversions:geo:${days}:${domain || 'all'}`;
+async function getGeoBreakdown(dateCtx: DateContext, domain?: string) {
+  const { days, startDate, endDate } = dateCtx;
+  const cacheKey = `dm-conversions:geo:${days}:${startDate || ''}:${domain || 'all'}`;
   const cached = getCached(cacheKey);
   if (cached) return NextResponse.json({ success: true, data: cached, cached: true });
 
-  const dateFilter = days && days < 365 ? `AND first_sent_date >= CURRENT_DATE - INTERVAL '${days} days'` : '';
+  const dateFilter = buildSqlDateFilter('first_sent_date', days, startDate, endDate);
 
   // Fetch geo data AND corrected domain totals in parallel
   const [rows, cfRows] = await Promise.all([
@@ -653,7 +698,8 @@ async function getPropertyTimeline(propertyId: string | null, campaignId: string
 // Data Quality — partial real data from available tables
 // ---------------------------------------------------------------------------
 
-async function getDataQuality(days: number, domain?: string) {
+async function getDataQuality(dateCtx: DateContext, domain?: string) {
+  const { days, startDate, endDate } = dateCtx;
   const cacheKey = `dm-conversions:quality:${days}:${domain || 'all'}`;
   const cached = getCached(cacheKey);
   if (cached) return NextResponse.json({ success: true, data: cached, cached: true });
@@ -687,7 +733,7 @@ async function getDataQuality(days: number, domain?: string) {
       FROM dm_property_conversions
       WHERE ${domainFilter(domain)}
         AND ${verifiedDomainsFilter(domain)}
-        ${days < 365 ? `AND first_sent_date >= CURRENT_DATE - INTERVAL '${days} days'` : ''}
+        ${buildSqlDateFilter('first_sent_date', days, startDate, endDate)}
     `),
   ]);
 
@@ -732,7 +778,8 @@ async function getDataQuality(days: number, domain?: string) {
 // Conversion Trend (time series from dm_client_funnel)
 // ---------------------------------------------------------------------------
 
-async function getConversionTrend(days: number, domain?: string) {
+async function getConversionTrend(dateCtx: DateContext, domain?: string) {
+  const { days, startDate, endDate } = dateCtx;
   const cacheKey = `dm-conversions:conv-trend:${days}:${domain || 'all'}`;
   const cached = getCached(cacheKey);
   if (cached) return NextResponse.json({ success: true, data: cached, cached: true });
@@ -751,7 +798,7 @@ async function getConversionTrend(days: number, domain?: string) {
         COALESCE(SUM(deals), 0) as deals,
         COALESCE(SUM(total_revenue), 0) as total_revenue
       FROM dm_client_funnel
-      WHERE date >= CURRENT_DATE - INTERVAL '${days} days'
+      WHERE ${startDate && endDate ? `date >= '${startDate.replace(/[^0-9-]/g, '')}' AND date <= '${endDate.replace(/[^0-9-]/g, '')}'` : `date >= CURRENT_DATE - INTERVAL '${days} days'`}
         AND ${domainFilter(domain)}
       GROUP BY date
       ORDER BY date ASC
@@ -810,7 +857,8 @@ async function getConversionTrend(days: number, domain?: string) {
 // ROAS Trend (time series from dm_client_funnel) — Rule 1 applied
 // ---------------------------------------------------------------------------
 
-async function getRoasTrend(days: number, domain?: string) {
+async function getRoasTrend(dateCtx: DateContext, domain?: string) {
+  const { days, startDate, endDate } = dateCtx;
   const cacheKey = `dm-conversions:roas-trend:${days}:${domain || 'all'}`;
   const cached = getCached(cacheKey);
   if (cached) return NextResponse.json({ success: true, data: cached, cached: true });
@@ -824,7 +872,7 @@ async function getRoasTrend(days: number, domain?: string) {
         COALESCE(SUM(total_revenue), 0) as total_revenue,
         COALESCE(SUM(deals), 0) as deals
       FROM dm_client_funnel
-      WHERE date >= CURRENT_DATE - INTERVAL '${days} days'
+      WHERE ${startDate && endDate ? `date >= '${startDate.replace(/[^0-9-]/g, '')}' AND date <= '${endDate.replace(/[^0-9-]/g, '')}'` : `date >= CURRENT_DATE - INTERVAL '${days} days'`}
         AND ${domainFilter(domain)}
       GROUP BY date
       ORDER BY date ASC
@@ -882,8 +930,8 @@ async function getRoasTrend(days: number, domain?: string) {
 // Business Results Alerts — uses shared getAlertsData() from get-alerts-data.ts
 // ---------------------------------------------------------------------------
 
-async function getAlerts(days: number, domain?: string) {
-  const data = await getAlertsData(domain, days);
+async function getAlerts(dateCtx: DateContext, domain?: string) {
+  const data = await getAlertsData(domain, dateCtx.days);
   return NextResponse.json({ success: true, data, cached: false });
 }
 
