@@ -104,7 +104,9 @@ function Dashboard({ slug }: { slug: string[] }) {
   const [activeMainSection, setActiveMainSection] = useState(initialNav.section);
   const [activeSubsection, setActiveSubsection] = useState(initialNav.sub);
   const [activeDetailTab, setActiveDetailTab] = useState(initialNav.tab);
-  const [dmCampaignSubTab, setDmCampaignSubTab] = useState(initialNav.subTab || 'operational-health');
+  // Legacy — dmCampaignSubTab is now handled via activeDetailTab for dm-campaign subsection
+  const dmCampaignSubTab = activeSubsection === 'dm-campaign' ? activeDetailTab : 'operational-health';
+  const setDmCampaignSubTab = (tab: string) => setActiveDetailTab(tab);
   const { collapsed: sidebarCollapsed, toggle: toggleSidebar } = useSidebarState();
   const [editMode, setEditMode] = useState(false);
   const [showEditCallout, setShowEditCallout] = useState(false);
@@ -119,10 +121,9 @@ function Dashboard({ slug }: { slug: string[] }) {
   useEffect(() => {
     const sub = SUBSECTION_TABS_MAP[activeMainSection] ? activeSubsection : '';
     const tab = getDetailTabsForSubsection(activeMainSection, activeSubsection) ? activeDetailTab : '';
-    const subTab = tab === 'dm-campaign' ? dmCampaignSubTab : '';
-    const newUrl = buildNavUrl(activeMainSection, sub, tab, subTab);
+    const newUrl = buildNavUrl(activeMainSection, sub, tab);
     window.history.replaceState(null, '', newUrl);
-  }, [activeMainSection, activeSubsection, activeDetailTab, dmCampaignSubTab]);
+  }, [activeMainSection, activeSubsection, activeDetailTab]);
 
   // Tab refs for imperative actions (resetLayout, openWidgetCatalog)
   const tabRefs = useTabRefs();
@@ -529,8 +530,8 @@ function Dashboard({ slug }: { slug: string[] }) {
           </div>
         </header>
 
-        {/* Third-Level Navigation - Detail Tabs (for GA4 analytics sections) */}
-        {activeMainSection === 'analytics' && (activeSubsection === '8020rei-ga4' || activeSubsection === '8020roofing-ga4') && (
+        {/* Third-Level Navigation - Detail Tabs (for GA4 analytics) */}
+        {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && (
           <nav className="flex-shrink-0 px-6 border-b border-stroke chrome-bg">
             <AxisNavigationTab
               activeTab={activeDetailTab}
@@ -542,25 +543,12 @@ function Dashboard({ slug }: { slug: string[] }) {
           </nav>
         )}
 
-        {/* Third-Level Navigation - Detail Tabs for Features > 8020 REI */}
-        {activeMainSection === 'features' && activeSubsection === 'features-rei' && (
+        {/* Detail Tabs for Features > DM Campaign (Operational health, Business results, PCM) */}
+        {activeMainSection === 'features' && activeSubsection === 'dm-campaign' && (
           <nav className="flex-shrink-0 px-6 border-b border-stroke chrome-bg">
             <AxisNavigationTab
               activeTab={activeDetailTab}
               onTabChange={setActiveDetailTab}
-              tabs={FEATURES_REI_DETAIL_TABS}
-              variant="line"
-              size="sm"
-            />
-          </nav>
-        )}
-
-        {/* Fourth-Level Navigation - Sub-tabs for DM Campaign */}
-        {activeMainSection === 'features' && activeSubsection === 'features-rei' && activeDetailTab === 'dm-campaign' && (
-          <nav className="flex-shrink-0 px-6 border-b border-stroke chrome-bg">
-            <AxisNavigationTab
-              activeTab={dmCampaignSubTab}
-              onTabChange={setDmCampaignSubTab}
               tabs={DM_CAMPAIGN_SUB_TABS}
               variant="line"
               size="sm"
@@ -568,39 +556,13 @@ function Dashboard({ slug }: { slug: string[] }) {
           </nav>
         )}
 
-        {/* Third-Level Navigation - Detail Tabs for Features > 8020 Roofing */}
-        {activeMainSection === 'features' && activeSubsection === 'features-roofing' && (
-          <nav className="flex-shrink-0 px-6 border-b border-stroke chrome-bg">
-            <AxisNavigationTab
-              activeTab={activeDetailTab}
-              onTabChange={setActiveDetailTab}
-              tabs={FEATURES_ROOFING_DETAIL_TABS}
-              variant="line"
-              size="sm"
-            />
-          </nav>
-        )}
-
-        {/* Third-Level Navigation - Detail Tabs for Pipelines > 8020 REI */}
+        {/* Detail Tabs for Pipelines */}
         {activeMainSection === 'pipelines' && activeSubsection === 'pipelines-rei' && (
           <nav className="flex-shrink-0 px-6 border-b border-stroke chrome-bg">
             <AxisNavigationTab
               activeTab={activeDetailTab}
               onTabChange={setActiveDetailTab}
               tabs={PIPELINES_REI_DETAIL_TABS}
-              variant="line"
-              size="sm"
-            />
-          </nav>
-        )}
-
-        {/* Third-Level Navigation - Detail Tabs for Pipelines > 8020 Roofing */}
-        {activeMainSection === 'pipelines' && activeSubsection === 'pipelines-roofing' && (
-          <nav className="flex-shrink-0 px-6 border-b border-stroke chrome-bg">
-            <AxisNavigationTab
-              activeTab={activeDetailTab}
-              onTabChange={setActiveDetailTab}
-              tabs={PIPELINES_ROOFING_DETAIL_TABS}
               variant="line"
               size="sm"
             />
@@ -794,8 +756,8 @@ function Dashboard({ slug }: { slug: string[] }) {
           )}
 
 
-          {/* Properties API Tab (Features > 8020REI > Properties API) */}
-          {activeMainSection === 'features' && activeSubsection === 'features-rei' && activeDetailTab === 'properties-api' && (
+          {/* Properties API Tab (Features > Properties API) */}
+          {activeMainSection === 'features' && activeSubsection === 'properties-api' && (
             <PropertiesApiTab
               ref={propertiesApiRef}
               days={days}
@@ -806,8 +768,8 @@ function Dashboard({ slug }: { slug: string[] }) {
             />
           )}
 
-          {/* Rapid Response Tab (Features > 8020REI > Rapid Response) */}
-          {activeMainSection === 'features' && activeSubsection === 'features-rei' && activeDetailTab === 'dm-campaign' && (
+          {/* DM Campaign Tab (Features > DM Campaign) */}
+          {activeMainSection === 'features' && activeSubsection === 'dm-campaign' && (
             <RapidResponseTab
               ref={dmCampaignRef}
               days={days}
@@ -859,8 +821,8 @@ function Dashboard({ slug }: { slug: string[] }) {
           {activeMainSection !== 'engagement-calls' && activeMainSection !== 'grafana' &&
            activeMainSection !== 'platform-analytics' &&
            !(activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4') &&
-           !(activeMainSection === 'features' && activeSubsection === 'features-rei' && activeDetailTab === 'properties-api') &&
-           !(activeMainSection === 'features' && activeSubsection === 'features-rei' && activeDetailTab === 'dm-campaign') &&
+           !(activeMainSection === 'features' && activeSubsection === 'properties-api') &&
+           !(activeMainSection === 'features' && activeSubsection === 'dm-campaign') &&
            !(activeMainSection === 'feedback-loop' && activeSubsection === 'import') &&
            !(activeMainSection === 'product-tasks') && (
             <div className="flex items-center justify-center min-h-full">

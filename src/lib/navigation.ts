@@ -1,10 +1,14 @@
 /**
  * Navigation Structure Configuration
  *
- * Defines the 3-level navigation hierarchy for the dashboard:
- * Level 1: Main Sections (Product, Analytics, Feedback Loop, etc.)
- * Level 2: Sub-sections within each main section
- * Level 3: Detail tabs (Overview, Users, Features, etc.)
+ * Defines the navigation hierarchy for the dashboard:
+ * Level 1: Main Sections (Analytics, Features, Feedback Loop, etc.)
+ * Level 2: Sub-sections within each main section (in sidebar)
+ * Level 3: Detail tabs (horizontal tab bar in content area)
+ *
+ * Features are organized by product capability, not by company.
+ * Company switching (8020REI vs 8020Roofing) is handled by a
+ * separate switcher at the bottom of the sidebar.
  */
 
 import { AxisNavigationTabItem } from '@/components/axis';
@@ -27,8 +31,7 @@ export const MAIN_SECTION_TABS: AxisNavigationTabItem[] = [
 // Second-level navigation - Sub-sections per Main Section
 
 const ANALYTICS_SUBSECTION_TABS: AxisNavigationTabItem[] = [
-  { id: '8020rei-ga4', name: '8020REI GA4' },
-  { id: '8020roofing-ga4', name: '8020Roofing GA4', disabled: true },
+  { id: '8020rei-ga4', name: 'GA4' },
 ];
 
 const FEEDBACK_LOOP_SUBSECTION_TABS: AxisNavigationTabItem[] = [
@@ -39,9 +42,14 @@ const FEEDBACK_LOOP_SUBSECTION_TABS: AxisNavigationTabItem[] = [
   { id: 'delivery-audit', name: 'Delivery Audit', disabled: true },
 ];
 
+// Features — each product capability is a sidebar subsection (no more company nesting)
 const FEATURES_SUBSECTION_TABS: AxisNavigationTabItem[] = [
-  { id: 'features-rei', name: '8020REI' },
-  { id: 'features-roofing', name: '8020Roofing', disabled: true },
+  { id: 'dm-campaign', name: 'DM Campaign' },
+  { id: 'properties-api', name: 'Properties API' },
+  { id: 'skiptrace', name: 'Skip Trace', disabled: true },
+  { id: 'auto-export', name: 'Auto Export', disabled: true },
+  { id: 'zillow', name: 'Zillow', disabled: true },
+  { id: 'buyers-list', name: 'Buyers List', disabled: true },
 ];
 
 const PIPELINES_SUBSECTION_TABS: AxisNavigationTabItem[] = [
@@ -68,7 +76,6 @@ const PRODUCT_TASKS_SUBSECTION_TABS: AxisNavigationTabItem[] = [
 ];
 
 export const SUBSECTION_TABS_MAP: Record<string, AxisNavigationTabItem[]> = {
-  // 'customer-success' has no subsections — renders Under Construction directly
   'analytics': ANALYTICS_SUBSECTION_TABS,
   'feedback-loop': FEEDBACK_LOOP_SUBSECTION_TABS,
   'features': FEATURES_SUBSECTION_TABS,
@@ -92,26 +99,16 @@ export const GA4_DETAIL_TABS: AxisNavigationTabItem[] = [
   { id: 'insights', name: 'Insights' },
 ];
 
+// DM Campaign detail tabs (horizontal bar when DM Campaign is selected in sidebar)
 export const DM_CAMPAIGN_SUB_TABS: AxisNavigationTabItem[] = [
   { id: 'operational-health', name: 'Operational health' },
   { id: 'business-results', name: 'Business results' },
   { id: 'pcm-validation', name: 'PCM & profitability' },
 ];
 
-export const FEATURES_REI_DETAIL_TABS: AxisNavigationTabItem[] = [
-  { id: 'dm-campaign', name: 'DM Campaign' },
-  { id: 'properties-api', name: 'Properties API' },
-  { id: 'skiptrace', name: 'Skip Trace', disabled: true },
-  { id: 'auto-export', name: 'Auto Export', disabled: true },
-  { id: 'zillow', name: 'Zillow', disabled: true },
-  { id: 'roi', name: 'ROI', disabled: true },
-  { id: 'buyers-list', name: 'Buyers List', disabled: true },
-];
-
-export const FEATURES_ROOFING_DETAIL_TABS: AxisNavigationTabItem[] = [
-  { id: 'zillow', name: 'Zillow', disabled: true },
-  { id: 'upcoming-features', name: 'Upcoming Features', disabled: true },
-];
+// Legacy exports — kept for backward compatibility during transition
+export const FEATURES_REI_DETAIL_TABS: AxisNavigationTabItem[] = FEATURES_SUBSECTION_TABS;
+export const FEATURES_ROOFING_DETAIL_TABS: AxisNavigationTabItem[] = [];
 
 export const PIPELINES_REI_DETAIL_TABS: AxisNavigationTabItem[] = [
   { id: 'eda-etl', name: 'EDA ETL', disabled: true },
@@ -127,9 +124,9 @@ export const PIPELINES_ROOFING_DETAIL_TABS: AxisNavigationTabItem[] = [
  * Returns null if the combination doesn't have detail tabs.
  */
 export function getDetailTabsForSubsection(section: string, sub: string): AxisNavigationTabItem[] | null {
-  if (section === 'analytics' && (sub === '8020rei-ga4' || sub === '8020roofing-ga4')) return GA4_DETAIL_TABS;
-  if (section === 'features' && sub === 'features-rei') return FEATURES_REI_DETAIL_TABS;
-  if (section === 'features' && sub === 'features-roofing') return FEATURES_ROOFING_DETAIL_TABS;
+  if (section === 'analytics' && sub === '8020rei-ga4') return GA4_DETAIL_TABS;
+  // DM Campaign sub-tabs are rendered as detail tabs
+  if (section === 'features' && sub === 'dm-campaign') return DM_CAMPAIGN_SUB_TABS;
   if (section === 'pipelines' && sub === 'pipelines-rei') return PIPELINES_REI_DETAIL_TABS;
   if (section === 'pipelines' && sub === 'pipelines-roofing') return PIPELINES_ROOFING_DETAIL_TABS;
   return null;
@@ -139,9 +136,8 @@ export function getDetailTabsForSubsection(section: string, sub: string): AxisNa
  * Get the default detail tab when switching to a subsection.
  */
 export function getDefaultDetailTab(sub: string): string | undefined {
-  if (sub === '8020rei-ga4' || sub === '8020roofing-ga4') return 'overview';
-  if (sub === 'features-rei') return 'dm-campaign';
-  if (sub === 'features-roofing') return 'upcoming-features';
+  if (sub === '8020rei-ga4') return 'overview';
+  if (sub === 'dm-campaign') return 'operational-health';
   if (sub === 'pipelines-rei') return 'eda-etl';
   if (sub === 'pipelines-roofing') return 'etl-roofing';
   return undefined;
@@ -149,11 +145,6 @@ export function getDefaultDetailTab(sub: string): string | undefined {
 
 /**
  * Build a clean URL path from navigation state.
- * Examples:
- *   buildNavUrl('analytics', '8020rei-ga4', 'overview')                     → '/analytics/8020rei-ga4/overview'
- *   buildNavUrl('engagement-calls', '', '')                                  → '/engagement-calls'
- *   buildNavUrl('feedback-loop', 'import', '')                              → '/feedback-loop/import'
- *   buildNavUrl('features', 'features-rei', 'dm-campaign', 'business-results') → '/features/features-rei/dm-campaign/business-results'
  */
 export function buildNavUrl(section: string, sub?: string, tab?: string, subTab?: string): string {
   let path = `/${section}`;
@@ -172,7 +163,6 @@ export function buildNavUrl(section: string, sub?: string, tab?: string, subTab?
 /**
  * Parse URL slug segments into navigation state.
  * Validates each level against the navigation config and falls back to defaults.
- * Supports 4th segment for sub-tabs (e.g., /features/features-rei/dm-campaign/business-results).
  */
 export function parseNavFromSlug(slug: string[]): { section: string; sub: string; tab: string; subTab: string } {
   const [rawSection, rawSub, rawTab, rawSubTab] = slug;
@@ -190,6 +180,28 @@ export function parseNavFromSlug(slug: string[]): { section: string; sub: string
     validSub = matchedSub ? matchedSub.id : (subsections.find(s => !s.disabled)?.id || subsections[0].id);
   }
 
+  // Backward compatibility: map old URLs to new structure
+  // /features/features-rei/dm-campaign → /features/dm-campaign
+  if (validSection === 'features' && rawSub === 'features-rei') {
+    const featureTab = rawTab || 'dm-campaign';
+    const matchedFeature = subsections?.find(t => t.id === featureTab && !t.disabled);
+    if (matchedFeature) {
+      validSub = matchedFeature.id;
+      // If it's dm-campaign, the old sub-tab becomes the detail tab
+      if (featureTab === 'dm-campaign') {
+        const detailTabs = getDetailTabsForSubsection('features', 'dm-campaign');
+        const matchedDetail = rawSubTab ? detailTabs?.find(t => t.id === rawSubTab) : null;
+        return {
+          section: validSection,
+          sub: 'dm-campaign',
+          tab: matchedDetail ? matchedDetail.id : 'operational-health',
+          subTab: '',
+        };
+      }
+      return { section: validSection, sub: featureTab, tab: '', subTab: '' };
+    }
+  }
+
   // Resolve detail tab
   let validTab = '';
   const detailTabs = getDetailTabsForSubsection(validSection, validSub);
@@ -198,12 +210,6 @@ export function parseNavFromSlug(slug: string[]): { section: string; sub: string
     validTab = matchedTab ? matchedTab.id : (detailTabs.find(t => !t.disabled)?.id || detailTabs[0].id);
   }
 
-  // Resolve sub-tab (4th level — currently only used by dm-campaign)
-  let validSubTab = '';
-  if (validTab === 'dm-campaign') {
-    const matched = rawSubTab ? DM_CAMPAIGN_SUB_TABS.find(t => t.id === rawSubTab) : null;
-    validSubTab = matched ? matched.id : 'operational-health';
-  }
-
-  return { section: validSection, sub: validSub, tab: validTab, subTab: validSubTab };
+  // Sub-tabs are no longer used (DM Campaign sub-tabs are now detail tabs)
+  return { section: validSection, sub: validSub, tab: validTab, subTab: '' };
 }
