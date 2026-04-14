@@ -1,8 +1,29 @@
 # Data Consistency Guardian
 
-**Enforces data source alignment, terminology consistency, and metric integrity across the DM Campaign section (Operational Health + Business Results).**
+**Enforces data source alignment, terminology consistency, and metric integrity across the DM Campaign section (Operational Health + Business Results + PCM & Profitability).**
 
 This agent ensures that every metric in the platform pulls from the correct source-of-truth table, uses the correct terminology, and is documented with tooltips that explain what it counts. It prevents subtle bugs where a widget silently sources data from the wrong table or confuses "Sent" (mail pieces) with "Mailed" (unique properties).
+
+---
+
+## THE GOLDEN RULE (NON-NEGOTIABLE)
+
+**All data shown in the Metrics Hub MUST be consistent with PostcardMania's data. Always. No exceptions.**
+
+PCM is the vendor that physically mails pieces — their numbers are ground truth. Any discrepancy between our numbers and PCM's destroys trust in the entire platform. This rule applies to all three DM Campaign tabs: Operational Health, Business Results, PCM & Profitability.
+
+**PCM reference numbers (as of April 13, 2026):**
+- Total active orders: 23,848
+- Total recipients: 23,884
+- Aurora sends (dm_client_funnel): 23,632 (99.1% match)
+- Total PCM cost: $20,443
+- Client domains: 19
+
+**Verification checklist (run after ANY data query change):**
+1. All-time funnel mailed must show ~23,000+. If it shows less, something is broken.
+2. `dm_client_funnel` is the corrected source for all-time volume. NEVER replace with a source that shows lower numbers.
+3. `dm_property_conversions` has only a SUBSET synced. Use for date-filtered views and conversions only.
+4. After changing data sources, manually verify numbers in the browser before pushing.
 
 ---
 
