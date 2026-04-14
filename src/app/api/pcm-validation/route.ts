@@ -504,15 +504,18 @@ async function fetchPcmSummary() {
   }
 
   const [balance, orders, designs] = await Promise.all([
-    pcmGet<{ moneyOnAccount: number }>('/integration/balance').catch(() => ({ moneyOnAccount: 0 })),
-    pcmGet<PcmPaginatedResponse>('/order', { page: 1, perPage: 1 }).catch(() => ({
-      results: [],
-      pagination: { totalResults: 0 },
-    })),
-    pcmGet<PcmPaginatedResponse>('/design', { page: 1, perPage: 1 }).catch(() => ({
-      results: [],
-      pagination: { totalResults: 0 },
-    })),
+    pcmGet<{ moneyOnAccount: number }>('/integration/balance').catch((e) => {
+      console.error('[PCM] /integration/balance failed:', e.message);
+      return { moneyOnAccount: 0 };
+    }),
+    pcmGet<PcmPaginatedResponse>('/order', { page: 1, perPage: 1 }).catch((e) => {
+      console.error('[PCM] /order failed:', e.message);
+      return { results: [], pagination: { totalResults: 0 } };
+    }),
+    pcmGet<PcmPaginatedResponse>('/design', { page: 1, perPage: 1 }).catch((e) => {
+      console.error('[PCM] /design failed:', e.message);
+      return { results: [], pagination: { totalResults: 0 } };
+    }),
   ]);
 
   return {
