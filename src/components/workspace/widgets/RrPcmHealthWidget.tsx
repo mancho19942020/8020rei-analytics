@@ -15,8 +15,26 @@ interface RrPcmHealthWidgetProps {
 }
 
 export function RrPcmHealthWidget({ data }: RrPcmHealthWidgetProps) {
+  const totalIssues = data.staleSentCount + data.orphanedOrdersCount + data.backOfficeSyncGap;
+  const issueColor = totalIssues === 0
+    ? 'var(--color-success-500)'
+    : totalIssues <= 5
+      ? 'var(--color-alert-500)'
+      : 'var(--color-error-500)';
   return (
     <div className="flex flex-col gap-2 h-full p-3 overflow-y-auto">
+      {/* Headline number */}
+      <div className="flex items-baseline gap-2 pb-1 mb-1" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+        <span
+          className="text-2xl font-bold tracking-tight"
+          style={{ color: issueColor }}
+        >
+          {totalIssues}
+        </span>
+        <span className="text-xs font-medium" style={{ color: 'var(--text-tertiary)' }}>
+          {totalIssues === 1 ? 'issue' : 'issues'} detected
+        </span>
+      </div>
       <AxisPill
         label="Stale sent (14d+)"
         value={data.staleSentCount}
@@ -32,8 +50,8 @@ export function RrPcmHealthWidget({ data }: RrPcmHealthWidgetProps) {
       <AxisPill
         label="Sync gap"
         value={data.backOfficeSyncGap}
-        type={data.backOfficeSyncGap > 0 ? 'bad' : 'good'}
-        tooltip="The difference between orders PCM accepted and orders our back-office system knows about. If positive, some orders are missing from our bridge system and their status updates will be lost."
+        type={data.backOfficeSyncGap !== 0 ? 'bad' : 'good'}
+        tooltip="Difference between orders PCM accepted and orders our back-office knows about. Related to the 'Delta' shown in PCM & profitability (PCM orders − Aurora sends). A non-zero value means the systems are out of sync. Source: rr_pcm_alignment.back_office_sync_gap."
       />
       <AxisPill
         label="Delivery lag (median)"

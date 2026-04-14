@@ -137,7 +137,7 @@ export const FEATURES_LAYOUT_STORAGE_KEY = 'axis-features-layout-v2';
 /**
  * Clients Tab Layout Storage Key
  */
-export const CLIENTS_LAYOUT_STORAGE_KEY = 'axis-clients-layout-v3';
+export const CLIENTS_LAYOUT_STORAGE_KEY = 'axis-clients-layout-v4';
 
 /**
  * Engagement Tab Layout Storage Key (formerly Traffic)
@@ -165,7 +165,7 @@ export const EVENTS_LAYOUT_STORAGE_KEY = 'axis-events-layout-v3';
 /**
  * Insights Tab Layout Storage Key
  */
-export const INSIGHTS_LAYOUT_STORAGE_KEY = 'axis-insights-layout-v3';
+export const INSIGHTS_LAYOUT_STORAGE_KEY = 'axis-insights-layout-v4';
 
 /**
  * Layout Schema Version
@@ -373,7 +373,7 @@ export const DEFAULT_CLIENTS_LAYOUT: Widget[] = [
     x: 0,
     y: 2,
     w: 12,
-    h: 6,
+    h: 8,
     minW: 6,
     minH: 5,
     maxW: 12,
@@ -384,7 +384,7 @@ export const DEFAULT_CLIENTS_LAYOUT: Widget[] = [
     type: 'client-activity-trend',
     title: 'Client activity trend',
     x: 0,
-    y: 8,
+    y: 10,
     w: 12,
     h: 5,
     minW: 6,
@@ -707,30 +707,30 @@ export const DEFAULT_INSIGHTS_LAYOUT: Widget[] = [
     maxH: 2,
   },
   {
-    id: 'alerts-by-category',
-    type: 'alerts-by-category',
-    title: 'Alerts by category',
-    x: 0,
-    y: 2,
-    w: 4,
-    h: 5,
-    minW: 4,
-    minH: 4,
-    maxW: 6,
-    maxH: 8,
-  },
-  {
     id: 'alerts-feed',
     type: 'alerts-feed',
     title: 'Active alerts',
-    x: 4,
+    x: 0,
     y: 2,
-    w: 8,
+    w: 12,
     h: 10,
     minW: 6,
     minH: 5,
     maxW: 12,
     maxH: 14,
+  },
+  {
+    id: 'alerts-by-category',
+    type: 'alerts-by-category',
+    title: 'Alerts by category',
+    x: 0,
+    y: 12,
+    w: 12,
+    h: 5,
+    minW: 4,
+    minH: 4,
+    maxW: 12,
+    maxH: 8,
   },
 ];
 
@@ -1234,27 +1234,58 @@ export const PRODUCT_PROJECTS_WIDGET_CATALOG: WidgetCatalogItem[] = [
 // Features > 8020REI > Rapid Response Tab
 // ---------------------------------------------------------------------------
 
-export const RAPID_RESPONSE_LAYOUT_STORAGE_KEY = 'rapid-response-layout-v4';
+export const RAPID_RESPONSE_LAYOUT_STORAGE_KEY = 'rapid-response-layout-v5';
 
 export const DEFAULT_RAPID_RESPONSE_LAYOUT: Widget[] = [
-  // Layer 1: Alerts — first, so critical issues are immediately visible
+  // Layer 1: The Three Pillars — instant health answer at the top
+  {
+    id: 'rr-operational-pulse',
+    type: 'rr-operational-pulse',
+    title: 'Is it running?',
+    tooltip: 'This widget is NOT affected by the date filter — it shows current system state. Active campaigns = status \'active\' in rr_campaign_snapshots (same number shown in PCM & profitability). One domain can have multiple campaigns, so this differs from domain count. On-hold = mail pieces blocked, usually due to insufficient balance.',
+    x: 0, y: 0,
+    w: 4, h: 4,
+    minW: 3, minH: 4, maxW: 6, maxH: 7,
+    timeBehavior: 'all-time',
+  },
+  {
+    id: 'rr-quality-metrics',
+    type: 'rr-quality-metrics',
+    title: 'Is it working?',
+    tooltip: 'This widget is NOT affected by the date filter — it shows all-time lifetime data. Delivery rate = all-time delivered ÷ all-time sent from dm_client_funnel (same source as PCM & profitability tab). Lifetime sent and delivered are the same numbers shown in the PCM tab under Aurora. The only period-based metrics here are error rate and the period send/delivered counts at the bottom.',
+    x: 4, y: 0,
+    w: 4, h: 4,
+    minW: 3, minH: 4, maxW: 6, maxH: 7,
+    timeBehavior: 'all-time',
+  },
+  {
+    id: 'rr-pcm-health',
+    type: 'rr-pcm-health',
+    title: 'Is it aligned?',
+    tooltip: 'This widget is NOT affected by the date filter — it shows all-time alignment checks. Sync gap relates to the Delta in PCM & profitability (PCM orders − Aurora sends). Stale records = mailings sent 14+ days ago with no delivery confirmation. Source: rr_pcm_alignment (latest check per domain, summed across all domains).',
+    x: 8, y: 0,
+    w: 4, h: 4,
+    minW: 3, minH: 4, maxW: 6, maxH: 7,
+    timeBehavior: 'all-time',
+  },
+  // Layer 2: Alerts — important but secondary to health status
   {
     id: 'rr-alerts-feed',
     type: 'rr-alerts-feed',
     title: 'Alerts (all-time)',
     tooltip: 'These alerts scan all historical data, not just the selected date range. This means they can detect issues from months ago — like mailings that were sent long before this dashboard existed but never received a delivery confirmation. Each alert includes a recommended action and shows which clients are affected.',
-    x: 0, y: 0,
-    w: 12, h: 5,
+    x: 0, y: 4,
+    w: 12, h: 4,
     minW: 6, minH: 3, maxW: 12, maxH: 8,
   },
-  // Layer 1b: Q2 Volume Goal (left) + Top Contributors (right)
+  // Layer 3: Q2 Volume Goal (left) + Top Contributors (right)
   {
     id: 'rr-q2-goal',
     type: 'rr-q2-goal',
     title: 'Q2 volume goal',
     tooltip: 'Progress toward 400K DM pieces commitment for Q2 2026 (April-June). Total mail pieces sent across all clients. Source: rr_daily_metrics.',
-    x: 0, y: 5,
-    w: 4, h: 6,
+    x: 0, y: 8,
+    w: 4, h: 5,
     minW: 3, minH: 5, maxW: 6, maxH: 8,
     timeBehavior: 'all-time',
   },
@@ -1263,58 +1294,28 @@ export const DEFAULT_RAPID_RESPONSE_LAYOUT: Widget[] = [
     type: 'rr-q2-top-contributors',
     title: 'Top contributors',
     tooltip: 'Per-client contribution toward the Q2 400K DM pieces target. Total mail pieces sent per client in Q2 2026. Source: rr_daily_metrics.',
-    x: 4, y: 5,
-    w: 8, h: 6,
+    x: 4, y: 8,
+    w: 8, h: 5,
     minW: 4, minH: 4, maxW: 12, maxH: 10,
     timeBehavior: 'all-time',
   },
-  // Layer 2: The Three Pillars
-  {
-    id: 'rr-operational-pulse',
-    type: 'rr-operational-pulse',
-    title: 'Is it running?',
-    tooltip: 'A quick check on whether your DM campaigns are actively sending. Shows how many campaigns are active, how many sends happened today, when the last send was, and if any mailings are stuck on hold.',
-    x: 0, y: 11,
-    w: 4, h: 5,
-    minW: 3, minH: 4, maxW: 6, maxH: 7,
-    timeBehavior: 'all-time',
-  },
-  {
-    id: 'rr-quality-metrics',
-    type: 'rr-quality-metrics',
-    title: 'Is it working?',
-    tooltip: 'Checks the quality of your mailings. Delivery rate is how many pieces actually reach the mailbox. PCM submission rate is how many were successfully handed off to the print vendor. Error rate tracks failed submissions. All percentages are based on the selected date range.',
-    x: 4, y: 11,
-    w: 4, h: 5,
-    minW: 3, minH: 4, maxW: 6, maxH: 7,
-  },
-  {
-    id: 'rr-pcm-health',
-    type: 'rr-pcm-health',
-    title: 'Is it aligned?',
-    tooltip: 'Monitors the connection between our platform and PCM (the print vendor). These checks look at all historical data, not just the selected date range.',
-    x: 8, y: 11,
-    w: 4, h: 5,
-    minW: 3, minH: 4, maxW: 6, maxH: 7,
-    timeBehavior: 'all-time',
-  },
-  // Layer 3: Campaigns drill-down
+  // Layer 4: Campaigns drill-down (taller for more rows)
   {
     id: 'rr-campaign-table',
     type: 'rr-campaign-table',
     title: 'Campaigns',
     tooltip: 'Campaigns with mail activity in the selected period. Sent and Delivered show lifetime totals per campaign from the latest snapshot.',
-    x: 0, y: 16,
-    w: 12, h: 6,
+    x: 0, y: 13,
+    w: 12, h: 7,
     minW: 6, minH: 4, maxW: 12, maxH: 10,
   },
-  // Layer 4: Charts
+  // Layer 5: Charts
   {
     id: 'rr-sends-trend',
     type: 'rr-sends-trend',
     title: 'Send volume trend',
     tooltip: 'Daily trend of mailing activity within the selected date range. The blue line shows total sends, green shows confirmed deliveries, and the dashed red line shows errors. Flat lines or sudden drops may indicate a paused campaign or system issue.',
-    x: 0, y: 22,
+    x: 0, y: 20,
     w: 6, h: 5,
     minW: 4, minH: 3, maxW: 12, maxH: 8,
   },
@@ -1323,18 +1324,18 @@ export const DEFAULT_RAPID_RESPONSE_LAYOUT: Widget[] = [
     type: 'rr-status-breakdown',
     title: 'Status breakdown',
     tooltip: 'Shows how mailings ended up within the selected date range. "Delivered" means the piece reached the mailbox. "Sent (In Transit)" is still being processed by the print vendor. "On Hold" and "Protected" are paused for business rules. This only counts mailings from the selected period — older mailings are tracked separately in the alerts section.',
-    x: 6, y: 22,
+    x: 6, y: 20,
     w: 6, h: 5,
     minW: 4, minH: 3, maxW: 12, maxH: 8,
   },
-  // Layer 5: Cost
+  // Layer 6: Cost (less prominent)
   {
     id: 'rr-cost-overview',
     type: 'rr-cost-overview',
     title: 'Cost overview',
     tooltip: 'Tracks daily spending on mailings within the selected date range. The blue bars show total daily spend in dollars. The line shows the average cost per mailed piece. A sudden spike in cost per piece could indicate address quality issues or a change in mailing type.',
-    x: 0, y: 27,
-    w: 12, h: 6,
+    x: 0, y: 25,
+    w: 12, h: 5,
     minW: 6, minH: 4, maxW: 12, maxH: 8,
   },
 ];
@@ -1416,56 +1417,46 @@ export const RAPID_RESPONSE_WIDGET_CATALOG: WidgetCatalogItem[] = [
 // Features > 8020REI > DM Campaign Business Results Tab
 // ---------------------------------------------------------------------------
 
-export const DM_BUSINESS_RESULTS_LAYOUT_STORAGE_KEY = 'dm-business-results-layout-v2';
+export const DM_BUSINESS_RESULTS_LAYOUT_STORAGE_KEY = 'dm-business-results-layout-v3';
 
 export const DEFAULT_DM_BUSINESS_RESULTS_LAYOUT: Widget[] = [
-  // Row 1: Business Alerts
+  // Row 1: Conversion Funnel — THE hero metric, answers "how is DM performing?"
+  {
+    id: 'dm-funnel-overview',
+    type: 'dm-funnel-overview',
+    title: 'Conversion funnel',
+    tooltip: '"Mailed" here counts unique properties (addresses), not individual mail pieces. A property mailed 3 times counts as 1. This is different from Operational Health and PCM & profitability, which count individual mail pieces. All-time view uses dm_client_funnel; date-filtered view uses dm_property_conversions.',
+    x: 0, y: 0,
+    w: 12, h: 7,
+    minW: 6, minH: 4, maxW: 12, maxH: 10,
+  },
+  // Row 2: Business Alerts — important but users want results first
   {
     id: 'dm-alerts-feed',
     type: 'dm-alerts-feed',
     title: 'Business alerts',
     tooltip: 'Alerts based on campaign performance: clients with zero conversions after many sends, negative ROAS, high unattributed conversions, and data quality issues.',
-    x: 0, y: 0,
-    w: 12, h: 5,
+    x: 0, y: 7,
+    w: 12, h: 4,
     minW: 6, minH: 3, maxW: 12, maxH: 8,
   },
-  // Row 2: Conversion Funnel
-  {
-    id: 'dm-funnel-overview',
-    type: 'dm-funnel-overview',
-    title: 'Conversion funnel',
-    tooltip: 'The full conversion funnel from mailed properties to closed deals. All numbers filter by the selected date range based on when properties were first mailed.',
-    x: 0, y: 5,
-    w: 12, h: 6,
-    minW: 6, minH: 4, maxW: 12, maxH: 10,
-  },
-  // Row 3: Client Performance (full width)
+  // Row 3: Client Performance (full width, taller for more rows)
   {
     id: 'dm-client-performance',
     type: 'dm-client-performance',
     title: 'Client performance',
     tooltip: 'Per-client breakdown filtered by the selected date range. "Mailed" = unique properties first mailed in the period. Click any number to see the actual properties.',
     x: 0, y: 11,
-    w: 12, h: 7,
+    w: 12, h: 8,
     minW: 6, minH: 5, maxW: 12, maxH: 10,
   },
-  // Row 4: Template Leaderboard (full width)
-  {
-    id: 'dm-template-leaderboard',
-    type: 'dm-template-leaderboard',
-    title: 'Template leaderboard',
-    tooltip: 'Templates ranked by performance: sends, leads generated, deals closed, and ROAS. Identifies which letter/postcard designs drive the best results.',
-    x: 0, y: 18,
-    w: 12, h: 7,
-    minW: 6, minH: 5, maxW: 12, maxH: 10,
-  },
-  // Row 5: Trends
+  // Row 4: Trends — more actionable than static template table
   {
     id: 'dm-conversion-trend',
     type: 'dm-conversion-trend',
     title: 'Conversion trend',
     tooltip: 'Daily trend of new leads, appointments, and deals generated by DM campaigns over the selected time period.',
-    x: 0, y: 25,
+    x: 0, y: 19,
     w: 6, h: 5,
     minW: 4, minH: 3, maxW: 12, maxH: 8,
   },
@@ -1474,27 +1465,37 @@ export const DEFAULT_DM_BUSINESS_RESULTS_LAYOUT: Widget[] = [
     type: 'dm-roas-trend',
     title: 'ROAS trend',
     tooltip: 'Revenue vs cost over time with ROAS (Return on Ad Spend) line. ROAS above 1.0 means the campaign is generating more revenue than it costs.',
-    x: 6, y: 25,
+    x: 6, y: 19,
     w: 6, h: 5,
     minW: 4, minH: 3, maxW: 12, maxH: 8,
   },
-  // Row 6: Geographic Breakdown
+  // Row 5: Template Leaderboard — optimization detail, not first-glance
+  {
+    id: 'dm-template-leaderboard',
+    type: 'dm-template-leaderboard',
+    title: 'Template leaderboard',
+    tooltip: 'Templates ranked by performance: sends, leads generated, deals closed, and ROAS. Identifies which letter/postcard designs drive the best results.',
+    x: 0, y: 24,
+    w: 12, h: 6,
+    minW: 6, minH: 5, maxW: 12, maxH: 10,
+  },
+  // Row 6: Geographic Breakdown — supporting detail
   {
     id: 'dm-geo-breakdown',
     type: 'dm-geo-breakdown',
     title: 'Geographic breakdown',
     tooltip: 'Conversion rates by state and county. Identifies which geographic markets respond best to direct mail campaigns.',
     x: 0, y: 30,
-    w: 12, h: 6,
+    w: 12, h: 5,
     minW: 6, minH: 4, maxW: 12, maxH: 10,
   },
-  // Row 6: Data Quality
+  // Row 7: Data Quality — trust indicators at the bottom
   {
     id: 'dm-data-quality',
     type: 'dm-data-quality',
     title: 'Data quality',
     tooltip: 'Trust indicators for the conversion data: attribution rate, backfilled dates percentage, unattributed conversions, and zero-revenue deals.',
-    x: 0, y: 29,
+    x: 0, y: 35,
     w: 12, h: 3,
     minW: 4, minH: 3, maxW: 12, maxH: 6,
   },
@@ -1897,7 +1898,7 @@ export const DEFAULT_PCM_VALIDATION_LAYOUT: Widget[] = [
     id: 'pcm-volume-comparison',
     type: 'pcm-volume-comparison',
     title: 'Volume: 8020REI vs PCM',
-    tooltip: 'Compare Aurora total sends against PCM total orders',
+    tooltip: 'Compares all-time mail piece counts between Aurora and PCM. Both sides count individual mail pieces (not unique properties). "Active campaigns" matches the count shown in Operational Health. "Domains with send data" includes all historical domains, even those with no active campaigns.',
     x: 0, y: 3, w: 6, h: 5,
     minW: 4, minH: 3, maxH: 8,
     timeBehavior: 'all-time',

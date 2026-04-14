@@ -22,6 +22,9 @@ export function PcmVolumeComparisonWidget({ data, domains }: PcmVolumeComparison
   const delta = data?.volumeDelta ?? 0;
   const deltaPercent = data?.volumeDeltaPercent ?? 0;
   const domainCount = data?.auroraDomainCount ?? 0;
+  const activeCampaigns = data?.activeCampaigns ?? 0;
+  const activeDomainsCount = data?.activeDomainsCount ?? 0;
+  const deliveryRate = auroraSends > 0 ? ((auroraDelivered / auroraSends) * 100).toFixed(1) : '0';
 
   const pcmHasData = pcmOrders > 0;
 
@@ -35,7 +38,7 @@ export function PcmVolumeComparisonWidget({ data, domains }: PcmVolumeComparison
             {auroraSends.toLocaleString()}
           </div>
           <div className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>
-            total sends · {auroraDelivered.toLocaleString()} delivered
+            mail pieces sent · {auroraDelivered.toLocaleString()} delivered ({deliveryRate}%)
           </div>
         </div>
         <div className="rounded-lg p-3" style={{ backgroundColor: 'var(--surface-raised)' }}>
@@ -44,7 +47,7 @@ export function PcmVolumeComparisonWidget({ data, domains }: PcmVolumeComparison
             {pcmHasData ? pcmOrders.toLocaleString() : '—'}
           </div>
           <div className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>
-            {pcmHasData ? 'total orders' : 'order access pending'}
+            {pcmHasData ? 'total orders (mail pieces)' : 'order access pending'}
           </div>
         </div>
       </div>
@@ -52,10 +55,10 @@ export function PcmVolumeComparisonWidget({ data, domains }: PcmVolumeComparison
       {/* Delta */}
       {pcmHasData && (
         <AxisPill
-          label="Delta"
+          label="Delta (PCM − Aurora)"
           value={`${delta > 0 ? '+' : ''}${delta.toLocaleString()} (${deltaPercent > 0 ? '+' : ''}${deltaPercent}%)`}
           type={Math.abs(deltaPercent) < 5 ? 'good' : Math.abs(deltaPercent) < 15 ? 'default' : 'bad'}
-          tooltip="Difference between PCM order count and Aurora send count. Close to 0% means data is aligned."
+          tooltip="Difference between PCM total orders and Aurora total mail pieces. Both count individual mail pieces (not unique properties). Close to 0% means the two systems are aligned."
         />
       )}
 
@@ -69,11 +72,21 @@ export function PcmVolumeComparisonWidget({ data, domains }: PcmVolumeComparison
         </div>
       )}
 
-      {/* Quick domain stats */}
+      {/* Domain & campaign stats — consistent with Operational Health */}
       <AxisPill
-        label="Active domains"
+        label="Active campaigns"
+        value={activeCampaigns.toLocaleString()}
+        tooltip="Campaigns with status 'active' in the latest snapshot. Same number shown in Operational Health → 'Is it running?' Uses rr_campaign_snapshots."
+      />
+      <AxisPill
+        label="Domains with active campaigns"
+        value={activeDomainsCount.toLocaleString()}
+        tooltip="Distinct client domains that have at least one active campaign right now. Same source as Operational Health (rr_campaign_snapshots)."
+      />
+      <AxisPill
+        label="Domains with send data"
         value={domainCount.toLocaleString()}
-        tooltip="Number of client domains with send data in Aurora."
+        tooltip="Total client domains that have ever sent mail (historical). This includes domains whose campaigns are now inactive or paused. Source: dm_client_funnel."
       />
     </div>
   );

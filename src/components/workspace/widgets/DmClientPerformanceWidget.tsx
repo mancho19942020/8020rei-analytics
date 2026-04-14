@@ -279,6 +279,16 @@ export function DmClientPerformanceWidget({ data, onDomainClick }: DmClientPerfo
     },
   ], [onDomainClick, openDrilldown]);
 
+  const totals = useMemo(() => {
+    const totalMailed = data.reduce((s, c) => s + c.totalMailed, 0);
+    const totalLeads = data.reduce((s, c) => s + c.leads, 0);
+    const totalDeals = data.reduce((s, c) => s + c.deals, 0);
+    const totalCost = data.reduce((s, c) => s + c.totalCost, 0);
+    const totalRevenue = data.reduce((s, c) => s + c.totalRevenue, 0);
+    const roas = totalCost > 0 ? totalRevenue / totalCost : 0;
+    return { totalMailed, totalLeads, totalDeals, totalCost, totalRevenue, roas };
+  }, [data]);
+
   const tableData = useMemo(() =>
     data.map(c => ({
       id: c.domain,
@@ -298,17 +308,65 @@ export function DmClientPerformanceWidget({ data, onDomainClick }: DmClientPerfo
   [data]);
 
   return (
-    <div className="h-full overflow-hidden">
-      <AxisTable
-        columns={columns}
-        data={tableData}
-        rowKey="id"
-        sortable
-        paginated
-        resizable
-        defaultPageSize={15}
-        emptyMessage="No client performance data available yet"
-      />
+    <div className="h-full overflow-hidden flex flex-col">
+      {/* Summary totals bar */}
+      {data.length > 0 && (
+        <div
+          className="flex items-center gap-6 px-4 py-2 flex-shrink-0 flex-wrap"
+          style={{ borderBottom: '1px solid var(--border-subtle)' }}
+        >
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-lg font-bold" style={{ color: 'var(--color-main-500)' }}>
+              {totals.totalMailed.toLocaleString()}
+            </span>
+            <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>mailed</span>
+          </div>
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-lg font-bold" style={{ color: 'var(--color-accent-1-500)' }}>
+              {totals.totalLeads.toLocaleString()}
+            </span>
+            <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>leads</span>
+          </div>
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-lg font-bold" style={{ color: 'var(--color-success-500)' }}>
+              {totals.totalDeals.toLocaleString()}
+            </span>
+            <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>deals</span>
+          </div>
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
+              {formatCurrency(totals.totalCost)}
+            </span>
+            <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>cost</span>
+          </div>
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-lg font-bold" style={{ color: totals.totalRevenue > 0 ? 'var(--color-success-500)' : 'var(--text-primary)' }}>
+              {formatCurrency(totals.totalRevenue)}
+            </span>
+            <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>revenue</span>
+          </div>
+          {totals.roas > 0 && (
+            <div className="flex items-baseline gap-1.5">
+              <AxisTag color={totals.roas >= 2 ? 'success' : totals.roas >= 1 ? 'alert' : 'error'} size="sm">
+                {totals.roas.toFixed(1)}x ROAS
+              </AxisTag>
+            </div>
+          )}
+        </div>
+      )}
+      {/* Table */}
+      <div className="flex-1 min-h-0 overflow-hidden">
+        <AxisTable
+          columns={columns}
+          data={tableData}
+          rowKey="id"
+          sortable
+          paginated
+          resizable
+          defaultPageSize={15}
+          emptyMessage="No client performance data available yet"
+        />
+      </div>
       <DmPropertyDrilldownModal
         open={drilldown.open}
         onClose={closeDrilldown}

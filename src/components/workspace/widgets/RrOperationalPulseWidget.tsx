@@ -29,13 +29,26 @@ function formatTime(iso: string | null): string {
 }
 
 export function RrOperationalPulseWidget({ data }: RrOperationalPulseWidgetProps) {
+  const isHealthy = data.activeCampaigns > 0 && data.sendsToday > 0;
   return (
     <div className="flex flex-col gap-2 h-full p-3 overflow-y-auto">
+      {/* Headline number */}
+      <div className="flex items-baseline gap-2 pb-1 mb-1" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+        <span
+          className="text-2xl font-bold tracking-tight"
+          style={{ color: isHealthy ? 'var(--color-success-500)' : 'var(--color-error-500)' }}
+        >
+          {data.activeCampaigns}
+        </span>
+        <span className="text-xs font-medium" style={{ color: 'var(--text-tertiary)' }}>
+          active of {data.totalCampaigns}
+        </span>
+      </div>
       <AxisPill
         label="Active campaigns"
         value={`${data.activeCampaigns} / ${data.totalCampaigns}`}
         type={data.activeCampaigns === 0 && data.totalCampaigns > 0 ? 'bad' : 'default'}
-        tooltip="How many campaigns are currently active out of the total. If active is 0 but total is above 0, all campaigns have been paused or disabled."
+        tooltip="Campaigns with status 'active' in the latest snapshot / total campaigns ever created. Same number shown in PCM & profitability tab. One client domain can have multiple campaigns. Source: rr_campaign_snapshots."
       />
       <AxisPill
         label="Sends today"

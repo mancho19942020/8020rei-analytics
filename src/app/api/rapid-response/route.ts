@@ -25,8 +25,8 @@ import type {
   RrQ2GoalClientRow,
 } from '@/types/rapid-response';
 
-// Exclude seed/test domains — real data will use production client domains
-const SEED_DOMAINS = "'8020rei_demo', '8020rei_migracion_test'";
+// Exclude seed/test domains — must match the same list used in pcm-validation and dm-conversions
+const SEED_DOMAINS = "'8020rei_demo', '8020rei_migracion_test', '_test_debug', '_test_debug3', 'supertest_8020rei_com', 'sandbox_8020rei_com'";
 const EXCLUDE_SEED = `domain NOT IN (${SEED_DOMAINS})`;
 
 /** Build a WHERE clause that excludes seed domains AND optionally filters to a specific domain */
@@ -116,8 +116,11 @@ async function getOverview(days: number, domain?: string) {
   const cached = getCached(cacheKey);
   if (cached) return NextResponse.json({ success: true, data: cached, cached: true });
 
-  // Run all three pillar queries in parallel
-  const [pulseRows, qualityRows, pcmRows] = await Promise.all([
+  // Run all four queries in parallel — includes dm_client_funnel for cross-tab consistency
+  const domSubFilter = domain ? `AND dcf.domain = '${domain.replace(/[^a-zA-Z0-9_.]/g, '')}'` : '';
+  const domFFilter = domain ? `AND f.domain = '${domain.replace(/[^a-zA-Z0-9_.]/g, '')}'` : '';
+
+  const [pulseRows, qualityRows, pcmRows, funnelRows] = await Promise.all([
     // Operational Pulse: latest snapshot per campaign
     runAuroraQuery(`
       SELECT DISTINCT ON (domain, campaign_id)
@@ -129,15 +132,13 @@ async function getOverview(days: number, domain?: string) {
       ORDER BY domain, campaign_id, snapshot_at DESC
     `),
 
-    // Quality Metrics: aggregated daily metrics for last N days
+    // Quality Metrics: aggregated daily metrics for the selected period
     runAuroraQuery(`
       SELECT
         COALESCE(SUM(sends_total), 0) as sends_total,
         COALESCE(SUM(sends_success), 0) as sends_success,
         COALESCE(SUM(sends_error), 0) as sends_error,
-        COALESCE(SUM(delivered_count), 0) as delivered_count,
-        COALESCE(AVG(pcm_submission_rate), 0) as avg_pcm_rate,
-        COALESCE(AVG(delivery_rate_30d), 0) as avg_delivery_rate
+        COALESCE(SUM(delivered_count), 0) as delivered_count
       FROM rr_daily_metrics
       WHERE date >= CURRENT_DATE - INTERVAL '${days} days'
       AND ${domainFilter(domain)}
@@ -151,6 +152,27 @@ async function getOverview(days: number, domain?: string) {
       FROM rr_pcm_alignment
       WHERE ${domainFilter(domain)}
       ORDER BY domain, checked_at DESC
+    `),
+
+    // Corrected lifetime totals from dm_client_funnel — THE source of truth.
+    // Same table and query used by PCM & profitability tab and Business Results funnel.
+    // This ensures delivery rate matches across all three tabs.
+    runAuroraQuery(`
+      SELECT
+        COALESCE(SUM(f.total_sends), 0) as total_sends,
+        COALESCE(SUM(f.total_delivered), 0) as total_delivered
+      FROM dm_client_funnel f
+      INNER JOIN (
+        SELECT dcf.domain, MAX(dcf.date) as max_date
+        FROM dm_client_funnel dcf
+        WHERE dcf.domain IS NOT NULL
+          AND dcf.domain NOT IN (${SEED_DOMAINS})
+          ${domSubFilter}
+        GROUP BY dcf.domain
+      ) latest ON f.domain = latest.domain AND f.date = latest.max_date
+      WHERE f.domain IS NOT NULL
+        AND f.domain NOT IN (${SEED_DOMAINS})
+        ${domFFilter}
     `),
   ]);
 
@@ -184,15 +206,29 @@ async function getOverview(days: number, domain?: string) {
   };
 
   // Compute Quality Metrics
+  // Delivery rate uses dm_client_funnel (the corrected source of truth) — same table as
+  // PCM & profitability tab and Business Results funnel. This ensures the delivery rate
+  // shown here matches the other tabs exactly.
   const q = qualityRows[0] || {};
   const sendsTotal = Number(q.sends_total || 0);
   const sendsError = Number(q.sends_error || 0);
+  const deliveredCount = Number(q.delivered_count || 0);
+
+  // Lifetime totals from dm_client_funnel (same source as PCM & profitability tab)
+  const funnel = funnelRows[0] || {};
+  const funnelTotalSends = Number(funnel.total_sends || 0);
+  const funnelTotalDelivered = Number(funnel.total_delivered || 0);
+
   const qualityMetrics: RrQualityMetrics = {
-    deliveryRate30d: Number(Number(q.avg_delivery_rate || 0).toFixed(1)),
-    pcmSubmissionRate: Number(Number(q.avg_pcm_rate || 0).toFixed(1)),
+    deliveryRate30d: funnelTotalSends > 0
+      ? Number(((funnelTotalDelivered / funnelTotalSends) * 100).toFixed(1))
+      : 0,
+    lifetimeSent: funnelTotalSends,
+    lifetimeDelivered: funnelTotalDelivered,
+    pcmSubmissionRate: 0, // deprecated — widget now uses lifetimeSent/lifetimeDelivered
     errorRate: sendsTotal > 0 ? Number(((sendsError / sendsTotal) * 100).toFixed(1)) : 0,
     sendsTotal7d: sendsTotal,
-    deliveredTotal7d: Number(q.delivered_count || 0),
+    deliveredTotal7d: deliveredCount,
   };
 
   // Compute PCM Health (aggregated across all domains)

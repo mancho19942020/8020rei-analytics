@@ -148,25 +148,40 @@ export function DmFunnelOverviewWidget({ data, selectedDomain }: DmFunnelOvervie
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      {/* Summary banner */}
+      {/* Hero summary — large numbers for instant readability */}
       <div
-        className="flex items-center justify-between gap-4 mx-4 mt-4 mb-2 rounded-lg px-4 py-2 flex-wrap"
+        className="flex items-center justify-between gap-4 mx-4 mt-3 mb-1 rounded-lg px-5 py-3 flex-wrap"
         style={{ backgroundColor: 'var(--surface-raised)', border: '1px solid var(--border-subtle)' }}
       >
-        <div className="flex items-center gap-1.5">
-          <span className="text-label" style={{ color: 'var(--text-secondary)' }}>Mailed → Deal</span>
-          <span className="text-h4 font-semibold" style={{ color: 'var(--color-success-500)' }}>
+        <div className="flex items-center gap-3">
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-2xl font-bold tracking-tight" style={{ color: 'var(--color-main-500)' }}>
+              {data.totalMailed.toLocaleString()}
+            </span>
+            <span className="text-xs font-medium uppercase" style={{ color: 'var(--text-tertiary)' }}>mailed</span>
+          </div>
+          <span className="text-base" style={{ color: 'var(--text-tertiary)' }}>→</span>
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-2xl font-bold tracking-tight" style={{ color: 'var(--color-success-500)' }}>
+              {data.deals.toLocaleString()}
+            </span>
+            <span className="text-xs font-medium uppercase" style={{ color: 'var(--text-tertiary)' }}>deals</span>
+          </div>
+          <span
+            className="text-sm font-semibold ml-2 px-2 py-0.5 rounded-full"
+            style={{ backgroundColor: 'var(--color-success-50)', color: 'var(--color-success-700)' }}
+          >
             {data.overallConversionRate}%
           </span>
         </div>
-        <div className="flex items-center gap-4 text-label">
+        <div className="flex items-center gap-4 text-sm">
           <span style={{ color: 'var(--text-secondary)' }}>
-            Cost: <span className="font-medium" style={{ color: 'var(--text-primary)' }}>
+            Cost: <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>
               ${(data.totalCost || 0).toLocaleString()}
             </span>
           </span>
           <span style={{ color: 'var(--text-secondary)' }}>
-            Revenue: <span className="font-medium" style={{ color: (data.totalRevenue || 0) > 0 ? 'var(--color-success-500)' : 'var(--text-primary)' }}>
+            Revenue: <span className="font-semibold" style={{ color: (data.totalRevenue || 0) > 0 ? 'var(--color-success-500)' : 'var(--text-primary)' }}>
               ${(data.totalRevenue || 0).toLocaleString()}
             </span>
           </span>

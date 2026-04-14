@@ -78,10 +78,11 @@ async function getSummary(domain?: string) {
   const pcmConfigured = isPcmConfigured();
   const auroraConfigured = isAuroraConfigured();
 
-  // Fetch PCM + Aurora in parallel
-  const [pcmData, auroraData] = await Promise.all([
+  // Fetch PCM + Aurora + active campaign count in parallel
+  const [pcmData, auroraData, activeCampaignData] = await Promise.all([
     pcmConfigured ? fetchPcmSummary() : getEmptyPcmSummary(),
     auroraConfigured ? fetchAuroraSummary(domain) : getEmptyAuroraSummary(),
+    auroraConfigured ? fetchActiveCampaignCount(domain) : { activeCampaigns: 0, activeDomainsCount: 0 },
   ]);
 
   const matchRate = calculateMatchRate(pcmData.orderCount, auroraData.totalSends);
@@ -96,6 +97,8 @@ async function getSummary(domain?: string) {
     auroraTotalDelivered: auroraData.totalDelivered,
     auroraTotalCost: auroraData.totalCost,
     auroraDomainCount: auroraData.domainCount,
+    activeCampaigns: activeCampaignData.activeCampaigns,
+    activeDomainsCount: activeCampaignData.activeDomainsCount,
     volumeDelta: pcmData.orderCount - auroraData.totalSends,
     volumeDeltaPercent: auroraData.totalSends > 0
       ? Number(((pcmData.orderCount - auroraData.totalSends) / auroraData.totalSends * 100).toFixed(1))
@@ -566,6 +569,33 @@ async function fetchAuroraSummary(domain?: string) {
 
 function getEmptyAuroraSummary() {
   return { totalSends: 0, totalDelivered: 0, totalCost: 0, domainCount: 0 };
+}
+
+/**
+ * Count active campaigns and distinct domains with active campaigns from rr_campaign_snapshots.
+ * Uses the same definition as Operational Health: status = 'active' in the latest snapshot.
+ * This ensures cross-tab consistency between "Is it running?" and the PCM volume widget.
+ */
+async function fetchActiveCampaignCount(domain?: string) {
+  const domFilter = domain ? `AND cs.domain = '${domain}'` : '';
+  const rows = await runAuroraQuery(`
+    SELECT
+      COUNT(*) FILTER (WHERE cs.status = 'active') as active_campaigns,
+      COUNT(DISTINCT cs.domain) FILTER (WHERE cs.status = 'active') as active_domains
+    FROM (
+      SELECT DISTINCT ON (domain, campaign_id) domain, campaign_id, status
+      FROM rr_campaign_snapshots
+      WHERE domain NOT IN (${TEST_DOMAINS})
+        ${domFilter}
+      ORDER BY domain, campaign_id, snapshot_at DESC
+    ) cs
+  `);
+
+  if (rows.length === 0) return { activeCampaigns: 0, activeDomainsCount: 0 };
+  return {
+    activeCampaigns: Number(rows[0].active_campaigns || 0),
+    activeDomainsCount: Number(rows[0].active_domains || 0),
+  };
 }
 
 function calculateMatchRate(pcmTotal: number, auroraTotal: number): number {

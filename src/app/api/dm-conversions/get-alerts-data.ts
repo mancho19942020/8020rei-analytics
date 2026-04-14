@@ -9,7 +9,8 @@ import { runAuroraQuery } from '@/lib/aurora';
 import { getCached, setCache } from '@/lib/cache';
 import type { DmAlert } from '@/types/dm-conversions';
 
-const SEED_DOMAINS = "'8020rei_demo', '8020rei_migracion_test', '_test_debug', '_test_debug3', 'supertest_8020rei_com'";
+// Exclude seed/test domains — must match the same list used in pcm-validation and rapid-response
+const SEED_DOMAINS = "'8020rei_demo', '8020rei_migracion_test', '_test_debug', '_test_debug3', 'supertest_8020rei_com', 'sandbox_8020rei_com'";
 const EXCLUDE_SEED = `domain NOT IN (${SEED_DOMAINS})`;
 
 function domainFilter(domain?: string | null): string {
