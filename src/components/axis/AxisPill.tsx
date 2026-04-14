@@ -11,12 +11,13 @@
  *
  * TYPES:
  * - default: Neutral styling - general metrics
- * - good: Green value - positive metrics (growth, profit, success)
- * - bad: Red value - negative metrics (loss, churn, errors)
+ * - good: Green value — renders with AxisTag (success) from the design system
+ * - bad: Red value — renders with AxisTag (error) from the design system
  *
  * FEATURES:
  * - Raised background for visual distinction
  * - Label + value layout with semantic coloring
+ * - Good/bad values use official AxisTag component for consistent styling
  * - Non-interactive by design (display-only)
  * - Designed for insights bars and metric displays
  */
@@ -25,6 +26,7 @@
 
 import React from 'react';
 import { AxisTooltip } from './AxisTooltip';
+import { AxisTag } from './AxisTag';
 
 type PillType = 'default' | 'good' | 'bad';
 
@@ -41,6 +43,11 @@ export interface AxisPillProps {
   className?: string;
 }
 
+const TAG_COLOR_MAP = {
+  good: 'success',
+  bad: 'error',
+} as const;
+
 export function AxisPill({
   label,
   value,
@@ -48,17 +55,9 @@ export function AxisPill({
   tooltip,
   className = '',
 }: AxisPillProps) {
-  // Value styling — good/bad get a tinted background badge for high contrast
-  const valueStyles: Record<PillType, { color: string; bg: string }> = {
-    default: { color: 'var(--text-primary)', bg: 'transparent' },
-    good: { color: 'var(--color-success-900)', bg: 'var(--color-success-100)' },
-    bad: { color: 'var(--color-error-900)', bg: 'var(--color-error-100)' },
-  };
-  const vs = valueStyles[type];
-
   return (
     <div
-      className={`flex-1 flex items-center justify-between px-3 py-1.5 bg-surface-raised rounded-lg ${className}`}
+      className={`flex-1 flex items-center justify-between px-3 py-1 bg-surface-raised rounded-lg ${className}`}
     >
       {/* Label */}
       {tooltip ? (
@@ -73,18 +72,15 @@ export function AxisPill({
         </span>
       )}
 
-      {/* Value — good/bad states get a tinted badge for clear contrast */}
+      {/* Value — good/bad use official AxisTag from the design system */}
       {type === 'default' ? (
-        <span className="text-h5 whitespace-nowrap tabular-nums" style={{ color: vs.color }}>
+        <span className="text-h5 whitespace-nowrap tabular-nums text-content-primary">
           {value}
         </span>
       ) : (
-        <span
-          className="text-h5 whitespace-nowrap tabular-nums px-2 py-0.5 rounded-md font-semibold"
-          style={{ color: vs.color, backgroundColor: vs.bg }}
-        >
+        <AxisTag color={TAG_COLOR_MAP[type]} size="sm">
           {value}
-        </span>
+        </AxisTag>
       )}
     </div>
   );

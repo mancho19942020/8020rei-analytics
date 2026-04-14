@@ -1234,7 +1234,7 @@ export const PRODUCT_PROJECTS_WIDGET_CATALOG: WidgetCatalogItem[] = [
 // Features > 8020REI > Rapid Response Tab
 // ---------------------------------------------------------------------------
 
-export const RAPID_RESPONSE_LAYOUT_STORAGE_KEY = 'rapid-response-layout-v6';
+export const RAPID_RESPONSE_LAYOUT_STORAGE_KEY = 'rapid-response-layout-v7';
 
 export const DEFAULT_RAPID_RESPONSE_LAYOUT: Widget[] = [
   // Layer 1: The Three Pillars — instant health answer at the top
@@ -1244,8 +1244,8 @@ export const DEFAULT_RAPID_RESPONSE_LAYOUT: Widget[] = [
     title: 'Is it running?',
     tooltip: 'This widget is NOT affected by the date filter — it shows current system state. Active campaigns = status \'active\' in rr_campaign_snapshots (same number shown in PCM & profitability). One domain can have multiple campaigns, so this differs from domain count. On-hold = mail pieces blocked, usually due to insufficient balance.',
     x: 0, y: 0,
-    w: 4, h: 6,
-    minW: 3, minH: 5, maxW: 6, maxH: 8,
+    w: 4, h: 5,
+    minW: 3, minH: 4, maxW: 6, maxH: 8,
     timeBehavior: 'all-time',
   },
   {
@@ -1254,8 +1254,8 @@ export const DEFAULT_RAPID_RESPONSE_LAYOUT: Widget[] = [
     title: 'Is it working?',
     tooltip: 'This widget is NOT affected by the date filter — it shows all-time lifetime data. Delivery rate = all-time delivered ÷ all-time sent from dm_client_funnel (same source as PCM & profitability tab). Lifetime sent and delivered are the same numbers shown in the PCM tab under Aurora. The only period-based metrics here are error rate and the period send/delivered counts at the bottom.',
     x: 4, y: 0,
-    w: 4, h: 6,
-    minW: 3, minH: 5, maxW: 6, maxH: 8,
+    w: 4, h: 5,
+    minW: 3, minH: 4, maxW: 6, maxH: 8,
     timeBehavior: 'all-time',
   },
   {
@@ -1264,8 +1264,8 @@ export const DEFAULT_RAPID_RESPONSE_LAYOUT: Widget[] = [
     title: 'Is it aligned?',
     tooltip: 'This widget is NOT affected by the date filter — it shows all-time alignment checks. Sync gap relates to the Delta in PCM & profitability (PCM orders − Aurora sends). Stale records = mailings sent 14+ days ago with no delivery confirmation. Source: rr_pcm_alignment (latest check per domain, summed across all domains).',
     x: 8, y: 0,
-    w: 4, h: 6,
-    minW: 3, minH: 5, maxW: 6, maxH: 8,
+    w: 4, h: 5,
+    minW: 3, minH: 4, maxW: 6, maxH: 8,
     timeBehavior: 'all-time',
   },
   // Layer 2: Alerts — important but secondary to health status
@@ -1274,7 +1274,7 @@ export const DEFAULT_RAPID_RESPONSE_LAYOUT: Widget[] = [
     type: 'rr-alerts-feed',
     title: 'Alerts (all-time)',
     tooltip: 'These alerts scan all historical data, not just the selected date range. This means they can detect issues from months ago — like mailings that were sent long before this dashboard existed but never received a delivery confirmation. Each alert includes a recommended action and shows which clients are affected.',
-    x: 0, y: 6,
+    x: 0, y: 5,
     w: 12, h: 4,
     minW: 6, minH: 3, maxW: 12, maxH: 8,
   },
@@ -1284,7 +1284,7 @@ export const DEFAULT_RAPID_RESPONSE_LAYOUT: Widget[] = [
     type: 'rr-q2-goal',
     title: 'Q2 volume goal',
     tooltip: 'Progress toward 400K DM pieces commitment for Q2 2026 (April-June). Total mail pieces sent across all clients. Source: rr_daily_metrics.',
-    x: 0, y: 10,
+    x: 0, y: 9,
     w: 4, h: 5,
     minW: 3, minH: 5, maxW: 6, maxH: 8,
     timeBehavior: 'all-time',
@@ -1294,7 +1294,7 @@ export const DEFAULT_RAPID_RESPONSE_LAYOUT: Widget[] = [
     type: 'rr-q2-top-contributors',
     title: 'Top contributors',
     tooltip: 'Per-client contribution toward the Q2 400K DM pieces target. Total mail pieces sent per client in Q2 2026. Source: rr_daily_metrics.',
-    x: 4, y: 10,
+    x: 4, y: 9,
     w: 8, h: 5,
     minW: 4, minH: 4, maxW: 12, maxH: 10,
     timeBehavior: 'all-time',
@@ -1305,7 +1305,7 @@ export const DEFAULT_RAPID_RESPONSE_LAYOUT: Widget[] = [
     type: 'rr-campaign-table',
     title: 'Campaigns',
     tooltip: 'Campaigns with mail activity in the selected period. Sent and Delivered show lifetime totals per campaign from the latest snapshot.',
-    x: 0, y: 15,
+    x: 0, y: 14,
     w: 12, h: 7,
     minW: 6, minH: 4, maxW: 12, maxH: 10,
   },
@@ -1315,7 +1315,7 @@ export const DEFAULT_RAPID_RESPONSE_LAYOUT: Widget[] = [
     type: 'rr-sends-trend',
     title: 'Send volume trend',
     tooltip: 'Daily trend of mailing activity within the selected date range. The blue line shows total sends, green shows confirmed deliveries, and the dashed red line shows errors. Flat lines or sudden drops may indicate a paused campaign or system issue.',
-    x: 0, y: 22,
+    x: 0, y: 21,
     w: 6, h: 5,
     minW: 4, minH: 3, maxW: 12, maxH: 8,
   },
@@ -1324,7 +1324,7 @@ export const DEFAULT_RAPID_RESPONSE_LAYOUT: Widget[] = [
     type: 'rr-status-breakdown',
     title: 'Status breakdown',
     tooltip: 'Shows how mailings ended up within the selected date range. "Delivered" means the piece reached the mailbox. "Sent (In Transit)" is still being processed by the print vendor. "On Hold" and "Protected" are paused for business rules. This only counts mailings from the selected period — older mailings are tracked separately in the alerts section.',
-    x: 6, y: 22,
+    x: 6, y: 21,
     w: 6, h: 5,
     minW: 4, minH: 3, maxW: 12, maxH: 8,
   },
@@ -1334,7 +1334,7 @@ export const DEFAULT_RAPID_RESPONSE_LAYOUT: Widget[] = [
     type: 'rr-cost-overview',
     title: 'Cost overview',
     tooltip: 'Tracks daily spending on mailings within the selected date range. The blue bars show total daily spend in dollars. The line shows the average cost per mailed piece. A sudden spike in cost per piece could indicate address quality issues or a change in mailing type.',
-    x: 0, y: 27,
+    x: 0, y: 26,
     w: 12, h: 5,
     minW: 6, minH: 4, maxW: 12, maxH: 8,
   },

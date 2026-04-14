@@ -22,7 +22,7 @@ export function RrPcmHealthWidget({ data }: RrPcmHealthWidgetProps) {
       ? 'var(--color-alert-500)'
       : 'var(--color-error-500)';
   return (
-    <div className="flex flex-col gap-2 h-full p-3 overflow-hidden">
+    <div className="flex flex-col gap-1 h-full p-3 overflow-hidden">
       {/* Headline number */}
       <div className="flex items-baseline gap-2 pb-1 mb-1" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
         <span
