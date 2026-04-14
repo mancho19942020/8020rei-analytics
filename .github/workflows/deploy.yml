@@ -43,6 +43,8 @@ jobs:
           SLACK_BIZ_CHANNEL: ${{ secrets.SLACK_BUSINESS_ALERTS_CHANNEL_ID }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
           FIREBASE_ADMIN_CREDS: ${{ secrets.FIREBASE_ADMIN_CREDENTIALS_JSON }}
+          PCM_KEY: ${{ secrets.PCM_API_KEY }}
+          PCM_SECRET: ${{ secrets.PCM_API_SECRET }}
         run: |
           python3 << 'PYEOF'
           import os, json
@@ -95,6 +97,16 @@ jobs:
               print(f'✓ SLACK_DM_ALERTS_WEBHOOK_URL configured (fallback)')
           if not slack_bot and not slack_url:
               print('⚠ No Slack credentials — alerts will be disabled in production')
+
+          # Add PCM API credentials (PostcardMania read-only API)
+          pcm_key = os.environ.get('PCM_KEY', '')
+          pcm_secret = os.environ.get('PCM_SECRET', '')
+          if pcm_key and pcm_secret:
+              env_vars['PCM_API_KEY'] = pcm_key
+              env_vars['PCM_API_SECRET'] = pcm_secret
+              print('✓ PCM_API_KEY + PCM_API_SECRET configured (read-only)')
+          else:
+              print('⚠ No PCM credentials — PCM reconciliation will show "Not configured"')
 
           # Validate JSON credentials
           for key in ['GOOGLE_DRIVE_CREDENTIALS_JSON', 'GOOGLE_APPLICATION_CREDENTIALS_PRODUCT_JSON']:
