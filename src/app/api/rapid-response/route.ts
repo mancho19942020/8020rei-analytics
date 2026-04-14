@@ -743,7 +743,7 @@ async function getAlerts(days: number, domain?: string) {
     const templateName = String(r.template_name || '');
     const templateDomain = String(r.domain || '');
 
-    if (deals === 0 && revenue > 0) {
+    if (deals === 0 && revenue > 500) {
       alerts.push({
         id: `rr-revenue-no-deal-${templateDomain}-${templateName}`,
         name: 'Revenue without matching deal status',
@@ -767,7 +767,7 @@ async function getAlerts(days: number, domain?: string) {
     const templateName = String(r.template_name || '');
     const templateDomain = String(r.domain || '');
 
-    if (totalSent > 50 && delivered === 0 && leads > 0) {
+    if (totalSent > 200 && delivered === 0 && leads > 0) {
       alerts.push({
         id: `rr-delivery-tracking-${templateDomain}-${templateName}`,
         name: 'Leads without delivery confirmation',

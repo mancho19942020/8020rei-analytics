@@ -174,7 +174,7 @@ export const INSIGHTS_LAYOUT_STORAGE_KEY = 'axis-insights-layout-v4';
  * When a user's stored version doesn't match, their cached layout is discarded
  * and replaced with the current defaults — no manual "Reset Layout" needed.
  */
-export const LAYOUT_SCHEMA_VERSION = 3;
+export const LAYOUT_SCHEMA_VERSION = 4;
 
 /**
  * Load a saved layout from localStorage, or fall back to defaults.
@@ -1268,23 +1268,13 @@ export const DEFAULT_RAPID_RESPONSE_LAYOUT: Widget[] = [
     minW: 3, minH: 4, maxW: 6, maxH: 8,
     timeBehavior: 'all-time',
   },
-  // Layer 2: Alerts — important but secondary to health status
-  {
-    id: 'rr-alerts-feed',
-    type: 'rr-alerts-feed',
-    title: 'Alerts (all-time)',
-    tooltip: 'These alerts scan all historical data, not just the selected date range. This means they can detect issues from months ago — like mailings that were sent long before this dashboard existed but never received a delivery confirmation. Each alert includes a recommended action and shows which clients are affected.',
-    x: 0, y: 5,
-    w: 12, h: 4,
-    minW: 6, minH: 3, maxW: 12, maxH: 8,
-  },
-  // Layer 3: Q2 Volume Goal (left) + Top Contributors (right)
+  // Layer 2: Q2 Volume Goal (left) + Top Contributors (right)
   {
     id: 'rr-q2-goal',
     type: 'rr-q2-goal',
     title: 'Q2 volume goal',
     tooltip: 'Progress toward 400K DM pieces commitment for Q2 2026 (April-June). Total mail pieces sent across all clients. Source: rr_daily_metrics.',
-    x: 0, y: 9,
+    x: 0, y: 5,
     w: 4, h: 5,
     minW: 3, minH: 5, maxW: 6, maxH: 8,
     timeBehavior: 'all-time',
@@ -1294,28 +1284,28 @@ export const DEFAULT_RAPID_RESPONSE_LAYOUT: Widget[] = [
     type: 'rr-q2-top-contributors',
     title: 'Top contributors',
     tooltip: 'Per-client contribution toward the Q2 400K DM pieces target. Total mail pieces sent per client in Q2 2026. Source: rr_daily_metrics.',
-    x: 4, y: 9,
+    x: 4, y: 5,
     w: 8, h: 5,
     minW: 4, minH: 4, maxW: 12, maxH: 10,
     timeBehavior: 'all-time',
   },
-  // Layer 4: Campaigns drill-down (taller for more rows)
+  // Layer 3: Campaigns drill-down (taller for more rows)
   {
     id: 'rr-campaign-table',
     type: 'rr-campaign-table',
     title: 'Campaigns',
     tooltip: 'Campaigns with mail activity in the selected period. Sent and Delivered show lifetime totals per campaign from the latest snapshot.',
-    x: 0, y: 14,
+    x: 0, y: 10,
     w: 12, h: 7,
     minW: 6, minH: 4, maxW: 12, maxH: 10,
   },
-  // Layer 5: Charts
+  // Layer 4: Charts
   {
     id: 'rr-sends-trend',
     type: 'rr-sends-trend',
     title: 'Send volume trend',
     tooltip: 'Daily trend of mailing activity within the selected date range. The blue line shows total sends, green shows confirmed deliveries, and the dashed red line shows errors. Flat lines or sudden drops may indicate a paused campaign or system issue.',
-    x: 0, y: 21,
+    x: 0, y: 17,
     w: 6, h: 5,
     minW: 4, minH: 3, maxW: 12, maxH: 8,
   },
@@ -1324,17 +1314,17 @@ export const DEFAULT_RAPID_RESPONSE_LAYOUT: Widget[] = [
     type: 'rr-status-breakdown',
     title: 'Status breakdown',
     tooltip: 'Shows how mailings ended up within the selected date range. "Delivered" means the piece reached the mailbox. "Sent (In Transit)" is still being processed by the print vendor. "On Hold" and "Protected" are paused for business rules. This only counts mailings from the selected period — older mailings are tracked separately in the alerts section.',
-    x: 6, y: 21,
+    x: 6, y: 17,
     w: 6, h: 5,
     minW: 4, minH: 3, maxW: 12, maxH: 8,
   },
-  // Layer 6: Cost (less prominent)
+  // Layer 5: Cost (less prominent)
   {
     id: 'rr-cost-overview',
     type: 'rr-cost-overview',
     title: 'Cost overview',
     tooltip: 'Tracks daily spending on mailings within the selected date range. The blue bars show total daily spend in dollars. The line shows the average cost per mailed piece. A sudden spike in cost per piece could indicate address quality issues or a change in mailing type.',
-    x: 0, y: 26,
+    x: 0, y: 22,
     w: 12, h: 5,
     minW: 6, minH: 4, maxW: 12, maxH: 8,
   },
@@ -1391,13 +1381,6 @@ export const RAPID_RESPONSE_WIDGET_CATALOG: WidgetCatalogItem[] = [
     defaultSize: { w: 6, h: 5 },
   },
   {
-    type: 'rr-alerts-feed',
-    title: 'Alerts (all-time)',
-    description: 'Scans all historical data for issues — not limited to the selected date range',
-    iconKey: 'alert',
-    defaultSize: { w: 12, h: 5 },
-  },
-  {
     type: 'rr-campaign-table',
     title: 'Campaigns',
     description: 'Sortable table of all campaigns with status and metrics',
@@ -1430,33 +1413,23 @@ export const DEFAULT_DM_BUSINESS_RESULTS_LAYOUT: Widget[] = [
     w: 12, h: 7,
     minW: 6, minH: 4, maxW: 12, maxH: 10,
   },
-  // Row 2: Business Alerts — important but users want results first
-  {
-    id: 'dm-alerts-feed',
-    type: 'dm-alerts-feed',
-    title: 'Business alerts',
-    tooltip: 'Alerts based on campaign performance: clients with zero conversions after many sends, negative ROAS, high unattributed conversions, and data quality issues.',
-    x: 0, y: 7,
-    w: 12, h: 4,
-    minW: 6, minH: 3, maxW: 12, maxH: 8,
-  },
-  // Row 3: Client Performance (full width, taller for more rows)
+  // Row 2: Client Performance (full width, taller for more rows)
   {
     id: 'dm-client-performance',
     type: 'dm-client-performance',
     title: 'Client performance',
     tooltip: 'Per-client breakdown filtered by the selected date range. "Mailed" = unique properties first mailed in the period. Click any number to see the actual properties.',
-    x: 0, y: 11,
+    x: 0, y: 7,
     w: 12, h: 8,
     minW: 6, minH: 5, maxW: 12, maxH: 10,
   },
-  // Row 4: Trends — more actionable than static template table
+  // Row 3: Trends — more actionable than static template table
   {
     id: 'dm-conversion-trend',
     type: 'dm-conversion-trend',
     title: 'Conversion trend',
     tooltip: 'Daily trend of new leads, appointments, and deals generated by DM campaigns over the selected time period.',
-    x: 0, y: 19,
+    x: 0, y: 15,
     w: 6, h: 5,
     minW: 4, minH: 3, maxW: 12, maxH: 8,
   },
@@ -1465,50 +1438,43 @@ export const DEFAULT_DM_BUSINESS_RESULTS_LAYOUT: Widget[] = [
     type: 'dm-roas-trend',
     title: 'ROAS trend',
     tooltip: 'Revenue vs cost over time with ROAS (Return on Ad Spend) line. ROAS above 1.0 means the campaign is generating more revenue than it costs.',
-    x: 6, y: 19,
+    x: 6, y: 15,
     w: 6, h: 5,
     minW: 4, minH: 3, maxW: 12, maxH: 8,
   },
-  // Row 5: Template Leaderboard — optimization detail, not first-glance
+  // Row 4: Template Leaderboard — optimization detail, not first-glance
   {
     id: 'dm-template-leaderboard',
     type: 'dm-template-leaderboard',
     title: 'Template leaderboard',
     tooltip: 'Templates ranked by performance: sends, leads generated, deals closed, and ROAS. Identifies which letter/postcard designs drive the best results.',
-    x: 0, y: 24,
+    x: 0, y: 20,
     w: 12, h: 6,
     minW: 6, minH: 5, maxW: 12, maxH: 10,
   },
-  // Row 6: Geographic Breakdown — supporting detail
+  // Row 5: Geographic Breakdown — supporting detail
   {
     id: 'dm-geo-breakdown',
     type: 'dm-geo-breakdown',
     title: 'Geographic breakdown',
     tooltip: 'Conversion rates by state and county. Identifies which geographic markets respond best to direct mail campaigns.',
-    x: 0, y: 30,
+    x: 0, y: 26,
     w: 12, h: 5,
     minW: 6, minH: 4, maxW: 12, maxH: 10,
   },
-  // Row 7: Data Quality — trust indicators at the bottom
+  // Row 6: Data Quality — trust indicators at the bottom
   {
     id: 'dm-data-quality',
     type: 'dm-data-quality',
     title: 'Data quality',
     tooltip: 'Trust indicators for the conversion data: attribution rate, backfilled dates percentage, unattributed conversions, and zero-revenue deals.',
-    x: 0, y: 35,
+    x: 0, y: 31,
     w: 12, h: 3,
     minW: 4, minH: 3, maxW: 12, maxH: 6,
   },
 ];
 
 export const DM_BUSINESS_RESULTS_WIDGET_CATALOG: WidgetCatalogItem[] = [
-  {
-    type: 'dm-alerts-feed',
-    title: 'Business alerts',
-    description: 'Alerts for underperforming clients, negative ROAS, and data quality issues',
-    iconKey: 'alert',
-    defaultSize: { w: 12, h: 5 },
-  },
   {
     type: 'dm-funnel-overview',
     title: 'Conversion funnel',
@@ -1931,20 +1897,11 @@ export const DEFAULT_PCM_VALIDATION_LAYOUT: Widget[] = [
   },
   // ─── Profitability widgets ───
   {
-    id: 'pcm-price-alert',
-    type: 'pcm-price-alert',
-    title: 'Pricing alert',
-    tooltip: 'Margin health status — warning when below 5%, critical when negative',
-    x: 0, y: 20, w: 12, h: 3,
-    minW: 6, minH: 2, maxH: 5,
-    timeBehavior: 'all-time',
-  },
-  {
     id: 'pcm-margin-summary',
     type: 'pcm-margin-summary',
     title: 'Margin summary',
     tooltip: 'Total revenue, PCM cost, gross margin, and margin % across all clients',
-    x: 0, y: 23, w: 12, h: 2,
+    x: 0, y: 20, w: 12, h: 2,
     minW: 8, minH: 2, maxH: 2,
     flushBody: true,
     timeBehavior: 'all-time',
@@ -1954,7 +1911,7 @@ export const DEFAULT_PCM_VALIDATION_LAYOUT: Widget[] = [
     type: 'pcm-mail-class-comparison',
     title: 'Margin by mail class',
     tooltip: 'Standard vs First Class margins — identifies which mail class is unprofitable',
-    x: 0, y: 25, w: 6, h: 5,
+    x: 0, y: 22, w: 6, h: 5,
     minW: 4, minH: 3, maxH: 8,
     timeBehavior: 'all-time',
   },
@@ -1963,7 +1920,7 @@ export const DEFAULT_PCM_VALIDATION_LAYOUT: Widget[] = [
     type: 'pcm-margin-trend',
     title: 'Margin trend',
     tooltip: 'Daily margin over time with revenue and PCM cost context',
-    x: 6, y: 25, w: 6, h: 5,
+    x: 6, y: 22, w: 6, h: 5,
     minW: 4, minH: 3, maxH: 8,
   },
   {
@@ -1971,7 +1928,7 @@ export const DEFAULT_PCM_VALIDATION_LAYOUT: Widget[] = [
     type: 'pcm-client-margins',
     title: 'Per-client margins',
     tooltip: 'Client-level profitability breakdown sorted by worst margins first',
-    x: 0, y: 30, w: 12, h: 7,
+    x: 0, y: 27, w: 12, h: 7,
     minW: 8, minH: 4, maxH: 12,
     timeBehavior: 'all-time',
   },
@@ -1983,7 +1940,6 @@ export const PCM_VALIDATION_WIDGET_CATALOG: WidgetCatalogItem[] = [
   { type: 'pcm-cost-analysis', title: 'Cost analysis', description: 'Unit cost and total cost comparison', iconKey: 'lineChart', defaultSize: { w: 6, h: 5 } },
   { type: 'pcm-status-comparison', title: 'Status comparison', description: 'Aurora vs PCM status distribution', iconKey: 'barChart', defaultSize: { w: 12, h: 5 } },
   { type: 'pcm-mismatch-table', title: 'Domain breakdown', description: 'Per-client reconciliation detail', iconKey: 'table', defaultSize: { w: 12, h: 7 } },
-  { type: 'pcm-price-alert', title: 'Pricing alert', description: 'Margin health status with threshold warnings', iconKey: 'alert', defaultSize: { w: 12, h: 3 } },
   { type: 'pcm-margin-summary', title: 'Margin summary', description: 'Revenue, PCM cost, gross margin, and margin %', iconKey: 'grid', defaultSize: { w: 12, h: 2 } },
   { type: 'pcm-mail-class-comparison', title: 'Margin by mail class', description: 'Standard vs First Class profitability comparison', iconKey: 'barChart', defaultSize: { w: 6, h: 5 } },
   { type: 'pcm-margin-trend', title: 'Margin trend', description: 'Daily margin over time with revenue and cost', iconKey: 'lineChart', defaultSize: { w: 6, h: 5 } },

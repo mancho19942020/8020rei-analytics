@@ -90,9 +90,12 @@ export async function getAlertsData(domain?: string, days?: number): Promise<Ale
   const now = new Date().toISOString();
 
   // BR-1: Underperforming campaign
+  // Industry response rate for DM in real estate is ~0.3-0.4%.
+  // At 0.3%, 2,000 mailings → ~6 expected leads (statistically meaningful).
+  // 5,000 mailings with 0 leads is genuinely critical.
   for (const row of clientRows) {
     const { totalMailed, leads, totalCost, totalRevenue, domain: clientDomain } = row;
-    if (totalMailed >= 500 && leads === 0) {
+    if (totalMailed >= 5000 && leads === 0) {
       const costNote = totalCost > 500
         ? ` The campaign has spent $${totalCost.toLocaleString()} with $0 revenue.`
         : '';
@@ -101,11 +104,26 @@ export async function getAlertsData(domain?: string, days?: number): Promise<Ale
         name: 'Underperforming campaign',
         severity: 'critical',
         category: 'dm-business-results',
-        description: `${clientDomain} has mailed ${totalMailed.toLocaleString()} properties with zero leads.${costNote} The template or targeting criteria may not be reaching the right audience.`,
+        description: `${clientDomain} has mailed ${totalMailed.toLocaleString()} properties with zero leads.${costNote} At industry-average response rates (~0.3%), this volume should have produced ~${Math.round(totalMailed * 0.003)} leads.`,
         entity: clientDomain,
         metrics: { current: leads, baseline: totalMailed },
         detected_at: now,
         action: `Review the template and targeting criteria with the client. Consider using a different template or changing the design of the current one, expanding the geographic area, or adjusting the property type filter.`,
+      });
+    } else if (totalMailed >= 2000 && leads === 0) {
+      const costNote = totalCost > 500
+        ? ` The campaign has spent $${totalCost.toLocaleString()} with $0 revenue.`
+        : '';
+      alerts.push({
+        id: `br-underperforming-${clientDomain}`,
+        name: 'Underperforming campaign',
+        severity: 'warning',
+        category: 'dm-business-results',
+        description: `${clientDomain} has mailed ${totalMailed.toLocaleString()} properties with zero leads.${costNote} At ~0.3% response rate, ~${Math.round(totalMailed * 0.003)} leads were expected. Volume may still be building.`,
+        entity: clientDomain,
+        metrics: { current: leads, baseline: totalMailed },
+        detected_at: now,
+        action: `Monitor for another cycle. If still zero leads after 5,000+ mailings, review template design and targeting criteria with the client.`,
       });
     }
   }
@@ -122,7 +140,7 @@ export async function getAlertsData(domain?: string, days?: number): Promise<Ale
     const hasPerforming = templates.some(t => t.leads > 0);
     if (!hasPerforming) continue;
     for (const t of templates) {
-      if (t.leads === 0 && t.sent >= 100) {
+      if (t.leads === 0 && t.sent >= 500) {
         const bestTemplate = templates.reduce((best, cur) => cur.leads > best.leads ? cur : best, templates[0]);
         alerts.push({
           id: `br-template-underperform-${d}-${t.name}`,
@@ -162,9 +180,11 @@ export async function getAlertsData(domain?: string, days?: number): Promise<Ale
   }
 
   // BR-4: Leads coming in but no deals closing
+  // Real estate deals take months to close. Raised from 5 to 10 leads
+  // to avoid false alarms on campaigns that are still in early pipeline.
   for (const row of clientRows) {
     const { leads, deals, domain: clientDomain } = row;
-    if (leads >= 5 && deals === 0) {
+    if (leads >= 10 && deals === 0) {
       alerts.push({
         id: `br-leads-no-deals-${clientDomain}`,
         name: 'Leads coming in but no deals closing',
@@ -180,15 +200,19 @@ export async function getAlertsData(domain?: string, days?: number): Promise<Ale
   }
 
   // BR-5: Stagnant campaign
+  // At 0.3% response rate, 500 sends → ~1.5 leads is EXPECTED.
+  // Only flag as stagnant at higher volumes where the lead count is clearly below expectations.
+  // 2,000 mailings → ~6 expected; getting 1-3 is genuinely below average.
   for (const row of clientRows) {
     const { totalMailed, leads, deals, domain: clientDomain } = row;
-    if (totalMailed >= 500 && leads > 0 && leads <= 2 && deals === 0) {
+    if (totalMailed >= 2000 && leads > 0 && leads <= 3 && deals === 0) {
+      const expectedLeads = Math.round(totalMailed * 0.003);
       alerts.push({
         id: `br-stagnant-${clientDomain}`,
         name: 'Stagnant campaign',
         severity: 'info',
         category: 'dm-business-results',
-        description: `${clientDomain} has mailed ${totalMailed.toLocaleString()} properties but only generated ${leads} lead${leads > 1 ? 's' : ''} with 0 deals. The campaign may have saturated its market.`,
+        description: `${clientDomain} has mailed ${totalMailed.toLocaleString()} properties but only generated ${leads} lead${leads > 1 ? 's' : ''} with 0 deals. At ~0.3% response rate, ~${expectedLeads} leads were expected.`,
         entity: clientDomain,
         metrics: { current: leads, baseline: totalMailed },
         detected_at: now,
@@ -200,14 +224,14 @@ export async function getAlertsData(domain?: string, days?: number): Promise<Ale
   // BR-6: Pipeline leakage
   for (const row of clientRows) {
     const { leads, appointments, contracts, deals, domain: clientDomain } = row;
-    if (leads < 3) continue;
+    if (leads < 5) continue;
     const stages: { from: string; to: string; fromCount: number; toCount: number }[] = [
       { from: 'leads', to: 'appointments', fromCount: leads, toCount: appointments },
       { from: 'appointments', to: 'contracts', fromCount: appointments, toCount: contracts },
       { from: 'contracts', to: 'deals', fromCount: contracts, toCount: deals },
     ];
     for (const stage of stages) {
-      if (stage.fromCount >= 3 && stage.toCount === 0) {
+      if (stage.fromCount >= 5 && stage.toCount === 0) {
         alerts.push({
           id: `br-pipeline-leak-${clientDomain}-${stage.from}-${stage.to}`,
           name: 'Pipeline leakage',
