@@ -145,7 +145,17 @@ export type WidgetType =
   | 'pcm-mail-class-comparison'
   | 'pcm-client-margins'
   | 'pcm-margin-trend'
-  | 'pcm-price-alert';
+  | 'pcm-price-alert'
+  | 'pcm-price-change-detection'
+  | 'pcm-pricing-overview'
+  | 'pcm-pricing-history'
+  | 'pcm-data-match'
+  | 'pcm-margin-period'
+  | 'pcm-clients-profitable'
+  | 'pcm-clients-breakeven'
+  | 'pcm-clients-losing'
+  | 'pcm-domain-table'
+  | 'pcm-template-table';
 
 /**
  * Widget Configuration

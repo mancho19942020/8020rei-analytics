@@ -47,6 +47,16 @@ import {
   PcmClientMarginsWidget,
   PcmMarginTrendWidget,
   PcmPriceAlertWidget,
+  PcmPriceChangeDetectionWidget,
+  PcmPricingOverviewWidget,
+  PcmPricingHistoryWidget,
+  PcmDataMatchWidget,
+  PcmMarginPeriodWidget,
+  PcmClientsProfitableWidget,
+  PcmClientsBreakevenWidget,
+  PcmClientsLosingWidget,
+  PcmDomainTableWidget,
+  PcmTemplateTableWidget,
 } from '@/components/workspace/widgets';
 import {
   DEFAULT_RAPID_RESPONSE_LAYOUT,
@@ -84,6 +94,11 @@ import type {
 import type {
   ProfitabilitySummary,
   PriceAlertData,
+  PriceDetectionData,
+  PriceImpactData,
+  CurrentRatesData,
+  PricingHistoryData,
+  RateHistoryData,
 } from '@/types/pcm-validation';
 import { authFetch } from '@/lib/auth-fetch';
 
@@ -239,7 +254,7 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
       try {
         const domainParam = selectedDomain ? `&domain=${encodeURIComponent(selectedDomain)}` : '';
         const dp = buildDateQueryString(days, startDate, endDate);
-        const [summaryRes, domainsRes, designsRes, statusRes, profSummaryRes, mailClassRes, clientMarginsRes, marginTrendRes] = await Promise.all([
+        const [summaryRes, domainsRes, designsRes, statusRes, profSummaryRes, mailClassRes, clientMarginsRes, marginTrendRes, priceDetectionRes, priceImpactRes, currentRatesRes, pricingHistoryRes, profitPeriodRes] = await Promise.all([
           authFetch(`/api/pcm-validation?type=summary&${dp}${domainParam}`).then(r => r.json()),
           authFetch(`/api/pcm-validation?type=domain-breakdown&${dp}${domainParam}`).then(r => r.json()),
           authFetch(`/api/pcm-validation?type=designs`).then(r => r.json()),
@@ -247,7 +262,14 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
           authFetch(`/api/pcm-validation?type=profitability-summary&${dp}${domainParam}`).then(r => r.json()).catch(() => ({ dataAvailable: false })),
           authFetch(`/api/pcm-validation?type=margin-by-mail-class&${dp}${domainParam}`).then(r => r.json()).catch(() => ({ mailClasses: [], dataAvailable: false })),
           authFetch(`/api/pcm-validation?type=client-margins&${dp}${domainParam}`).then(r => r.json()).catch(() => ({ clients: [], dataAvailable: false })),
-          authFetch(`/api/pcm-validation?type=margin-trend&${dp}${domainParam}`).then(r => r.json()).catch(() => ({ trend: [], dataAvailable: false })),
+          // Margin trend: always fetch ALL data (all-time chart, not filtered by date selector)
+          authFetch(`/api/pcm-validation?type=margin-trend${domainParam}`).then(r => r.json()).catch(() => ({ trend: [], dataAvailable: false })),
+          authFetch(`/api/pcm-validation?type=price-detection&${dp}${domainParam}`).then(r => r.json()).catch(() => ({ currentRates: { standard: null, firstClass: null }, changes: [], rolloutStatus: { standard: null, firstClass: null }, dataAvailable: false })),
+          authFetch(`/api/pcm-validation?type=price-impact&${dp}${domainParam}`).then(r => r.json()).catch(() => ({ impacts: [], dataAvailable: false })),
+          authFetch(`/api/pcm-validation?type=current-rates&${dp}${domainParam}`).then(r => r.json()).catch(() => ({ standard: null, firstClass: null, blended: null, dataAvailable: false })),
+          authFetch(`/api/pcm-validation?type=pricing-history&${dp}${domainParam}`).then(r => r.json()).catch(() => ({ trend: [], dataAvailable: false })),
+          // Period profitability: filtered by date selector
+          authFetch(`/api/pcm-validation?type=profitability-period&${dp}${domainParam}`).then(r => r.json()).catch(() => ({ dataAvailable: false })),
         ]);
 
         // Compute price alert from profitability data
@@ -310,6 +332,11 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
           clientMargins: clientMarginsRes,
           marginTrend: marginTrendRes,
           priceAlert,
+          priceDetection: priceDetectionRes as PriceDetectionData,
+          priceImpact: priceImpactRes as PriceImpactData,
+          currentRates: currentRatesRes as CurrentRatesData,
+          pricingHistory: pricingHistoryRes as PricingHistoryData,
+          profitPeriod: profitPeriodRes,
         });
       } catch (err) {
         setPcmError(err instanceof Error ? err.message : 'Failed to fetch PCM data');
@@ -539,20 +566,32 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
     const headerExtras = useMemo(() => ({}), []);
     const brHeaderExtras = useMemo(() => ({}), []);
 
-    // PCM & Profitability widget mapping
+    // Profitability widget mapping (story: Verdict → Trends → Pricing → Data Integrity → Details)
     const pcmWidgets = useMemo(() => {
       if (!pcmData) return {};
       return {
+        // Active widgets
+        'pcm-margin-summary': <PcmMarginSummaryWidget data={pcmData.profitSummary} />,
+        'pcm-margin-period': <PcmMarginPeriodWidget data={pcmData.profitPeriod} />,
+        'pcm-margin-trend': <PcmMarginTrendWidget data={pcmData.marginTrend} />,
+        'pcm-pricing-overview': <PcmPricingOverviewWidget currentRates={pcmData.currentRates} detection={pcmData.priceDetection} mailClassData={pcmData.mailClassMargins} />,
+        'pcm-data-match': <PcmDataMatchWidget summary={pcmData.summary} statusComparison={pcmData.statusComparison} />,
+        'pcm-clients-profitable': <PcmClientsProfitableWidget data={pcmData.clientMargins} />,
+        'pcm-clients-breakeven': <PcmClientsBreakevenWidget data={pcmData.clientMargins} />,
+        'pcm-clients-losing': <PcmClientsLosingWidget data={pcmData.clientMargins} />,
+        'pcm-domain-table': <PcmDomainTableWidget data={pcmData.domains} />,
+        'pcm-template-table': <PcmTemplateTableWidget designs={pcmData.designs} />,
+        // Legacy mappings (for users with saved layouts from old version)
+        'pcm-client-margins': <PcmClientMarginsWidget data={pcmData.clientMargins} />,
+        'pcm-mismatch-table': <PcmMismatchTableWidget data={pcmData.domains} designs={pcmData.designs} />,
         'pcm-reconciliation-overview': <PcmReconciliationOverviewWidget data={pcmData.summary} />,
         'pcm-volume-comparison': <PcmVolumeComparisonWidget data={pcmData.summary} domains={pcmData.domains} />,
-        'pcm-cost-analysis': <PcmCostAnalysisWidget data={pcmData.summary} domains={pcmData.domains} />,
+        'pcm-cost-analysis': <PcmCostAnalysisWidget data={pcmData.summary} domains={pcmData.domains} currentRates={pcmData.currentRates} />,
         'pcm-status-comparison': <PcmStatusComparisonWidget data={pcmData.statusComparison} />,
-        'pcm-mismatch-table': <PcmMismatchTableWidget data={pcmData.domains} designs={pcmData.designs} />,
-        'pcm-margin-summary': <PcmMarginSummaryWidget data={pcmData.profitSummary} />,
         'pcm-mail-class-comparison': <PcmMailClassComparisonWidget data={pcmData.mailClassMargins} />,
-        'pcm-client-margins': <PcmClientMarginsWidget data={pcmData.clientMargins} />,
-        'pcm-margin-trend': <PcmMarginTrendWidget data={pcmData.marginTrend} />,
         'pcm-price-alert': <PcmPriceAlertWidget data={pcmData.priceAlert} />,
+        'pcm-price-change-detection': <PcmPriceChangeDetectionWidget detection={pcmData.priceDetection} impact={pcmData.priceImpact} />,
+        'pcm-pricing-history': <PcmPricingHistoryWidget data={pcmData.pricingHistory} />,
       };
     }, [pcmData]);
 
@@ -612,7 +651,15 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
               Filtered: {selectedDomain.replace(/_8020rei_com$/i, '').replace(/_/g, ' ')}
             </AxisTag>
           )}
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
+            {pcmData?.summary && (
+              <AxisTag
+                color={pcmData.summary.pcmConnected ? 'success' : 'error'}
+                size="sm"
+              >
+                PCM API {pcmData.summary.pcmConnected ? 'connected' : 'disconnected'}
+              </AxisTag>
+            )}
             {(() => {
               const count = getAlertCount(activeSubTab, data?.alerts, brData?.alerts, pcmData?.priceAlert);
               return (

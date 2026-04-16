@@ -1845,105 +1845,123 @@ export const PLATFORM_ANALYTICS_WIDGET_CATALOG: WidgetCatalogItem[] = [
   { type: 'pa-user-engagement', title: 'Time by section', description: 'Time distribution across sections', iconKey: 'donutChart', defaultSize: { w: 6, h: 5 } },
 ];
 
-// ─── PCM & Profitability Layout ─────────────────────────────────
+// ─── Profitability Layout (formerly PCM & Profitability) ────────
+// Story: Verdict → Trends → Pricing → Data Integrity → Details
 
-export const PCM_VALIDATION_LAYOUT_STORAGE_KEY = 'pcm-validation-layout-v2';
+export const PCM_VALIDATION_LAYOUT_STORAGE_KEY = 'pcm-validation-layout-v6';
 
 export const DEFAULT_PCM_VALIDATION_LAYOUT: Widget[] = [
-  {
-    id: 'pcm-reconciliation-overview',
-    type: 'pcm-reconciliation-overview',
-    title: 'Reconciliation status',
-    tooltip: 'Connection status, PCM balance, and Aurora totals at a glance',
-    x: 0, y: 0, w: 12, h: 3,
-    minW: 8, minH: 3, maxH: 5,
-    flushBody: true,
-    timeBehavior: 'all-time',
-  },
-  {
-    id: 'pcm-volume-comparison',
-    type: 'pcm-volume-comparison',
-    title: 'Volume: 8020REI vs PCM',
-    tooltip: 'Compares all-time mail piece counts between Aurora and PCM. Both sides count individual mail pieces (not unique properties). "Active campaigns" matches the count shown in Operational Health. "Domains with send data" includes all historical domains, even those with no active campaigns.',
-    x: 0, y: 3, w: 6, h: 5,
-    minW: 4, minH: 3, maxH: 8,
-    timeBehavior: 'all-time',
-  },
-  {
-    id: 'pcm-cost-analysis',
-    type: 'pcm-cost-analysis',
-    title: 'Cost analysis',
-    tooltip: 'Compare our unit cost vs PCM pricing',
-    x: 6, y: 3, w: 6, h: 5,
-    minW: 4, minH: 3, maxH: 8,
-    timeBehavior: 'all-time',
-  },
-  {
-    id: 'pcm-status-comparison',
-    type: 'pcm-status-comparison',
-    title: 'Status comparison',
-    tooltip: 'Aurora status distribution vs PCM status distribution',
-    x: 0, y: 8, w: 12, h: 5,
-    minW: 6, minH: 3, maxH: 8,
-  },
-  {
-    id: 'pcm-mismatch-table',
-    type: 'pcm-mismatch-table',
-    title: 'Domain breakdown',
-    tooltip: 'Per-client send totals — will show mismatches when PCM order access is resolved',
-    x: 0, y: 13, w: 12, h: 7,
-    minW: 8, minH: 4, maxH: 12,
-    timeBehavior: 'all-time',
-  },
-  // ─── Profitability widgets ───
+  // ─── THE VERDICT (all-time) ───
   {
     id: 'pcm-margin-summary',
     type: 'pcm-margin-summary',
     title: 'Margin summary',
-    tooltip: 'Total revenue, PCM cost, gross margin, and margin % across all clients',
-    x: 0, y: 20, w: 12, h: 2,
+    tooltip: 'All-time revenue, PCM cost, gross margin, and margin % across all clients. The verdict: are we making money?',
+    x: 0, y: 0, w: 12, h: 2,
     minW: 8, minH: 2, maxH: 2,
     flushBody: true,
     timeBehavior: 'all-time',
   },
+  // ─── THE VERDICT (filtered by date selector) ───
   {
-    id: 'pcm-mail-class-comparison',
-    type: 'pcm-mail-class-comparison',
-    title: 'Margin by mail class',
-    tooltip: 'Standard vs First Class margins — identifies which mail class is unprofitable',
-    x: 0, y: 22, w: 6, h: 5,
-    minW: 4, minH: 3, maxH: 8,
-    timeBehavior: 'all-time',
+    id: 'pcm-margin-period',
+    type: 'pcm-margin-period',
+    title: 'Period summary',
+    tooltip: 'Revenue, PCM cost, gross margin, and margin % for the selected date range. Changes with the date filter above.',
+    x: 0, y: 2, w: 12, h: 2,
+    minW: 8, minH: 2, maxH: 2,
+    flushBody: true,
   },
+  // ─── THE TREND (all-time historical) ───
   {
     id: 'pcm-margin-trend',
     type: 'pcm-margin-trend',
-    title: 'Margin trend',
-    tooltip: 'Daily margin over time with revenue and PCM cost context',
-    x: 6, y: 22, w: 6, h: 5,
-    minW: 4, minH: 3, maxH: 8,
+    title: 'Revenue & margin trend',
+    tooltip: 'Complete historical view: daily revenue (what clients pay us), PCM cost (what we pay PostcardMania), and margin over time.',
+    x: 0, y: 4, w: 12, h: 5,
+    minW: 6, minH: 3, maxH: 8,
+    timeBehavior: 'all-time',
+  },
+  // ─── THE PRICING ───
+  {
+    id: 'pcm-pricing-overview',
+    type: 'pcm-pricing-overview',
+    title: 'Pricing overview',
+    tooltip: 'What we charge per piece vs what PCM charges us, margin per piece, and recent price change detection.',
+    x: 0, y: 9, w: 6, h: 4,
+    minW: 4, minH: 3, maxH: 6,
+    timeBehavior: 'all-time',
+  },
+  // ─── DATA INTEGRITY (side by side with pricing) ───
+  {
+    id: 'pcm-data-match',
+    type: 'pcm-data-match',
+    title: 'Data match',
+    tooltip: 'Compares our send totals against PostcardMania order totals. Match rate shows data integrity between systems.',
+    x: 6, y: 9, w: 6, h: 4,
+    minW: 4, minH: 3, maxH: 6,
+    timeBehavior: 'all-time',
+  },
+  // ─── CLIENT DETAILS (3 separate tables by health) ───
+  {
+    id: 'pcm-clients-profitable',
+    type: 'pcm-clients-profitable',
+    title: 'Profitable clients',
+    tooltip: 'Clients with margins above 5%, sorted by highest margin first.',
+    x: 0, y: 13, w: 12, h: 6,
+    minW: 8, minH: 3, maxH: 10,
+    timeBehavior: 'all-time',
   },
   {
-    id: 'pcm-client-margins',
-    type: 'pcm-client-margins',
-    title: 'Per-client margins',
-    tooltip: 'Client-level profitability breakdown sorted by worst margins first',
-    x: 0, y: 27, w: 12, h: 7,
-    minW: 8, minH: 4, maxH: 12,
+    id: 'pcm-clients-breakeven',
+    type: 'pcm-clients-breakeven',
+    title: 'Break-even clients',
+    tooltip: 'Clients with margins between 0-5%. Pricing review recommended.',
+    x: 0, y: 19, w: 12, h: 6,
+    minW: 8, minH: 3, maxH: 10,
+    timeBehavior: 'all-time',
+  },
+  {
+    id: 'pcm-clients-losing',
+    type: 'pcm-clients-losing',
+    title: 'Losing money',
+    tooltip: 'Clients where we lose money on every piece sent. Worst margins first.',
+    x: 0, y: 25, w: 12, h: 6,
+    minW: 8, minH: 3, maxH: 10,
+    timeBehavior: 'all-time',
+  },
+  // ─── DOMAIN & TEMPLATE DETAILS ───
+  {
+    id: 'pcm-domain-table',
+    type: 'pcm-domain-table',
+    title: 'Domain breakdown',
+    tooltip: 'Per-domain send totals, delivery counts, and cost per piece.',
+    x: 0, y: 31, w: 12, h: 6,
+    minW: 8, minH: 3, maxH: 10,
+    timeBehavior: 'all-time',
+  },
+  {
+    id: 'pcm-template-table',
+    type: 'pcm-template-table',
+    title: 'Template catalog',
+    tooltip: 'PostcardMania design templates — name, type, size, and mail classes.',
+    x: 0, y: 37, w: 12, h: 6,
+    minW: 8, minH: 3, maxH: 10,
     timeBehavior: 'all-time',
   },
 ];
 
 export const PCM_VALIDATION_WIDGET_CATALOG: WidgetCatalogItem[] = [
-  { type: 'pcm-reconciliation-overview', title: 'Reconciliation status', description: 'PCM connection, balance, and Aurora totals', iconKey: 'grid', defaultSize: { w: 12, h: 3 } },
-  { type: 'pcm-volume-comparison', title: 'Volume: 8020REI vs PCM', description: 'Send count comparison', iconKey: 'barChart', defaultSize: { w: 6, h: 5 } },
-  { type: 'pcm-cost-analysis', title: 'Cost analysis', description: 'Unit cost and total cost comparison', iconKey: 'lineChart', defaultSize: { w: 6, h: 5 } },
-  { type: 'pcm-status-comparison', title: 'Status comparison', description: 'Aurora vs PCM status distribution', iconKey: 'barChart', defaultSize: { w: 12, h: 5 } },
-  { type: 'pcm-mismatch-table', title: 'Domain breakdown', description: 'Per-client reconciliation detail', iconKey: 'table', defaultSize: { w: 12, h: 7 } },
-  { type: 'pcm-margin-summary', title: 'Margin summary', description: 'Revenue, PCM cost, gross margin, and margin %', iconKey: 'grid', defaultSize: { w: 12, h: 2 } },
-  { type: 'pcm-mail-class-comparison', title: 'Margin by mail class', description: 'Standard vs First Class profitability comparison', iconKey: 'barChart', defaultSize: { w: 6, h: 5 } },
-  { type: 'pcm-margin-trend', title: 'Margin trend', description: 'Daily margin over time with revenue and cost', iconKey: 'lineChart', defaultSize: { w: 6, h: 5 } },
-  { type: 'pcm-client-margins', title: 'Per-client margins', description: 'Client-level profitability table', iconKey: 'table', defaultSize: { w: 12, h: 7 } },
+  { type: 'pcm-margin-summary', title: 'Margin summary', description: 'All-time revenue, PCM cost, gross margin, and margin %', iconKey: 'grid', defaultSize: { w: 12, h: 2 } },
+  { type: 'pcm-margin-period', title: 'Period summary', description: 'Date-filtered revenue, PCM cost, gross margin, and margin %', iconKey: 'grid', defaultSize: { w: 12, h: 2 } },
+  { type: 'pcm-margin-trend', title: 'Revenue & margin trend', description: 'All-time daily margin with revenue and cost', iconKey: 'lineChart', defaultSize: { w: 12, h: 5 } },
+  { type: 'pcm-pricing-overview', title: 'Pricing overview', description: 'Our rates vs PCM rates with margin per piece', iconKey: 'grid', defaultSize: { w: 6, h: 4 } },
+  { type: 'pcm-data-match', title: 'Data match', description: 'Our sends vs PCM orders with match rate', iconKey: 'barChart', defaultSize: { w: 6, h: 4 } },
+  { type: 'pcm-clients-profitable', title: 'Profitable clients', description: 'Clients with margins above 5%', iconKey: 'table', defaultSize: { w: 12, h: 6 } },
+  { type: 'pcm-clients-breakeven', title: 'Break-even clients', description: 'Clients with margins 0-5%', iconKey: 'table', defaultSize: { w: 12, h: 6 } },
+  { type: 'pcm-clients-losing', title: 'Losing money', description: 'Clients with negative margins', iconKey: 'table', defaultSize: { w: 12, h: 6 } },
+  { type: 'pcm-domain-table', title: 'Domain breakdown', description: 'Per-domain send totals and cost', iconKey: 'table', defaultSize: { w: 12, h: 6 } },
+  { type: 'pcm-template-table', title: 'Template catalog', description: 'PCM design templates', iconKey: 'table', defaultSize: { w: 12, h: 6 } },
 ];
 
 /**

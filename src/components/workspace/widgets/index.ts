@@ -115,6 +115,16 @@ export { PcmMailClassComparisonWidget } from './PcmMailClassComparisonWidget';
 export { PcmClientMarginsWidget } from './PcmClientMarginsWidget';
 export { PcmMarginTrendWidget } from './PcmMarginTrendWidget';
 export { PcmPriceAlertWidget } from './PcmPriceAlertWidget';
+export { PcmPriceChangeDetectionWidget } from './PcmPriceChangeDetectionWidget';
+export { PcmPricingOverviewWidget } from './PcmPricingOverviewWidget';
+export { PcmPricingHistoryWidget } from './PcmPricingHistoryWidget';
+export { PcmDataMatchWidget } from './PcmDataMatchWidget';
+export { PcmMarginPeriodWidget } from './PcmMarginPeriodWidget';
+export { PcmClientsProfitableWidget } from './PcmClientsProfitableWidget';
+export { PcmClientsBreakevenWidget } from './PcmClientsBreakevenWidget';
+export { PcmClientsLosingWidget } from './PcmClientsLosingWidget';
+export { PcmDomainTableWidget } from './PcmDomainTableWidget';
+export { PcmTemplateTableWidget } from './PcmTemplateTableWidget';
 
 // Product Tasks > Asana board widgets
 export { AsanaBoardOverviewWidget } from './AsanaBoardOverviewWidget';

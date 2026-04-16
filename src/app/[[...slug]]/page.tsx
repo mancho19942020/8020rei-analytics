@@ -59,6 +59,8 @@ const ClientDomainsTab = dynamic(() => import('@/components/dashboard/ClientDoma
 const AiTaskBoardTab = dynamic(() => import('@/components/dashboard/AiTaskBoardTab').then(m => m.AiTaskBoardTab), { loading: TabSkeleton, ssr: false });
 const BugsDiBoardTab = dynamic(() => import('@/components/dashboard/BugsDiBoardTab').then(m => m.BugsDiBoardTab), { loading: TabSkeleton, ssr: false });
 const PlatformAnalyticsTab = dynamic(() => import('@/components/dashboard/PlatformAnalyticsTab').then(m => m.PlatformAnalyticsTab), { loading: TabSkeleton, ssr: false });
+const DmReportsTab = dynamic(() => import('@/components/dashboard/DmReportsTab').then(m => m.DmReportsTab), { loading: TabSkeleton, ssr: false });
+const DmDataSourcesTab = dynamic(() => import('@/components/dashboard/DmDataSourcesTab').then(m => m.DmDataSourcesTab), { loading: TabSkeleton, ssr: false });
 
 interface MetricValues {
   total_users: number;
@@ -768,8 +770,8 @@ function Dashboard({ slug }: { slug: string[] }) {
             />
           )}
 
-          {/* DM Campaign Tab (Features > DM Campaign) */}
-          {activeMainSection === 'features' && activeSubsection === 'dm-campaign' && (
+          {/* DM Campaign Tab (Features > DM Campaign) — widget tabs */}
+          {activeMainSection === 'features' && activeSubsection === 'dm-campaign' && !['reports', 'data-sources'].includes(dmCampaignSubTab) && (
             <RapidResponseTab
               ref={dmCampaignRef}
               days={days}
@@ -779,6 +781,16 @@ function Dashboard({ slug }: { slug: string[] }) {
               onEditModeChange={setEditMode}
               activeSubTab={dmCampaignSubTab}
             />
+          )}
+
+          {/* DM Campaign > Reports tab — document-style reports */}
+          {activeMainSection === 'features' && activeSubsection === 'dm-campaign' && dmCampaignSubTab === 'reports' && (
+            <DmReportsTab />
+          )}
+
+          {/* DM Campaign > Data sources tab — methodology & transparency */}
+          {activeMainSection === 'features' && activeSubsection === 'dm-campaign' && dmCampaignSubTab === 'data-sources' && (
+            <DmDataSourcesTab />
           )}
 
           {/* Product Tasks > AI Task Board */}

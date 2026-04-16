@@ -52,10 +52,20 @@ export async function pcmGet<T>(path: string, params?: Record<string, string | n
     }
   }
 
-  const response = await fetch(url.toString(), {
+  let response = await fetch(url.toString(), {
     method: 'GET',
     headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${token}` },
   });
+
+  // Retry once on 401 — token may have expired mid-cache
+  if (response.status === 401) {
+    cachedToken = null;
+    const freshToken = await authenticate();
+    response = await fetch(url.toString(), {
+      method: 'GET',
+      headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${freshToken}` },
+    });
+  }
 
   if (!response.ok) {
     throw new Error(`PCM API GET ${path} failed (${response.status})`);
