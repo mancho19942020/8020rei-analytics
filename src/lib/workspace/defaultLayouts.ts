@@ -1876,8 +1876,8 @@ export const DEFAULT_PCM_VALIDATION_LAYOUT: Widget[] = [
   {
     id: 'pcm-margin-trend',
     type: 'pcm-margin-trend',
-    title: 'Revenue & margin trend',
-    tooltip: 'Complete historical view: daily revenue (what clients pay us), PCM cost (what we pay PostcardMania), and margin over time.',
+    title: 'Pricing history',
+    tooltip: 'Monthly per-piece rates since launch: what we charge clients (blue), what PCM charges us (red), and margin per piece (green). Updates automatically with each sync.',
     x: 0, y: 4, w: 12, h: 5,
     minW: 6, minH: 3, maxH: 8,
     timeBehavior: 'all-time',
@@ -1954,7 +1954,7 @@ export const DEFAULT_PCM_VALIDATION_LAYOUT: Widget[] = [
 export const PCM_VALIDATION_WIDGET_CATALOG: WidgetCatalogItem[] = [
   { type: 'pcm-margin-summary', title: 'Margin summary', description: 'All-time revenue, PCM cost, gross margin, and margin %', iconKey: 'grid', defaultSize: { w: 12, h: 2 } },
   { type: 'pcm-margin-period', title: 'Period summary', description: 'Date-filtered revenue, PCM cost, gross margin, and margin %', iconKey: 'grid', defaultSize: { w: 12, h: 2 } },
-  { type: 'pcm-margin-trend', title: 'Revenue & margin trend', description: 'All-time daily margin with revenue and cost', iconKey: 'lineChart', defaultSize: { w: 12, h: 5 } },
+  { type: 'pcm-margin-trend', title: 'Pricing history', description: 'Per-piece rates over time: us vs PCM with margin', iconKey: 'lineChart', defaultSize: { w: 12, h: 5 } },
   { type: 'pcm-pricing-overview', title: 'Pricing overview', description: 'Our rates vs PCM rates with margin per piece', iconKey: 'grid', defaultSize: { w: 6, h: 4 } },
   { type: 'pcm-data-match', title: 'Data match', description: 'Our sends vs PCM orders with match rate', iconKey: 'barChart', defaultSize: { w: 6, h: 4 } },
   { type: 'pcm-clients-profitable', title: 'Profitable clients', description: 'Clients with margins above 5%', iconKey: 'table', defaultSize: { w: 12, h: 6 } },
