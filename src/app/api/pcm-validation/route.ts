@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
   try {
     switch (type) {
       case 'summary':
-        return await getSummary(domain);
+        return await getSummary(domain, days);
       case 'domain-breakdown':
         return await getDomainBreakdown(domain);
       case 'designs':
@@ -83,19 +83,21 @@ export async function GET(request: NextRequest) {
 
 // ─── Summary ───────────────────────────────────────────────────
 
-async function getSummary(domain?: string) {
-  const cacheKey = `pcm-validation:summary:${domain || 'all'}`;
+async function getSummary(domain?: string, days?: number) {
+  const effectiveDays = days || 30;
+  const cacheKey = `pcm-validation:summary:${domain || 'all'}:${effectiveDays}`;
   const cached = getCached<unknown>(cacheKey);
   if (cached) return NextResponse.json(cached);
 
   const pcmConfigured = isPcmConfigured();
   const auroraConfigured = isAuroraConfigured();
 
-  // Fetch PCM + Aurora + active campaign count in parallel
-  const [pcmData, auroraData, activeCampaignData] = await Promise.all([
+  // Fetch PCM + Aurora + active campaign count + alignment health in parallel
+  const [pcmData, auroraData, activeCampaignData, alignmentHealth] = await Promise.all([
     pcmConfigured ? fetchPcmSummary() : getEmptyPcmSummary(),
     auroraConfigured ? fetchAuroraSummary(domain) : getEmptyAuroraSummary(),
     auroraConfigured ? fetchActiveCampaignCount(domain) : { activeCampaigns: 0, activeDomainsCount: 0 },
+    auroraConfigured ? fetchAlignmentHealth(domain, effectiveDays) : { totalDomains: 0, syncedDomains: 0, domainsWithGaps: 0, totalSyncGap: 0, alignmentMatchRate: 100 },
   ]);
 
   const matchRate = calculateMatchRate(pcmData.orderCount, auroraData.totalSends);
@@ -117,11 +119,47 @@ async function getSummary(domain?: string) {
       ? Number(((pcmData.orderCount - auroraData.totalSends) / auroraData.totalSends * 100).toFixed(1))
       : 0,
     matchRate,
+    // Alignment health from rr_pcm_alignment (PCM-verified, per-domain)
+    alignmentHealth,
     timestamp: new Date().toISOString(),
   };
 
   setCache(cacheKey, result);
   return NextResponse.json(result);
+}
+
+/**
+ * Fetch alignment health from rr_pcm_alignment — per-domain PCM comparison.
+ * Returns domain-level sync status: how many domains are fully synced with PCM,
+ * how many have gaps, and the aggregate match rate.
+ */
+async function fetchAlignmentHealth(domain?: string, days?: number) {
+  const effectiveDays = days || 30;
+  const domFilter = domain ? `AND domain = '${domain.replace(/[^a-zA-Z0-9_.]/g, '')}'` : '';
+  const rows = await runAuroraQuery(`
+    SELECT DISTINCT ON (domain)
+      domain,
+      COALESCE(back_office_sync_gap, 0) as sync_gap,
+      COALESCE(stale_sent_count, 0) as stale,
+      COALESCE(orphaned_orders_count, 0) as orphaned
+    FROM rr_pcm_alignment
+    WHERE domain NOT IN (${TEST_DOMAINS})
+      AND checked_at >= CURRENT_DATE - INTERVAL '${effectiveDays} days'
+      ${domFilter}
+    ORDER BY domain, checked_at DESC
+  `);
+
+  const totalDomains = rows.length;
+  const domainsWithGaps = rows.filter((r: Record<string, unknown>) => Number(r.sync_gap) > 0).length;
+  const syncedDomains = totalDomains - domainsWithGaps;
+  const totalSyncGap = rows.reduce((s: number, r: Record<string, unknown>) => s + Math.max(0, Number(r.sync_gap || 0)), 0);
+  const totalStale = rows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.stale || 0), 0);
+  const totalOrphaned = rows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.orphaned || 0), 0);
+  const alignmentMatchRate = totalDomains > 0
+    ? Number(((syncedDomains / totalDomains) * 100).toFixed(1))
+    : 100;
+
+  return { totalDomains, syncedDomains, domainsWithGaps, totalSyncGap, totalStale, totalOrphaned, alignmentMatchRate };
 }
 
 // ─── Domain Breakdown ──────────────────────────────────────────

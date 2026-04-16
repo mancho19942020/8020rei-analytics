@@ -141,13 +141,14 @@ async function getOverview(days: number, domain?: string) {
       AND ${domainFilter(domain)}
     `),
 
-    // PCM Health: latest per-domain alignment check
+    // PCM Health: latest per-domain alignment check within the selected period
     runAuroraQuery(`
       SELECT DISTINCT ON (domain)
         domain, stale_sent_count, orphaned_orders_count, oldest_stale_days,
         delivery_lag_median_days, back_office_sync_gap, checked_at
       FROM rr_pcm_alignment
       WHERE ${domainFilter(domain)}
+        AND checked_at >= CURRENT_DATE - INTERVAL '${days} days'
       ORDER BY domain, checked_at DESC
     `),
 
@@ -228,7 +229,11 @@ async function getOverview(days: number, domain?: string) {
     deliveredTotal7d: deliveredCount,
   };
 
-  // Compute PCM Health (aggregated across all domains)
+  // Compute PCM Health (aggregated across all domains) with domain-level counts
+  const domainsWithGaps = pcmRows.filter((r: Record<string, unknown>) => Number(r.back_office_sync_gap || 0) > 0).length;
+  const domainsWithStale = pcmRows.filter((r: Record<string, unknown>) => Number(r.stale_sent_count || 0) > 0).length;
+  const domainsWithOrphaned = pcmRows.filter((r: Record<string, unknown>) => Number(r.orphaned_orders_count || 0) > 0).length;
+
   const pcmHealth: RrPcmHealth = {
     staleSentCount: pcmRows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.stale_sent_count || 0), 0),
     orphanedOrdersCount: pcmRows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.orphaned_orders_count || 0), 0),
@@ -240,6 +245,11 @@ async function getOverview(days: number, domain?: string) {
     undeliverableRate7d: pcmRows.length > 0
       ? Number((pcmRows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.undeliverable_rate_7d || 0), 0) / pcmRows.length).toFixed(1))
       : 0,
+    totalDomains: pcmRows.length,
+    syncedDomains: pcmRows.length - domainsWithGaps,
+    domainsWithGaps,
+    domainsWithStale,
+    domainsWithOrphaned,
   };
 
   // Compute System Status (verdict banner)
@@ -521,7 +531,8 @@ async function getAlerts(days: number, domain?: string) {
   }
 
   // RR2: PCM pipeline stale — per-domain breakdown
-  if (totalStale > 0) {
+  // Threshold: warning at >10, critical at >50 (avoids noise from 1-2 ancient stale items)
+  if (totalStale > 10) {
     const staleBreakdown = pcmRows
       .filter((r: Record<string, unknown>) => Number(r.stale_sent_count || 0) > 0)
       .map((r: Record<string, unknown>) => `${String(r.domain || 'unknown')}: ${r.stale_sent_count} stale (oldest: ${r.oldest_stale_days}d)`)
@@ -530,9 +541,9 @@ async function getAlerts(days: number, domain?: string) {
     alerts.push({
       id: 'rr-pcm-stale',
       name: 'PCM pipeline stale',
-      severity: 'critical',
+      severity: totalStale > 50 ? 'critical' : 'warning',
       category: 'rapid-response',
-      description: `${totalStale} mailings stuck in "sent" for 14+ days — PCM pipeline may be broken. Breakdown by client: ${staleBreakdown}.`,
+      description: `${totalStale} mailings stuck in "sent" for 14+ days across ${pcmRows.filter((r: Record<string, unknown>) => Number(r.stale_sent_count || 0) > 0).length} domain(s) — PCM pipeline may be broken. Breakdown: ${staleBreakdown}.`,
       entity: affectedDomains(pcmRows, 'stale_sent_count').replace(' Affected: ', '').replace('.', ''),
       metrics: { current: totalStale },
       detected_at: now,
@@ -542,7 +553,8 @@ async function getAlerts(days: number, domain?: string) {
   }
 
   // RR3: Orphaned orders — per-domain breakdown
-  if (totalOrphaned > 0) {
+  // Threshold: warning at >5, critical at >20 (a few orphans can be transient API blips)
+  if (totalOrphaned > 5) {
     const orphanBreakdown = pcmRows
       .filter((r: Record<string, unknown>) => Number(r.orphaned_orders_count || 0) > 0)
       .map((r: Record<string, unknown>) => `${String(r.domain || 'unknown')}: ${r.orphaned_orders_count} orphaned`)
@@ -551,9 +563,9 @@ async function getAlerts(days: number, domain?: string) {
     alerts.push({
       id: 'rr-orphaned-orders',
       name: 'Orphaned orders',
-      severity: 'critical',
+      severity: totalOrphaned > 20 ? 'critical' : 'warning',
       category: 'rapid-response',
-      description: `${totalOrphaned} mailings sent without a PCM order ID — these orders cannot be tracked. Breakdown by client: ${orphanBreakdown}.`,
+      description: `${totalOrphaned} mailings sent without a PCM order ID across ${pcmRows.filter((r: Record<string, unknown>) => Number(r.orphaned_orders_count || 0) > 0).length} domain(s) — these orders cannot be tracked. Breakdown: ${orphanBreakdown}.`,
       entity: affectedDomains(pcmRows, 'orphaned_orders_count').replace(' Affected: ', '').replace('.', ''),
       metrics: { current: totalOrphaned },
       detected_at: now,
@@ -563,13 +575,14 @@ async function getAlerts(days: number, domain?: string) {
   }
 
   // RR4: Back-office sync gap
-  if (totalSyncGap > 0) {
+  // Threshold: warning at >50, critical at >200 (small gaps can be normal pipeline lag)
+  if (totalSyncGap > 50) {
     alerts.push({
       id: 'rr-sync-gap',
       name: 'Back-office sync gap',
-      severity: 'critical',
+      severity: totalSyncGap > 200 ? 'critical' : 'warning',
       category: 'rapid-response',
-      description: `${totalSyncGap} orders missing from back-office bridge table.${affectedDomains(pcmRows, 'back_office_sync_gap')}`,
+      description: `${totalSyncGap} orders missing from back-office bridge table across ${pcmRows.filter((r: Record<string, unknown>) => Number(r.back_office_sync_gap || 0) > 0).length} domain(s).${affectedDomains(pcmRows, 'back_office_sync_gap')}`,
       entity: affectedDomains(pcmRows, 'back_office_sync_gap').replace(' Affected: ', '').replace('.', ''),
       metrics: { current: totalSyncGap },
       detected_at: now,

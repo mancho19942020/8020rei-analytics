@@ -1262,11 +1262,10 @@ export const DEFAULT_RAPID_RESPONSE_LAYOUT: Widget[] = [
     id: 'rr-pcm-health',
     type: 'rr-pcm-health',
     title: 'Is it aligned?',
-    tooltip: 'This widget is NOT affected by the date filter — it shows all-time alignment checks. Sync gap relates to the Delta in PCM & profitability (PCM orders − Aurora sends). Stale records = mailings sent 14+ days ago with no delivery confirmation. Source: rr_pcm_alignment (latest check per domain, summed across all domains).',
+    tooltip: 'PCM alignment health for the selected period. Compares our back-office records against PostcardMania\'s data per domain. Verified hourly via rr_pcm_alignment.',
     x: 8, y: 0,
     w: 4, h: 5,
     minW: 3, minH: 4, maxW: 6, maxH: 8,
-    timeBehavior: 'all-time',
   },
   // Layer 2: Q2 Volume Goal (left) + Top Contributors (right)
   {
@@ -1373,7 +1372,7 @@ export const RAPID_RESPONSE_WIDGET_CATALOG: WidgetCatalogItem[] = [
   {
     type: 'rr-pcm-health',
     title: 'Is it aligned?',
-    description: 'Stale records, orphaned orders, sync gap, delivery lag',
+    description: 'Domain-level PCM sync health: synced vs out-of-sync domains, stale, orphaned, gap',
     iconKey: 'grid',
     defaultSize: { w: 4, h: 4 },
   },
@@ -1898,10 +1897,9 @@ export const DEFAULT_PCM_VALIDATION_LAYOUT: Widget[] = [
     id: 'pcm-data-match',
     type: 'pcm-data-match',
     title: 'Data match',
-    tooltip: 'Compares our send totals against PostcardMania order totals. Match rate shows data integrity between systems.',
+    tooltip: 'Domain-level alignment for the selected period. Bottom row shows lifetime totals (always all-time) for reference.',
     x: 6, y: 9, w: 6, h: 4,
     minW: 4, minH: 3, maxH: 6,
-    timeBehavior: 'all-time',
   },
   // ─── CLIENT DETAILS (3 separate tables by health) ───
   {
@@ -1957,7 +1955,7 @@ export const PCM_VALIDATION_WIDGET_CATALOG: WidgetCatalogItem[] = [
   { type: 'pcm-margin-period', title: 'Period summary', description: 'Date-filtered revenue, PCM cost, gross margin, and margin %', iconKey: 'grid', defaultSize: { w: 12, h: 2 } },
   { type: 'pcm-margin-trend', title: 'Pricing history', description: 'Per-piece rates over time: us vs PCM with margin', iconKey: 'lineChart', defaultSize: { w: 12, h: 5 } },
   { type: 'pcm-pricing-overview', title: 'Pricing overview', description: 'Our rates vs PCM rates with margin per piece', iconKey: 'grid', defaultSize: { w: 6, h: 4 } },
-  { type: 'pcm-data-match', title: 'Data match', description: 'Our sends vs PCM orders with match rate', iconKey: 'barChart', defaultSize: { w: 6, h: 4 } },
+  { type: 'pcm-data-match', title: 'Data match', description: 'Domain-level PCM alignment + lifetime send vs order totals', iconKey: 'barChart', defaultSize: { w: 6, h: 4 } },
   { type: 'pcm-clients-profitable', title: 'Profitable clients', description: 'Clients with margins above 5%', iconKey: 'table', defaultSize: { w: 12, h: 6 } },
   { type: 'pcm-clients-breakeven', title: 'Break-even clients', description: 'Clients with margins 0-5%', iconKey: 'table', defaultSize: { w: 12, h: 6 } },
   { type: 'pcm-clients-losing', title: 'Losing money', description: 'Clients with negative margins', iconKey: 'table', defaultSize: { w: 12, h: 6 } },

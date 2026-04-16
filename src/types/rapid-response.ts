@@ -109,6 +109,12 @@ export interface RrPcmHealth {
   deliveryLagMedianDays: number;
   backOfficeSyncGap: number;
   undeliverableRate7d: number;
+  // Domain-level alignment counts
+  totalDomains: number;
+  syncedDomains: number;
+  domainsWithGaps: number;
+  domainsWithStale: number;
+  domainsWithOrphaned: number;
 }
 
 // ---------------------------------------------------------------------------
