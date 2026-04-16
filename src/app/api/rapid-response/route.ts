@@ -239,7 +239,7 @@ async function getOverview(days: number, domain?: string) {
     deliveryLagMedianDays: pcmRows.length > 0
       ? Number((pcmRows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.delivery_lag_median_days || 0), 0) / pcmRows.length).toFixed(1))
       : 0,
-    backOfficeSyncGap: pcmRows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.back_office_sync_gap || 0), 0),
+    backOfficeSyncGap: pcmRows.reduce((s: number, r: Record<string, unknown>) => s + Math.max(0, Number(r.back_office_sync_gap || 0)), 0),
     undeliverableRate7d: pcmRows.length > 0
       ? Number((pcmRows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.undeliverable_rate_7d || 0), 0) / pcmRows.length).toFixed(1))
       : 0,
@@ -395,7 +395,7 @@ async function getPcmAlignment(domain?: string) {
     deliveryLagMedianDays: Number(r.delivery_lag_median_days || 0),
     deliveryLagP95Days: Number(r.delivery_lag_p95_days || 0),
     undeliverableRate7d: Number(r.undeliverable_rate_7d || 0),
-    backOfficeSyncGap: Number(r.back_office_sync_gap || 0),
+    backOfficeSyncGap: Math.max(0, Number(r.back_office_sync_gap || 0)),
   }));
 
   setCache(cacheKey, data);
@@ -524,7 +524,7 @@ async function getAlerts(days: number, domain?: string) {
   // Aggregate PCM data across all domains
   const totalStale = pcmRows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.stale_sent_count || 0), 0);
   const totalOrphaned = pcmRows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.orphaned_orders_count || 0), 0);
-  const totalSyncGap = pcmRows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.back_office_sync_gap || 0), 0);
+  const totalSyncGap = pcmRows.reduce((s: number, r: Record<string, unknown>) => s + Math.max(0, Number(r.back_office_sync_gap || 0)), 0);
 
   // Helper: list affected domains for a condition
   function affectedDomains(rows: Record<string, unknown>[], field: string): string {
