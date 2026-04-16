@@ -80,9 +80,10 @@ export { RrSendsTrendWidget } from './RrSendsTrendWidget';
 export { RrStatusBreakdownWidget } from './RrStatusBreakdownWidget';
 export { RrAlertsFeedWidget } from './RrAlertsFeedWidget';
 export { RrCampaignTableWidget } from './RrCampaignTableWidget';
-export { RrCostOverviewWidget } from './RrCostOverviewWidget';
 export { RrQ2GoalWidget } from './RrQ2GoalWidget';
 export { RrQ2TopContributorsWidget } from './RrQ2TopContributorsWidget';
+export { RrSystemCoverageWidget } from './RrSystemCoverageWidget';
+export { RrDataIntegrityWidget } from './RrDataIntegrityWidget';
 
 // Features > 8020REI > DM Campaign Business Results tab widgets
 export { DmAlertsFeedWidget } from './DmAlertsFeedWidget';
@@ -90,9 +91,8 @@ export { DmFunnelOverviewWidget } from './DmFunnelOverviewWidget';
 export { DmClientPerformanceWidget } from './DmClientPerformanceWidget';
 export { DmTemplateLeaderboardWidget } from './DmTemplateLeaderboardWidget';
 export { DmConversionTrendWidget } from './DmConversionTrendWidget';
-export { DmRoasTrendWidget } from './DmRoasTrendWidget';
+export { DmRevenueCostWidget } from './DmRevenueCostWidget';
 export { DmGeoBreakdownWidget } from './DmGeoBreakdownWidget';
-export { DmDataQualityWidget } from './DmDataQualityWidget';
 export { DmPropertyTimelineModal } from './DmPropertyTimelineModal';
 
 // Features > 8020REI > Properties API tab widgets

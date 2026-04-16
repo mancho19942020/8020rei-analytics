@@ -21,6 +21,7 @@
       --surface-raised: #f9fafb;
       --surface-overlay: #f3f4f6;
       --surface-sunken: #f3f4f6;
+      --surface-chrome: #ffffff;
       --text-primary: #111827;
       --text-secondary: #374151;
       --text-tertiary: #6b7280;
@@ -46,10 +47,11 @@
 
     /* Dark Mode */
     .dark {
-      --surface-base: #111827;
-      --surface-raised: #1f2937;
-      --surface-overlay: #374151;
-      --surface-sunken: #030712;
+      --surface-base: #0e1421;
+      --surface-raised: #1a232f;
+      --surface-overlay: #2f3745;
+      --surface-sunken: #02050f;
+      --surface-chrome: #0a101c;
       --text-primary: #f9fafb;
       --text-secondary: #d1d5db;
       --text-tertiary: #9ca3af;
@@ -1390,6 +1392,22 @@
                 <div class="swatch-info">
                   <div class="swatch-name">surface-overlay</div>
                   <div class="swatch-value">Modals, popovers</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+              <div class="color-swatch" onclick="copyClass('bg-surface-sunken')">
+                <div class="swatch-preview" style="background: var(--surface-sunken); border: 1px solid var(--border-default);"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">surface-sunken</div>
+                  <div class="swatch-value">Sunken, minimal areas</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+              <div class="color-swatch" onclick="copyClass('chrome-bg')">
+                <div class="swatch-preview" style="background: var(--surface-chrome); border: 1px solid var(--border-default);"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">surface-chrome</div>
+                  <div class="swatch-value">Sidebar, header, nav tabs</div>
                 </div>
                 <div class="copy-indicator">Click to copy</div>
               </div>

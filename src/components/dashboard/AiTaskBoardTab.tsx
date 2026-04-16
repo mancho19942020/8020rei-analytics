@@ -190,7 +190,7 @@ export const AiTaskBoardTab = forwardRef<TabHandle, AiTaskBoardTabProps>(functio
     <div className="space-y-4">
       {editMode && (
         <div className="mb-4">
-          <AxisCallout type="info" title="Edit mode active">
+          <AxisCallout type="info" title="Edit layout mode active">
             <p className="text-body-regular">
               Drag widgets by their handle icon to reposition them. Resize widgets by dragging their edges.
             </p>

@@ -20,7 +20,7 @@ This document outlines the best practices for handling light and dark mode in th
 
 **Core Principles:**
 - Light mode uses subtle gray backgrounds (`light-gray-bg` class) for main content areas - easier on the eyes
-- Dark mode uses unified dark grays (`#111827`) - never pure black
+- Dark mode uses unified dark grays (`#0e1421`) - never pure black
 - Cards should "float" above the background with proper contrast
 - Shadows should be subtle by default (`shadow-xs`), only prominent on hover/interaction
 
@@ -30,7 +30,7 @@ This document outlines the best practices for handling light and dark mode in th
 className="light-gray-bg"
 
 // Light mode: subtle gray (#f3f4f6)
-// Dark mode: automatically uses var(--surface-base) = #111827
+// Dark mode: automatically uses var(--surface-base) = #0e1421
 ```
 
 ### 1. **Tailwind Color Classes May Not Work - Use CSS Classes**
@@ -209,10 +209,10 @@ className="shadow-xs transition-all duration-200 hover:shadow-sm"
 
 ### Surface Colors
 ```css
-bg-surface-base        /* Main background: #ffffff / #111827 */
-bg-surface-raised      /* Cards, elevated: #f9fafb / #1f2937 */
-bg-surface-overlay     /* Overlays: #f3f4f6 / #374151 */
-bg-surface-sunken      /* Inset areas: #f3f4f6 / #030712 */
+bg-surface-base        /* Main background: #ffffff / #0e1421 */
+bg-surface-raised      /* Cards, elevated: #f9fafb / #1a232f */
+bg-surface-overlay     /* Overlays: #f3f4f6 / #2f3745 */
+bg-surface-sunken      /* Inset areas: #f3f4f6 / #02050f */
 ```
 
 ### Content Colors
@@ -323,8 +323,8 @@ chart-12: #64748b  /* Slate - Neutral */
 ### Dark Mode
 | Area | Background | Value |
 |------|------------|-------|
-| All Areas | Dark Gray | `#111827` |
-| Widget Cards | Elevated Gray | `#1f2937` |
+| All Areas | Dark Gray | `#0e1421` |
+| Widget Cards | Elevated Gray | `#1a232f` |
 
 ---
 
@@ -536,7 +536,7 @@ Before committing theme-related changes:
 4. **Never override semantic surface tokens** - This causes theme transition bugs
 5. **Test theme transitions** - Toggle manually before committing
 6. **Light mode should NOT be harsh white** - Use `light-gray-bg` for main content
-7. **Dark mode should NOT be pure black** - Uses `#111827` everywhere
+7. **Dark mode should NOT be pure black** - Uses `#0e1421` everywhere
 8. **Shadows should be subtle by default** - Use `shadow-xs`, increase only on hover
 9. **Skeletons are minimalistic** - Simple blocks, not detailed replicas
 10. **Default is dark mode** - New users start in dark mode

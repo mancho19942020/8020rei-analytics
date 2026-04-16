@@ -196,10 +196,11 @@ These automatically adapt to light/dark mode via CSS variables.
 
 | Token | Light Value | Dark Value | Usage |
 |-------|-------------|------------|-------|
-| `surface-base` | `#ffffff` | `#111827` | Main page background |
-| `surface-raised` | `#f9fafb` | `#1f2937` | Cards, elevated elements, **dark mode content area** |
-| `surface-overlay` | `#f3f4f6` | `#374151` | Modals, popovers |
-| `surface-sunken` | `#f3f4f6` | `#030712` | Inset areas |
+| `surface-base` | `#ffffff` | `#0e1421` | Main page background |
+| `surface-raised` | `#f9fafb` | `#1a232f` | Cards, elevated elements, **dark mode content area** |
+| `surface-overlay` | `#f3f4f6` | `#2f3745` | Modals, popovers |
+| `surface-sunken` | `#f3f4f6` | `#02050f` | Inset areas |
+| `surface-chrome` | `#ffffff` | `#0a101c` | Sidebar, header, nav tabs |
 
 **Usage:**
 ```tsx
@@ -219,7 +220,7 @@ className="bg-neutral-100 dark:bg-surface-raised"
 | Mode | Background | Hex | Effect |
 |------|------------|-----|--------|
 | Light | `bg-neutral-100` | `#f3f4f6` | Subtle gray, easier on eyes than white |
-| Dark | `bg-surface-raised` | `#1f2937` | Dark gray, consistent with navigation |
+| Dark | `bg-surface-raised` | `#1a232f` | Dark gray, consistent with navigation |
 
 **Why not pure semantic tokens?**
 This pattern intentionally uses `neutral-100` in light mode (instead of `surface-base`) because:

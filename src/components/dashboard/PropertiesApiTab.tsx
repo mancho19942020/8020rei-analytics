@@ -339,7 +339,7 @@ export const PropertiesApiTab = forwardRef<TabHandle, PropertiesApiTabProps>(
         {/* Edit Mode Callout */}
         {editMode && (
           <div className="mb-4">
-            <AxisCallout type="info" title="Edit mode active">
+            <AxisCallout type="info" title="Edit layout mode active">
               <p>Drag widgets to rearrange, resize from corners, or use the widget menu to configure.</p>
             </AxisCallout>
           </div>

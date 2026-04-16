@@ -62,7 +62,7 @@ export function useTheme() {
       metaThemeColor.setAttribute('name', 'theme-color');
       document.head.appendChild(metaThemeColor);
     }
-    metaThemeColor.setAttribute('content', shouldBeDark ? '#111827' : '#ffffff');
+    metaThemeColor.setAttribute('content', shouldBeDark ? '#0e1421' : '#ffffff');
   }, []);
 
   // Set theme preference

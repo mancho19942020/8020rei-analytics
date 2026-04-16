@@ -2,7 +2,7 @@
  * AxisTooltip Component
  *
  * A dark tooltip that appears on hover, matching the 8020 design system.
- * Dark background (#111827), white text, rounded corners, directional arrow.
+ * Dark background (#0e1421), white text, rounded corners, directional arrow.
  *
  * Uses a React Portal (renders into document.body) so the tooltip is never
  * clipped by overflow:hidden on parent widget containers.
@@ -43,7 +43,7 @@ export interface AxisTooltipProps {
   children: ReactNode;
 }
 
-const BG = '#111827'; // gray-900
+const BG = '#0e1421'; // darkened gray-900
 const GAP = 8; // px gap between trigger and tooltip box
 const VIEWPORT_MARGIN = 8; // min px from viewport edge
 

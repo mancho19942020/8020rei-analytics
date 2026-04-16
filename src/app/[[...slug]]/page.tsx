@@ -218,6 +218,14 @@ function Dashboard({ slug }: { slug: string[] }) {
     if (editMode) setShowEditCallout(true);
   }, [editMode]);
 
+  // Auto-disable edit mode on non-grid pages
+  const isNonGridPage = activeMainSection === 'engagement-calls' ||
+    activeMainSection === 'grafana' ||
+    (activeMainSection === 'features' && activeSubsection === 'dm-campaign' && ['reports', 'data-sources'].includes(dmCampaignSubTab));
+  useEffect(() => {
+    if (isNonGridPage && editMode) setEditMode(false);
+  }, [isNonGridPage, editMode]);
+
   // Handle layout changes
   const handleLayoutChange = (newLayout: Widget[]) => {
     setLayout(newLayout);
@@ -459,12 +467,16 @@ function Dashboard({ slug }: { slug: string[] }) {
             {/* Right side actions */}
             <div className="flex items-center gap-2 ml-auto">
 
-              {/* Edit Layout Toggle */}
-              <AxisToggle
-                checked={editMode}
-                onChange={setEditMode}
-                label="Edit Layout"
-              />
+              {/* Edit Layout Toggle — hidden on non-grid pages */}
+              {activeMainSection !== 'engagement-calls' &&
+               activeMainSection !== 'grafana' &&
+               !(activeMainSection === 'features' && activeSubsection === 'dm-campaign' && ['reports', 'data-sources'].includes(dmCampaignSubTab)) && (
+                <AxisToggle
+                  checked={editMode}
+                  onChange={setEditMode}
+                  label="Edit Layout"
+                />
+              )}
 
               <div className="w-3" /> {/* Spacer between toggle and filters */}
 
@@ -602,7 +614,7 @@ function Dashboard({ slug }: { slug: string[] }) {
               {/* Edit Mode Info */}
               {editMode && showEditCallout && (
                 <div className="mb-4 relative">
-                  <AxisCallout type="info" title="Edit Mode Active">
+                  <AxisCallout type="info" title="Edit layout mode active">
                     <p className="text-body-regular">
                       Drag widgets by their handle icon to reposition them. Resize widgets by dragging their edges.
                       Your layout will be saved automatically.

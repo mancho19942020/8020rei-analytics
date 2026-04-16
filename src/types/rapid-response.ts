@@ -169,13 +169,6 @@ export interface RrStatusBreakdown {
   count: number;
 }
 
-export interface RrCostPoint {
-  date: string;
-  costTotal: number;
-  avgUnitCost: number;
-  sendsTotal: number;
-}
-
 export interface RapidResponseData {
   systemStatus: RrSystemStatus;
   operationalPulse: RrOperationalPulse;
@@ -185,6 +178,5 @@ export interface RapidResponseData {
   statusBreakdown: RrStatusBreakdown[];
   campaigns: RrCampaignSnapshot[];
   alerts: RrAlert[];
-  costTrend: RrCostPoint[];
   vendorStatusBreakdown: Record<string, number>;
 }

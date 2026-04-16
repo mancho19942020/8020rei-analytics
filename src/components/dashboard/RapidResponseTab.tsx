@@ -25,17 +25,17 @@ import {
   RrStatusBreakdownWidget,
   RrAlertsFeedWidget,
   RrCampaignTableWidget,
-  RrCostOverviewWidget,
   RrQ2GoalWidget,
   RrQ2TopContributorsWidget,
+  RrSystemCoverageWidget,
+  RrDataIntegrityWidget,
   DmAlertsFeedWidget,
   DmFunnelOverviewWidget,
   DmClientPerformanceWidget,
   DmTemplateLeaderboardWidget,
   DmConversionTrendWidget,
-  DmRoasTrendWidget,
+  DmRevenueCostWidget,
   DmGeoBreakdownWidget,
-  DmDataQualityWidget,
   DmPropertyTimelineModal,
   PcmReconciliationOverviewWidget,
   PcmVolumeComparisonWidget,
@@ -80,7 +80,6 @@ import type {
   RrCampaignSnapshot,
   RrAlert,
   RrStatusBreakdown,
-  RrCostPoint,
   RrQ2Goal,
 } from '@/types/rapid-response';
 import type {
@@ -115,8 +114,8 @@ interface RapidResponseData {
   statusBreakdown: RrStatusBreakdown[];
   campaigns: RrCampaignSnapshot[];
   alerts: RrAlert[];
-  costTrend: RrCostPoint[];
   q2Goal: RrQ2Goal | null;
+  dataQuality: DmDataQuality | null;
 }
 
 interface BusinessResultsData {
@@ -124,10 +123,9 @@ interface BusinessResultsData {
   clientPerformance: DmClientPerformanceRow[];
   templateLeaderboard: DmTemplatePerformance[];
   geoBreakdown: DmGeoRow[];
-  dataQuality: DmDataQuality | null;
   alerts: DmAlert[];
   conversionTrend: { date: string; leads: number; appointments: number; contracts: number; deals: number }[];
-  roasTrend: { date: string; totalCost: number; totalRevenue: number; roas: number | null; deals?: number }[];
+  revenueCost: { date: string; totalCost: number; totalRevenue: number }[];
 }
 
 interface RapidResponseTabProps {
@@ -210,13 +208,12 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
       try {
         const dp = buildDateQueryString(days, startDate, endDate);
         const domainParam = selectedDomain ? `&domain=${encodeURIComponent(selectedDomain)}` : '';
-        const [funnelRes, clientRes, templateRes, geoRes, qualityRes, alertsRes, convTrendRes, roasTrendRes] =
+        const [funnelRes, clientRes, templateRes, geoRes, alertsRes, convTrendRes, revenueCostRes] =
           await Promise.all([
             authFetch(`/api/dm-conversions?type=funnel-overview&${dp}${domainParam}`).then(r => r.json()),
             authFetch(`/api/dm-conversions?type=client-performance&${dp}${domainParam}`).then(r => r.json()),
             authFetch(`/api/dm-templates?type=template-leaderboard&${dp}${domainParam}`).then(r => r.json()),
             authFetch(`/api/dm-conversions?type=geo-breakdown&${dp}${domainParam}`).then(r => r.json()),
-            authFetch(`/api/dm-conversions?type=data-quality&${dp}${domainParam}`).then(r => r.json()),
             authFetch(`/api/dm-conversions?type=alerts&${dp}${domainParam}`).then(r => r.json()),
             authFetch(`/api/dm-conversions?type=conversion-trend&${dp}${domainParam}`).then(r => r.json()),
             authFetch(`/api/dm-conversions?type=roas-trend&${dp}${domainParam}`).then(r => r.json()),
@@ -227,17 +224,16 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
           clientPerformance: clientRes.success ? clientRes.data : [],
           templateLeaderboard: templateRes.success ? templateRes.data : [],
           geoBreakdown: geoRes.success ? geoRes.data : [],
-          dataQuality: qualityRes.success ? qualityRes.data : null,
           alerts: alertsRes.success ? alertsRes.data.alerts : [],
           conversionTrend: convTrendRes.success ? convTrendRes.data : [],
-          roasTrend: roasTrendRes.success ? roasTrendRes.data : [],
+          revenueCost: revenueCostRes.success ? revenueCostRes.data : [],
         };
 
         setBrData(result);
 
-        const allSuccess = [funnelRes, clientRes, templateRes, geoRes, qualityRes, alertsRes, convTrendRes, roasTrendRes].every(r => r.success);
+        const allSuccess = [funnelRes, clientRes, templateRes, geoRes, alertsRes, convTrendRes, revenueCostRes].every(r => r.success);
         if (!allSuccess) {
-          const firstError = [funnelRes, clientRes, templateRes, geoRes, qualityRes, alertsRes, convTrendRes, roasTrendRes].find(r => !r.success);
+          const firstError = [funnelRes, clientRes, templateRes, geoRes, alertsRes, convTrendRes, revenueCostRes].find(r => !r.success);
           setBrError(firstError?.error || 'Some data failed to load');
         }
       } catch (err) {
@@ -360,15 +356,15 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
       try {
         const dp = buildDateQueryString(days, startDate, endDate);
         const domainParam = selectedDomain ? `&domain=${encodeURIComponent(selectedDomain)}` : '';
-        const [overviewRes, trendRes, campaignRes, alertsRes, statusRes, costRes, q2GoalRes] =
+        const [overviewRes, trendRes, campaignRes, alertsRes, statusRes, q2GoalRes, dataQualityRes] =
           await Promise.all([
             authFetch(`/api/rapid-response?type=overview&${dp}${domainParam}`).then(r => r.json()),
             authFetch(`/api/rapid-response?type=daily-trend&${dp}${domainParam}`).then(r => r.json()),
             authFetch(`/api/rapid-response?type=campaign-list&${dp}${domainParam}`).then(r => r.json()),
             authFetch(`/api/rapid-response?type=alerts&${dp}${domainParam}`).then(r => r.json()),
             authFetch(`/api/rapid-response?type=status-breakdown&${dp}${domainParam}`).then(r => r.json()),
-            authFetch(`/api/rapid-response?type=cost-trend&${dp}${domainParam}`).then(r => r.json()),
             authFetch(`/api/rapid-response?type=q2-goal${domainParam}`).then(r => r.json()),
+            authFetch(`/api/dm-conversions?type=data-quality&${dp}${domainParam}`).then(r => r.json()),
           ]);
 
         setData({
@@ -380,13 +376,13 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
           statusBreakdown: statusRes.success ? statusRes.data : [],
           campaigns: campaignRes.success ? campaignRes.data : [],
           alerts: alertsRes.success ? alertsRes.data.alerts : [],
-          costTrend: costRes.success ? costRes.data : [],
           q2Goal: q2GoalRes.success ? q2GoalRes.data : null,
+          dataQuality: dataQualityRes.success ? dataQualityRes.data : null,
         });
 
-        const allSuccess = [overviewRes, trendRes, campaignRes, alertsRes, statusRes, costRes, q2GoalRes].every(r => r.success);
+        const allSuccess = [overviewRes, trendRes, campaignRes, alertsRes, statusRes, q2GoalRes, dataQualityRes].every(r => r.success);
         if (!allSuccess) {
-          const firstError = [overviewRes, trendRes, campaignRes, alertsRes, statusRes, costRes, q2GoalRes].find(r => !r.success);
+          const firstError = [overviewRes, trendRes, campaignRes, alertsRes, statusRes, q2GoalRes, dataQualityRes].find(r => !r.success);
           setError(firstError?.error || 'Some data failed to load');
         }
       } catch (err) {
@@ -533,13 +529,31 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
         'rr-status-breakdown': <RrStatusBreakdownWidget data={data.statusBreakdown} />,
         'rr-alerts-feed': <RrAlertsFeedWidget data={data.alerts} />,
         'rr-campaign-table': <RrCampaignTableWidget data={data.campaigns} onDomainClick={setSelectedDomain} />,
-        'rr-cost-overview': <RrCostOverviewWidget data={data.costTrend} />,
         'rr-q2-goal': data.q2Goal
           ? <RrQ2GoalWidget data={data.q2Goal} />
           : null,
         'rr-q2-top-contributors': data.q2Goal
           ? <RrQ2TopContributorsWidget data={data.q2Goal.clientBreakdown} target={data.q2Goal.target} onDomainClick={setSelectedDomain} />
           : null,
+        'rr-system-coverage': <RrSystemCoverageWidget data={data.dataQuality ? {
+          totalClients: data.dataQuality.totalClients ?? 0,
+          totalTemplates: data.dataQuality.totalTemplates ?? 0,
+          totalProperties: data.dataQuality.totalProperties,
+          attributionRate: data.dataQuality.attributionRate,
+          attributedCount: data.dataQuality.attributedCount,
+          propertyDataAvailable: data.dataQuality.propertyDataAvailable ?? data.dataQuality.totalProperties > 0,
+        } : null} />,
+        'rr-data-integrity': <RrDataIntegrityWidget data={data.dataQuality ? {
+          backfilledRate: data.dataQuality.backfilledRate,
+          backfilledCount: data.dataQuality.backfilledCount,
+          totalProperties: data.dataQuality.totalProperties,
+          unattributedCount: data.dataQuality.unattributedCount,
+          zeroRevenueDealCount: data.dataQuality.zeroRevenueDealCount,
+          preSendConversions: data.dataQuality.preSendConversions,
+          deliveryIssues: data.dataQuality.deliveryIssues ?? 0,
+          revenueMismatch: data.dataQuality.revenueMismatch ?? 0,
+          propertyDataAvailable: data.dataQuality.propertyDataAvailable ?? data.dataQuality.totalProperties > 0,
+        } : null} />,
       };
     }, [data]);
 
@@ -554,11 +568,8 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
         'dm-client-performance': <DmClientPerformanceWidget data={brData.clientPerformance} onDomainClick={setSelectedDomain} />,
         'dm-template-leaderboard': <DmTemplateLeaderboardWidget data={brData.templateLeaderboard} />,
         'dm-conversion-trend': <DmConversionTrendWidget data={brData.conversionTrend} />,
-        'dm-roas-trend': <DmRoasTrendWidget data={brData.roasTrend} />,
+        'dm-revenue-cost': <DmRevenueCostWidget data={brData.revenueCost} />,
         'dm-geo-breakdown': <DmGeoBreakdownWidget data={brData.geoBreakdown} />,
-        'dm-data-quality': brData.dataQuality
-          ? <DmDataQualityWidget data={brData.dataQuality} />
-          : null,
       };
     }, [brData, setSelectedDomain]);
 
@@ -632,7 +643,7 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
         {/* Edit Mode Callout */}
         {editMode && (
           <div className="mb-4">
-            <AxisCallout type="info" title="Edit mode active">
+            <AxisCallout type="info" title="Edit layout mode active">
               <p>Drag widgets to rearrange, resize from corners, or use the widget menu to configure.</p>
             </AxisCallout>
           </div>

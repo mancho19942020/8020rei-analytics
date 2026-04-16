@@ -517,6 +517,7 @@ async function getClientPerformance(dateCtx: DateContext, domain?: string) {
       roas: confidence === 'revenue_no_deal' ? 0 : (row.totalCost > 0 ? Number((row.totalRevenue / row.totalCost).toFixed(2)) : 0),
       leadConversionRate: row.totalMailed > 0 ? Number(((row.leads / row.totalMailed) * 100).toFixed(2)) : 0,
       dealConversionRate: row.totalMailed > 0 ? Number(((row.deals / row.totalMailed) * 100).toFixed(2)) : 0,
+      costPerLead: row.leads > 0 ? Number((row.totalCost / row.leads).toFixed(2)) : null,
       roasConfidence: confidence,
       unattributedConversions: row.unattributedConversions,
       syncWarning: row.syncWarning || null,

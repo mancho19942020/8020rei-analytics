@@ -1,9 +1,9 @@
 /**
- * DM ROAS Trend Widget
+ * DM Revenue vs. Cost Widget
  *
- * Dual-axis chart: revenue vs cost (bars) with ROAS line.
- * - Break-even reference line at ROAS = 1.0
- * - Null ROAS days (no deals) shown as gaps, not zeros
+ * Simplified grouped bar chart: cost (coral) and revenue (green) on the same Y-axis.
+ * Replaces the dual-axis ROAS trend chart for clarity.
+ * A newcomer sees: green > red = making money, red > green = losing money.
  */
 
 'use client';
@@ -11,27 +11,23 @@
 import { useMemo } from 'react';
 import {
   ResponsiveContainer,
-  ComposedChart,
+  BarChart,
   Bar,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   Legend,
-  ReferenceLine,
 } from 'recharts';
 
-interface RoasPoint {
+interface RevenueCostPoint {
   date: string;
   totalCost: number;
   totalRevenue: number;
-  roas: number | null;
-  deals?: number;
 }
 
-interface DmRoasTrendWidgetProps {
-  data: RoasPoint[];
+interface DmRevenueCostWidgetProps {
+  data: RevenueCostPoint[];
 }
 
 const tooltipStyle = {
@@ -42,21 +38,16 @@ const tooltipStyle = {
   color: 'var(--text-primary)',
 };
 
-export function DmRoasTrendWidget({ data }: DmRoasTrendWidgetProps) {
+export function DmRevenueCostWidget({ data }: DmRevenueCostWidgetProps) {
   const chartData = useMemo(() =>
-    [...data]
-      .sort((a, b) => a.date.localeCompare(b.date))
-      .map(d => ({
-        ...d,
-        // Convert null to undefined so Recharts renders a gap in the line
-        roas: d.roas ?? undefined,
-      })),
+    [...data].sort((a, b) => a.date.localeCompare(b.date)),
   [data]);
 
   if (chartData.length === 0) {
     return (
-      <div className="flex items-center justify-center h-full" style={{ color: 'var(--text-secondary)' }}>
-        No ROAS data available yet
+      <div className="flex flex-col items-center justify-center h-full text-center p-4 gap-2">
+        <span className="text-label font-medium" style={{ color: 'var(--text-secondary)' }}>No revenue data yet</span>
+        <span className="text-label" style={{ color: 'var(--text-tertiary)' }}>Data accumulates daily as deals close</span>
       </div>
     );
   }
@@ -64,7 +55,7 @@ export function DmRoasTrendWidget({ data }: DmRoasTrendWidgetProps) {
   return (
     <div className="h-full w-full p-2">
       <ResponsiveContainer width="100%" height="100%">
-        <ComposedChart data={chartData} margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
+        <BarChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
           <CartesianGrid
             strokeDasharray="3 3"
             className="stroke-stroke-subtle"
@@ -82,7 +73,6 @@ export function DmRoasTrendWidget({ data }: DmRoasTrendWidgetProps) {
             }}
           />
           <YAxis
-            yAxisId="money"
             width={55}
             tick={{ fontSize: 11, className: 'fill-content-secondary' }}
             tickLine={false}
@@ -90,68 +80,32 @@ export function DmRoasTrendWidget({ data }: DmRoasTrendWidgetProps) {
             dx={-5}
             tickFormatter={(v) => `$${v >= 1000 ? `${(v / 1000).toFixed(0)}K` : v}`}
           />
-          <YAxis
-            yAxisId="roas"
-            orientation="right"
-            width={40}
-            tick={{ fontSize: 11, className: 'fill-content-secondary' }}
-            tickLine={false}
-            axisLine={false}
-            tickFormatter={(v) => `${v}x`}
-          />
           <Tooltip
             contentStyle={tooltipStyle}
-            cursor={{ stroke: 'var(--border-default)', strokeDasharray: '3 3' }}
+            cursor={{ fill: 'var(--surface-overlay)', opacity: 0.3 }}
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             formatter={((value: any, name: any) => {
-              if (value === undefined || value === null) return ['No deals', name];
               const v = Number(value ?? 0);
-              if (name === 'ROAS') return [`${v.toFixed(2)}x`, name];
               return [`$${v.toLocaleString()}`, name];
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             }) as any}
           />
           <Legend wrapperStyle={{ fontSize: '11px' }} />
-          {/* Break-even reference line */}
-          <ReferenceLine
-            yAxisId="roas"
-            y={1}
-            stroke="var(--color-alert-500)"
-            strokeDasharray="4 4"
-            strokeWidth={1}
-            label={{
-              value: 'Break-even',
-              position: 'right',
-              style: { fontSize: '10px', fill: 'var(--text-tertiary)' },
-            }}
-          />
           <Bar
-            yAxisId="money"
             dataKey="totalCost"
             name="Cost"
             fill="var(--color-error-300)"
-            opacity={0.5}
+            opacity={0.7}
             radius={[2, 2, 0, 0]}
           />
           <Bar
-            yAxisId="money"
             dataKey="totalRevenue"
             name="Revenue"
             fill="var(--color-success-300)"
-            opacity={0.6}
+            opacity={0.8}
             radius={[2, 2, 0, 0]}
           />
-          <Line
-            yAxisId="roas"
-            type="monotone"
-            dataKey="roas"
-            name="ROAS"
-            stroke="var(--color-main-500)"
-            strokeWidth={2}
-            dot={false}
-            connectNulls={false}
-          />
-        </ComposedChart>
+        </BarChart>
       </ResponsiveContainer>
     </div>
   );

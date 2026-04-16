@@ -163,6 +163,8 @@ export interface DmClientPerformanceRow {
   roas: number;
   leadConversionRate: number;
   dealConversionRate: number;
+  /** Cost per lead: totalCost / leads. Null when no leads. */
+  costPerLead: number | null;
   /** Data integrity: ROAS confidence level */
   roasConfidence: RoasConfidence;
   unattributedConversions: number;
@@ -195,6 +197,11 @@ export interface DmDataQuality {
   backfilledRate: number;
   zeroRevenueDealCount: number;
   preSendConversions: number;
+  totalClients?: number;
+  totalTemplates?: number;
+  deliveryIssues?: number;
+  revenueMismatch?: number;
+  propertyDataAvailable?: boolean;
 }
 
 // ---------------------------------------------------------------------------

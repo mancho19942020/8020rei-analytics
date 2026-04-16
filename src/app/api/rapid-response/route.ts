@@ -2,7 +2,7 @@
  * Rapid Response Metrics — Next.js API Route
  *
  * Queries Aurora's rr_campaign_snapshots, rr_daily_metrics, rr_pcm_alignment tables.
- * Supports: overview, daily-trend, campaign-list, pcm-alignment, alerts, cost-trend
+ * Supports: overview, daily-trend, campaign-list, pcm-alignment, alerts, status-breakdown, q2-goal
  *
  * Mirrors the pattern from /api/properties-api/route.ts
  */
@@ -20,7 +20,6 @@ import type {
   RrCampaignSnapshot,
   RrAlert,
   RrStatusBreakdown,
-  RrCostPoint,
   RrQ2Goal,
   RrQ2GoalClientRow,
 } from '@/types/rapid-response';
@@ -81,8 +80,6 @@ export async function GET(request: NextRequest) {
         return await getPcmAlignment(domain);
       case 'alerts':
         return await getAlerts(days, domain);
-      case 'cost-trend':
-        return await getCostTrend(days, domain);
       case 'status-breakdown':
         return await getStatusBreakdown(days, domain);
       case 'domain-list':
@@ -433,39 +430,6 @@ async function getStatusBreakdown(days: number, domain?: string) {
     { status: 'Undeliverable', count: Number(r.undeliverable || 0) },
     { status: 'Error', count: Number(r.error || 0) },
   ].filter(d => d.count > 0);
-
-  setCache(cacheKey, data);
-  return NextResponse.json({ success: true, data, cached: false });
-}
-
-// ---------------------------------------------------------------------------
-// Cost Trend
-// ---------------------------------------------------------------------------
-
-async function getCostTrend(days: number, domain?: string) {
-  const cacheKey = `rapid-response:cost-trend:${days}:${domain || 'all'}`;
-  const cached = getCached(cacheKey);
-  if (cached) return NextResponse.json({ success: true, data: cached, cached: true });
-
-  const rows = await runAuroraQuery(`
-    SELECT
-      date::TEXT as date,
-      COALESCE(SUM(cost_total), 0) as cost_total,
-      COALESCE(AVG(avg_unit_cost), 0) as avg_unit_cost,
-      COALESCE(SUM(sends_total), 0) as sends_total
-    FROM rr_daily_metrics
-    WHERE date >= CURRENT_DATE - INTERVAL '${days} days'
-      AND ${domainFilter(domain)}
-    GROUP BY date
-    ORDER BY date ASC
-  `);
-
-  const data: RrCostPoint[] = rows.map((r: Record<string, unknown>) => ({
-    date: String(r.date || ''),
-    costTotal: Number(Number(r.cost_total || 0).toFixed(2)),
-    avgUnitCost: Number(Number(r.avg_unit_cost || 0).toFixed(2)),
-    sendsTotal: Number(r.sends_total || 0),
-  }));
 
   setCache(cacheKey, data);
   return NextResponse.json({ success: true, data, cached: false });
