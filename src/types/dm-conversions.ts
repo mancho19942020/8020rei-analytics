@@ -151,6 +151,9 @@ export interface DmClientPerformanceRow {
   domain: string;
   campaignType: string;
   activeCampaigns: number;
+  /** Per-product (active, total) breakdown — e.g. { rr: {active: 2, total: 3}, smartdrop: {active: 1, total: 1} }.
+   *  Used to render stacked "N RR · M SD" tags per client. */
+  campaignBreakdown: Record<string, { active: number; total: number }>;
   totalMailed: number;
   totalSends: number;
   totalDelivered: number;

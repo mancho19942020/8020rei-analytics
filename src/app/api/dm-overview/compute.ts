@@ -22,25 +22,17 @@
 
 import { runAuroraQuery } from '@/lib/aurora';
 import { pcmGet, isPcmConfigured } from '@/lib/pcm-client';
+import {
+  TEST_DOMAINS as CANONICAL_TEST_DOMAINS,
+  TEST_DOMAIN_SET,
+  TEST_DOMAINS_SQL,
+} from '@/lib/domain-filter';
 
 // ─── Constants ────────────────────────────────────────────────
 
-// Real-client exclusion list. These are internal / demo / test-environment
-// domains — NOT paying customers. They're hidden from client-facing metrics
-// (adoption, revenue) but SURFACED on the cost side as internal spending.
-export const TEST_DOMAINS = [
-  '8020rei_demo',
-  '8020rei_migracion_test',
-  '_test_debug',
-  '_test_debug3',
-  'supertest_8020rei_com',
-  'sandbox_8020rei_com',
-  'qapre_8020rei_com',
-  'testing5_8020rei_com',
-  'showcaseproductsecomllc_8020rei_com',
-];
-const TEST_DOMAIN_SET = new Set(TEST_DOMAINS);
-const TEST_DOMAINS_SQL = TEST_DOMAINS.map((d) => `'${d}'`).join(', ');
+// Re-export the canonical list so existing callers importing from this module
+// continue to work. Single source of truth lives in `@/lib/domain-filter`.
+export const TEST_DOMAINS = CANONICAL_TEST_DOMAINS;
 
 // Denominator for the adoption-rate card — verbal from Camilo.
 // TODO: pull from monolith when available.

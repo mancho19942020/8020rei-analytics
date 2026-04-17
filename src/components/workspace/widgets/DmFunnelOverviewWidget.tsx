@@ -9,6 +9,7 @@
 
 import { useRef, useEffect, useMemo, useState, useCallback } from 'react';
 import type { DmFunnelOverview } from '@/types/dm-conversions';
+import { AxisTooltip } from '@/components/axis/AxisTooltip';
 import { DmPropertyDrilldownModal } from './DmPropertyDrilldownModal';
 import type { DrilldownStatus } from './DmPropertyDrilldownModal';
 
@@ -175,16 +176,28 @@ export function DmFunnelOverviewWidget({ data, selectedDomain }: DmFunnelOvervie
           </span>
         </div>
         <div className="flex items-center gap-4 text-sm">
-          <span style={{ color: 'var(--text-secondary)' }}>
-            Cost: <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>
-              ${(data.totalCost || 0).toLocaleString()}
+          <AxisTooltip
+            content="What clients paid 8020REI for mailings. Same underlying column as Profitability → Margin summary → Revenue."
+            placement="top"
+            maxWidth={280}
+          >
+            <span style={{ color: 'var(--text-secondary)', cursor: 'help' }}>
+              Mailing spend: <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>
+                ${(data.totalCost || 0).toLocaleString()}
+              </span>
             </span>
-          </span>
-          <span style={{ color: 'var(--text-secondary)' }}>
-            Revenue: <span className="font-semibold" style={{ color: (data.totalRevenue || 0) > 0 ? 'var(--color-success-500)' : 'var(--text-primary)' }}>
-              ${(data.totalRevenue || 0).toLocaleString()}
+          </AxisTooltip>
+          <AxisTooltip
+            content="Revenue clients earned from real-estate deals attributed to DM campaigns. Client ROI — NOT 8020REI's company revenue (that's on Profitability → Margin summary)."
+            placement="top"
+            maxWidth={280}
+          >
+            <span style={{ color: 'var(--text-secondary)', cursor: 'help' }}>
+              Deal revenue: <span className="font-semibold" style={{ color: (data.totalRevenue || 0) > 0 ? 'var(--color-success-500)' : 'var(--text-primary)' }}>
+                ${(data.totalRevenue || 0).toLocaleString()}
+              </span>
             </span>
-          </span>
+          </AxisTooltip>
         </div>
       </div>
 

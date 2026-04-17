@@ -42,37 +42,17 @@ const tooltipStyle = {
 
 export function DmConversionTrendWidget({ data }: DmConversionTrendWidgetProps) {
   const chartData = useMemo(() => {
-    const sorted = [...data].sort((a, b) => a.date.localeCompare(b.date));
-    if (sorted.length === 0) return [];
-
-    // Compute day-over-day deltas from cumulative snapshots
-    const deltas: { date: string; leads: number; appointments: number; deals: number }[] = [];
-    for (let i = 0; i < sorted.length; i++) {
-      if (i === 0) {
-        // First day: use raw values as the initial activity
-        deltas.push({
-          date: sorted[i].date,
-          leads: Math.max(0, sorted[i].leads),
-          appointments: Math.max(0, sorted[i].appointments),
-          deals: Math.max(0, sorted[i].deals),
-        });
-      } else {
-        deltas.push({
-          date: sorted[i].date,
-          leads: Math.max(0, sorted[i].leads - sorted[i - 1].leads),
-          appointments: Math.max(0, sorted[i].appointments - sorted[i - 1].appointments),
-          deals: Math.max(0, sorted[i].deals - sorted[i - 1].deals),
-        });
-      }
-    }
-    return deltas;
+    // The API now returns true daily activity counts (each conversion bucketed by
+    // the day it happened — became_lead_at / became_appointment_at / became_deal_at),
+    // not cumulative snapshots. No client-side diffing needed.
+    return [...data].sort((a, b) => a.date.localeCompare(b.date));
   }, [data]);
 
   if (chartData.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center p-4 gap-2">
-        <span className="text-label font-medium" style={{ color: 'var(--text-secondary)' }}>No activity data yet</span>
-        <span className="text-label" style={{ color: 'var(--text-tertiary)' }}>Data accumulates daily as the sync cron runs</span>
+        <span className="text-label font-medium" style={{ color: 'var(--text-secondary)' }}>No conversions in this cohort yet</span>
+        <span className="text-label" style={{ color: 'var(--text-tertiary)' }}>Properties first mailed in the selected window haven&apos;t produced leads, appointments, or deals yet. Try a wider date range.</span>
       </div>
     );
   }

@@ -575,7 +575,12 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
         'dm-alerts-feed': <DmAlertsFeedWidget data={brData.alerts} />,
         'dm-funnel-overview': brData.funnelOverview
           ? <DmFunnelOverviewWidget data={brData.funnelOverview} selectedDomain={selectedDomain || undefined} />
-          : null,
+          : (
+            <div className="flex flex-col items-center justify-center h-full text-center p-4 gap-2">
+              <span className="text-label font-medium" style={{ color: 'var(--text-secondary)' }}>Funnel data didn&apos;t load</span>
+              <span className="text-label" style={{ color: 'var(--text-tertiary)' }}>Hit Retry at the top of the tab, or try a different date range.</span>
+            </div>
+          ),
         'dm-client-performance': <DmClientPerformanceWidget data={brData.clientPerformance} onDomainClick={setSelectedDomain} />,
         'dm-template-leaderboard': <DmTemplateLeaderboardWidget data={brData.templateLeaderboard} />,
         'dm-conversion-trend': <DmConversionTrendWidget data={brData.conversionTrend} />,

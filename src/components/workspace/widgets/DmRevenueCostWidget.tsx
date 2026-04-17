@@ -46,8 +46,8 @@ export function DmRevenueCostWidget({ data }: DmRevenueCostWidgetProps) {
   if (chartData.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center p-4 gap-2">
-        <span className="text-label font-medium" style={{ color: 'var(--text-secondary)' }}>No revenue data yet</span>
-        <span className="text-label" style={{ color: 'var(--text-tertiary)' }}>Data accumulates daily as deals close</span>
+        <span className="text-label font-medium" style={{ color: 'var(--text-secondary)' }}>No activity in this window</span>
+        <span className="text-label" style={{ color: 'var(--text-tertiary)' }}>Try a wider date range</span>
       </div>
     );
   }
@@ -93,14 +93,14 @@ export function DmRevenueCostWidget({ data }: DmRevenueCostWidgetProps) {
           <Legend wrapperStyle={{ fontSize: '11px' }} />
           <Bar
             dataKey="totalCost"
-            name="Cost"
+            name="Mailing spend"
             fill="var(--color-error-300)"
             opacity={0.7}
             radius={[2, 2, 0, 0]}
           />
           <Bar
             dataKey="totalRevenue"
-            name="Revenue"
+            name="Deal revenue"
             fill="var(--color-success-300)"
             opacity={0.8}
             radius={[2, 2, 0, 0]}

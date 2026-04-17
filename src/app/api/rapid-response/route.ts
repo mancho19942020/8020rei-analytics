@@ -12,6 +12,8 @@ import { requireAuth } from '@/lib/auth-guard';
 import { runAuroraQuery, isAuroraConfigured } from '@/lib/aurora';
 import { getCached, setCache } from '@/lib/cache';
 import { readCache as readOverviewCache, getCachedPcmOrdersSlim } from '@/app/api/dm-overview/compute';
+// Test-domain exclusion — canonical source. Any change applies everywhere simultaneously.
+import { TEST_DOMAINS_SQL as SEED_DOMAINS, EXCLUDE_TEST_DOMAINS_SQL as EXCLUDE_SEED } from '@/lib/domain-filter';
 import type {
   RrSystemStatus,
   RrOperationalPulse,
@@ -24,11 +26,6 @@ import type {
   RrQ2Goal,
   RrQ2GoalClientRow,
 } from '@/types/rapid-response';
-
-// Exclude seed/test domains — must match the same list used in pcm-validation and dm-conversions
-// showcaseproductsecomllc added 2026-04-17 — "Inaugural RR Test" (disabled, Sep 2025, 0 PCM orders).
-const SEED_DOMAINS = "'8020rei_demo', '8020rei_migracion_test', '_test_debug', '_test_debug3', 'supertest_8020rei_com', 'sandbox_8020rei_com', 'showcaseproductsecomllc_8020rei_com'";
-const EXCLUDE_SEED = `domain NOT IN (${SEED_DOMAINS})`;
 
 /** Build a WHERE clause that excludes seed domains AND optionally filters to a specific domain */
 function domainFilter(domain?: string | null): string {

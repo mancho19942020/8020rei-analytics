@@ -10,9 +10,8 @@ import { requireAuth } from '@/lib/auth-guard';
 import { runAuroraQuery, isAuroraConfigured } from '@/lib/aurora';
 import { getCached, setCache } from '@/lib/cache';
 import { pcmGet, isPcmConfigured } from '@/lib/pcm-client';
-
-// showcaseproductsecomllc added 2026-04-17 — "Inaugural RR Test" (disabled, Sep 2025, 0 PCM orders).
-const TEST_DOMAINS = `'8020rei_demo', '8020rei_migracion_test', '_test_debug', '_test_debug3', 'supertest_8020rei_com', 'sandbox_8020rei_com', 'showcaseproductsecomllc_8020rei_com'`;
+// Test-domain exclusion — canonical source. Any change applies everywhere simultaneously.
+import { TEST_DOMAINS_SQL as TEST_DOMAINS } from '@/lib/domain-filter';
 
 // PCM pricing eras — verified from 264 invoice PDFs
 const PCM_ERAS = [

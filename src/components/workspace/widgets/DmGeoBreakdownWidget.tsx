@@ -129,7 +129,8 @@ export function DmGeoBreakdownWidget({ data }: DmGeoBreakdownWidgetProps) {
     },
     {
       field: 'totalRevenue',
-      header: 'Revenue',
+      header: 'Deal rev',
+      headerTooltip: 'Deal revenue clients earned from real-estate deals closed in this area. Client ROI — NOT 8020REI company revenue.',
       width: 90,
       align: 'center',
       render: (value: CellValue) => (
