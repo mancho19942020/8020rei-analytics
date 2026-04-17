@@ -345,10 +345,11 @@ export const PropertiesApiTab = forwardRef<TabHandle, PropertiesApiTabProps>(
           </div>
         )}
 
-        {/* Partial error banner */}
+        {/* Partial error banner — sanitized; raw backend error stays in the
+            browser console so stakeholders never see SQL / stack traces. */}
         {error && data?.overview && (
-          <AxisCallout type="alert" title="Partial data">
-            <p>{error}</p>
+          <AxisCallout type="alert" title="Some numbers didn't load">
+            <p>Refreshing the page usually resolves this. If it persists, reach out on #metrics-hub.</p>
           </AxisCallout>
         )}
 

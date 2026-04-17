@@ -1,6 +1,13 @@
 /**
  * Rapid Response Sends Trend Widget
  *
+ * PERIOD-SCOPED send trend. Sources from rr_daily_metrics (Aurora), which today
+ * has ~15 days of history (pipeline backfill pending). This widget intentionally
+ * shows only the selected date range — the lifetime / multi-month send trend
+ * lives on the DM Campaign Overview tab and is sourced directly from PCM
+ * /order (14-month coverage). Having two widgets with different time windows is
+ * intentional and documented; see audit doc Blocker B (2026-04-17).
+ *
  * Multi-line chart showing sends, deliveries, and errors over time.
  * Uses Recharts directly (BaseLineChart only supports single-line)
  * but follows the same styling conventions (tooltip, axis, grid classes).
@@ -19,6 +26,7 @@ import {
   Tooltip,
   Legend,
 } from 'recharts';
+import { AxisTooltip } from '@/components/axis';
 import type { RrDailyMetric } from '@/types/rapid-response';
 
 interface RrSendsTrendWidgetProps {
@@ -49,14 +57,35 @@ export function RrSendsTrendWidget({ data }: RrSendsTrendWidgetProps) {
 
   if (chartData.length === 0) {
     return (
-      <div className="flex items-center justify-center h-full" style={{ color: 'var(--text-secondary)' }}>
-        No send data available yet
+      <div className="flex items-center justify-center h-full text-center px-4" style={{ color: 'var(--text-secondary)' }}>
+        <div className="flex flex-col items-center gap-1">
+          <span>No send data in the selected period</span>
+          <span className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
+            This widget reads rr_daily_metrics (~15 days of coverage). For lifetime send volume, see DM Campaign → Overview → Send volume trend.
+          </span>
+        </div>
       </div>
     );
   }
 
+  const dateMin = chartData[0]?.date;
+  const dateMax = chartData[chartData.length - 1]?.date;
+
   return (
-    <div className="h-full w-full p-2">
+    <div className="h-full w-full p-2 flex flex-col gap-1">
+      {/* Scope label so users know this is the selected date range, not lifetime.
+          Cross-reference to Overview keeps the two widgets' different numbers
+          from reading as a contradiction — they're serving different windows. */}
+      <div className="flex items-center justify-between text-[11px] px-1" style={{ color: 'var(--text-tertiary)' }}>
+        <span>
+          Period trend · {dateMin} → {dateMax} ({chartData.length}d)
+        </span>
+        <AxisTooltip content="Daily sends/deliveries/errors from rr_daily_metrics for the date range selected in the header. rr_daily_metrics currently has about 15 days of history (pipeline backfill pending). For lifetime monthly send volume across all 14+ months, open DM Campaign → Overview → Send volume trend (which reads directly from PCM and is authoritative).">
+          <span style={{ color: 'var(--text-secondary)', textDecoration: 'underline', textDecorationStyle: 'dotted', cursor: 'help' }}>
+            Why only {chartData.length} days?
+          </span>
+        </AxisTooltip>
+      </div>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={chartData} margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
           <CartesianGrid

@@ -96,6 +96,7 @@ export type WidgetType =
   | 'rr-operational-pulse'
   | 'rr-quality-metrics'
   | 'rr-pcm-health'
+  | 'rr-postal-performance'
   | 'rr-sends-trend'
   | 'rr-status-breakdown'
   | 'rr-alerts-feed'

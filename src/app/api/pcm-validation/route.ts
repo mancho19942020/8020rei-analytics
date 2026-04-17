@@ -73,11 +73,12 @@ export async function GET(request: NextRequest) {
         );
     }
   } catch (error) {
+    // Full trace → server log. Generic message → client (never expose SQL / stack to stakeholders).
     console.error(`[PCM Validation] Error fetching ${type}:`, error);
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Internal error',
+        error: `Unable to load ${type}. Please retry.`,
       },
       { status: 500 }
     );

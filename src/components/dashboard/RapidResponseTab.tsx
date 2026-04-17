@@ -21,6 +21,7 @@ import {
   RrOperationalPulseWidget,
   RrQualityMetricsWidget,
   RrPcmHealthWidget,
+  RrPostalPerformanceWidget,
   RrSendsTrendWidget,
   RrStatusBreakdownWidget,
   RrAlertsFeedWidget,
@@ -234,10 +235,12 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
         const allSuccess = [funnelRes, clientRes, templateRes, geoRes, alertsRes, convTrendRes, revenueCostRes].every(r => r.success);
         if (!allSuccess) {
           const firstError = [funnelRes, clientRes, templateRes, geoRes, alertsRes, convTrendRes, revenueCostRes].find(r => !r.success);
-          setBrError(firstError?.error || 'Some data failed to load');
+          console.error('[BR] Partial load — first failing endpoint:', firstError?.error);
+          setBrError('partial');
         }
       } catch (err) {
-        setBrError(err instanceof Error ? err.message : 'Failed to connect to API');
+        console.error('[BR] fetch failed:', err);
+        setBrError('partial');
       }
 
       setBrLoading(false);
@@ -335,7 +338,8 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
           profitPeriod: profitPeriodRes,
         });
       } catch (err) {
-        setPcmError(err instanceof Error ? err.message : 'Failed to fetch PCM data');
+        console.error('[PCM] fetch failed:', err);
+        setPcmError('partial');
       }
 
       setPcmLoading(false);
@@ -383,10 +387,14 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
         const allSuccess = [overviewRes, trendRes, campaignRes, alertsRes, statusRes, q2GoalRes, dataQualityRes].every(r => r.success);
         if (!allSuccess) {
           const firstError = [overviewRes, trendRes, campaignRes, alertsRes, statusRes, q2GoalRes, dataQualityRes].find(r => !r.success);
-          setError(firstError?.error || 'Some data failed to load');
+          // Raw error (SQL, stack, etc.) stays in the devtools console — the UI
+          // banner only shows a generic, user-safe message.
+          console.error('[OH] Partial load — first failing endpoint:', firstError?.error);
+          setError('partial');
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to connect to API');
+        console.error('[OH] fetch failed:', err);
+        setError('partial');
       }
 
       setLoading(false);
@@ -524,6 +532,9 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
           : null,
         'rr-pcm-health': data.pcmHealth
           ? <RrPcmHealthWidget data={data.pcmHealth} />
+          : null,
+        'rr-postal-performance': data.pcmHealth
+          ? <RrPostalPerformanceWidget data={data.pcmHealth} />
           : null,
         'rr-sends-trend': <RrSendsTrendWidget data={data.dailyTrend} />,
         'rr-status-breakdown': <RrStatusBreakdownWidget data={data.statusBreakdown} />,
@@ -740,10 +751,12 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
               </AxisCallout>
             )}
 
-            {/* Partial error banner — only show for real errors, not domain filter edge cases */}
+            {/* Partial error banner — sanitized; raw backend error stays in the
+                browser console for devs so stakeholders never see SQL traces. */}
             {error && !selectedDomain && data?.systemStatus && (
-              <AxisCallout type="alert" title="Partial data">
-                <p>{error}</p>
+              <AxisCallout type="alert" title="Some numbers didn't load">
+                <p>Refreshing the page usually resolves this. If it persists, reach out on #metrics-hub.</p>
+                <AxisButton onClick={fetchData} variant="outlined" size="sm">Retry</AxisButton>
               </AxisCallout>
             )}
 
@@ -754,8 +767,7 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
               editMode={editMode}
               widgets={widgets}
               headerExtras={headerExtras}
-              onWidgetSettings={handleOpenWidgetSettings}
-              onWidgetExport={handleWidgetExport}
+              /* Export + Settings removed from DM Campaign widgets per 2026-04-17 design call */
             />
 
             {/* Widget Catalog Modal */}
@@ -795,8 +807,9 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
             ) : (
               <>
                 {brError && (
-                  <AxisCallout type="alert" title="Partial data">
-                    <p>{brError}</p>
+                  <AxisCallout type="alert" title="Some numbers didn't load">
+                    <p>Refreshing the page usually resolves this. If it persists, reach out on #metrics-hub.</p>
+                    <AxisButton onClick={fetchBusinessResults} variant="outlined" size="sm">Retry</AxisButton>
                   </AxisCallout>
                 )}
 
@@ -806,8 +819,7 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
                   editMode={editMode}
                   widgets={brWidgets}
                   headerExtras={brHeaderExtras}
-                  onWidgetSettings={handleOpenWidgetSettings}
-                  onWidgetExport={handleWidgetExport}
+                  /* Export + Settings removed from DM Campaign widgets per 2026-04-17 design call */
                 />
 
                 <WidgetCatalog
@@ -852,8 +864,9 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
             ) : (
               <>
                 {pcmError && (
-                  <AxisCallout type="alert" title="Partial data">
-                    <p>{pcmError}</p>
+                  <AxisCallout type="alert" title="Some numbers didn't load">
+                    <p>Refreshing the page usually resolves this. If it persists, reach out on #metrics-hub.</p>
+                    <AxisButton onClick={fetchPcmValidation} variant="outlined" size="sm">Retry</AxisButton>
                   </AxisCallout>
                 )}
 
@@ -862,8 +875,7 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
                   onLayoutChange={handlePcmLayoutChange}
                   editMode={editMode}
                   widgets={pcmWidgets}
-                  onWidgetSettings={handleOpenWidgetSettings}
-                  onWidgetExport={handleWidgetExport}
+                  /* Export + Settings removed from DM Campaign widgets per 2026-04-17 design call */
                 />
 
                 <WidgetCatalog

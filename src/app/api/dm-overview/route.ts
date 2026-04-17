@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error(`[DM Overview] ${type} failed:`, error);
     return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : 'Internal error' },
+      { success: false, error: `Unable to load ${type}. Please retry.` },
       { status: 500 }
     );
   }

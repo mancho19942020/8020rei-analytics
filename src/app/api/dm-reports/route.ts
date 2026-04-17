@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error(`[DM Reports] Error fetching ${type}:`, error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal error' },
+      { error: `Unable to load ${type}. Please retry.` },
       { status: 500 }
     );
   }

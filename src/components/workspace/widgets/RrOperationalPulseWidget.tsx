@@ -48,7 +48,7 @@ export function RrOperationalPulseWidget({ data }: RrOperationalPulseWidgetProps
         label="Active campaigns"
         value={`${data.activeCampaigns} / ${data.totalCampaigns}`}
         type={data.activeCampaigns === 0 && data.totalCampaigns > 0 ? 'bad' : 'default'}
-        tooltip="Campaigns with status 'active' in the latest snapshot / total campaigns ever created. Same number shown in PCM & profitability tab. One client domain can have multiple campaigns. Source: rr_campaign_snapshots."
+        tooltip="Campaigns with status 'active' in the latest snapshot / total campaigns ever created. One client domain can have multiple campaigns. Source: rr_campaign_snapshots. Note: 'campaign' is an 8020REI abstraction — PCM tracks individual orders (mail pieces), not campaigns. Cross-tab equality is at the piece level (see 'Is it working?' → Lifetime pieces, which matches PCM). Same active/total appears in DM Campaign → Overview → Active campaigns card."
       />
       <AxisPill
         label="Sends today"

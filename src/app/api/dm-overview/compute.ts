@@ -123,7 +123,7 @@ export async function writeCache<T>(key: string, data: T): Promise<void> {
   );
 }
 
-// ─── Shared PCM pagination (in-memory single-flight) ──────────
+// ─── Shared PCM pagination (single-flight + in-memory TTL cache) ──────
 
 export interface PcmOrderSlim {
   date: string;
@@ -136,7 +136,45 @@ export interface PcmOrderSlim {
 
 let inflight: Promise<PcmOrderSlim[]> | null = null;
 
+/**
+ * In-memory cached copy of the last successful PCM pagination. Any caller that
+ * needs the slim orders (getQ2Goal, dm-overview GET cache-miss path, etc.)
+ * reuses this instead of re-paginating — pagination is ~90s across ~250 pages,
+ * so triggering it on every request would block endpoints for that long.
+ *
+ * TTL is intentionally shorter than the /refresh cron interval (30 min) so
+ * the cron's fresh PCM pull always overwrites the in-memory copy. If the
+ * server restarts, the first caller pays the ~90s cost; all concurrent
+ * requests coalesce on the inflight promise; subsequent requests within
+ * 20 min hit memory.
+ */
+let ordersCache: { data: PcmOrderSlim[]; fetchedAt: number } | null = null;
+const ORDERS_TTL_MS = 20 * 60 * 1000; // 20 minutes
+
+/** Force-invalidate the in-memory cache. Called by /refresh after a fresh compute. */
+export function invalidatePcmOrdersCache(): void {
+  ordersCache = null;
+}
+
+/**
+ * Non-blocking accessor — returns the cached PCM orders if the in-memory copy
+ * is fresh, otherwise null. Unlike fetchPcmOrdersSlim(), this NEVER triggers a
+ * pagination, so endpoints that need fast response times (OH tab's parallel
+ * fetches) can use it safely and fall back to Aurora when the cache is cold.
+ */
+export function getCachedPcmOrdersSlim(): PcmOrderSlim[] | null {
+  if (ordersCache && Date.now() - ordersCache.fetchedAt < ORDERS_TTL_MS) {
+    return ordersCache.data;
+  }
+  return null;
+}
+
 export async function fetchPcmOrdersSlim(): Promise<PcmOrderSlim[]> {
+  // Fast path: recent in-memory copy.
+  if (ordersCache && Date.now() - ordersCache.fetchedAt < ORDERS_TTL_MS) {
+    return ordersCache.data;
+  }
+  // Another request is already paginating — coalesce on its promise.
   if (inflight) return inflight;
   if (!isPcmConfigured()) return [];
 
@@ -181,6 +219,7 @@ export async function fetchPcmOrdersSlim(): Promise<PcmOrderSlim[]> {
         page++;
       }
 
+      ordersCache = { data: orders, fetchedAt: Date.now() };
       return orders;
     } finally {
       inflight = null;
@@ -456,6 +495,9 @@ export async function refreshAllCaches(): Promise<{ keys: string[]; durationMs: 
   const start = Date.now();
   await ensureCacheTable();
 
+  // Force a fresh pagination — the whole point of /refresh is to pull new data
+  // from PCM, so any in-memory TTL copy must be discarded first.
+  invalidatePcmOrdersCache();
   const orders = await fetchPcmOrdersSlim();
 
   const [headline, sendTrend, balanceFlow] = await Promise.all([

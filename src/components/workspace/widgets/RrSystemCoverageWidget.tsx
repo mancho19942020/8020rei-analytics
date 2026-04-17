@@ -68,7 +68,7 @@ export function RrSystemCoverageWidget({ data }: RrSystemCoverageWidgetProps) {
         icon={<ClientsIcon />}
         iconBgClass="bg-main-700"
         format="number"
-        subtitle="Distinct client domains in the conversion tracking system"
+        subtitle="Distinct client domains in dm_property_conversions (excludes test domains). 8020REI internal view — NOT the same as PCM domain count, which only sees domains that have physical orders."
       />
       <MetricCard
         label="Templates tracked"
@@ -76,7 +76,7 @@ export function RrSystemCoverageWidget({ data }: RrSystemCoverageWidgetProps) {
         icon={<TemplatesIcon />}
         iconBgClass="bg-accent-1-700"
         format="number"
-        subtitle="Distinct mail templates across all domains"
+        subtitle="Distinct 8020REI template configurations used across all domains (from dm_property_conversions). NOT the same as PCM's design catalog size — PCM tracks ~28 canonical designs in the vendor system; see PCM & Profitability → Template catalog for the PCM-side count."
       />
       <MetricCard
         label="Properties tracked"
@@ -84,14 +84,14 @@ export function RrSystemCoverageWidget({ data }: RrSystemCoverageWidgetProps) {
         icon={<PropertiesIcon />}
         iconBgClass="bg-accent-2-700"
         format="number"
-        subtitle={hasPropertyData ? 'Distinct properties in the conversion tracking system' : 'Property data pending monolith fix'}
+        subtitle={hasPropertyData ? 'Distinct property records in the conversion tracking system. A single property that was mailed multiple times counts as 1 here; for total mail pieces, see "Is it working?" → Lifetime pieces.' : 'Property data pending monolith fix'}
       />
       <MetricCard
         label="Attribution rate"
         value={hasPropertyData ? `${data.attributionRate}%` : '—'}
         icon={<AttributionIcon />}
         iconBgClass={hasPropertyData ? attrColor : 'bg-neutral-500'}
-        subtitle={hasPropertyData ? `${data.attributedCount} of ${data.totalProperties} properties linked to a campaign` : 'Property data pending monolith fix'}
+        subtitle={hasPropertyData ? `${data.attributedCount} of ${data.totalProperties} properties linked to a campaign. Conversions before Sep 2025 have NULL attribution by design, so 100% is unreachable for lifetime-scoped views.` : 'Property data pending monolith fix'}
       />
     </div>
   );

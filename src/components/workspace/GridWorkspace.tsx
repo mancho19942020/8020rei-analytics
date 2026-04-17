@@ -213,7 +213,13 @@ export function GridWorkspace({
               headerExtra={headerExtras?.[widgetConfig.type]}
               editMode={editMode}
               flushBody={widgetConfig.flushBody ?? FLUSH_BODY_WIDGETS_LEGACY.has(widgetConfig.type)}
-              allTime={widgetConfig.timeBehavior === 'all-time'}
+              timeScope={
+                widgetConfig.timeBehavior === 'all-time'
+                  ? 'all-time'
+                  : widgetConfig.timeBehavior === 'date-filtered'
+                    ? 'date-range'
+                    : 'none'
+              }
               onRemove={() => handleRemoveWidget(widgetConfig.id)}
               onSettings={onWidgetSettings ? () => onWidgetSettings(widgetConfig.id) : undefined}
               onExport={onWidgetExport ? () => onWidgetExport(widgetConfig.id) : undefined}
