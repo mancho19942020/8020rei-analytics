@@ -13,20 +13,14 @@ import { AxisTooltip, AxisTag } from '@/components/axis';
 /**
  * Custom "All time" pill. AxisTag's `neutral` variant disappears on the dark
  * header surface (neutral-800 filled on a near-neutral-800 bg). We use
- * accent-2 (indigo #6366f1) instead — same pill shape as AxisTag, but a
- * distinctive color that's (a) not a status color, and (b) visibly different
- * from the info-blue used for "Date range". Design-system tokens only.
+ * accent-2 (indigo) instead — same pill shape as AxisTag, but a distinctive
+ * color that's (a) not a status color, and (b) visibly different from the
+ * info-blue used for "Date range". Mirrors AxisTag's info light/dark pattern
+ * so contrast holds in both modes.
  */
 function AllTimeTag() {
   return (
-    <span
-      className="inline-flex items-center h-6 px-2.5 rounded-full text-label font-medium whitespace-nowrap"
-      style={{
-        backgroundColor: 'color-mix(in srgb, var(--color-accent-2-500) 18%, transparent)',
-        color: 'var(--color-accent-2-300)',
-        border: '1px solid color-mix(in srgb, var(--color-accent-2-500) 35%, transparent)',
-      }}
-    >
+    <span className="inline-flex items-center h-6 px-2.5 rounded-full text-label font-medium whitespace-nowrap bg-accent-2-100 text-accent-2-700 border border-accent-2-300 dark:bg-accent-2-900/40 dark:text-accent-2-300 dark:border-accent-2-700">
       All time
     </span>
   );

@@ -70,7 +70,7 @@ export function DmOverviewSendTrendWidget({ data }: Props) {
             type="monotone"
             dataKey="total"
             name="Total pieces"
-            stroke="var(--color-main-700)"
+            stroke="var(--color-chart-1)"
             strokeWidth={2.5}
             dot={false}
             activeDot={{ r: 4 }}
@@ -79,19 +79,19 @@ export function DmOverviewSendTrendWidget({ data }: Props) {
             type="monotone"
             dataKey="firstClass"
             name="First class"
-            stroke="var(--color-accent-1-700)"
-            strokeWidth={1.5}
+            stroke="var(--color-chart-3)"
+            strokeWidth={2}
             dot={false}
-            strokeDasharray="4 4"
+            activeDot={{ r: 4 }}
           />
           <Line
             type="monotone"
             dataKey="standard"
             name="Standard"
-            stroke="var(--color-accent-2-700)"
-            strokeWidth={1.5}
+            stroke="var(--color-chart-6)"
+            strokeWidth={2}
             dot={false}
-            strokeDasharray="4 4"
+            activeDot={{ r: 4 }}
           />
         </LineChart>
       </ResponsiveContainer>
