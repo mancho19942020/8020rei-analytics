@@ -10,20 +10,42 @@ This agent ensures that every metric in the platform pulls from the correct sour
 
 **All data shown in the Metrics Hub MUST be consistent with PostcardMania's data. Always. No exceptions.**
 
-PCM is the vendor that physically mails pieces — their numbers are ground truth. Any discrepancy between our numbers and PCM's destroys trust in the entire platform. This rule applies to all three DM Campaign tabs: Operational Health, Business Results, PCM & Profitability.
+PCM is the vendor that physically mails pieces — their numbers are ground truth. Any discrepancy between our numbers and PCM's destroys trust in the entire platform.
 
-**PCM reference numbers (as of April 13, 2026):**
-- Total active orders: 23,848
-- Total recipients: 23,884
-- Aurora sends (dm_client_funnel): 23,632 (99.1% match)
-- Total PCM cost: $20,443
-- Client domains: 19
+### The dual-source principle (ruling Apr 17, 2026 — from Camilo)
+
+**Aurora + PCM, always both. Never single-source.** Every volume / cost / revenue metric must be computed from Aurora AND verified against PCM. If they disagree beyond tolerance, the widget must **surface the delta visibly** (not hide it in a hover-tooltip). Hiding inconsistencies is the root of the trust problem this skill exists to prevent.
+
+**PCM reference numbers (as of April 17, 2026 — re-snapshot quarterly):**
+- Total PCM orders (all statuses): 25,165
+- Canceled orders: 54
+- Active pieces (non-canceled, excl. test domains): **24,906**
+- Active domains with orders: **18**
+- PCM computed cost (era-priced): $21,334.15
+- Aurora `dm_client_funnel` lifetime sends: 24,195 (trails PCM by 711 pieces = -2.85% — in-pipeline, surfaced as a visible delta on the "Lifetime pieces" card)
+- Aurora `dm_client_funnel` lifetime revenue: $24,371.68
+- Aurora `dm_client_funnel` lifetime PCM cost: $17,132.81
+- Aurora `dm_client_funnel` lifetime gross margin: $4,674.30 (19.2%)
+- PCM balance on account: $0
+- Design catalog: 28 templates
 
 **Verification checklist (run after ANY data query change):**
-1. All-time funnel mailed must show ~23,000+. If it shows less, something is broken.
-2. `dm_client_funnel` is the corrected source for all-time volume. NEVER replace with a source that shows lower numbers.
-3. `dm_property_conversions` has only a SUBSET synced. Use for date-filtered views and conversions only.
-4. After changing data sources, manually verify numbers in the browser before pushing.
+1. All-time pieces must show ~24,900+ (PCM authority). If Aurora shows less, that's expected (in-pipeline drift); display the delta.
+2. `dm_client_funnel` is canonical for lifetime revenue / PCM cost / gross margin — same source as Profitability → Margin summary. NEVER replace with a source that shows different numbers.
+3. `dm_property_conversions` has data-quality noise (lifetime sum = $56K vs funnel's $24K). Use for date-filtered conversions ONLY. NEVER for lifetime totals.
+4. `dm_client_funnel` is a ROLLING SNAPSHOT, not a ledger — only ~11 days of date coverage. Its lifetime-cumulative columns are correct, but you CANNOT derive a monthly trend from it (see Rule 9).
+5. After changing data sources, manually verify numbers match Profitability tab before pushing.
+
+### Tolerances
+
+| Metric class | Tolerance |
+|---|---|
+| Counts (pieces, campaigns, domains, clients) | **0%** — any mismatch is a blocker |
+| Per-piece pricing | **< $0.01/piece** |
+| Revenue / cost totals | **< 1%** (attribution timing drift allowed) |
+| Delivery rate | **< 0.5 percentage points** |
+
+Anything outside these tolerances is a **blocker**: must be resolved before the widget ships.
 
 ---
 
@@ -41,17 +63,25 @@ The data consistency guardian validates the **data layer** — what tables a met
 
 ## When to Invoke
 
+### Proactively, BEFORE you write any code (new — Apr 17, 2026):
+
+Run the **Pre-Flight Checklist** (bottom of this doc) the moment you start planning a new widget / metric / API route. Most trust breaks are designed in, not coded in. Catching them at the planning stage is 10× cheaper than fixing them after the widget ships.
+
 ### Automatically (MUST run after these changes):
-1. **After creating or modifying any widget** in `src/components/workspace/widgets/Dm*.tsx` or `Rr*.tsx`
-2. **After modifying API routes** in `src/app/api/dm-conversions/` or `src/app/api/rapid-response/`
+1. **After creating or modifying any widget** in `src/components/workspace/widgets/Dm*.tsx`, `Rr*.tsx`, or `DmOverview*.tsx`
+2. **After modifying API routes** in `src/app/api/dm-conversions/`, `src/app/api/rapid-response/`, `src/app/api/pcm-validation/`, or `src/app/api/dm-overview/`
 3. **After adding a new metric, column, or KPI card** to any DM Campaign widget
-4. **After modifying type definitions** in `src/types/dm-conversions.ts` or `src/types/rapid-response.ts`
+4. **After modifying type definitions** in `src/types/dm-conversions.ts`, `src/types/rapid-response.ts`, or `src/types/dm-overview.ts`
+5. **After modifying `TEST_DOMAINS`** in any API route (parity check: all 7 files + `src/app/api/dm-overview/compute.ts`)
+6. **After modifying `src/app/api/dm-overview/compute.ts`** (the Overview's computeHeadline is the cross-tab equality anchor — if this changes, every dependent widget must be re-verified)
 
 ### On demand:
 - `"Run a data consistency audit"`
 - `"Check if this new metric is sourced correctly"`
 - `"Verify terminology across DM tabs"`
 - `"Audit tooltip coverage"`
+- `"Verify cross-tab equality"` — for every metric on multiple tabs, check they use the same source
+- `"Audit table coverage"` — check MIN/MAX/COUNT(date) for every Aurora table a widget sources from
 
 ---
 
@@ -61,8 +91,16 @@ Every metric MUST pull from its designated source-of-truth table. This is the si
 
 ### Data Source Authority Map
 
-| Metric | Authoritative Table | Column / Derivation | API Route | Section |
-|--------|-------------------|--------------------|-----------|---------| 
+**Priority order (Apr 17 update):** When multiple sources could produce the same metric, use them in this order: (1) PCM API for authoritative volume/cost, (2) `dm_overview_cache` shared cache for cross-tab-equal lifetime totals, (3) `dm_client_funnel` for Aurora-side lifetime revenue/cost/margin, (4) `rr_*` / `dm_*` for section-specific metrics.
+
+| Metric | Authoritative Source | Column / Derivation | API Route | Section |
+|--------|-------------------|--------------------|-----------|---------|
+| **Lifetime mail pieces (PCM authority)** | PCM `/order` paginated (excl. canceled + test) | count of non-canceled orders | `/api/dm-overview?type=headline` → `lifetimePieces.pcm` | Overview + any widget showing lifetime |
+| **Aurora-vs-PCM pieces delta** | `dm_overview_cache.headline` | `lifetimePieces.delta` (Aurora − PCM) | `/api/dm-overview?type=headline` | Overview + any widget surfacing the gap |
+| **Lifetime client revenue** | `dm_client_funnel.total_cost` latest-per-domain summed | same SQL as Profitability → Margin summary | `/api/pcm-validation?type=profitability-summary`, `/api/dm-overview?type=headline` | Profitability + Overview |
+| **Lifetime PCM cost (canonical)** | `dm_client_funnel.total_pcm_cost` latest-per-domain summed | same SQL as Profitability → Margin summary | same as above | Profitability + Overview |
+| **Lifetime gross margin (canonical)** | `dm_client_funnel.margin` latest-per-domain summed | same SQL as Profitability → Margin summary | same as above | Profitability + Overview |
+| **Internal test cost** | PCM `/order` filtered to test domains × era rates | `testActivity.cost` | `/api/dm-overview?type=headline` | Overview only (surfaced as drag on margin) |
 | Unique properties mailed | `dm_client_funnel` (preferred) or `dm_property_conversions` (fallback) | `total_properties_mailed` or `COUNT(DISTINCT property_id)` | `/api/dm-conversions` | Business Results |
 | Total mail pieces sent (campaign-level) | `rr_campaign_snapshots` | `total_sent` | `/api/rapid-response` | Operational Health |
 | Total mail pieces sent (volume tracking) | **`dm_volume_summary`** | `SUM(daily_sends)` for period, `cumulative_sends` for lifetime | `/api/rapid-response` | Operational Health |
@@ -224,23 +262,50 @@ Any volume-related column in a table or metric card MUST have a tooltip explaini
 
 ---
 
-## Rule 4: Cross-Section Consistency
+## Rule 4: Cross-Tab Equality (STRENGTHENED Apr 17)
 
-When the same concept appears in both Operational Health and Business Results, it MUST be handled carefully.
+When the same concept appears on more than one tab (Overview, Operational Health, Business Results, Profitability), the numbers MUST be **bit-for-bit identical**. Not "close," not "within rounding." Identical. The way to guarantee this is to make both widgets read from **the exact same cache key** or **the exact same SQL query**.
 
-### Known Cross-Section Overlaps
+### Mandatory cross-tab equality matrix
 
-| Concept | Operational Health Source | Business Results Source | Same numbers? | Action Required |
-|---------|------------------------|----------------------|---------------|-----------------|
-| Delivered | `rr_campaign_snapshots.total_delivered` (mail pieces) | `dm_property_conversions.total_delivered` (per-property) | **No** — pieces vs properties | Tooltip on BOTH sides explaining the difference |
-| Cost | `rr_daily_metrics.cost_total` (daily operational) | `dm_client_funnel.total_cost` (cumulative) | **May differ** — date range + aggregation | Tooltip explaining time range context |
-| Campaign count | `rr_campaign_snapshots` (active campaigns by snapshot) | `dm_client_funnel.active_campaigns` | **May differ** — different snapshot timing | Document update frequency |
+Every row below MUST match bit-for-bit across the listed tabs:
 
-### Rules
+| Metric | Tabs it appears on | Guaranteed-equal via |
+|---|---|---|
+| Active campaigns count | OH "Is it running?", Overview "Active campaigns" card, PP volume comparison | `rr_campaign_snapshots` latest-per-campaign, same SQL |
+| Lifetime mail pieces (PCM authority) | OH "Is it working?", Overview "Lifetime pieces", PP volume comparison | `dm_overview_cache.headline.lifetimePieces.pcm` |
+| Aurora-vs-PCM pieces delta | Everywhere lifetime pieces appears | same cache key; one pieces value + one delta |
+| Lifetime revenue | PP "Margin summary", Overview "Company margin" card | `dm_client_funnel.total_cost` summed (same SQL) |
+| Lifetime PCM cost | PP "Margin summary", Overview "Company margin" card | `dm_client_funnel.total_pcm_cost` summed |
+| Lifetime gross margin | PP "Margin summary", Overview "Company margin" card | `dm_client_funnel.margin` summed |
+| Domain count | OH "Is it aligned?", Overview adoption denominator, PP "Data match" | `dm_client_funnel` distinct domains (excl. TEST_DOMAINS) |
+| Delivery rate | OH "Is it working?", OH Status breakdown | Same numerator (`dm_client_funnel.total_delivered`) + denominator (`dm_client_funnel.total_sends`) |
 
-- If numbers will differ between sections for the same concept: **BOTH sections MUST have tooltips explaining why**
-- If a metric appears in only one section: no cross-reference needed
-- NEVER assume a user will only look at one section. Users compare tabs.
+### Hard rules
+
+1. **Use the Overview's Aurora-persisted cache as the source of truth for any metric it publishes.** If you're building a new widget that shows "lifetime pieces," it reads `dm_overview_cache.headline` via `/api/dm-overview?type=headline` — do NOT re-derive from PCM or Aurora with your own query. Re-derivation = drift.
+2. **If two widgets display the same metric with different numbers, that's a blocker.** Open the console, click into both widgets, read the SQL, find the divergence, fix to a single source.
+3. **If a concept APPEARS on multiple tabs but has legitimately different definitions** (e.g. "Delivered" = pieces on OH vs. "Delivered" = unique properties on BR): rename one side. Same label with different semantics is banned.
+4. **Never assume users look at only one tab.** Executives flip between Overview and Profitability specifically to sanity-check numbers. If they disagree, trust dies.
+
+### Legitimate cross-tab differences (tooltip-required, NOT blocker)
+
+| Concept | OH value | BR value | Allowed? |
+|---|---|---|---|
+| Sent vs. Mailed | `rr_*.total_sent` (pieces) | `dm_property_conversions` (unique properties) | Yes — different concepts. Different labels + explicit tooltips on both sides. |
+| Cost window | `rr_daily_metrics.cost_total` (period) | `dm_client_funnel.total_cost` (lifetime) | Yes — different time windows. Labels must say "period" vs "lifetime." |
+
+### Code pattern to FORCE equality
+
+```tsx
+// ❌ WRONG — widget runs its own SQL for a metric that lives on Overview
+const rows = await runAuroraQuery(`SELECT SUM(total_cost) FROM dm_client_funnel WHERE ...`);
+
+// ✅ CORRECT — widget reads from the cached compute
+import { readCache } from '@/app/api/dm-overview/compute';
+const cached = await readCache<DmOverviewHeadline>('headline');
+const revenue = cached?.data.companyMargin.clientRevenue;
+```
 
 ```tsx
 // ❌ WRONG — "Delivered" without clarifying which kind
@@ -282,6 +347,188 @@ If a naming conflict is found:
 // ✅ CORRECT — Use a distinct name
 // "Properties delivered" or "Delivery reach" for the unique-property version
 ```
+
+---
+
+## Rule 6: Tolerances are non-negotiable (NEW — Apr 17, 2026)
+
+Repeated from the top for emphasis. Any widget that exceeds these is a **blocker**, not a warning.
+
+- Counts (pieces, campaigns, domains, clients): **0%**
+- Per-piece pricing: **< $0.01/piece**
+- Revenue / cost totals: **< 1%** (attribution timing drift allowed)
+- Delivery rate: **< 0.5 percentage points**
+
+If you find a mismatch outside tolerance, do NOT ship the widget. Find the divergence first. "Close enough" is the beginning of every trust-break.
+
+---
+
+## Rule 7: Never hide inconsistencies (NEW — Apr 17, 2026)
+
+Camilo's explicit ruling: **"we shouldn't hide data; we have to show everything"**.
+
+If two sources disagree on a metric and the delta exceeds tolerance, the widget MUST:
+
+1. Display the authoritative number as the hero value (PCM for volume, Aurora pre-computed for margin).
+2. Display the secondary source **visibly in the card body** — NOT in a hover-tooltip. A tooltip is hidden; a subtitle is visible.
+3. Display the delta explicitly with direction and percentage.
+4. Explain the cause in a hover source-note (e.g. "in-pipeline pieces at PCM not yet counted in Aurora funnel").
+
+**Reference implementation:** `src/components/workspace/widgets/DmOverviewHeadlineWidget.tsx` — the "Lifetime pieces" card shows:
+- Hero: `24.9K` (PCM authority)
+- Visible subtitle: `Aurora: 24.2K · Δ -711 (-2.85%)`
+- Source hover: explanation of the drift
+
+Anti-pattern this replaces: showing only PCM (hiding Aurora's disagreement) or only Aurora (hiding PCM's authority) or putting the delta in a tooltip. All three destroy trust when the user cross-references another tab and sees different numbers.
+
+---
+
+## Rule 8: Column-name collision detection (NEW — Apr 17, 2026)
+
+**Never infer semantics from a column name across tables.** The same identifier means different things in different tables. This is the silent-bug factory of the platform.
+
+### Known collisions in DM Campaign tables
+
+| Column name | Table | Actually means | Typical lifetime sum |
+|---|---|---|---|
+| `total_cost` | `dm_client_funnel` | **Customer-paid amount (revenue to us)** | ~$24.4K |
+| `total_cost` | `dm_property_conversions` | Revenue per property, includes data-quality noise | ~$56K (do NOT use for lifetime totals) |
+| `total_cost` | `rr_daily_metrics` | Our cost to PCM for the day (PCM-to-us) | daily value |
+| `total_pcm_cost` | `dm_client_funnel` | What PCM charged us (lifetime, pre-computed) | ~$17.1K |
+| `margin` | `dm_client_funnel` | `total_cost − total_pcm_cost` pre-computed | ~$4.7K |
+| `cost` (ambiguous — avoid) | Anywhere | — | **Rename on first sight. If you can't tell from the label whether this is revenue or cost, it's wrong.** |
+
+### Rule
+
+When reading ANY SQL query, confirm what the column means by tracing the source of truth. Never trust a display label on a widget — open the API route and read the query. If the column is `total_cost` in `dm_client_funnel`, it's revenue; if it's `total_cost` in `rr_daily_metrics`, it's cost. Same word, opposite side of the P&L.
+
+---
+
+## Rule 9: Table coverage verification (NEW — Apr 17, 2026)
+
+Before building any TREND / TIME-SERIES widget, check the date coverage of the source table. If it's thin, the chart lies.
+
+### Mandatory pre-build check
+
+```sql
+SELECT
+  COUNT(*) AS total_rows,
+  COUNT(DISTINCT date::DATE) AS distinct_dates,
+  MIN(date::TEXT) AS first_date,
+  MAX(date::TEXT) AS last_date
+FROM {source_table}
+WHERE domain IS NOT NULL AND domain NOT IN ({TEST_DOMAINS});
+```
+
+### Known coverage limits (as of Apr 17, 2026 — re-verify quarterly)
+
+| Table | Coverage | Safe for | Unsafe for |
+|---|---|---|---|
+| `dm_client_funnel` | **~11 days** (Apr 6 → Apr 16, 2026). Cumulative lifetime columns ARE correct. | Lifetime totals. Latest-per-domain snapshots. | Monthly trends. Per-month deltas. Anything expecting historical per-month rows. |
+| `rr_daily_metrics` | **~15 days** (starting Apr 3, 2026) | Last 15 days only | "14-month trend," Q2 goals spanning the full quarter, top-contributors-all-time |
+| PCM `/order` | ~14 months (Feb 2025 → today) | Monthly / daily send trends, cost trends | Real-time (cached 30 min) |
+| `dm_property_conversions` | ~14 months of `first_sent_date` | Per-month conversion trends | Lifetime totals (has data-quality noise — see Rule 8) |
+
+### Rule
+
+1. If your widget displays a time range wider than the source table's coverage, either:
+   - (a) swap to a table with sufficient coverage, or
+   - (b) add a **visible label** to the widget saying "last N days only" so users aren't misled.
+2. If the widget's data would be zero for historical months due to coverage gaps, **do not ship the widget**. A chart with 13 zero bars and 1 real value looks like a bug, and it is.
+3. When in doubt, run the pre-build check SQL above before writing the widget.
+
+### Reference
+
+This rule exists because in the Apr 17 session a "Company margin trend" widget was attempted using `dm_client_funnel`. That table had 11 days of data. The chart showed `$0` for 13 months and `$4,674` for April 2026. It was deleted and replaced with a single lifetime-summary card.
+
+---
+
+## Rule 10: Internal test sends are cost, not revenue (NEW — Apr 17, 2026)
+
+Camilo's ruling (Apr 17 meeting, timestamp 2:00-2:28): **"Cuba" / QA / sandbox environments don't pay us, but they DO cost us real PCM spend.** Any honest company P&L must reflect this.
+
+### Rule
+
+1. **`TEST_DOMAINS`** is the exclusion list for client-facing revenue metrics (adoption, revenue, margin). Every Aurora query that sums revenue or counts paying clients MUST include `WHERE domain NOT IN (${TEST_DOMAINS})`.
+2. **Internal test cost** is a real PCM expense with zero client revenue. It must be:
+   - Surfaced in a dedicated widget (per-domain breakdown preferred — see `DmOverviewTestCostCardsWidget`)
+   - **Deducted from "Company margin"** (gross margin − test cost = company margin)
+   - Never silently excluded from cost totals
+3. The authoritative `TEST_DOMAINS` list (Apr 17 snapshot — 9 entries): `8020rei_demo`, `8020rei_migracion_test`, `_test_debug`, `_test_debug3`, `supertest_8020rei_com`, `sandbox_8020rei_com`, `qapre_8020rei_com`, `testing5_8020rei_com`, `showcaseproductsecomllc_8020rei_com`. The full list is in `src/app/api/dm-overview/compute.ts`. **Currently duplicated in 7 API files** — pending consolidation into `src/lib/domain-filter.ts`.
+
+### Anti-pattern this catches
+
+A widget that queries `dm_property_conversions` without `domain NOT IN (TEST_DOMAINS)` will include ~600 phantom rows from `showcaseproductsecomllc_8020rei_com` (the "Inaugural RR Test" campaign) and inflate Business Results counts. This was Blocker C of the Apr 17 audit.
+
+---
+
+## Pre-Flight Checklist — BEFORE you write any code (NEW — Apr 17, 2026)
+
+Run this 2-minute check the MOMENT you start planning a new widget, metric, or API route. Catching a trust-break here is 10× cheaper than fixing it after the code is merged.
+
+### 1. Does the metric already exist somewhere on the platform?
+
+- Search the audit doc `Design docs/audits/dm-campaign-consistency-audit-*.md` and the widget files.
+- If yes: **reuse the existing source**. Do NOT write a new SQL query. Import from `/api/dm-overview` or call the existing endpoint.
+- If the existing metric has a problem (wrong source, drift, etc.), FIX it first, then let your new widget inherit the fix. Don't build on a broken foundation.
+
+### 2. Where should the metric come from?
+
+- Consult the Authority Map (Rule 1). Identify the canonical source.
+- If you can't find it in the map, it's not yet a canonical metric. Propose the source + get it added to the map BEFORE shipping.
+- If you find yourself about to query `dm_client_funnel.margin` AND recompute it from PCM orders × era rates: **STOP**. Use one source only. Aurora's pre-computed `margin` column is canonical.
+
+### 3. Does the backing table have enough coverage?
+
+- Run the Rule 9 check. If the table has only N days but your widget implies a longer range, stop.
+- Pick a different source or change the widget's scope.
+
+### 4. Is the column name ambiguous?
+
+- If the column is named `total_cost`, `cost`, `revenue`, or similar — trace what it actually represents in THIS table before summing it (Rule 8).
+- If the widget title contains "Revenue" or "Cost" or "Margin", be explicit: **whose** revenue / cost / margin?
+
+### 5. Will this metric cross tabs?
+
+- If yes: it MUST read from the same source the other tabs use. Prefer `dm_overview_cache` cache keys or shared compute functions. Do NOT write a fresh SQL query — re-derivation = drift.
+- Validate bit-for-bit equality on at least one live value before shipping.
+
+### 6. Does the query include TEST_DOMAINS exclusion?
+
+- Any client-facing revenue / volume / client-count query MUST exclude test domains.
+- Copy the constant from `src/app/api/dm-overview/compute.ts` → `TEST_DOMAINS` (the one true source today).
+- If you're adding a new test domain, update all 7 copies across API files (see Rule 10 list).
+
+### 7. Does the widget have tooltips for every numeric field?
+
+- Volume columns → tooltip must specify pieces vs properties.
+- Financial columns → tooltip must specify revenue vs cost vs margin, and whose.
+- Rate columns → tooltip must specify numerator and denominator.
+- Cross-tab metrics → tooltip must name the matching widget on other tabs.
+
+### 8. Does the widget surface inconsistencies visibly?
+
+- If Aurora and PCM disagree on this metric, does the widget display both + the delta in the card body? (Rule 7)
+- If not, redesign before coding.
+
+If all 8 answers are "yes" / "no-issue," you can start writing code. If any one is "unclear" or "no," fix it in the design first.
+
+---
+
+## Session-proven anti-patterns — DO NOT DO THESE
+
+These are failures the Apr 17 session discovered and fixed. If you see yourself writing any of these, stop and re-check the rules.
+
+| Anti-pattern | What it does | Correct approach |
+|---|---|---|
+| Sum `dm_property_conversions.total_cost` for lifetime revenue | Returns $56K (includes data-quality noise). Real lifetime revenue is $24.4K. | Use `dm_client_funnel.total_cost` latest-per-domain summed. |
+| Compute PCM cost by paginating PCM orders × era rates | Produces $21.5K instead of the canonical $17.1K that Profitability uses. Introduces cross-tab drift. | Use `dm_client_funnel.total_pcm_cost` (pre-computed, matches Profitability). |
+| `filterStatus=Canceled` on PCM `/order` | No-op. PCM doesn't honor this query param. Returns all 25,165 orders regardless. | Paginate fully, filter client-side. Cache aggressively (1-hour TTL). |
+| Apply `last_sent_date >= today - N days` filter to a "lifetime campaigns" query | Hides historical campaigns. The 13/22 vs 15/15 bug that triggered this entire session. | No date filter on lifetime queries. Use `status` column to distinguish active/inactive. |
+| Ship a monthly trend widget without first running the coverage check | Chart silently shows zeros for most months (Rule 9 scenario). | Run the coverage SQL first. If <1 month, pick a different source or label the scope. |
+| Include test domains in revenue / client counts | Inflates numbers with unpaid QA sends. | Always `WHERE domain NOT IN (${TEST_DOMAINS})`. |
+| Put the Aurora-vs-PCM delta in a hover tooltip | Hidden from users — defeats the "surface inconsistencies" rule. | Delta visible in the card body (subtitle), source explanation in hover. |
+| Two widgets on different tabs re-derive the same metric with separate SQL | Numbers drift; cross-tab trust breaks. | Both widgets read from `dm_overview_cache` via `/api/dm-overview?type=…`. |
 
 ---
 
@@ -429,13 +676,16 @@ These are documented, known issues — NOT violations. Do not flag them during a
 
 | Gap | Description | Status | Impact |
 |-----|------------|--------|--------|
-| `dm_property_conversions` volume inflation | Individual property rows still have inflated `total_sends` from before PR #1882. Re-syncing through nightly cron. **Mitigation in place:** Template Leaderboard and Geo Breakdown now proportionally scale per-template/geo numbers to match corrected `dm_client_funnel` domain totals. | Closing — gap narrows each night | NEVER use `SUM(total_sends)` from `dm_property_conversions` as-is. Always cross-reference with `dm_client_funnel` corrected totals. |
-| PCM inflation — **RESOLVED** | Fix deployed Apr 11 (PR #1882, Release v1.129.0). Verified Apr 12. All counting queries now use `vendor_id IS NOT NULL`. Sends dropped from 74K → ~20K, cost from $80K → ~$19.5K, aligning with PCM's 23,884 recipients / $18,300 cost. | **Fixed in production** | The remaining gap (our ~20K vs PCM's 23.8K) closes as more clients sync. |
-| Profitability tracking (NEW) | PR #1887 adds `pcm_unit_cost` (what PCM charges us) alongside `unit_cost` (what we charge users). Aurora tables now have `cumulative_pcm_cost`, `margin`, `margin_pct`, and `mail_class` breakdown. | Aurora DDL done, PR pending merge | Standard mail: ~0.8% margin. First Class: NEGATIVE margin. Camilo investigating pricing adjustment. |
-| `rr_daily_metrics` limited history | Only has data from March 2026 onward (Layer 1 sync deployed recently) | By design — accumulating over time | Operational Health trend charts have limited historical range |
-| Zero Smart Drop data | `campaign_type = 'smartdrop'` returns 0 rows in all tables | Smart Drop not yet used in production | Campaign type breakdown will show 100% Rapid Response until Smart Drop launches |
-| Pre-send exclusions | Properties with conversions before first send are excluded from counts. Cascading filter: deals/appointments/contracts also require valid lead. | Intentional — prevents impossible funnels (deals > leads) | Conversion counts may be lower than raw DB counts |
-| ROAS `low_sample` flags | ROAS with < 3 deals is marked `low_sample`, not `confident` | By design — Lauren's meeting requirement | Some clients show ROAS with confidence warnings |
+| **Aurora trails PCM by ~711 pieces** (Apr 17) | `dm_client_funnel.total_sends` lifetime = 24,195. PCM active pieces = 24,906. Difference = in-pipeline (processing + mailing) not yet counted in Aurora. | By design — PCM ingest has a small sync lag | **Surface the delta visibly** on any widget that shows "lifetime pieces" (Rule 7). Do not try to reconcile; it'll narrow naturally as pieces deliver. |
+| **`dm_client_funnel` has only ~11 days of historical rows** (Apr 17) | The table is a rolling snapshot. Lifetime cumulative columns are correct, but no per-month history exists. | Pipeline follow-up: backfill from PCM + `dm_property_conversions` | **BLOCKS any margin / revenue / cost monthly trend widget.** Use it for lifetime totals only. See Rule 9. |
+| **`rr_daily_metrics` has ~15 days of history** (Apr 17 re-check) | Only data from Apr 3, 2026 onward in the cluster. | Accumulating over time | Operational Health trend widgets (Q2 goal, top contributors, send trend) are structurally starved. Label the scope or swap source. |
+| `dm_property_conversions` volume inflation | `SUM(total_cost)` lifetime = $56K, but Profitability's $24K (from `dm_client_funnel`) is authoritative. The table has data-quality noise — unknown per-piece rates, legacy rows, etc. | Closing — nightly cron narrows the gap | **NEVER use for lifetime totals.** Only use for date-filtered per-month conversions + revenue attribution. See Rule 8. |
+| PCM `/order` server-side filters don't work | `filterStatus=Canceled` query param is a no-op. Must paginate fully and filter client-side. | External limitation | Full pagination is ~90s. Cache aggressively (1-hour TTL). Reference: `src/app/api/dm-overview/compute.ts` → `fetchPcmOrdersSlim()`. |
+| `TEST_DOMAINS` duplicated in 7 files | `src/app/api/{dm-conversions/route.ts, dm-conversions/get-alerts-data.ts, dm-reports/route.ts, dm-templates/route.ts, pcm-validation/route.ts, rapid-response/route.ts, rapid-response/slack-alerts/route.ts}` all define their own copy of the constant. | Pending consolidation into `src/lib/domain-filter.ts` | When adding a new test domain, update ALL 7 + `src/app/api/dm-overview/compute.ts`. Easy to miss one. |
+| `TOTAL_8020REI_CLIENTS = 140` is hardcoded | Overview adoption-rate denominator is verbal from Camilo, not a live query. | Pending monolith integration | If 8020REI gains/loses clients, the adoption % will drift until updated manually. Tooltip must disclose the source. |
+| Zero Smart Drop data | `campaign_type = 'smartdrop'` returns 0 rows | Not yet in production | Campaign type breakdown will show 100% Rapid Response until Smart Drop launches. |
+| Pre-send exclusions | Properties with conversions before first send are excluded. Cascading filter applies to deals/appointments/contracts. | Intentional — prevents impossible funnels | Conversion counts may be lower than raw DB counts. |
+| ROAS `low_sample` flags | ROAS with < 3 deals is marked `low_sample`, not `confident`. | By design — Lauren's meeting requirement | Some clients show ROAS with confidence warnings. |
 
 When building new features, verify that your widget handles these gaps gracefully (e.g., shows a warning badge, not a broken state).
 
@@ -510,4 +760,4 @@ User builds a new DM metric/widget
 ---
 
 **Created:** 2026-04-10
-**Last Updated:** 2026-04-10 (v2 — added dm_volume_summary, delivered>sent trap, dm_template_performance trap)
+**Last Updated:** 2026-04-17 (v3 — dual-source principle, cross-tab equality strengthened, Rules 6–10 added, Pre-Flight Checklist, session-proven anti-patterns, PCM reference numbers refreshed, `dm_client_funnel` coverage limit flagged, `dm_overview_cache` canonical source added. Driver: Apr 17 session report at `personal-documents/8020-metrics-hub/2026-04-17/SESSION_REPORT.md`.)
