@@ -25,7 +25,8 @@ import type {
 } from '@/types/rapid-response';
 
 // Exclude seed/test domains — must match the same list used in pcm-validation and dm-conversions
-const SEED_DOMAINS = "'8020rei_demo', '8020rei_migracion_test', '_test_debug', '_test_debug3', 'supertest_8020rei_com', 'sandbox_8020rei_com'";
+// showcaseproductsecomllc added 2026-04-17 — "Inaugural RR Test" (disabled, Sep 2025, 0 PCM orders).
+const SEED_DOMAINS = "'8020rei_demo', '8020rei_migracion_test', '_test_debug', '_test_debug3', 'supertest_8020rei_com', 'sandbox_8020rei_com', 'showcaseproductsecomllc_8020rei_com'";
 const EXCLUDE_SEED = `domain NOT IN (${SEED_DOMAINS})`;
 
 /** Build a WHERE clause that excludes seed domains AND optionally filters to a specific domain */
@@ -322,16 +323,13 @@ async function getDailyTrend(days: number, domain?: string) {
 // Campaign List
 // ---------------------------------------------------------------------------
 
-async function getCampaignList(days: number, domain?: string) {
-  const cacheKey = `rapid-response:campaign-list:${days}:${domain || 'all'}`;
+async function getCampaignList(_days: number, domain?: string) {
+  // Return the full historical portfolio (one row per campaign_id, latest snapshot)
+  // so the table's row count always matches the "Is it running?" pill. Period
+  // filtering happens client-side via the `last_sent_date` / `status` columns.
+  const cacheKey = `rapid-response:campaign-list:all:${domain || 'all'}`;
   const cached = getCached(cacheKey);
   if (cached) return NextResponse.json({ success: true, data: cached, cached: true });
-
-  // Filter campaigns to those with activity in the date range.
-  // last_sent_date tracks when the campaign last sent mail.
-  const dateFilter = days < 365
-    ? `AND last_sent_date >= CURRENT_DATE - INTERVAL '${days} days'`
-    : '';
 
   const rows = await runAuroraQuery(`
     SELECT DISTINCT ON (domain, campaign_id)
@@ -342,7 +340,6 @@ async function getCampaignList(days: number, domain?: string) {
       smartdrop_authorization_status, snapshot_at
     FROM rr_campaign_snapshots
     WHERE ${domainFilter(domain)}
-      ${dateFilter}
     ORDER BY domain, campaign_id, snapshot_at DESC
   `);
 

@@ -14,7 +14,8 @@ import { getCached, setCache } from '@/lib/cache';
 import type { DmTemplatePerformance } from '@/types/dm-conversions';
 
 // Exclude seed/test domains — must match the same list used in pcm-validation and rapid-response
-const SEED_DOMAINS = "'8020rei_demo', '8020rei_migracion_test', '_test_debug', '_test_debug3', 'supertest_8020rei_com', 'sandbox_8020rei_com'";
+// showcaseproductsecomllc added 2026-04-17 — "Inaugural RR Test" (disabled, Sep 2025, 0 PCM orders).
+const SEED_DOMAINS = "'8020rei_demo', '8020rei_migracion_test', '_test_debug', '_test_debug3', 'supertest_8020rei_com', 'sandbox_8020rei_com', 'showcaseproductsecomllc_8020rei_com'";
 const EXCLUDE_SEED = `domain NOT IN (${SEED_DOMAINS})`;
 
 function domainFilter(domain?: string | null): string {

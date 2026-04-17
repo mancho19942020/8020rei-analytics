@@ -1231,6 +1231,37 @@ export const PRODUCT_PROJECTS_WIDGET_CATALOG: WidgetCatalogItem[] = [
 ];
 
 // ---------------------------------------------------------------------------
+// Features > 8020REI > DM Campaign > Overview Tab
+// ---------------------------------------------------------------------------
+
+export const DM_OVERVIEW_LAYOUT_STORAGE_KEY = 'dm-overview-layout-v1';
+
+export const DEFAULT_DM_OVERVIEW_LAYOUT: Widget[] = [
+  {
+    id: 'dm-overview-headline',
+    type: 'dm-overview-headline',
+    title: 'Headline metrics',
+    tooltip:
+      'Executive view of DM Campaign health. Active clients is Aurora-only (rr_campaign_snapshots, distinct domains with ≥1 status=active campaign). Lifetime pieces is PCM-authoritative with the Aurora delta surfaced visibly. Lifetime revenue is Aurora-only (PCM does not track customer revenue). Active campaigns is Aurora-only.',
+    x: 0, y: 0,
+    w: 12, h: 3,
+    minW: 12, maxW: 12, minH: 3, maxH: 4,
+    flushBody: true,
+    timeBehavior: 'all-time',
+  },
+];
+
+export const DM_OVERVIEW_WIDGET_CATALOG: WidgetCatalogItem[] = [
+  {
+    type: 'dm-overview-headline',
+    title: 'Headline metrics',
+    description: 'Active clients, lifetime pieces (Aurora+PCM), revenue, and active campaigns',
+    iconKey: 'grid',
+    defaultSize: { w: 12, h: 3 },
+  },
+];
+
+// ---------------------------------------------------------------------------
 // Features > 8020REI > Rapid Response Tab
 // ---------------------------------------------------------------------------
 
@@ -1979,6 +2010,7 @@ export const TAB_WIDGET_CATALOGS: Record<string, WidgetCatalogItem[]> = {
   'import': PRODUCT_DOMAINS_WIDGET_CATALOG,
   'product-projects': PRODUCT_PROJECTS_WIDGET_CATALOG,
   'properties-api': PROPERTIES_API_WIDGET_CATALOG,
+  'dm-overview': DM_OVERVIEW_WIDGET_CATALOG,
   'rapid-response': RAPID_RESPONSE_WIDGET_CATALOG,
   'ai-task-board': AI_TASK_BOARD_WIDGET_CATALOG,
   'bugs-di-board': BUGS_DI_BOARD_WIDGET_CATALOG,

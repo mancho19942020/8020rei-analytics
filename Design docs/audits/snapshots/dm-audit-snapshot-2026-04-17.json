@@ -1,0 +1,128 @@
+{
+  "metadata": {
+    "startedAt": "2026-04-17T15:42:56.223Z",
+    "finishedAt": "2026-04-17T15:44:31.476Z",
+    "pcmOrdersFetched": 25165,
+    "auroraRowsChecked": 36,
+    "testDomainsExcluded": [
+      "8020rei_demo",
+      "8020rei_migracion_test",
+      "_test_debug",
+      "_test_debug3",
+      "supertest_8020rei_com",
+      "sandbox_8020rei_com",
+      "qapre_8020rei_com",
+      "testing5_8020rei_com",
+      "showcaseproductsecomllc_8020rei_com"
+    ]
+  },
+  "headline": {
+    "pcmActiveMailPieces": 24906,
+    "pcmCanceledOrders": 54,
+    "auroraFunnelSends": 24195,
+    "delta": {
+      "value": -711,
+      "pct": -2.85
+    },
+    "auroraFunnelDelivered": 21428,
+    "auroraDeliveryRatePct": 88.56,
+    "auroraFunnelCost": 24371.68,
+    "pcmComputedCost": 21334.15,
+    "costDelta": 3037.53,
+    "auroraDomainCount": 18,
+    "pcmDomainCount": 18,
+    "deltaDomains": 0,
+    "pcmBalanceOnAccount": 0,
+    "pcmDesignCatalogSize": 28
+  },
+  "campaigns": {
+    "auroraTotalCampaignsDistinctLatest": 21,
+    "auroraActiveCampaigns": 13,
+    "auroraClientsWithAtLeastOneActiveCampaign": 12,
+    "note": "PCM does not have a campaign primitive — campaigns are an 8020REI abstraction on top of PCM orders. PCM-side counterpart is orders-per-domain.",
+    "auroraCampaignsPerDomain": {
+      "abodehomebuyers_8020rei_com": 1,
+      "asishomebuyers_8020rei_com": 1,
+      "centralcitysolutions_8020rei_com": 1,
+      "clevelandhousebuyersllc_8020rei_com": 1,
+      "delawarehomebuyers_8020rei_com": 1,
+      "ethomebuyersllc_8020rei_com": 1,
+      "familyownedhomebuyers_8020rei_com": 1,
+      "halloffamehb_8020rei_com": 1,
+      "heritagehomebuyers_8020rei_com": 1,
+      "ibuyohio_8020rei_com": 2,
+      "jerrybuyshouses_8020rei_com": 1,
+      "jgequityllc_8020rei_com": 1,
+      "joehomebuyerkyoh_8020rei_com": 1,
+      "paulfrancishomes_8020rei_com": 1,
+      "renoareahomebuyers_8020rei_com": 1,
+      "signaturehomebuyers_8020rei_com": 1,
+      "skywayhomebuyers_8020rei_com": 1,
+      "wacofirsthomebuyers_8020rei_com": 3
+    },
+    "pcmOrdersPerDomain": {
+      "paulfrancishomes_8020rei_com": 3625,
+      "skywayhomebuyers_8020rei_com": 4150,
+      "delawarehomebuyers_8020rei_com": 159,
+      "joehomebuyerkyoh_8020rei_com": 1315,
+      "jgequityllc_8020rei_com": 1476,
+      "abodehomebuyers_8020rei_com": 322,
+      "clevelandhousebuyersllc_8020rei_com": 1730,
+      "ibuyohio_8020rei_com": 1031,
+      "heritagehomebuyers_8020rei_com": 628,
+      "asishomebuyers_8020rei_com": 1036,
+      "signaturehomebuyers_8020rei_com": 741,
+      "renoareahomebuyers_8020rei_com": 577,
+      "familyownedhomebuyers_8020rei_com": 121,
+      "jerrybuyshouses_8020rei_com": 1368,
+      "wacofirsthomebuyers_8020rei_com": 568,
+      "ethomebuyersllc_8020rei_com": 285,
+      "halloffamehb_8020rei_com": 4589,
+      "centralcitysolutions_8020rei_com": 1185
+    }
+  },
+  "propertyConversions": {
+    "revenueTotal": 55942.51,
+    "sendsTotal": 56208,
+    "domainCount": 18,
+    "propertyCount": 54837,
+    "note": "Property conversions are a SUBSET (~5% historically) of PCM orders. NEVER use as the sole source for all-time volume. Valid for revenue and conversion metrics only."
+  },
+  "dailyCadence": {
+    "rrDailyMetricRows": 15,
+    "rrDailyFirstDate": "2026-04-03",
+    "rrDailyLastDate": "2026-04-17",
+    "pcmDailyEntryCount": 242,
+    "pcmFirstOrderDate": "2025-02-21",
+    "pcmLastOrderDate": "2026-04-16"
+  },
+  "breakdowns": {
+    "pcmByStatus": {
+      "processing": 1135,
+      "undeliverable": 289,
+      "mailing": 1094,
+      "delivered": 22388
+    },
+    "pcmByMailClass": {
+      "first_class": 14676,
+      "standard": 10230
+    },
+    "pcmByMonth": {
+      "2025-02": 72,
+      "2025-03": 222,
+      "2025-04": 556,
+      "2025-05": 463,
+      "2025-06": 915,
+      "2025-07": 1095,
+      "2025-08": 2396,
+      "2025-09": 1320,
+      "2025-10": 1875,
+      "2025-11": 1093,
+      "2025-12": 1140,
+      "2026-01": 762,
+      "2026-02": 1554,
+      "2026-03": 7406,
+      "2026-04": 4037
+    }
+  }
+}

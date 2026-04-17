@@ -85,6 +85,12 @@ export { RrQ2TopContributorsWidget } from './RrQ2TopContributorsWidget';
 export { RrSystemCoverageWidget } from './RrSystemCoverageWidget';
 export { RrDataIntegrityWidget } from './RrDataIntegrityWidget';
 
+// Features > 8020REI > DM Campaign Overview tab widgets
+export { DmOverviewHeadlineWidget } from './DmOverviewHeadlineWidget';
+export { DmOverviewTestCostCardsWidget } from './DmOverviewTestCostCardsWidget';
+export { DmOverviewSendTrendWidget } from './DmOverviewSendTrendWidget';
+export { DmOverviewBalanceFlowWidget } from './DmOverviewBalanceFlowWidget';
+
 // Features > 8020REI > DM Campaign Business Results tab widgets
 export { DmAlertsFeedWidget } from './DmAlertsFeedWidget';
 export { DmFunnelOverviewWidget } from './DmFunnelOverviewWidget';

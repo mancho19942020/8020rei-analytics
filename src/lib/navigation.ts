@@ -101,6 +101,7 @@ export const GA4_DETAIL_TABS: AxisNavigationTabItem[] = [
 
 // DM Campaign detail tabs (horizontal bar when DM Campaign is selected in sidebar)
 export const DM_CAMPAIGN_SUB_TABS: AxisNavigationTabItem[] = [
+  { id: 'overview', name: 'Overview' },
   { id: 'operational-health', name: 'Operational health' },
   { id: 'business-results', name: 'Business results' },
   { id: 'pcm-validation', name: 'Profitability' },
@@ -139,7 +140,7 @@ export function getDetailTabsForSubsection(section: string, sub: string): AxisNa
  */
 export function getDefaultDetailTab(sub: string): string | undefined {
   if (sub === '8020rei-ga4') return 'overview';
-  if (sub === 'dm-campaign') return 'operational-health';
+  if (sub === 'dm-campaign') return 'overview';
   if (sub === 'pipelines-rei') return 'eda-etl';
   if (sub === 'pipelines-roofing') return 'etl-roofing';
   return undefined;
@@ -196,7 +197,7 @@ export function parseNavFromSlug(slug: string[]): { section: string; sub: string
         return {
           section: validSection,
           sub: 'dm-campaign',
-          tab: matchedDetail ? matchedDetail.id : 'operational-health',
+          tab: matchedDetail ? matchedDetail.id : 'overview',
           subTab: '',
         };
       }

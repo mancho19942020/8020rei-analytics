@@ -104,6 +104,11 @@ export type WidgetType =
   | 'rr-q2-top-contributors'
   | 'rr-system-coverage'
   | 'rr-data-integrity'
+  // Features > 8020REI > DM Campaign Overview tab widgets
+  | 'dm-overview-headline'
+  | 'dm-overview-test-cost-cards'
+  | 'dm-overview-send-trend'
+  | 'dm-overview-balance-flow'
   // Features > 8020REI > DM Campaign Business Results tab widgets
   | 'dm-alerts-feed'
   | 'dm-funnel-overview'
