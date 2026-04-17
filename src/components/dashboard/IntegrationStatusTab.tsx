@@ -3,13 +3,13 @@
  *
  * Executive summary: Integration Status Update.
  * Sections:
- *  - GA4 views: internal vs external (GA4 BigQuery)
  *  - Salesforce: deal & lead sync health (BigQuery)
  *  - Sticker Price: Iceberg query usage (static)
  *  - Rapid Response: active clients + letters sent last week (Aurora)
+ *  - Engagement Metrics: GA4 views by affiliation with period-over-period comparison
  *
  * Data sources:
- *  - web-app-production-451214 (GA4) via /api/metrics
+ *  - web-app-production-451214 (GA4) via /api/metrics/integration-status
  *  - bigquery-467404.domain.feedback_clients_unique
  *  - Aurora: rr_campaign_snapshots, rr_daily_metrics
  */
@@ -18,9 +18,11 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { AxisSkeleton, AxisCallout, AxisButton } from '@/components/axis';
+import { DomainLeaderboardWidget } from '@/components/workspace/widgets';
 import { authFetch } from '@/lib/auth-fetch';
 import { buildDateQueryString } from '@/lib/date-utils';
 import type { IntegrationStatusData } from '@/types/integration-status';
+import type { DomainLeaderboardEntry } from '@/types/product';
 
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
 
@@ -150,11 +152,6 @@ interface RrSummary {
   letters_last_week: number;
 }
 
-interface Ga4Views {
-  page_views: number;
-  total_users: number;
-}
-
 // ─── Static constants ─────────────────────────────────────────────────────────
 
 const ICEBERG_PURCHASED  = 977845;
@@ -163,6 +160,18 @@ const ICEBERG_REMAINING  = 708422;
 
 const RR_ACTIVE_CLIENTS    = 12;
 const RR_LETTERS_LAST_WEEK = 245;
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function formatPct(n: number): string {
+  return n >= 0 ? `+${n}%` : `${n}%`;
+}
+
+function changeAccent(n: number): 'success' | 'neutral' | 'error' {
+  if (n > 0) return 'success';
+  if (n < 0) return 'error';
+  return 'neutral';
+}
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
@@ -173,38 +182,35 @@ interface IntegrationStatusTabProps {
 }
 
 export function IntegrationStatusTab({ days, startDate, endDate }: IntegrationStatusTabProps) {
-  const [data, setData]           = useState<IntegrationStatusData | null>(null);
-  const [rrData, setRrData]       = useState<RrSummary | null>(null);
-  const [internalViews, setInternalViews] = useState<Ga4Views | null>(null);
-  const [externalViews, setExternalViews] = useState<Ga4Views | null>(null);
-  const [loading, setLoading]     = useState(true);
-  const [error, setError]         = useState<string | null>(null);
+  const [data, setData]                   = useState<IntegrationStatusData | null>(null);
+  const [rrData, setRrData]               = useState<RrSummary | null>(null);
+  const [leaderboardData, setLeaderboardData] = useState<DomainLeaderboardEntry[]>([]);
+  const [loading, setLoading]             = useState(true);
+  const [error, setError]                 = useState<string | null>(null);
+  const [crmOnly, setCrmOnly]             = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     const dateQs = buildDateQueryString(days, startDate, endDate);
     try {
-      const [sfRes, rrRes, intRes, extRes] = await Promise.all([
-        authFetch('/api/metrics/integration-status'),
+      const [sfRes, rrRes, domainsRes] = await Promise.all([
+        authFetch(`/api/metrics/integration-status?${dateQs}`),
         authFetch('/api/rapid-response?type=integration-summary'),
-        authFetch(`/api/metrics?${dateQs}&userType=internal`),
-        authFetch(`/api/metrics?${dateQs}&userType=external`),
+        authFetch(`/api/metrics/product-domains?${dateQs}`),
       ]);
 
-      const sfJson  = await sfRes.json();
-      const rrJson  = await rrRes.json();
-      const intJson = await intRes.json();
-      const extJson = await extRes.json();
+      const sfJson      = await sfRes.json();
+      const rrJson      = await rrRes.json();
+      const domainsJson = await domainsRes.json();
 
-      if (!sfJson.success) throw new Error(sfJson.error || 'Failed to load Salesforce data');
+      if (!sfJson.success) throw new Error(sfJson.error || 'Failed to load data');
       setData(sfJson.data);
 
       if (rrJson.success && rrJson.data?.active_clients > 0) setRrData(rrJson.data);
       else setRrData({ active_clients: RR_ACTIVE_CLIENTS, letters_last_week: RR_LETTERS_LAST_WEEK });
 
-      if (intJson.success) setInternalViews({ page_views: intJson.data.page_views, total_users: intJson.data.total_users });
-      if (extJson.success) setExternalViews({ page_views: extJson.data.page_views, total_users: extJson.data.total_users });
+      if (domainsJson.success) setLeaderboardData(domainsJson.data.leaderboard ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load report');
     } finally {
@@ -216,15 +222,11 @@ export function IntegrationStatusTab({ days, startDate, endDate }: IntegrationSt
 
   function buildAsanaText(): string {
     if (!data) return '';
-    const { salesforce, as_of } = data;
+    const { salesforce, ga4, as_of } = data;
     const icebergPct = ((ICEBERG_SPENT / ICEBERG_PURCHASED) * 100).toFixed(1);
 
     const lines: string[] = [
       `Integration Status Update — ${as_of}`,
-      '',
-      '👁 GA4 views',
-      `• Internal: ${internalViews?.page_views?.toLocaleString() ?? '—'} views · ${internalViews?.total_users?.toLocaleString() ?? '—'} users`,
-      `• External: ${externalViews?.page_views?.toLocaleString() ?? '—'} views · ${externalViews?.total_users?.toLocaleString() ?? '—'} users`,
       '',
       '📊 Salesforce',
       `• Clients integrated: ${salesforce.total_integrated}`,
@@ -239,6 +241,10 @@ export function IntegrationStatusTab({ days, startDate, endDate }: IntegrationSt
       '✉️ Rapid Response',
       `• Active clients: ${rrData?.active_clients ?? RR_ACTIVE_CLIENTS}`,
       `• Letters sent (last 7 days): ${(rrData?.letters_last_week ?? RR_LETTERS_LAST_WEEK).toLocaleString()}`,
+      '',
+      '👁 Engagement Metrics',
+      `• Internal views: ${formatPct(ga4?.internal.views_change_pct ?? 0)} (${ga4?.internal.share_of_total_pct ?? 0}% of total) · avg. session ${ga4?.internal.avg_session_min ?? 0} min (${formatPct(ga4?.internal.session_change_pct ?? 0)})`,
+      `• Client views: ${formatPct(ga4?.external.views_change_pct ?? 0)} (${ga4?.external.share_of_total_pct ?? 0}% of total) · avg. session ${ga4?.external.avg_session_min ?? 0} min (${formatPct(ga4?.external.session_change_pct ?? 0)})`,
     ];
     return lines.join('\n');
   }
@@ -268,7 +274,7 @@ export function IntegrationStatusTab({ days, startDate, endDate }: IntegrationSt
 
   if (!data) return null;
 
-  const { salesforce, as_of } = data;
+  const { salesforce, ga4, as_of } = data;
 
   return (
     <div className="p-6 max-w-3xl mx-auto flex flex-col gap-4">
@@ -283,26 +289,6 @@ export function IntegrationStatusTab({ days, startDate, endDate }: IntegrationSt
         </div>
         <CopyButton buildText={buildAsanaText} />
       </div>
-
-      {/* GA4 Views */}
-      <SectionCard title="Platform views" accent="main">
-        <div className="grid grid-cols-2 gap-3">
-          <div className="flex flex-col gap-2">
-            <p className="text-xs font-medium text-content-tertiary uppercase tracking-wide">Internal</p>
-            <div className="grid grid-cols-2 gap-2">
-              <KpiCard label="Page views" value={internalViews?.page_views?.toLocaleString() ?? '—'} accent="neutral" />
-              <KpiCard label="Users" value={internalViews?.total_users?.toLocaleString() ?? '—'} accent="neutral" />
-            </div>
-          </div>
-          <div className="flex flex-col gap-2">
-            <p className="text-xs font-medium text-content-tertiary uppercase tracking-wide">External</p>
-            <div className="grid grid-cols-2 gap-2">
-              <KpiCard label="Page views" value={externalViews?.page_views?.toLocaleString() ?? '—'} accent="neutral" />
-              <KpiCard label="Users" value={externalViews?.total_users?.toLocaleString() ?? '—'} accent="neutral" />
-            </div>
-          </div>
-        </div>
-      </SectionCard>
 
       {/* Salesforce integration health */}
       <SectionCard title="Salesforce" accent="error">
@@ -354,6 +340,72 @@ export function IntegrationStatusTab({ days, startDate, endDate }: IntegrationSt
             value={(rrData?.letters_last_week ?? RR_LETTERS_LAST_WEEK).toLocaleString()}
             sub="Last 7 days"
             accent="neutral"
+          />
+        </div>
+      </SectionCard>
+
+      {/* Engagement Metrics — GA4 views by affiliation with period-over-period comparison */}
+      <SectionCard title="Engagement metrics" accent="main">
+        <div className="flex flex-col gap-4">
+
+          {/* Internal */}
+          <div>
+            <p className="text-xs font-medium text-content-tertiary uppercase tracking-wide mb-2">
+              Internal · {ga4?.internal.share_of_total_pct ?? 0}% of total views
+            </p>
+            <div className="grid grid-cols-3 gap-3">
+              <KpiCard
+                label="Views vs last period"
+                value={formatPct(ga4?.internal.views_change_pct ?? 0)}
+                accent={changeAccent(ga4?.internal.views_change_pct ?? 0)}
+              />
+              <KpiCard
+                label="Avg. session duration"
+                value={`${ga4?.internal.avg_session_min ?? 0} min`}
+                accent="neutral"
+              />
+              <KpiCard
+                label="Session vs last period"
+                value={formatPct(ga4?.internal.session_change_pct ?? 0)}
+                accent={changeAccent(ga4?.internal.session_change_pct ?? 0)}
+              />
+            </div>
+          </div>
+
+          {/* Client / External */}
+          <div>
+            <p className="text-xs font-medium text-content-tertiary uppercase tracking-wide mb-2">
+              Client · {ga4?.external.share_of_total_pct ?? 0}% of total views
+            </p>
+            <div className="grid grid-cols-3 gap-3">
+              <KpiCard
+                label="Views vs last period"
+                value={formatPct(ga4?.external.views_change_pct ?? 0)}
+                accent={changeAccent(ga4?.external.views_change_pct ?? 0)}
+              />
+              <KpiCard
+                label="Avg. session duration"
+                value={`${ga4?.external.avg_session_min ?? 0} min`}
+                accent="neutral"
+              />
+              <KpiCard
+                label="Session vs last period"
+                value={formatPct(ga4?.external.session_change_pct ?? 0)}
+                accent={changeAccent(ga4?.external.session_change_pct ?? 0)}
+              />
+            </div>
+          </div>
+
+        </div>
+      </SectionCard>
+
+      {/* Client import leaderboard */}
+      <SectionCard title="Client import leaderboard" accent="info">
+        <div className="h-[500px]">
+          <DomainLeaderboardWidget
+            data={leaderboardData}
+            crmOnly={crmOnly}
+            onCrmToggle={() => setCrmOnly((v) => !v)}
           />
         </div>
       </SectionCard>

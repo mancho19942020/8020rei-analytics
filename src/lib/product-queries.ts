@@ -152,7 +152,8 @@ export function getDomainLeaderboardQuery(dateRange: DateRangeParams = {}): stri
         WHEN DATE_DIFF(CURRENT_DATE(), MAX(CASE WHEN date <= CURRENT_DATE() THEN date ELSE NULL END), DAY) <= 15 THEN 'healthy'
         WHEN DATE_DIFF(CURRENT_DATE(), MAX(CASE WHEN date <= CURRENT_DATE() THEN date ELSE NULL END), DAY) <= 90 THEN 'at-risk'
         ELSE 'inactive'
-      END as risk_level
+      END as risk_level,
+      ANY_VALUE(client_salesforce_integration) as crm_integration
     FROM ${TABLE}
     GROUP BY domain_name
     ORDER BY total_properties DESC

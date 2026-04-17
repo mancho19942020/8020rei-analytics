@@ -4014,3 +4014,49 @@ export function getActiveDaysPerUserQuery(dateRange: DateRangeParams, userType: 
     ORDER BY active_days
   `;
 }
+
+/**
+ * Views by user_affiliation — single query, groups by affiliation value.
+ * Returns one row per affiliation ('internal', 'external').
+ * Uses LAST_VALUE per user to get the settled affiliation (same logic as getMetricsQuery).
+ * Includes avg_engagement_time_msec from user_engagement events.
+ */
+function buildViewsByAffiliationQuery(dateFilter: string): string {
+  return `
+    WITH session_affiliation AS (
+      SELECT
+        user_pseudo_id,
+        event_name,
+        LAST_VALUE(
+          (SELECT value.string_value FROM UNNEST(user_properties) WHERE key = 'user_affiliation')
+          IGNORE NULLS
+        ) OVER (
+          PARTITION BY user_pseudo_id
+          ORDER BY event_timestamp
+          ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+        ) as affiliation,
+        IF(event_name = 'user_engagement',
+          COALESCE((SELECT value.int_value FROM UNNEST(event_params) WHERE key = 'engagement_time_msec'), 0),
+          0
+        ) as engagement_time_msec
+      FROM ${TABLE}
+      WHERE ${dateFilter}
+    )
+    SELECT
+      COALESCE(affiliation, 'unclassified')                                  as affiliation,
+      COUNT(DISTINCT user_pseudo_id)                                         as total_users,
+      COUNTIF(event_name = 'page_view')                                      as page_views,
+      SAFE_DIVIDE(SUM(engagement_time_msec), COUNT(DISTINCT user_pseudo_id)) as avg_engagement_time_msec
+    FROM session_affiliation
+    WHERE affiliation IN ('internal', 'external')
+    GROUP BY affiliation
+  `;
+}
+
+export function getViewsByAffiliationQuery(dateRange: DateRangeParams): string {
+  return buildViewsByAffiliationQuery(getDateFilter(dateRange));
+}
+
+export function getPreviousViewsByAffiliationQuery(dateRange: DateRangeParams): string {
+  return buildViewsByAffiliationQuery(getPreviousPeriodDateFilter(dateRange));
+}

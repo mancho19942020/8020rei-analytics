@@ -39,8 +39,12 @@ const RISK_TOOLTIPS: Record<DomainLeaderboardEntry['risk_level'], { title: strin
   },
 };
 
+const CRM_INTEGRATED_VALUES = new Set(['Integrated 2-way', 'CRM → 8020REI']);
+
 interface DomainLeaderboardWidgetProps {
   data: DomainLeaderboardEntry[];
+  crmOnly?: boolean;
+  onCrmToggle?: () => void;
 }
 
 /**
@@ -95,7 +99,7 @@ function RiskBadge({
   );
 }
 
-export function DomainLeaderboardWidget({ data }: DomainLeaderboardWidgetProps) {
+export function DomainLeaderboardWidget({ data, crmOnly = false, onCrmToggle }: DomainLeaderboardWidgetProps) {
   const [riskFilter, setRiskFilter] = useState<RiskFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -104,9 +108,12 @@ export function DomainLeaderboardWidget({ data }: DomainLeaderboardWidgetProps) 
     setRiskFilter((prev) => (prev === level ? 'all' : level));
   };
 
-  // Filtered data based on search query and risk level (both applied)
+  // Filtered data based on search query, risk level, and CRM toggle (all applied)
   const filteredData = useMemo(() => {
     let result = data;
+    if (crmOnly) {
+      result = result.filter((d) => CRM_INTEGRATED_VALUES.has(d.crm_integration ?? ''));
+    }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter((d) => d.domain_name.toLowerCase().includes(q));
@@ -115,7 +122,7 @@ export function DomainLeaderboardWidget({ data }: DomainLeaderboardWidgetProps) 
       result = result.filter((d) => d.risk_level === riskFilter);
     }
     return result;
-  }, [data, riskFilter, searchQuery]);
+  }, [data, crmOnly, riskFilter, searchQuery]);
 
   // Define table columns
   const columns: Column[] = useMemo(
@@ -208,8 +215,21 @@ export function DomainLeaderboardWidget({ data }: DomainLeaderboardWidgetProps) 
         fullWidth
       />
 
-      {/* Risk filter legend + result count */}
+      {/* CRM toggle + Risk filter legend + result count */}
       <div className="flex items-center gap-3 px-1">
+        {onCrmToggle && (
+          <button
+            onClick={onCrmToggle}
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+              crmOnly
+                ? 'bg-main-100 dark:bg-main-900/30 text-main-700 dark:text-main-400 border-main-300 dark:border-main-700'
+                : 'bg-surface-base text-content-secondary border-border-subtle hover:border-border-default'
+            }`}
+          >
+            <span className={`w-1.5 h-1.5 rounded-full ${crmOnly ? 'bg-main-500' : 'bg-content-tertiary'}`} />
+            CRM integrated
+          </button>
+        )}
         <span className="text-xs text-content-tertiary">Risk:</span>
         {(['healthy', 'at-risk', 'inactive'] as const).map((level) => (
           <AxisTooltip

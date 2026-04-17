@@ -46,7 +46,7 @@ const FEEDBACK_LOOP_SUBSECTION_TABS: AxisNavigationTabItem[] = [
 const FEATURES_SUBSECTION_TABS: AxisNavigationTabItem[] = [
   { id: 'dm-campaign', name: 'DM Campaign' },
   { id: 'properties-api', name: 'Properties API' },
-  { id: 'skiptrace', name: 'Skip Trace', disabled: true },
+  { id: 'skiptrace', name: 'Skip Trace' },
   { id: 'auto-export', name: 'Auto Export', disabled: true },
   { id: 'zillow', name: 'Zillow', disabled: true },
   { id: 'buyers-list', name: 'Buyers List', disabled: true },

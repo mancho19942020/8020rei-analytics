@@ -63,6 +63,7 @@ const WeeklyReportTab = dynamic(() => import('@/components/dashboard/WeeklyRepor
 const IntegrationStatusTab = dynamic(() => import('@/components/dashboard/IntegrationStatusTab').then(m => m.IntegrationStatusTab), { loading: TabSkeleton, ssr: false });
 const DmReportsTab = dynamic(() => import('@/components/dashboard/DmReportsTab').then(m => m.DmReportsTab), { loading: TabSkeleton, ssr: false });
 const DmDataSourcesTab = dynamic(() => import('@/components/dashboard/DmDataSourcesTab').then(m => m.DmDataSourcesTab), { loading: TabSkeleton, ssr: false });
+const SkiptraceTab = dynamic(() => import('@/components/dashboard/SkiptraceTab').then(m => m.SkiptraceTab), { loading: TabSkeleton, ssr: false });
 
 interface MetricValues {
   total_users: number;
@@ -772,6 +773,11 @@ function Dashboard({ slug }: { slug: string[] }) {
           )}
 
 
+          {/* Skip Trace Tab (Features > Skip Trace) */}
+          {activeMainSection === 'features' && activeSubsection === 'skiptrace' && (
+            <SkiptraceTab />
+          )}
+
           {/* Properties API Tab (Features > Properties API) */}
           {activeMainSection === 'features' && activeSubsection === 'properties-api' && (
             <PropertiesApiTab
@@ -863,6 +869,7 @@ function Dashboard({ slug }: { slug: string[] }) {
            !(activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4') &&
            !(activeMainSection === 'features' && activeSubsection === 'properties-api') &&
            !(activeMainSection === 'features' && activeSubsection === 'dm-campaign') &&
+           !(activeMainSection === 'features' && activeSubsection === 'skiptrace') &&
            !(activeMainSection === 'feedback-loop' && activeSubsection === 'import') &&
            !(activeMainSection === 'product-tasks') && (
             <div className="flex items-center justify-center min-h-full">
