@@ -144,7 +144,7 @@ Custom CSS classes (use these instead of Tailwind background utilities):
 - Dark mode is the default for new users
 - `localStorage['theme-preference']` stores 'light' | 'dark' | 'system'
 - `.dark` class is applied to `<html>` element
-- **NEVER use pure black** in dark mode — always `var(--surface-base)` = `#111827`
+- **NEVER use pure black** in dark mode — always `var(--surface-base)` = `#0e1421`
 
 ### 4. Isolated Component Detection
 

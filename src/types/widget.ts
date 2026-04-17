@@ -100,18 +100,18 @@ export type WidgetType =
   | 'rr-status-breakdown'
   | 'rr-alerts-feed'
   | 'rr-campaign-table'
-  | 'rr-cost-overview'
   | 'rr-q2-goal'
   | 'rr-q2-top-contributors'
+  | 'rr-system-coverage'
+  | 'rr-data-integrity'
   // Features > 8020REI > DM Campaign Business Results tab widgets
   | 'dm-alerts-feed'
   | 'dm-funnel-overview'
   | 'dm-client-performance'
   | 'dm-template-leaderboard'
   | 'dm-conversion-trend'
-  | 'dm-roas-trend'
+  | 'dm-revenue-cost'
   | 'dm-geo-breakdown'
-  | 'dm-data-quality'
   // Product Tasks > AI Task Board widgets
   | 'asana-board-overview'
   | 'asana-tasks-table'
@@ -145,7 +145,17 @@ export type WidgetType =
   | 'pcm-mail-class-comparison'
   | 'pcm-client-margins'
   | 'pcm-margin-trend'
-  | 'pcm-price-alert';
+  | 'pcm-price-alert'
+  | 'pcm-price-change-detection'
+  | 'pcm-pricing-overview'
+  | 'pcm-pricing-history'
+  | 'pcm-data-match'
+  | 'pcm-margin-period'
+  | 'pcm-clients-profitable'
+  | 'pcm-clients-breakeven'
+  | 'pcm-clients-losing'
+  | 'pcm-domain-table'
+  | 'pcm-template-table';
 
 /**
  * Widget Configuration

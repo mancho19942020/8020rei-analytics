@@ -308,7 +308,7 @@ export const UsersTab = forwardRef<TabHandle, UsersTabProps>(function UsersTab(
       {/* Edit Mode Info */}
       {editMode && (
         <div className="mb-4">
-          <AxisCallout type="info" title="Edit Mode Active">
+          <AxisCallout type="info" title="Edit layout mode active">
             <p className="text-body-regular">
               Drag widgets by their handle icon to reposition them. Resize widgets by dragging their edges.
               Your layout will be saved automatically.

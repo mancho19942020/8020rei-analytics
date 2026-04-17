@@ -105,7 +105,9 @@ export const GA4_DETAIL_TABS: AxisNavigationTabItem[] = [
 export const DM_CAMPAIGN_SUB_TABS: AxisNavigationTabItem[] = [
   { id: 'operational-health', name: 'Operational health' },
   { id: 'business-results', name: 'Business results' },
-  { id: 'pcm-validation', name: 'PCM & profitability' },
+  { id: 'pcm-validation', name: 'Profitability' },
+  { id: 'reports', name: 'Reports' },
+  { id: 'data-sources', name: 'Data sources' },
 ];
 
 // Legacy exports — kept for backward compatibility during transition

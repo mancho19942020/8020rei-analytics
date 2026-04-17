@@ -463,7 +463,7 @@ function saveAlertState(alerts: RrAlert[]): void {
 
 async function fetchCurrentAlerts(): Promise<RrAlert[]> {
   const days = 30;
-  const [pulseRows, qualityRows, pcmRows, todayRows] = await Promise.all([
+  const [pulseRows, qualityRows, pcmRows, todayRows, onHold7dAgoRows] = await Promise.all([
     runAuroraQuery(`
       SELECT DISTINCT ON (domain, campaign_id)
         campaign_id, campaign_name, domain, status, on_hold_count, snapshot_at
@@ -493,6 +493,23 @@ async function fetchCurrentAlerts(): Promise<RrAlert[]> {
       SELECT COALESCE(SUM(sends_total), 0) as sends_today
       FROM rr_daily_metrics
       WHERE date = CURRENT_DATE AND ${EXCLUDE_SEED}
+    `),
+    // On-hold 9-day comparison: get the total on-hold from ~9 days ago to detect timer effect
+    // Uses 9 days (not 7) to give a 2-day buffer after the monolith's 7-day auto-conversion window
+    runAuroraQuery(`
+      WITH latest_per_campaign AS (
+        SELECT DISTINCT ON (domain, campaign_id)
+          domain, campaign_id, on_hold_count
+        FROM rr_campaign_snapshots
+        WHERE ${EXCLUDE_SEED}
+          AND snapshot_at::date = (
+            SELECT MAX(snapshot_at::date) FROM rr_campaign_snapshots
+            WHERE snapshot_at::date <= CURRENT_DATE - INTERVAL '9 days'
+          )
+        ORDER BY domain, campaign_id, snapshot_at DESC
+      )
+      SELECT COALESCE(SUM(on_hold_count), 0) as on_hold_9d_ago
+      FROM latest_per_campaign
     `),
   ]);
 
@@ -612,6 +629,45 @@ async function fetchCurrentAlerts(): Promise<RrAlert[]> {
     });
   }
 
+  // On-hold 9-day auto-delivery timer health
+  // The monolith converts on-hold mailings to "undelivered" after 7 days.
+  // This alert uses a 9-day lookback (7 days + 2-day buffer) to detect
+  // whether the timer is working. Fix deployed by Christian on April 15, 2026.
+  const onHold9dAgo = Number(onHold7dAgoRows[0]?.on_hold_9d_ago || 0);
+  if (onHold9dAgo > 0 || totalOnHold > 0) {
+    const reduction = onHold9dAgo - totalOnHold;
+    const reductionPct = onHold9dAgo > 0 ? Math.round((reduction / onHold9dAgo) * 100) : 0;
+
+    if (reduction > 100) {
+      // Significant drop — the 7-day timer is working
+      alerts.push({
+        id: 'rr-on-hold-timer',
+        name: 'On-hold 7-day auto-delivery timer active',
+        severity: 'info',
+        category: 'rapid-response',
+        description: `On-hold count dropped by ${reduction.toLocaleString('en-US')} (${reductionPct}%) over the last 9 days — from ${onHold9dAgo.toLocaleString('en-US')} to ${totalOnHold.toLocaleString('en-US')}. The 7-day auto-delivery timer is converting stale on-hold mailings to undelivered as expected.`,
+        metrics: { current: totalOnHold, baseline: onHold9dAgo, change_pct: -reductionPct },
+        detected_at: now,
+        action: 'No action needed. The auto-delivery timer is functioning correctly.',
+        link: '/features/features-rei/dm-campaign/operational-health',
+      });
+    } else if (onHold9dAgo > 500 && reduction <= 0) {
+      // On-hold has been high for 9+ days and hasn't dropped — timer likely broken
+      const increase = totalOnHold - onHold9dAgo;
+      alerts.push({
+        id: 'rr-on-hold-timer',
+        name: 'On-hold 7-day timer may not be working',
+        severity: 'critical',
+        category: 'rapid-response',
+        description: `On-hold count has not decreased in 9 days — was ${onHold9dAgo.toLocaleString('en-US')}, now ${totalOnHold.toLocaleString('en-US')}${increase > 0 ? ` (+${increase.toLocaleString('en-US')})` : ''}. The 7-day auto-delivery timer should be converting stale on-hold mailings to undelivered, but no reduction is detected after 9 days. Report to Christian — the fix may not be working.`,
+        metrics: { current: totalOnHold, baseline: onHold9dAgo, change_pct: increase > 0 ? Math.round((increase / onHold9dAgo) * 100) : 0 },
+        detected_at: now,
+        action: 'Report to Christian (monolith dev): the on-hold auto-delivery timer deployed April 15 does not appear to be converting records. Check the cron job and verify the logic is running in production.',
+        link: '/features/features-rei/dm-campaign/operational-health',
+      });
+    }
+  }
+
   // PCM submission rate
   const pcmRate = Number(q.avg_pcm_rate || 0);
   if (pcmRate > 0 && pcmRate < 95) {
@@ -626,6 +682,56 @@ async function fetchCurrentAlerts(): Promise<RrAlert[]> {
       action: 'Review PCM API error logs for systematic rejection patterns.',
       link: '/features/features-rei/dm-campaign/operational-health',
     });
+  }
+
+  // ─── Price change detection ─────────────────────────────────
+  // Detects rate changes > $0.005 in the last 7 days from dm_volume_summary
+  try {
+    const rateChangeRows = await runAuroraQuery(`
+      WITH daily_rates AS (
+        SELECT
+          date, mail_class,
+          ROUND(SUM(daily_cost)::numeric / NULLIF(SUM(daily_sends), 0)::numeric, 4) as effective_rate
+        FROM dm_volume_summary
+        WHERE mail_class IN ('standard', 'first_class')
+          AND daily_sends > 0
+          AND date >= CURRENT_DATE - INTERVAL '7 days'
+          AND ${EXCLUDE_SEED}
+        GROUP BY date, mail_class
+        ORDER BY mail_class, date
+      ),
+      changes AS (
+        SELECT date, mail_class, effective_rate,
+          LAG(effective_rate) OVER (PARTITION BY mail_class ORDER BY date) as prev_rate
+        FROM daily_rates
+      )
+      SELECT date, mail_class, effective_rate, prev_rate
+      FROM changes
+      WHERE prev_rate IS NOT NULL AND ABS(effective_rate - prev_rate) > 0.005
+      ORDER BY date DESC LIMIT 5
+    `);
+
+    for (const row of rateChangeRows) {
+      const mailClassLabel = row.mail_class === 'standard' ? 'Standard' : 'First Class';
+      const newRate = Number(row.effective_rate);
+      const oldRate = Number(row.prev_rate);
+      const direction = newRate > oldRate ? 'increased' : 'decreased';
+      const changeDate = String(row.date).slice(0, 10);
+
+      alerts.push({
+        id: `rr-price-change-${row.mail_class}-${changeDate}`,
+        name: `${mailClassLabel} mail price ${direction}`,
+        severity: 'warning',
+        category: 'rapid-response',
+        description: `${mailClassLabel} effective rate ${direction} from $${oldRate.toFixed(4)} to $${newRate.toFixed(4)} on ${changeDate}. Review margin impact in PCM & Profitability.`,
+        metrics: { current: newRate, baseline: oldRate },
+        detected_at: now,
+        action: 'Check the Price Change Detection widget in PCM & Profitability tab.',
+        link: '/features/features-rei/dm-campaign/pcm-validation',
+      });
+    }
+  } catch {
+    // dm_volume_summary mail_class column may not exist yet — silently skip
   }
 
   return alerts;

@@ -76,7 +76,7 @@ Tailwind color classes (e.g. `bg-neutral-100`, `text-main-500`) **do not work re
 ### Light/Dark Mode
 
 - Light: header + nav tabs are white (`chrome-bg`), content area is gray (`light-gray-bg`), cards white
-- Dark: header + nav tabs use `--surface-chrome` (#0d1321, slightly darker), content uses `--surface-base` (#111827), no pure black
+- Dark: header + nav tabs use `--surface-chrome` (#0a101c, darker gray-navy), content uses `--surface-base` (#0e1421), no pure black
 
 ### Design System Tokens
 

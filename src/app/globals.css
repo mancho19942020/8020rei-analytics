@@ -56,11 +56,11 @@ input[type="search"] {
 
 .dark {
   /* Surface Colors (Dark Mode) - Get lighter as they elevate */
-  --surface-base: #111827;
-  --surface-raised: #1f2937;
-  --surface-overlay: #374151;
-  --surface-sunken: #030712;
-  --surface-chrome: #0d1321; /* Header + nav tabs: slightly darker than base */
+  --surface-base: #0e1421;
+  --surface-raised: #1a232f;
+  --surface-overlay: #2f3745;
+  --surface-sunken: #02050f;
+  --surface-chrome: #0a101c; /* Header + nav tabs: darker than base, soft gray-navy */
 
   /* Text Colors (Dark Mode) */
   --text-primary: #f9fafb;
@@ -85,7 +85,7 @@ input[type="search"] {
   --color-tab-selection: #f9fafb; /* neutral-50 for high contrast in dark mode */
 
   /* Heatmap intensity scale (Dark Mode): muted gray → bright blue */
-  --heatmap-0: #1f2937;
+  --heatmap-0: #1a232f;
   --heatmap-1: #1e3a5f;
   --heatmap-2: #1d4ed8;
   --heatmap-3: #3b82f6;
@@ -94,7 +94,7 @@ input[type="search"] {
 
 @theme inline {
   /* Font Family */
-  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
 
   /* Main Brand Color - BLUE for 8020 Lens */
   --color-main-50: #eff6ff;
@@ -407,7 +407,7 @@ input[type="search"] {
 body {
   background: var(--surface-base);
   color: var(--text-primary);
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
   font-size: 0.875rem;
   line-height: 1.5;
 }
@@ -511,7 +511,7 @@ body {
 }
 
 .dark .skeleton-bg {
-  background-color: #374151;
+  background-color: #2f3745;
 }
 
 /* Skeleton icon color (for image placeholders) */
@@ -562,9 +562,9 @@ body {
 .dark .skeleton-wave {
   background: linear-gradient(
     90deg,
-    #374151 25%,
-    #4b5563 50%,
-    #374151 75%
+    #2f3745 25%,
+    #404854 50%,
+    #2f3745 75%
   );
   background-size: 200% 100%;
 }

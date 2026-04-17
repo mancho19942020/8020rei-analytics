@@ -174,7 +174,7 @@ export const INSIGHTS_LAYOUT_STORAGE_KEY = 'axis-insights-layout-v4';
  * When a user's stored version doesn't match, their cached layout is discarded
  * and replaced with the current defaults — no manual "Reset Layout" needed.
  */
-export const LAYOUT_SCHEMA_VERSION = 4;
+export const LAYOUT_SCHEMA_VERSION = 5;
 
 /**
  * Load a saved layout from localStorage, or fall back to defaults.
@@ -190,7 +190,7 @@ export function loadLayout<T>(storageKey: string, defaults: T): T {
     // Version mismatch — wipe all cached layouts and stamp the new version
     const allKeys = Object.keys(localStorage);
     for (const key of allKeys) {
-      if (key.startsWith('axis-') && key.includes('-layout-')) {
+      if (key.includes('-layout-')) {
         localStorage.removeItem(key);
       }
     }
@@ -1234,7 +1234,7 @@ export const PRODUCT_PROJECTS_WIDGET_CATALOG: WidgetCatalogItem[] = [
 // Features > 8020REI > Rapid Response Tab
 // ---------------------------------------------------------------------------
 
-export const RAPID_RESPONSE_LAYOUT_STORAGE_KEY = 'rapid-response-layout-v7';
+export const RAPID_RESPONSE_LAYOUT_STORAGE_KEY = 'rapid-response-layout-v8';
 
 export const DEFAULT_RAPID_RESPONSE_LAYOUT: Widget[] = [
   // Layer 1: The Three Pillars — instant health answer at the top
@@ -1262,11 +1262,10 @@ export const DEFAULT_RAPID_RESPONSE_LAYOUT: Widget[] = [
     id: 'rr-pcm-health',
     type: 'rr-pcm-health',
     title: 'Is it aligned?',
-    tooltip: 'This widget is NOT affected by the date filter — it shows all-time alignment checks. Sync gap relates to the Delta in PCM & profitability (PCM orders − Aurora sends). Stale records = mailings sent 14+ days ago with no delivery confirmation. Source: rr_pcm_alignment (latest check per domain, summed across all domains).',
+    tooltip: 'PCM alignment health for the selected period. Compares our back-office records against PostcardMania\'s data per domain. Verified hourly via rr_pcm_alignment.',
     x: 8, y: 0,
     w: 4, h: 5,
     minW: 3, minH: 4, maxW: 6, maxH: 8,
-    timeBehavior: 'all-time',
   },
   // Layer 2: Q2 Volume Goal (left) + Top Contributors (right)
   {
@@ -1318,15 +1317,26 @@ export const DEFAULT_RAPID_RESPONSE_LAYOUT: Widget[] = [
     w: 6, h: 5,
     minW: 4, minH: 3, maxW: 12, maxH: 8,
   },
-  // Layer 5: Cost (less prominent)
+  // Layer 5: Data Quality (moved from Business Results — system health indicators)
   {
-    id: 'rr-cost-overview',
-    type: 'rr-cost-overview',
-    title: 'Cost overview',
-    tooltip: 'Tracks daily spending on mailings within the selected date range. The blue bars show total daily spend in dollars. The line shows the average cost per mailed piece. A sudden spike in cost per piece could indicate address quality issues or a change in mailing type.',
+    id: 'rr-system-coverage',
+    type: 'rr-system-coverage',
+    title: 'System coverage',
+    tooltip: 'Data pipeline coverage: how many clients, templates, and properties are tracked, plus the attribution rate (% of properties linked to a campaign).',
     x: 0, y: 22,
-    w: 12, h: 5,
-    minW: 6, minH: 4, maxW: 12, maxH: 8,
+    w: 12, h: 2,
+    minW: 8, minH: 2, maxH: 2,
+    flushBody: true,
+  },
+  {
+    id: 'rr-data-integrity',
+    type: 'rr-data-integrity',
+    title: 'Data integrity',
+    tooltip: 'Data pipeline integrity checks: backfilled dates (system-generated), unattributed conversions, zero-revenue deals, and pre-send conversions (excluded from counts).',
+    x: 0, y: 24,
+    w: 12, h: 2,
+    minW: 8, minH: 2, maxH: 2,
+    flushBody: true,
   },
 ];
 
@@ -1362,7 +1372,7 @@ export const RAPID_RESPONSE_WIDGET_CATALOG: WidgetCatalogItem[] = [
   {
     type: 'rr-pcm-health',
     title: 'Is it aligned?',
-    description: 'Stale records, orphaned orders, sync gap, delivery lag',
+    description: 'Domain-level PCM sync health: synced vs out-of-sync domains, stale, orphaned, gap',
     iconKey: 'grid',
     defaultSize: { w: 4, h: 4 },
   },
@@ -1388,11 +1398,18 @@ export const RAPID_RESPONSE_WIDGET_CATALOG: WidgetCatalogItem[] = [
     defaultSize: { w: 7, h: 6 },
   },
   {
-    type: 'rr-cost-overview',
-    title: 'Cost overview',
-    description: 'Daily spend and cost per delivered piece chart',
-    iconKey: 'lineChart',
-    defaultSize: { w: 5, h: 6 },
+    type: 'rr-system-coverage',
+    title: 'System coverage',
+    description: 'Clients, templates, properties tracked and attribution rate',
+    iconKey: 'grid',
+    defaultSize: { w: 12, h: 2 },
+  },
+  {
+    type: 'rr-data-integrity',
+    title: 'Data integrity',
+    description: 'Backfilled dates, unattributed conversions, zero-revenue deals',
+    iconKey: 'grid',
+    defaultSize: { w: 12, h: 2 },
   },
 ];
 
@@ -1400,7 +1417,7 @@ export const RAPID_RESPONSE_WIDGET_CATALOG: WidgetCatalogItem[] = [
 // Features > 8020REI > DM Campaign Business Results Tab
 // ---------------------------------------------------------------------------
 
-export const DM_BUSINESS_RESULTS_LAYOUT_STORAGE_KEY = 'dm-business-results-layout-v3';
+export const DM_BUSINESS_RESULTS_LAYOUT_STORAGE_KEY = 'dm-business-results-layout-v4';
 
 export const DEFAULT_DM_BUSINESS_RESULTS_LAYOUT: Widget[] = [
   // Row 1: Conversion Funnel — THE hero metric, answers "how is DM performing?"
@@ -1427,17 +1444,17 @@ export const DEFAULT_DM_BUSINESS_RESULTS_LAYOUT: Widget[] = [
   {
     id: 'dm-conversion-trend',
     type: 'dm-conversion-trend',
-    title: 'Conversion trend',
-    tooltip: 'Daily trend of new leads, appointments, and deals generated by DM campaigns over the selected time period.',
+    title: 'Conversion activity',
+    tooltip: 'Daily new leads, appointments, and deals across all clients. Spikes indicate effective mail drops; flat periods show stagnation. Computed as day-over-day change from cumulative funnel snapshots.',
     x: 0, y: 15,
     w: 6, h: 5,
     minW: 4, minH: 3, maxW: 12, maxH: 8,
   },
   {
-    id: 'dm-roas-trend',
-    type: 'dm-roas-trend',
-    title: 'ROAS trend',
-    tooltip: 'Revenue vs cost over time with ROAS (Return on Ad Spend) line. ROAS above 1.0 means the campaign is generating more revenue than it costs.',
+    id: 'dm-revenue-cost',
+    type: 'dm-revenue-cost',
+    title: 'Revenue vs. cost',
+    tooltip: 'Daily mailing cost vs. deal revenue. Green bars taller than red = making money. Cost comes from mailing expenses; revenue from closed deals attributed to DM campaigns.',
     x: 6, y: 15,
     w: 6, h: 5,
     minW: 4, minH: 3, maxW: 12, maxH: 8,
@@ -1462,16 +1479,6 @@ export const DEFAULT_DM_BUSINESS_RESULTS_LAYOUT: Widget[] = [
     w: 12, h: 5,
     minW: 6, minH: 4, maxW: 12, maxH: 10,
   },
-  // Row 6: Data Quality — trust indicators at the bottom
-  {
-    id: 'dm-data-quality',
-    type: 'dm-data-quality',
-    title: 'Data quality',
-    tooltip: 'Trust indicators for the conversion data: attribution rate, backfilled dates percentage, unattributed conversions, and zero-revenue deals.',
-    x: 0, y: 31,
-    w: 12, h: 3,
-    minW: 4, minH: 3, maxW: 12, maxH: 6,
-  },
 ];
 
 export const DM_BUSINESS_RESULTS_WIDGET_CATALOG: WidgetCatalogItem[] = [
@@ -1485,7 +1492,7 @@ export const DM_BUSINESS_RESULTS_WIDGET_CATALOG: WidgetCatalogItem[] = [
   {
     type: 'dm-client-performance',
     title: 'Client performance',
-    description: 'Per-client mailing volume, conversions, spend, revenue, and ROAS',
+    description: 'Per-client mailing volume, conversions, spend, revenue, and cost per lead',
     iconKey: 'table',
     defaultSize: { w: 12, h: 7 },
   },
@@ -1498,16 +1505,16 @@ export const DM_BUSINESS_RESULTS_WIDGET_CATALOG: WidgetCatalogItem[] = [
   },
   {
     type: 'dm-conversion-trend',
-    title: 'Conversion trend',
-    description: 'Daily leads, appointments, and deals over time',
-    iconKey: 'lineChart',
+    title: 'Conversion activity',
+    description: 'Daily new leads, appointments, and deals',
+    iconKey: 'barChart',
     defaultSize: { w: 6, h: 5 },
   },
   {
-    type: 'dm-roas-trend',
-    title: 'ROAS trend',
-    description: 'Revenue vs cost with ROAS line over time',
-    iconKey: 'lineChart',
+    type: 'dm-revenue-cost',
+    title: 'Revenue vs. cost',
+    description: 'Daily mailing cost vs. deal revenue',
+    iconKey: 'barChart',
     defaultSize: { w: 6, h: 5 },
   },
   {
@@ -1516,13 +1523,6 @@ export const DM_BUSINESS_RESULTS_WIDGET_CATALOG: WidgetCatalogItem[] = [
     description: 'Conversion rates by state and county',
     iconKey: 'globe',
     defaultSize: { w: 12, h: 6 },
-  },
-  {
-    type: 'dm-data-quality',
-    title: 'Data quality',
-    description: 'Attribution rate, backfilled dates, and data trust indicators',
-    iconKey: 'grid',
-    defaultSize: { w: 12, h: 3 },
   },
 ];
 
@@ -1845,105 +1845,122 @@ export const PLATFORM_ANALYTICS_WIDGET_CATALOG: WidgetCatalogItem[] = [
   { type: 'pa-user-engagement', title: 'Time by section', description: 'Time distribution across sections', iconKey: 'donutChart', defaultSize: { w: 6, h: 5 } },
 ];
 
-// ─── PCM & Profitability Layout ─────────────────────────────────
+// ─── Profitability Layout (formerly PCM & Profitability) ────────
+// Story: Verdict → Trends → Pricing → Data Integrity → Details
 
-export const PCM_VALIDATION_LAYOUT_STORAGE_KEY = 'pcm-validation-layout-v2';
+export const PCM_VALIDATION_LAYOUT_STORAGE_KEY = 'pcm-validation-layout-v6';
 
 export const DEFAULT_PCM_VALIDATION_LAYOUT: Widget[] = [
-  {
-    id: 'pcm-reconciliation-overview',
-    type: 'pcm-reconciliation-overview',
-    title: 'Reconciliation status',
-    tooltip: 'Connection status, PCM balance, and Aurora totals at a glance',
-    x: 0, y: 0, w: 12, h: 3,
-    minW: 8, minH: 3, maxH: 5,
-    flushBody: true,
-    timeBehavior: 'all-time',
-  },
-  {
-    id: 'pcm-volume-comparison',
-    type: 'pcm-volume-comparison',
-    title: 'Volume: 8020REI vs PCM',
-    tooltip: 'Compares all-time mail piece counts between Aurora and PCM. Both sides count individual mail pieces (not unique properties). "Active campaigns" matches the count shown in Operational Health. "Domains with send data" includes all historical domains, even those with no active campaigns.',
-    x: 0, y: 3, w: 6, h: 5,
-    minW: 4, minH: 3, maxH: 8,
-    timeBehavior: 'all-time',
-  },
-  {
-    id: 'pcm-cost-analysis',
-    type: 'pcm-cost-analysis',
-    title: 'Cost analysis',
-    tooltip: 'Compare our unit cost vs PCM pricing',
-    x: 6, y: 3, w: 6, h: 5,
-    minW: 4, minH: 3, maxH: 8,
-    timeBehavior: 'all-time',
-  },
-  {
-    id: 'pcm-status-comparison',
-    type: 'pcm-status-comparison',
-    title: 'Status comparison',
-    tooltip: 'Aurora status distribution vs PCM status distribution',
-    x: 0, y: 8, w: 12, h: 5,
-    minW: 6, minH: 3, maxH: 8,
-  },
-  {
-    id: 'pcm-mismatch-table',
-    type: 'pcm-mismatch-table',
-    title: 'Domain breakdown',
-    tooltip: 'Per-client send totals — will show mismatches when PCM order access is resolved',
-    x: 0, y: 13, w: 12, h: 7,
-    minW: 8, minH: 4, maxH: 12,
-    timeBehavior: 'all-time',
-  },
-  // ─── Profitability widgets ───
+  // ─── THE VERDICT (all-time) ───
   {
     id: 'pcm-margin-summary',
     type: 'pcm-margin-summary',
     title: 'Margin summary',
-    tooltip: 'Total revenue, PCM cost, gross margin, and margin % across all clients',
-    x: 0, y: 20, w: 12, h: 2,
+    tooltip: 'All-time revenue, PCM cost, gross margin, and margin % across all clients. The verdict: are we making money?',
+    x: 0, y: 0, w: 12, h: 2,
     minW: 8, minH: 2, maxH: 2,
     flushBody: true,
     timeBehavior: 'all-time',
   },
+  // ─── THE VERDICT (filtered by date selector) ───
   {
-    id: 'pcm-mail-class-comparison',
-    type: 'pcm-mail-class-comparison',
-    title: 'Margin by mail class',
-    tooltip: 'Standard vs First Class margins — identifies which mail class is unprofitable',
-    x: 0, y: 22, w: 6, h: 5,
-    minW: 4, minH: 3, maxH: 8,
-    timeBehavior: 'all-time',
+    id: 'pcm-margin-period',
+    type: 'pcm-margin-period',
+    title: 'Period summary',
+    tooltip: 'Revenue, PCM cost, gross margin, and margin % for the selected date range. Changes with the date filter above.',
+    x: 0, y: 2, w: 12, h: 2,
+    minW: 8, minH: 2, maxH: 2,
+    flushBody: true,
   },
+  // ─── THE TREND (all-time historical) ───
   {
     id: 'pcm-margin-trend',
     type: 'pcm-margin-trend',
-    title: 'Margin trend',
-    tooltip: 'Daily margin over time with revenue and PCM cost context',
-    x: 6, y: 22, w: 6, h: 5,
-    minW: 4, minH: 3, maxH: 8,
+    title: 'Pricing history',
+    tooltip: 'Monthly per-piece rates since launch: what we charge clients (blue), what PCM charges us (red), and margin per piece (green). Updates automatically with each sync.',
+    x: 0, y: 4, w: 12, h: 5,
+    minW: 6, minH: 3, maxH: 8,
+    timeBehavior: 'all-time',
+  },
+  // ─── THE PRICING ───
+  {
+    id: 'pcm-pricing-overview',
+    type: 'pcm-pricing-overview',
+    title: 'Pricing overview',
+    tooltip: 'What we charge per piece vs what PCM charges us, margin per piece, and recent price change detection.',
+    x: 0, y: 9, w: 6, h: 4,
+    minW: 4, minH: 3, maxH: 6,
+    timeBehavior: 'all-time',
+  },
+  // ─── DATA INTEGRITY (side by side with pricing) ───
+  {
+    id: 'pcm-data-match',
+    type: 'pcm-data-match',
+    title: 'Data match',
+    tooltip: 'Domain-level alignment for the selected period. Bottom row shows lifetime totals (always all-time) for reference.',
+    x: 6, y: 9, w: 6, h: 4,
+    minW: 4, minH: 3, maxH: 6,
+  },
+  // ─── CLIENT DETAILS (3 separate tables by health) ───
+  {
+    id: 'pcm-clients-profitable',
+    type: 'pcm-clients-profitable',
+    title: 'Profitable clients',
+    tooltip: 'Clients with margins above 5%, sorted by highest margin first.',
+    x: 0, y: 13, w: 12, h: 6,
+    minW: 8, minH: 3, maxH: 10,
+    timeBehavior: 'all-time',
   },
   {
-    id: 'pcm-client-margins',
-    type: 'pcm-client-margins',
-    title: 'Per-client margins',
-    tooltip: 'Client-level profitability breakdown sorted by worst margins first',
-    x: 0, y: 27, w: 12, h: 7,
-    minW: 8, minH: 4, maxH: 12,
+    id: 'pcm-clients-breakeven',
+    type: 'pcm-clients-breakeven',
+    title: 'Break-even clients',
+    tooltip: 'Clients with margins between 0-5%. Pricing review recommended.',
+    x: 0, y: 19, w: 12, h: 6,
+    minW: 8, minH: 3, maxH: 10,
+    timeBehavior: 'all-time',
+  },
+  {
+    id: 'pcm-clients-losing',
+    type: 'pcm-clients-losing',
+    title: 'Losing money',
+    tooltip: 'Clients where we lose money on every piece sent. Worst margins first.',
+    x: 0, y: 25, w: 12, h: 6,
+    minW: 8, minH: 3, maxH: 10,
+    timeBehavior: 'all-time',
+  },
+  // ─── DOMAIN & TEMPLATE DETAILS ───
+  {
+    id: 'pcm-domain-table',
+    type: 'pcm-domain-table',
+    title: 'Domain breakdown',
+    tooltip: 'Per-domain send totals, delivery counts, and cost per piece.',
+    x: 0, y: 31, w: 12, h: 6,
+    minW: 8, minH: 3, maxH: 10,
+    timeBehavior: 'all-time',
+  },
+  {
+    id: 'pcm-template-table',
+    type: 'pcm-template-table',
+    title: 'Template catalog',
+    tooltip: 'PostcardMania design templates — name, type, size, and mail classes.',
+    x: 0, y: 37, w: 12, h: 6,
+    minW: 8, minH: 3, maxH: 10,
     timeBehavior: 'all-time',
   },
 ];
 
 export const PCM_VALIDATION_WIDGET_CATALOG: WidgetCatalogItem[] = [
-  { type: 'pcm-reconciliation-overview', title: 'Reconciliation status', description: 'PCM connection, balance, and Aurora totals', iconKey: 'grid', defaultSize: { w: 12, h: 3 } },
-  { type: 'pcm-volume-comparison', title: 'Volume: 8020REI vs PCM', description: 'Send count comparison', iconKey: 'barChart', defaultSize: { w: 6, h: 5 } },
-  { type: 'pcm-cost-analysis', title: 'Cost analysis', description: 'Unit cost and total cost comparison', iconKey: 'lineChart', defaultSize: { w: 6, h: 5 } },
-  { type: 'pcm-status-comparison', title: 'Status comparison', description: 'Aurora vs PCM status distribution', iconKey: 'barChart', defaultSize: { w: 12, h: 5 } },
-  { type: 'pcm-mismatch-table', title: 'Domain breakdown', description: 'Per-client reconciliation detail', iconKey: 'table', defaultSize: { w: 12, h: 7 } },
-  { type: 'pcm-margin-summary', title: 'Margin summary', description: 'Revenue, PCM cost, gross margin, and margin %', iconKey: 'grid', defaultSize: { w: 12, h: 2 } },
-  { type: 'pcm-mail-class-comparison', title: 'Margin by mail class', description: 'Standard vs First Class profitability comparison', iconKey: 'barChart', defaultSize: { w: 6, h: 5 } },
-  { type: 'pcm-margin-trend', title: 'Margin trend', description: 'Daily margin over time with revenue and cost', iconKey: 'lineChart', defaultSize: { w: 6, h: 5 } },
-  { type: 'pcm-client-margins', title: 'Per-client margins', description: 'Client-level profitability table', iconKey: 'table', defaultSize: { w: 12, h: 7 } },
+  { type: 'pcm-margin-summary', title: 'Margin summary', description: 'All-time revenue, PCM cost, gross margin, and margin %', iconKey: 'grid', defaultSize: { w: 12, h: 2 } },
+  { type: 'pcm-margin-period', title: 'Period summary', description: 'Date-filtered revenue, PCM cost, gross margin, and margin %', iconKey: 'grid', defaultSize: { w: 12, h: 2 } },
+  { type: 'pcm-margin-trend', title: 'Pricing history', description: 'Per-piece rates over time: us vs PCM with margin', iconKey: 'lineChart', defaultSize: { w: 12, h: 5 } },
+  { type: 'pcm-pricing-overview', title: 'Pricing overview', description: 'Our rates vs PCM rates with margin per piece', iconKey: 'grid', defaultSize: { w: 6, h: 4 } },
+  { type: 'pcm-data-match', title: 'Data match', description: 'Domain-level PCM alignment + lifetime send vs order totals', iconKey: 'barChart', defaultSize: { w: 6, h: 4 } },
+  { type: 'pcm-clients-profitable', title: 'Profitable clients', description: 'Clients with margins above 5%', iconKey: 'table', defaultSize: { w: 12, h: 6 } },
+  { type: 'pcm-clients-breakeven', title: 'Break-even clients', description: 'Clients with margins 0-5%', iconKey: 'table', defaultSize: { w: 12, h: 6 } },
+  { type: 'pcm-clients-losing', title: 'Losing money', description: 'Clients with negative margins', iconKey: 'table', defaultSize: { w: 12, h: 6 } },
+  { type: 'pcm-domain-table', title: 'Domain breakdown', description: 'Per-domain send totals and cost', iconKey: 'table', defaultSize: { w: 12, h: 6 } },
+  { type: 'pcm-template-table', title: 'Template catalog', description: 'PCM design templates', iconKey: 'table', defaultSize: { w: 12, h: 6 } },
 ];
 
 /**

@@ -43,8 +43,8 @@ Many Tailwind color classes don't apply correctly in this project. **Always use 
 - Widget cards: White (`bg-surface-base`)
 
 **Dark Mode:**
-- Header + nav tabs: Slightly darker than base (`chrome-bg` = `#0d1321`)
-- Main content area: `var(--surface-base)` = `#111827`
+- Header + nav tabs: Darker gray-navy (`chrome-bg` = `#0a101c`)
+- Main content area: `var(--surface-base)` = `#0e1421`
 - Widget cards: `bg-surface-base`
 - NO pure black backgrounds ever
 

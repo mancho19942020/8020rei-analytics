@@ -1709,7 +1709,7 @@ Dark mode is enabled via a `.dark` class on the `<html>` element (class-based st
 
 **Dark Mode:**
 - Should NEVER use pure black - use dark grays with slight tints
-- Main content area uses `bg-surface-raised` (#1f2937) - consistent with navigation
+- Main content area uses `bg-surface-raised` (#1a232f) - consistent with navigation
 - Cards use `bg-surface-base` to maintain contrast against the raised background
 
 ### Semantic Theme Tokens
@@ -1730,7 +1730,7 @@ className="bg-neutral-100 dark:bg-surface-raised"
 
 This ensures:
 - Light mode: Subtle gray (#f3f4f6) that's easier on the eyes than pure white
-- Dark mode: Consistent with navigation and not pure black (#1f2937)
+- Dark mode: Consistent with navigation and not pure black (#1a232f)
 
 **Content (Text):**
 - `text-content-primary` - Headings, primary text
@@ -1857,7 +1857,7 @@ className="focus-visible:ring-2 focus-visible:ring-main-500 focus-visible:ring-o
 
 **Layout/Theme Changes:**
 - Light mode main content area: `bg-neutral-100` (subtle gray #f3f4f6) - easier on the eyes
-- Dark mode main content area: `bg-surface-raised` (#1f2937) - consistent with navigation, not pure black
+- Dark mode main content area: `bg-surface-raised` (#1a232f) - consistent with navigation, not pure black
 - Header title changed from "8020 Analytics Hub" to "8020LENS"
 - Header font size reduced from `text-2xl font-bold` to `text-lg font-semibold`
 

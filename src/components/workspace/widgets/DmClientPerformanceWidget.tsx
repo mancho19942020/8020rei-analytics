@@ -227,33 +227,18 @@ export function DmClientPerformanceWidget({ data, onDomainClick }: DmClientPerfo
       ),
     },
     {
-      field: 'roas',
-      header: 'ROAS',
-      headerTooltip: 'Return on ad spend: revenue / cost. Requires 3+ deals for confident rating.',
-      width: 110,
-      minWidth: 80,
+      field: 'costPerLead',
+      header: 'CPL',
+      headerTooltip: 'Cost per lead: total mailing cost ÷ leads. Lower is better.',
+      width: 90,
+      minWidth: 70,
       align: 'center',
-      render: (value: CellValue, row: RowData) => {
-        const roas = Number(value || 0);
-        const confidence = String(row?.roasConfidence || 'none');
-        const deals = Number(row?.deals || 0);
-
-        if (confidence === 'revenue_no_deal') {
+      render: (value: CellValue) => {
+        const cpl = value === null || value === undefined ? null : Number(value);
+        if (cpl === null || isNaN(cpl)) {
           return (
             <AxisTooltip
-              content="Revenue was recorded but no property has reached Deal status yet. This is under review."
-              placement="top"
-              maxWidth={280}
-            >
-              <span style={{ color: 'var(--text-tertiary)' }}>— ⚠</span>
-            </AxisTooltip>
-          );
-        }
-
-        if (confidence === 'none' || roas === 0) {
-          return (
-            <AxisTooltip
-              content="No deals closed yet, so ROAS can't be calculated."
+              content="No leads yet — cost per lead can't be calculated."
               placement="top"
               maxWidth={240}
             >
@@ -261,18 +246,13 @@ export function DmClientPerformanceWidget({ data, onDomainClick }: DmClientPerfo
             </AxisTooltip>
           );
         }
-
-        const tooltipText = confidence === 'low_sample'
-          ? `Based on ${deals} ${deals === 1 ? 'deal' : 'deals'} only. Needs 3+ deals for a confident rating.`
-          : `Based on ${deals} deals. Revenue ÷ cost = ${roas.toFixed(1)}x return.`;
-
-        const tagColor = roas >= 2 ? 'success' as const : roas >= 1 ? 'alert' as const : 'error' as const;
-
         return (
-          <AxisTooltip content={tooltipText} placement="top" maxWidth={280}>
-            <AxisTag color={tagColor} size="sm">
-              {roas.toFixed(1)}x
-            </AxisTag>
+          <AxisTooltip
+            content={`Total cost ÷ leads = $${cpl.toFixed(2)} per lead`}
+            placement="top"
+            maxWidth={280}
+          >
+            <span style={{ color: 'var(--text-primary)' }}>{formatCurrency(cpl)}</span>
           </AxisTooltip>
         );
       },
@@ -285,8 +265,8 @@ export function DmClientPerformanceWidget({ data, onDomainClick }: DmClientPerfo
     const totalDeals = data.reduce((s, c) => s + c.deals, 0);
     const totalCost = data.reduce((s, c) => s + c.totalCost, 0);
     const totalRevenue = data.reduce((s, c) => s + c.totalRevenue, 0);
-    const roas = totalCost > 0 ? totalRevenue / totalCost : 0;
-    return { totalMailed, totalLeads, totalDeals, totalCost, totalRevenue, roas };
+    const costPerLead = totalLeads > 0 ? totalCost / totalLeads : null;
+    return { totalMailed, totalLeads, totalDeals, totalCost, totalRevenue, costPerLead };
   }, [data]);
 
   const tableData = useMemo(() =>
@@ -301,8 +281,7 @@ export function DmClientPerformanceWidget({ data, onDomainClick }: DmClientPerfo
       leadConversionRate: c.leadConversionRate,
       totalCost: c.totalCost,
       totalRevenue: c.totalRevenue,
-      roas: c.roas,
-      roasConfidence: c.roasConfidence,
+      costPerLead: c.costPerLead,
       syncWarning: c.syncWarning || null,
     })),
   [data]);
@@ -345,11 +324,12 @@ export function DmClientPerformanceWidget({ data, onDomainClick }: DmClientPerfo
             </span>
             <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>revenue</span>
           </div>
-          {totals.roas > 0 && (
+          {totals.costPerLead !== null && (
             <div className="flex items-baseline gap-1.5">
-              <AxisTag color={totals.roas >= 2 ? 'success' : totals.roas >= 1 ? 'alert' : 'error'} size="sm">
-                {totals.roas.toFixed(1)}x ROAS
-              </AxisTag>
+              <span className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
+                {formatCurrency(totals.costPerLead)}
+              </span>
+              <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>per lead</span>
             </div>
           )}
         </div>

@@ -61,6 +61,8 @@ const BugsDiBoardTab = dynamic(() => import('@/components/dashboard/BugsDiBoardT
 const PlatformAnalyticsTab = dynamic(() => import('@/components/dashboard/PlatformAnalyticsTab').then(m => m.PlatformAnalyticsTab), { loading: TabSkeleton, ssr: false });
 const WeeklyReportTab = dynamic(() => import('@/components/dashboard/WeeklyReportTab').then(m => m.WeeklyReportTab), { loading: TabSkeleton, ssr: false });
 const IntegrationStatusTab = dynamic(() => import('@/components/dashboard/IntegrationStatusTab').then(m => m.IntegrationStatusTab), { loading: TabSkeleton, ssr: false });
+const DmReportsTab = dynamic(() => import('@/components/dashboard/DmReportsTab').then(m => m.DmReportsTab), { loading: TabSkeleton, ssr: false });
+const DmDataSourcesTab = dynamic(() => import('@/components/dashboard/DmDataSourcesTab').then(m => m.DmDataSourcesTab), { loading: TabSkeleton, ssr: false });
 
 interface MetricValues {
   total_users: number;
@@ -217,6 +219,14 @@ function Dashboard({ slug }: { slug: string[] }) {
   useEffect(() => {
     if (editMode) setShowEditCallout(true);
   }, [editMode]);
+
+  // Auto-disable edit mode on non-grid pages
+  const isNonGridPage = activeMainSection === 'engagement-calls' ||
+    activeMainSection === 'grafana' ||
+    (activeMainSection === 'features' && activeSubsection === 'dm-campaign' && ['reports', 'data-sources'].includes(dmCampaignSubTab));
+  useEffect(() => {
+    if (isNonGridPage && editMode) setEditMode(false);
+  }, [isNonGridPage, editMode]);
 
   // Handle layout changes
   const handleLayoutChange = (newLayout: Widget[]) => {
@@ -459,12 +469,16 @@ function Dashboard({ slug }: { slug: string[] }) {
             {/* Right side actions */}
             <div className="flex items-center gap-2 ml-auto">
 
-              {/* Edit Layout Toggle */}
-              <AxisToggle
-                checked={editMode}
-                onChange={setEditMode}
-                label="Edit Layout"
-              />
+              {/* Edit Layout Toggle — hidden on non-grid pages */}
+              {activeMainSection !== 'engagement-calls' &&
+               activeMainSection !== 'grafana' &&
+               !(activeMainSection === 'features' && activeSubsection === 'dm-campaign' && ['reports', 'data-sources'].includes(dmCampaignSubTab)) && (
+                <AxisToggle
+                  checked={editMode}
+                  onChange={setEditMode}
+                  label="Edit Layout"
+                />
+              )}
 
               <div className="w-3" /> {/* Spacer between toggle and filters */}
 
@@ -602,7 +616,7 @@ function Dashboard({ slug }: { slug: string[] }) {
               {/* Edit Mode Info */}
               {editMode && showEditCallout && (
                 <div className="mb-4 relative">
-                  <AxisCallout type="info" title="Edit Mode Active">
+                  <AxisCallout type="info" title="Edit layout mode active">
                     <p className="text-body-regular">
                       Drag widgets by their handle icon to reposition them. Resize widgets by dragging their edges.
                       Your layout will be saved automatically.
@@ -770,8 +784,8 @@ function Dashboard({ slug }: { slug: string[] }) {
             />
           )}
 
-          {/* DM Campaign Tab (Features > DM Campaign) */}
-          {activeMainSection === 'features' && activeSubsection === 'dm-campaign' && (
+          {/* DM Campaign Tab (Features > DM Campaign) — widget tabs */}
+          {activeMainSection === 'features' && activeSubsection === 'dm-campaign' && !['reports', 'data-sources'].includes(dmCampaignSubTab) && (
             <RapidResponseTab
               ref={dmCampaignRef}
               days={days}
@@ -781,6 +795,16 @@ function Dashboard({ slug }: { slug: string[] }) {
               onEditModeChange={setEditMode}
               activeSubTab={dmCampaignSubTab}
             />
+          )}
+
+          {/* DM Campaign > Reports tab — document-style reports */}
+          {activeMainSection === 'features' && activeSubsection === 'dm-campaign' && dmCampaignSubTab === 'reports' && (
+            <DmReportsTab />
+          )}
+
+          {/* DM Campaign > Data sources tab — methodology & transparency */}
+          {activeMainSection === 'features' && activeSubsection === 'dm-campaign' && dmCampaignSubTab === 'data-sources' && (
+            <DmDataSourcesTab />
           )}
 
           {/* Product Tasks > AI Task Board */}

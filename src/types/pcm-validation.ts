@@ -104,10 +104,116 @@ export interface MarginTrendPoint {
   dailyMargin: number;
 }
 
+export interface RateHistoryPoint {
+  month: string;           // YYYY-MM
+  ourFcRate: number;       // what we charge per FC piece
+  ourStdRate: number;      // what we charge per Std piece
+  pcmFcRate: number;       // what PCM charges per FC piece
+  pcmStdRate: number;      // what PCM charges per Std piece
+  fcMargin: number;        // ourFcRate - pcmFcRate
+  stdMargin: number;       // ourStdRate - pcmStdRate
+  blendedMargin: number;   // weighted avg margin
+  fcSends: number;         // FC volume for that month
+  stdSends: number;        // Std volume for that month
+}
+
+export interface RateHistoryData {
+  trend: RateHistoryPoint[];
+  dataAvailable: boolean;
+}
+
 export interface PriceAlertData {
   overallMarginPct: number;
   standardMarginPct: number | null;
   firstClassMarginPct: number | null;
   alertLevel: 'ok' | 'warning' | 'critical';
   alerts: string[];
+}
+
+// ─── Price Change Detection Types ────────────────────────────
+
+export interface DetectedPriceChange {
+  changeDate: string;
+  mailClass: 'standard' | 'first_class';
+  oldRate: number;
+  newRate: number;
+  rateDelta: number;
+  sendsOnChangeDay: number;
+}
+
+export interface RolloutDomain {
+  domain: string;
+  currentRate: number;
+  migrated: boolean;
+  lastSendDate: string;
+}
+
+export interface RolloutStatus {
+  newRate: number;
+  migratedDomains: number;
+  pendingDomains: number;
+  totalDomains: number;
+  domains: RolloutDomain[];
+}
+
+export interface PriceDetectionData {
+  currentRates: {
+    standard: number | null;
+    firstClass: number | null;
+    periodStart: string | null;
+    periodEnd: string | null;
+  };
+  changes: DetectedPriceChange[];
+  rolloutStatus: {
+    standard: RolloutStatus | null;
+    firstClass: RolloutStatus | null;
+  };
+  dataAvailable: boolean;
+}
+
+export interface PriceImpactEntry {
+  mailClass: 'standard' | 'first_class';
+  changeDate: string;
+  beforeRate: number;
+  afterRate: number;
+  rateDelta: number;
+  beforeDailyMargin: number;
+  afterDailyMargin: number;
+  marginDelta: number;
+  beforeRevenuePerPiece: number;
+  afterRevenuePerPiece: number;
+  projectedMonthlyMarginImpact: number;
+  daysSinceChange: number;
+  totalImpactSinceChange: number;
+}
+
+export interface PriceImpactData {
+  impacts: PriceImpactEntry[];
+  dataAvailable: boolean;
+}
+
+export interface CurrentRatesData {
+  standard: number | null;
+  firstClass: number | null;
+  blended: number | null;
+  periodStart: string | null;
+  periodEnd: string | null;
+  dataAvailable: boolean;
+}
+
+// ─── Pricing History Types ───────────────────────────────────
+
+export interface PricingHistoryPoint {
+  date: string;
+  ourStandardRate: number | null;
+  pcmStandardRate: number | null;
+  ourFirstClassRate: number | null;
+  pcmFirstClassRate: number | null;
+  standardSends: number;
+  firstClassSends: number;
+}
+
+export interface PricingHistoryData {
+  trend: PricingHistoryPoint[];
+  dataAvailable: boolean;
 }

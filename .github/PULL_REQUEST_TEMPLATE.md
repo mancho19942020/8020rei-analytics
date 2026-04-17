@@ -28,12 +28,12 @@
 - [ ] Gray backgrounds use the `light-gray-bg` CSS class (NOT Tailwind `bg-gray-*`)
 - [ ] Tab selection uses `selected-tab-line` or `selected-tab-contained` CSS classes
 - [ ] Widget cards use `bg-surface-base` with `shadow-xs` (hover: `shadow-sm`)
-- [ ] No pure black (`#000000`) backgrounds in dark mode — use `var(--surface-base)` (#111827)
+- [ ] No pure black (`#000000`) backgrounds in dark mode — use `var(--surface-base)` (#0e1421)
 
 ### Dark Mode
 
 - [ ] All new UI elements support dark mode (either via CSS variables or `dark:` variants)
-- [ ] Dark mode backgrounds use `var(--surface-base)` (#111827), never `#000`
+- [ ] Dark mode backgrounds use `var(--surface-base)` (#0e1421), never `#000`
 
 ### Components
 

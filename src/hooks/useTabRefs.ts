@@ -48,11 +48,10 @@ export function useTabRefs() {
     if (mainSection === 'feedback-loop' && subsection === 'import') {
       return 'import';
     }
-    // Features > 8020REI detail tabs
-    if (mainSection === 'features' && subsection === 'features-rei') {
-      if (detailTab === 'properties-api') return 'properties-api';
-      if (detailTab === 'dm-campaign') return 'dm-campaign';
-      return null;
+    // Features > 8020REI detail tabs (subsection is the tab itself after nav restructure)
+    if (mainSection === 'features') {
+      if (subsection === 'properties-api') return 'properties-api';
+      if (subsection === 'dm-campaign') return 'dm-campaign';
     }
     // Product Tasks subsections
     if (mainSection === 'product-tasks') {

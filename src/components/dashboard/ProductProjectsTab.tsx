@@ -235,7 +235,7 @@ export const ProductProjectsTab = forwardRef<TabHandle, ProductProjectsTabProps>
     <div className="space-y-4">
       {editMode && (
         <div className="mb-4">
-          <AxisCallout type="info" title="Edit Mode Active">
+          <AxisCallout type="info" title="Edit layout mode active">
             <p className="text-body-regular">
               Drag widgets by their handle icon to reposition them. Resize widgets by dragging their edges.
               Your layout will be saved automatically.

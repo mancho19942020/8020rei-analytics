@@ -908,11 +908,11 @@ Next.js is configured with `output: 'standalone'` in `next.config.ts` for this.
 
 | Class | Use For | Light Mode | Dark Mode |
 |-------|---------|------------|-----------|
-| `chrome-bg` | Header + nav bars | White `#ffffff` | `#0d1321` |
-| `light-gray-bg` | Scrollable content area | Gray `#f3f4f6` | `#111827` |
+| `chrome-bg` | Header + nav bars | White `#ffffff` | `#0a101c` |
+| `light-gray-bg` | Scrollable content area | Gray `#f3f4f6` | `#0e1421` |
 | `selected-tab-line` | Active tab (line style) | Dark blue underline | Near-white underline |
 | `selected-tab-contained` | Active tab (pill style) | Filled pill | Filled pill |
-| `bg-surface-base` | Widget/card backgrounds | White | `#111827` |
+| `bg-surface-base` | Widget/card backgrounds | White | `#0e1421` |
 | `bg-surface-raised` | Elevated surfaces | Slightly off-white | Slightly lighter |
 
 ### Page Layout Pattern
