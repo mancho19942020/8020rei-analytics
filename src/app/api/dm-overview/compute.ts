@@ -38,12 +38,14 @@ export const TEST_DOMAINS = CANONICAL_TEST_DOMAINS;
 // TODO: pull from monolith when available.
 export const TOTAL_8020REI_CLIENTS = 140;
 
-// PCM invoice-verified pricing eras (23 PDFs, Dec 2024 – Apr 2026).
-function pcmRate(dateISO: string, mc: 'fc' | 'std'): number {
-  if (dateISO <= '2025-06-27') return mc === 'fc' ? 0.94 : 0.74;
-  if (dateISO <= '2025-10-31') return mc === 'fc' ? 1.14 : 0.93;
-  return mc === 'fc' ? 0.87 : 0.63;
-}
+// PCM invoice-verified pricing eras are defined once in `@/lib/pcm-pricing-eras`
+// to prevent drift between Overview, Profitability, and Reports. Re-export so
+// existing callers importing from this module continue to work.
+import {
+  pcmRate as _pcmRate,
+  computePcmInvoiceCost as _computePcmInvoiceCost,
+} from '@/lib/pcm-pricing-eras';
+export { pcmRate, computePcmInvoiceCost } from '@/lib/pcm-pricing-eras';
 
 function isTestDomain(domain: string): boolean {
   return TEST_DOMAIN_SET.has(domain);
@@ -225,8 +227,12 @@ export async function fetchPcmOrdersSlim(): Promise<PcmOrderSlim[]> {
 
 // Lifetime revenue, PCM cost, and margin — EXACT same query as the Profitability
 // tab's getProfitabilitySummary in /api/pcm-validation. Single source of truth:
-// dm_client_funnel.{total_cost, total_pcm_cost, margin}, latest row per domain.
-// If we compute PCM cost any other way, Overview will drift from Profitability.
+// dm_client_funnel.{total_cost, total_pcm_cost}, latest row per domain.
+// Margin is computed as (revenue - pcm_cost) rather than read from the stored
+// `margin` column — the stored column is zero for clients whose pcm_cost is
+// missing, which hides revenue from the total. Computing locally keeps this
+// card in lockstep with Profitability Margin summary where we fixed the same
+// issue. Coverage metadata lets the card flag incompleteness honestly.
 async function fetchAuroraFunnelSummary(): Promise<{
   totalSends: number;
   totalDelivered: number;
@@ -235,6 +241,13 @@ async function fetchAuroraFunnelSummary(): Promise<{
   grossMargin: number;
   marginPct: number;
   domainCount: number;
+  coverage: {
+    sendsWithPcm: number;
+    sendsWithoutPcm: number;
+    totalSends: number;
+    coveragePct: number;
+    revenueWithoutPcm: number;
+  };
 }> {
   const rows = await runAuroraQuery(`
     SELECT
@@ -242,7 +255,8 @@ async function fetchAuroraFunnelSummary(): Promise<{
       COALESCE(SUM(f.total_delivered), 0) as total_delivered,
       COALESCE(SUM(f.total_cost), 0) as total_revenue,
       COALESCE(SUM(f.total_pcm_cost), 0) as total_pcm_cost,
-      COALESCE(SUM(f.margin), 0) as gross_margin,
+      COALESCE(SUM(CASE WHEN f.total_pcm_cost > 0 THEN f.total_sends ELSE 0 END), 0) as sends_with_pcm,
+      COALESCE(SUM(CASE WHEN f.total_pcm_cost > 0 THEN f.total_cost ELSE 0 END), 0) as revenue_with_pcm,
       COUNT(DISTINCT f.domain) as domain_count
     FROM dm_client_funnel f
     INNER JOIN (
@@ -255,15 +269,23 @@ async function fetchAuroraFunnelSummary(): Promise<{
   `);
   const r = (rows[0] || {}) as Record<string, unknown>;
   const revenue = Number(r.total_revenue || 0);
-  const margin = Number(r.gross_margin || 0);
+  const pcmCost = Number(r.total_pcm_cost || 0);
+  const totalSends = Number(r.total_sends || 0);
+  const sendsWithPcm = Number(r.sends_with_pcm || 0);
+  const revenueWithPcm = Number(r.revenue_with_pcm || 0);
+  const sendsWithoutPcm = totalSends - sendsWithPcm;
+  const revenueWithoutPcm = Math.max(0, revenue - revenueWithPcm);
+  const coveragePct = totalSends > 0 ? Math.round((sendsWithPcm / totalSends) * 1000) / 10 : 0;
+  const grossMargin = Math.round((revenue - pcmCost) * 100) / 100;
   return {
-    totalSends: Number(r.total_sends || 0),
+    totalSends,
     totalDelivered: Number(r.total_delivered || 0),
     totalRevenue: revenue,
-    totalPcmCost: Number(r.total_pcm_cost || 0),
-    grossMargin: margin,
-    marginPct: revenue > 0 ? (margin / revenue) * 100 : 0,
+    totalPcmCost: pcmCost,
+    grossMargin,
+    marginPct: revenue > 0 ? (grossMargin / revenue) * 100 : 0,
     domainCount: Number(r.domain_count || 0),
+    coverage: { sendsWithPcm, sendsWithoutPcm, totalSends, coveragePct, revenueWithoutPcm },
   };
 }
 
@@ -318,25 +340,41 @@ export async function computeHeadline(orders: PcmOrderSlim[]) {
   const pcmTotalOrders = orders.length;
 
   const auroraLifetimeSent = auroraSummary.totalSends;
-  // Revenue, PCM cost, and gross margin come directly from Aurora's pre-computed
-  // columns in dm_client_funnel — EXACT same source as the Profitability tab's
-  // Margin summary widget. This is the consistency guarantee.
+  // Revenue from Aurora `dm_client_funnel.total_cost` — this column is reliable
+  // (populated for every piece that gets sent). It's what 8020REI actually
+  // charged clients.
   const auroraClientRevenue = auroraSummary.totalRevenue;
-  const auroraPcmCostReal = auroraSummary.totalPcmCost;
-  const auroraGrossMargin = auroraSummary.grossMargin;
+  const auroraStoredPcmCost = auroraSummary.totalPcmCost;
   const auroraDomainCount = auroraSummary.domainCount;
+
+  // Invoice-authoritative PCM cost: iterate PCM's own /order records (excl.
+  // canceled + test), apply invoice-verified era rates. This is the PCM-side
+  // of the "Aurora + PCM, always both" rule. The monolith's stored
+  // `total_pcm_cost` uses $0.625/$0.875 rates (incorrect) and is only
+  // populated for ~92% of pieces, which is why we don't trust it for margin.
+  const pcmCostRealInvoice = _computePcmInvoiceCost(realPcm);
+  const pcmCostTest = _computePcmInvoiceCost(testPcm);
+
+  // Gross margin (pre-test-cost): what 8020REI earned across real clients,
+  // using invoice-verified PCM cost. This is what ends up on every Profitability
+  // widget and the Overview Company margin card — same era rates everywhere.
+  const grossMarginInvoice = Math.round((auroraClientRevenue - pcmCostRealInvoice) * 100) / 100;
+  const grossMarginInvoicePct = auroraClientRevenue > 0
+    ? Math.round((grossMarginInvoice / auroraClientRevenue) * 10000) / 100
+    : 0;
+  // Aurora-stored margin for reconciliation / reporting honesty
+  const auroraStoredMargin = Math.round((auroraClientRevenue - auroraStoredPcmCost) * 100) / 100;
+  const pcmVsAuroraCostDelta = Math.round((pcmCostRealInvoice - auroraStoredPcmCost) * 100) / 100;
 
   const deltaPieces = auroraLifetimeSent - pcmActivePieces;
   const deltaPiecesPct = pcmActivePieces > 0 ? (deltaPieces / pcmActivePieces) * 100 : 0;
 
-  let pcmCostTest = 0;
   const testDomains = new Set<string>();
   const perTestDomain = new Map<string, { pieces: number; cost: number; firstDate: string; lastDate: string }>();
   let testFirstDate = '';
   let testLastDate = '';
   for (const o of testPcm) {
-    const rate = pcmRate(o.date, o.mailClass);
-    pcmCostTest += rate;
+    const rate = _pcmRate(o.date, o.mailClass);
     testDomains.add(o.domain);
     if (!testFirstDate || o.date < testFirstDate) testFirstDate = o.date;
     if (!testLastDate || o.date > testLastDate) testLastDate = o.date;
@@ -349,11 +387,11 @@ export async function computeHeadline(orders: PcmOrderSlim[]) {
     perTestDomain.set(o.domain, entry);
   }
 
-  // Gross margin from Aurora already excludes test domains (query filter).
-  // We deduct the internal test cost (estimated from PCM orders × era rates)
-  // to get the honest company P&L.
-  const companyMargin = auroraGrossMargin - pcmCostTest;
-  const companyMarginPct = auroraClientRevenue > 0 ? (companyMargin / auroraClientRevenue) * 100 : 0;
+  // Company margin = gross margin (invoice-based) − internal test cost.
+  const companyMargin = Math.round((grossMarginInvoice - pcmCostTest) * 100) / 100;
+  const companyMarginPct = auroraClientRevenue > 0
+    ? Math.round((companyMargin / auroraClientRevenue) * 10000) / 100
+    : 0;
 
   return {
     fetchedAt: new Date().toISOString(),
@@ -377,11 +415,19 @@ export async function computeHeadline(orders: PcmOrderSlim[]) {
       margin: Number(companyMargin.toFixed(2)),
       marginPct: Number(companyMarginPct.toFixed(2)),
       clientRevenue: Number(auroraClientRevenue.toFixed(2)),
-      pcmCostReal: Number(auroraPcmCostReal.toFixed(2)),
+      // Authoritative PCM cost — from PCM /order × invoice-verified era rates
+      pcmCostReal: Number(pcmCostRealInvoice.toFixed(2)),
       pcmCostTest: Number(pcmCostTest.toFixed(2)),
-      grossMargin: Number(auroraGrossMargin.toFixed(2)),
+      // Authoritative gross margin — revenue minus PCM-invoice cost
+      grossMargin: Number(grossMarginInvoice.toFixed(2)),
+      grossMarginPct: Number(grossMarginInvoicePct.toFixed(2)),
+      // Aurora reconciliation — surfaces the monolith's stored-cost drift
+      auroraStoredPcmCost: Number(auroraStoredPcmCost.toFixed(2)),
+      auroraStoredMargin: Number(auroraStoredMargin.toFixed(2)),
+      pcmVsAuroraCostDelta: Number(pcmVsAuroraCostDelta.toFixed(2)),
+      coverage: auroraSummary.coverage,
       sourceNote:
-        'Revenue, PCM cost, and gross margin come from dm_client_funnel (same source as Profitability → Margin summary). Internal test cost is then deducted to get the honest company P&L (company margin = gross margin − test cost).',
+        'PCM cost is computed from PCM /order × invoice-verified era rates (the vendor\'s own data). Revenue comes from dm_client_funnel.total_cost. Gross margin = revenue − PCM-invoice cost. Aurora\'s stored total_pcm_cost is shown for reconciliation; it differs from the invoice-verified value because the monolith uses $0.625/$0.875 rates instead of $0.63/$0.87 and leaves some pieces un-tagged.',
     },
     activeCampaigns: {
       active: campaignCounts.activeCampaigns,
@@ -452,7 +498,7 @@ export async function computeBalanceFlow(orders: PcmOrderSlim[]) {
   const daily = new Map<string, { pieces: number; cost: number; testCost: number }>();
   for (const o of orders) {
     if (o.canceled || !o.date) continue;
-    const rate = pcmRate(o.date, o.mailClass);
+    const rate = _pcmRate(o.date, o.mailClass);
     const entry = daily.get(o.date) || { pieces: 0, cost: 0, testCost: 0 };
     if (!o.isTestDomain) entry.pieces++;
     entry.cost += rate;

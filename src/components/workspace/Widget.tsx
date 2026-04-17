@@ -32,7 +32,7 @@ function AllTimeTag() {
  * affects the numbers. Use 'none' to suppress the tag entirely (rare — only
  * for widgets where the distinction doesn't apply, like embedded toggles).
  */
-export type WidgetTimeScope = 'all-time' | 'date-range' | 'none';
+export type WidgetTimeScope = 'all-time' | 'date-range' | 'last-30-days' | 'none';
 
 export interface WidgetComponentProps {
   /** Widget title */
@@ -175,6 +175,17 @@ export function Widget({
             >
               <span className="flex-shrink-0 cursor-help">
                 <AxisTag color="info" size="sm">Date range</AxisTag>
+              </span>
+            </AxisTooltip>
+          )}
+          {resolvedScope === 'last-30-days' && (
+            <AxisTooltip
+              content="Anchored to the last 30 days from today. Slides forward daily as 'today' advances. Not affected by the header date filter — the backing table's coverage is currently limited, so this window is fixed for trust."
+              placement="bottom"
+              maxWidth={320}
+            >
+              <span className="flex-shrink-0 cursor-help">
+                <AxisTag color="info" size="sm">Last 30 days</AxisTag>
               </span>
             </AxisTooltip>
           )}

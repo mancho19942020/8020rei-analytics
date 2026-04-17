@@ -27,15 +27,32 @@ export interface DmOverviewLifetimePieces {
   sourceNote: string;
 }
 
+export interface DmOverviewPcmCostCoverage {
+  sendsWithPcm: number;
+  sendsWithoutPcm: number;
+  totalSends: number;
+  coveragePct: number;
+  revenueWithoutPcm: number;
+}
+
 export interface DmOverviewCompanyMargin {
-  /** Company margin = gross margin − internal test cost */
+  /** Company margin = gross margin (invoice-based) − internal test cost */
   margin: number;
   marginPct: number;
   clientRevenue: number;
+  /** PCM cost computed from PCM /order × invoice-verified era rates */
   pcmCostReal: number;
   pcmCostTest: number;
-  /** Profitability tab's gross margin (dm_client_funnel.margin summed) */
+  /** Gross margin — revenue − invoice-verified PCM cost */
   grossMargin: number;
+  grossMarginPct?: number;
+  /** Aurora monolith's stored total_pcm_cost (for reconciliation/drift display) */
+  auroraStoredPcmCost?: number;
+  auroraStoredMargin?: number;
+  /** Delta: PCM-invoice cost − Aurora-stored cost. Non-zero means the monolith is drifting. */
+  pcmVsAuroraCostDelta?: number;
+  /** Coverage of Aurora's stored PCM cost — informational */
+  coverage?: DmOverviewPcmCostCoverage;
   sourceNote: string;
 }
 

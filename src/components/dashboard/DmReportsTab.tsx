@@ -300,7 +300,7 @@ function generateProfitabilityMarkdown(data: ProfitabilityReportData, meta: Repo
   lines.push('');
   lines.push(`The direct mail service has processed **${fmtN(e.totalPieces)} mail pieces** across ${data.clientProfitability.length} client domains since December 2024, generating **${fmt$(e.totalRevenue)} in customer revenue** against **${fmt$(e.totalPcmCost)} in PostcardMania costs** — a gross profit of **${fmt$(e.grossMargin)} (${fmtPct(e.marginPercent)} margin)**.`);
   lines.push('');
-  lines.push('> From launch through January 15, 2026, we charged customers $1.08/piece (Standard) and $1.39/piece (First Class). On **January 16, 2026**, customer prices were dropped to $0.87/$0.63, matching PCM\'s rates exactly. All sends since that date have been at **zero margin**.');
+  lines.push('> Customer pricing eras in this report are **derived live** from `dm_volume_summary` — whenever platform pricing changes, a new era appears automatically on the next monolith sync. PCM invoice rates are verified from 264 invoice PDFs and remain static.');
   lines.push('');
   lines.push('---');
   lines.push('');
@@ -439,9 +439,9 @@ function generateProfitabilityMarkdown(data: ProfitabilityReportData, meta: Repo
   lines.push('');
   lines.push('### Strategic (for Camilo)');
   lines.push('');
-  lines.push('2. **Investigate the Jan 16 price drop.** Who changed customer prices from $1.39/$1.08 to $0.87/$0.63? Nov–Jan was our most profitable window.');
-  lines.push('3. **Decide on margin strategy going forward:** Current is $0.00/piece. Options: 5% margin (Std $0.67, FC $0.92), 10% margin (Std $0.70, FC $0.97), or keep zero margin (DM drives $500K+ in deals).');
-  lines.push('4. **Negotiate with PCM** — at 8,000+ pieces/month and growing, request volume pricing below $0.87/$0.63.');
+  lines.push('2. **Review the auto-detected pricing history above.** The customer-era table shows when platform pricing changed and what PCM was charging at each point.');
+  lines.push('3. **Decide on margin strategy going forward.** Current margin per piece is visible in the All-time summary above.');
+  lines.push('4. **Negotiate with PCM** at current monthly volume — request volume pricing below $0.87/$0.63.');
   lines.push('');
   lines.push('---');
   lines.push('');
@@ -563,9 +563,9 @@ function ProfitabilityReportReader({
             </p>
             <div className="mt-3">
               <AxisCallout type="info" hideIcon>
-                From launch through January 15, 2026, we charged customers $1.08/piece (Standard) and $1.39/piece (First Class).
-                On <strong>January 16, 2026</strong>, customer prices were dropped to $0.87/$0.63, matching PCM&apos;s rates exactly.
-                All sends since that date have been at <strong>zero margin</strong>.
+                Customer pricing eras below are <strong>derived live</strong> from <code>dm_volume_summary</code> — no hardcoded dates.
+                Every time 8020REI changes platform pricing, a new era appears here automatically on the next monolith sync.
+                PCM invoice rates are verified from 264 invoice PDFs and remain static.
               </AxisCallout>
             </div>
           </Section>
@@ -644,15 +644,24 @@ function ProfitabilityReportReader({
             />
 
             <div className="mt-4">
-              <AxisCallout type="alert">
-                <strong>Jun 28, 2025:</strong> PCM raised prices overnight — FC jumped from $0.94 to $1.11. Our margins shrank but stayed positive.
-                <br />
-                <strong>~Nov 2025:</strong> PCM dropped prices via &ldquo;Qual Credit&rdquo; line items. Nov–Jan 15 was our <strong>most profitable window</strong> (+$0.52/+$0.45 per piece).
-                <br />
-                <strong>Jan 16, 2026:</strong> Customer prices were dropped to match PCM — all sends since then are at <strong>zero margin</strong>.
+              <AxisCallout type="info" hideIcon>
+                Customer eras and margin eras are <strong>derived live</strong> from the daily customer rate on <code>dm_volume_summary</code>
+                (consecutive days at the same rounded-to-cent rate form one era). PCM eras are invoice-verified.
+                Margin per period = customer rate − PCM rate using the PCM rate in effect on that era&apos;s start date.
               </AxisCallout>
             </div>
           </Section>
+
+          {/* Stale-data warning for the hardcoded monthly tables */}
+          {data.monthlyDataMeta?.isStale && (
+            <AxisCallout type="alert" title="Monthly tables below are out of date">
+              The latest month in the hardcoded monthly data is{' '}
+              <strong>{formatMonth(data.monthlyDataMeta.latestMonth || '')}</strong>, which is{' '}
+              <strong>{data.monthlyDataMeta.monthsStale} month{data.monthlyDataMeta.monthsStale !== 1 ? 's' : ''}</strong> behind today.
+              The arrays in <code>dm-reports/route.ts</code> must be extended manually until replaced with a live query.
+              Executive summary, pricing history, and per-client profitability above are already live and current.
+            </AxisCallout>
+          )}
 
           {/* 4. Monthly PCM costs */}
           <Section title="Month-by-month: what PCM charged us">
@@ -749,9 +758,9 @@ function ProfitabilityReportReader({
               </AxisCallout>
               <AxisCallout type="info" title="Strategic (for Camilo)">
                 <ul className="list-disc list-inside space-y-1 text-sm">
-                  <li><strong>Investigate the Jan 16 price drop.</strong> Who changed customer prices from $1.39/$1.08 to $0.87/$0.63? Nov–Jan was our most profitable window.</li>
-                  <li><strong>Decide on margin strategy going forward:</strong> Current is $0.00/piece. Options: 5% margin (Std $0.67, FC $0.92), 10% margin (Std $0.70, FC $0.97), or keep zero margin (DM drives $500K+ in deals).</li>
-                  <li><strong>Negotiate with PCM</strong> — at 8,000+ pieces/month and growing, request volume pricing below $0.87/$0.63.</li>
+                  <li><strong>Review pricing changes above.</strong> The Pricing history table auto-detects each customer era from the data. Each row shows when customer rates changed and what PCM was charging at the time — use it to decide whether the current margin matches the company&apos;s strategic intent.</li>
+                  <li><strong>Decide on margin strategy going forward.</strong> Current margin per piece is visible in All-time summary. If it&apos;s too low, consider a price raise, a different mail-class mix, or a PCM renegotiation.</li>
+                  <li><strong>Negotiate with PCM</strong> at the current monthly volume — request volume pricing below $0.87/$0.63.</li>
                 </ul>
               </AxisCallout>
             </div>
@@ -804,7 +813,8 @@ export const DmReportsTab = forwardRef<TabHandle>(function DmReportsTab(_, ref) 
 
       setReports(cards);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load reports');
+      console.error('[DmReportsTab] fetchList failed:', err);
+      setError('Some numbers didn\'t load. Refreshing usually resolves this.');
     } finally {
       setLoading(false);
     }
@@ -824,7 +834,8 @@ export const DmReportsTab = forwardRef<TabHandle>(function DmReportsTab(_, ref) 
       const json: ProfitabilityReportData = await res.json();
       setReportData(json);
     } catch (err) {
-      setReportError(err instanceof Error ? err.message : 'Failed to load report');
+      console.error('[DmReportsTab] fetchReport failed:', err);
+      setReportError('Some numbers didn\'t load. Refreshing usually resolves this.');
     } finally {
       setLoadingReport(false);
     }

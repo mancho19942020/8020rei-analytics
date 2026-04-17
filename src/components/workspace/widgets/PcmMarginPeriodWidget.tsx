@@ -11,18 +11,32 @@
 
 import { MetricCard } from '@/components/workspace/MetricCard';
 
+interface PeriodReconciliation {
+  auroraStoredPcmCost: number;
+  auroraStoredMargin: number;
+  pcmVsAuroraCostDelta: number;
+  note: string;
+}
+
 interface PeriodProfitability {
   totalRevenue: number;
-  totalPcmCost: number;
+  totalPcmCost: number;           // Aurora sends × invoice-verified era rates (per-day-split)
   grossMargin: number;
   marginPercent: number;
   totalSends: number;
+  pcmPiecesInvoice?: number;
   revenuePerPiece: number;
   pcmCostPerPiece: number;
   periodLabel: string;
   periodStart: string | null;
   periodEnd: string | null;
+  /** Window intent (hardcoded to 30 days) */
+  intendedDays?: number;
+  /** Days actually present in the synced data within the intended window */
+  actualDaysCount?: number;
   dataAvailable: boolean;
+  sourceTable?: 'dm_client_funnel' | 'dm_volume_summary';
+  reconciliation?: PeriodReconciliation;
 }
 
 interface PcmMarginPeriodWidgetProps {
@@ -64,40 +78,66 @@ export function PcmMarginPeriodWidget({ data }: PcmMarginPeriodWidgetProps) {
 
   const marginIsNegative = data.grossMargin < 0;
   const marginPctDisplay = `${data.marginPercent.toFixed(1)}%`;
+  const intended = data.intendedDays ?? 30;
+  const actual = data.actualDaysCount ?? 0;
+  const coverageNote = actual < intended
+    ? `${actual} of ${intended} days synced (${data.periodStart ?? '—'} – ${data.periodEnd ?? '—'}). Coverage grows daily as the monolith syncs.`
+    : `${intended} days fully synced (${data.periodStart ?? '—'} – ${data.periodEnd ?? '—'}).`;
+  const pcmDelta = data.reconciliation?.pcmVsAuroraCostDelta ?? 0;
+  const hasAuroraDrift = Math.abs(pcmDelta) >= 1;
 
   return (
-    <div className="flex w-full h-full flush-cards">
-      <MetricCard
-        label="Period revenue"
-        value={data.totalRevenue}
-        icon={<RevenueIcon />}
-        iconBgClass="bg-main-700"
-        format="currency"
-        subtitle={`$${data.revenuePerPiece.toFixed(4)}/piece across ${data.totalSends.toLocaleString()} sends`}
-      />
-      <MetricCard
-        label="Period PCM cost"
-        value={data.totalPcmCost}
-        icon={<CostIcon />}
-        iconBgClass="bg-accent-1-700"
-        format="currency"
-        subtitle={`$${data.pcmCostPerPiece.toFixed(4)}/piece — ${data.periodLabel}`}
-      />
-      <MetricCard
-        label="Period margin"
-        value={data.grossMargin}
-        icon={<MarginIcon />}
-        iconBgClass={marginIsNegative ? 'bg-error-700' : 'bg-success-700'}
-        format="currency"
-        subtitle={`Revenue minus PCM cost — ${data.periodLabel}`}
-      />
-      <MetricCard
-        label="Period margin %"
-        value={marginPctDisplay}
-        icon={<PercentIcon />}
-        iconBgClass={marginIsNegative ? 'bg-error-700' : data.marginPercent < 5 ? 'bg-alert-700' : 'bg-success-700'}
-        subtitle={marginIsNegative ? 'NEGATIVE — losing money in this period' : data.marginPercent < 5 ? 'Below 5% threshold' : `Healthy margin — ${data.periodLabel}`}
-      />
+    <div className="flex flex-col w-full h-full">
+      <div className="flex w-full flex-1 flush-cards">
+        <MetricCard
+          label="Period revenue"
+          value={data.totalRevenue}
+          icon={<RevenueIcon />}
+          iconBgClass="bg-main-700"
+          format="currency"
+          subtitle={`$${data.revenuePerPiece.toFixed(4)}/piece across ${data.totalSends.toLocaleString()} sends · ${data.periodLabel}`}
+        />
+        <MetricCard
+          label="Period PCM cost"
+          value={data.totalPcmCost}
+          icon={<CostIcon />}
+          iconBgClass="bg-accent-1-700"
+          format="currency"
+          subtitle={`$${data.pcmCostPerPiece.toFixed(4)}/piece · ${(data.pcmPiecesInvoice ?? 0).toLocaleString()} PCM orders × invoice era rates`}
+        />
+        <MetricCard
+          label="Period margin"
+          value={data.grossMargin}
+          icon={<MarginIcon />}
+          iconBgClass={marginIsNegative ? 'bg-error-700' : 'bg-success-700'}
+          format="currency"
+          subtitle={`Revenue − PCM-invoice cost · ${data.periodLabel}`}
+        />
+        <MetricCard
+          label="Period margin %"
+          value={marginPctDisplay}
+          icon={<PercentIcon />}
+          iconBgClass={marginIsNegative ? 'bg-error-700' : data.marginPercent < 5 ? 'bg-alert-700' : 'bg-success-700'}
+          subtitle={marginIsNegative
+            ? 'NEGATIVE — losing money in this period'
+            : data.marginPercent < 5
+              ? 'Matches current zero-margin era (customer rate ≈ PCM rate)'
+              : `Healthy margin — ${data.periodLabel}`}
+        />
+      </div>
+      <div
+        className="flex-shrink-0 px-3 py-2 text-xs border-t"
+        style={{ borderColor: 'var(--stroke)', backgroundColor: 'var(--surface-sunken)', color: 'var(--content-tertiary)' }}
+      >
+        <strong style={{ color: 'var(--content-secondary)' }}>Window:</strong> {coverageNote}
+        {hasAuroraDrift && data.reconciliation && (
+          <>
+            {' · '}
+            <strong style={{ color: 'var(--color-alert-700)' }}>Aurora drift:</strong>{' '}
+            Aurora stored PCM = ${data.reconciliation.auroraStoredPcmCost.toFixed(2)} · PCM-invoice = ${data.totalPcmCost.toFixed(2)} · delta {pcmDelta >= 0 ? '+' : ''}${pcmDelta.toFixed(2)}. Margin above uses the invoice value.
+          </>
+        )}
+      </div>
     </div>
   );
 }

@@ -31,14 +31,22 @@ function MarginIndicator({ percent }: { percent: number }) {
   );
 }
 
-function MailClassCard({ label, ourRate, pcmRate, marginData }: {
+function MailClassCard({ label, ourRate, pcmRate }: {
   label: string;
   ourRate: number | null;
   pcmRate: number | null;
+  /** @deprecated marginData was used to derive margin% from monolith-stored PCM cost;
+   *  we now compute both margin$ and margin% directly from the two rates to stay
+   *  consistent with Pricing history. */
   marginData?: MailClassMargin;
 }) {
-  const marginPerPiece = ourRate != null && pcmRate != null ? ourRate - pcmRate : null;
-  const marginPct = marginData?.marginPercent ?? (ourRate && pcmRate && ourRate > 0 ? ((ourRate - pcmRate) / ourRate) * 100 : null);
+  // Both derived from the same two rates — guaranteed internal consistency.
+  const marginPerPiece = ourRate != null && pcmRate != null
+    ? Math.round((ourRate - pcmRate) * 10000) / 10000
+    : null;
+  const marginPct = ourRate != null && pcmRate != null && ourRate > 0
+    ? ((ourRate - pcmRate) / ourRate) * 100
+    : null;
 
   return (
     <div className="flex-1 rounded-lg p-3 flex flex-col justify-between" style={{ backgroundColor: 'var(--surface-raised)' }}>
@@ -92,16 +100,17 @@ export function PcmPricingOverviewWidget({ currentRates, detection, mailClassDat
     );
   }
 
-  // Get PCM rates from detection data (derived from pricing history)
-  const pcmStdRate = detection?.rolloutStatus?.standard?.newRate != null
-    ? null // rollout status shows our rate, not PCM's — use mailClassData instead
-    : null;
-  // Derive PCM rates from mail class margins: pcmCost / sends
+  // PCM rates come from the invoice-verified era schedule (shared with Pricing
+  // history). Previously this widget derived them from dm_volume_summary's
+  // cumulative_pcm_cost / cumulative_sends, which picks up the monolith's
+  // parameters.pcm_cost bug ($0.625/$0.875 instead of $0.63/$0.87) and made
+  // this widget contradict Pricing history right below it. Now the two agree
+  // by construction — both read the same era rates.
   const stdMargin = mailClassData?.mailClasses?.find(m => m.mailClass === 'standard');
   const fcMargin = mailClassData?.mailClasses?.find(m => m.mailClass === 'first_class');
 
-  const pcmStandard = stdMargin && stdMargin.sends > 0 ? stdMargin.pcmCost / stdMargin.sends : null;
-  const pcmFirstClass = fcMargin && fcMargin.sends > 0 ? fcMargin.pcmCost / fcMargin.sends : null;
+  const pcmStandard = currentRates?.pcmStandard ?? null;
+  const pcmFirstClass = currentRates?.pcmFirstClass ?? null;
 
   // Recent price changes (last 7 days)
   const recentChanges = detection?.changes?.filter(c => {
@@ -115,9 +124,6 @@ export function PcmPricingOverviewWidget({ currentRates, detection, mailClassDat
   const stdRollout = detection?.rolloutStatus?.standard;
   const fcRollout = detection?.rolloutStatus?.firstClass;
   const hasRolloutInProgress = (stdRollout && stdRollout.pendingDomains > 0) || (fcRollout && fcRollout.pendingDomains > 0);
-
-  // Suppress unused variable warning
-  void pcmStdRate;
 
   return (
     <div className="flex flex-col gap-2 h-full px-3 py-2">

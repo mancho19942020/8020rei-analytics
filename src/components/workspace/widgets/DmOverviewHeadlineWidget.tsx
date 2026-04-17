@@ -60,9 +60,17 @@ interface CardProps {
   iconBg: string;
   secondaryTone?: 'neutral' | 'warning' | 'info';
   sourceNote: string;
+  /** Optional inconsistency warning — renders a yellow triangle icon + tooltip */
+  inconsistency?: string;
 }
 
-function Card({ label, hero, sub, icon, iconBg, secondaryTone = 'neutral', sourceNote }: CardProps) {
+const InconsistencyIcon = () => (
+  <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+  </svg>
+);
+
+function Card({ label, hero, sub, icon, iconBg, secondaryTone = 'neutral', sourceNote, inconsistency }: CardProps) {
   const toneClass =
     secondaryTone === 'warning'
       ? 'text-alert-700 dark:text-alert-300'
@@ -77,6 +85,20 @@ function Card({ label, hero, sub, icon, iconBg, secondaryTone = 'neutral', sourc
       <div className="flex items-center gap-2 min-w-0">
         <div className={`w-6 h-6 rounded flex items-center justify-center text-white flex-shrink-0 ${iconBg}`}>{icon}</div>
         <span className="text-sm font-medium text-content-secondary truncate">{label}</span>
+        {inconsistency && (
+          <span
+            className="flex-shrink-0 group/warn relative text-alert-700 dark:text-alert-300 cursor-help"
+            role="img"
+            aria-label="Data inconsistency"
+          >
+            <InconsistencyIcon />
+            <span className="absolute right-0 top-full mt-1 px-3 py-2 rounded-md bg-surface-overlay text-content-primary text-[11px] font-normal opacity-0 group-hover/warn:opacity-100 transition-opacity duration-75 pointer-events-none z-20 border border-alert-500 w-[320px] whitespace-normal text-left leading-snug">
+              <strong className="text-alert-700 dark:text-alert-300">Data quality warning</strong>
+              <br />
+              {inconsistency}
+            </span>
+          </span>
+        )}
       </div>
       <div className="text-[2rem] font-bold text-content-primary tabular-nums leading-[36px] tracking-tight">{hero}</div>
       <div className={`text-xs ${toneClass} truncate`}>{sub}</div>
@@ -110,8 +132,21 @@ export function DmOverviewHeadlineWidget({ data }: DmOverviewHeadlineWidgetProps
   const deltaTone: 'neutral' | 'warning' = Math.abs(pieces.deltaPct) > 0.5 ? 'warning' : 'neutral';
 
   const marginIsNegative = margin.margin < 0;
-  const marginBg = marginIsNegative ? 'bg-error-700' : margin.marginPct < 5 ? 'bg-alert-700' : 'bg-success-700';
-  const marginSub = `${margin.marginPct.toFixed(1)}% · revenue $${abbreviate(margin.clientRevenue)} − cost $${abbreviate(margin.pcmCostReal + margin.pcmCostTest)}`;
+  const marginBg = marginIsNegative
+    ? 'bg-error-700'
+    : margin.marginPct < 5 ? 'bg-alert-700' : 'bg-success-700';
+  const marginSub = `${margin.marginPct.toFixed(1)}% · revenue $${abbreviate(margin.clientRevenue)} − PCM-invoice cost $${abbreviate(margin.pcmCostReal + margin.pcmCostTest)}`;
+
+  // Surface monolith drift: PCM-invoice cost vs Aurora-stored cost differ
+  // whenever the monolith's parameters.pcm_cost is wrong or incomplete.
+  const drift = margin.pcmVsAuroraCostDelta ?? 0;
+  const marginInconsistency = Math.abs(drift) >= 50
+    ? `Aurora's stored PCM cost is $${Math.abs(drift).toFixed(0)} ${drift > 0 ? 'LESS' : 'MORE'} than PCM's invoice-derived cost. The card above uses the invoice-authoritative value. Root cause: monolith parameters.pcm_cost uses $0.625/$0.875 rates (should be $0.63/$0.87) and leaves some pieces un-tagged.`
+    : undefined;
+
+  const piecesInconsistency = Math.abs(pieces.deltaPct) > 5
+    ? `Aurora trails PCM by ${Math.abs(pieces.delta).toLocaleString()} pieces (${pieces.deltaPct}%). Expected small delta from in-pipeline pieces; larger gaps suggest sync drift. See OH → "Is it aligned?" for per-domain breakdown.`
+    : undefined;
 
   return (
     <div className="flex w-full h-full flush-cards">
@@ -132,6 +167,7 @@ export function DmOverviewHeadlineWidget({ data }: DmOverviewHeadlineWidgetProps
         iconBg="bg-accent-1-700"
         secondaryTone={deltaTone}
         sourceNote={pieces.sourceNote}
+        inconsistency={piecesInconsistency}
       />
       <Card
         label="Company margin"
@@ -139,8 +175,9 @@ export function DmOverviewHeadlineWidget({ data }: DmOverviewHeadlineWidgetProps
         sub={marginSub}
         icon={<MarginIcon />}
         iconBg={marginBg}
-        secondaryTone={marginIsNegative ? 'warning' : 'info'}
+        secondaryTone={marginIsNegative || marginInconsistency ? 'warning' : 'info'}
         sourceNote={margin.sourceNote}
+        inconsistency={marginInconsistency}
       />
       <Card
         label="Active campaigns"

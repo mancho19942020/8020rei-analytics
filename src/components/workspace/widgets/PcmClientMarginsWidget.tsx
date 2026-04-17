@@ -26,15 +26,30 @@ interface HealthGroup {
 }
 
 function ClientRow({ client }: { client: ClientMarginRow }) {
-  const marginColor = client.margin < 0 ? 'var(--color-error-600, #dc2626)'
-    : client.margin === 0 ? 'var(--text-secondary)'
-    : 'var(--color-success-600, #16a34a)';
+  // Flag any client with real sends but zero stored PCM cost — this is a
+  // known monolith data bug (parameters.pcm_cost); the row looks 100% profitable
+  // when in reality we have no PCM cost tracked for them. Surface it visibly.
+  const missingPcmCost = client.sends > 0 && client.pcmCost === 0;
+
+  const marginColor = missingPcmCost
+    ? 'var(--color-alert-700, #b45309)'
+    : client.margin < 0
+      ? 'var(--color-error-600, #dc2626)'
+      : client.margin === 0
+        ? 'var(--text-secondary)'
+        : 'var(--color-success-600, #16a34a)';
 
   return (
-    <div className="flex items-center text-xs py-1.5 px-3 gap-2"
-      style={{ borderBottom: '1px solid var(--border-default)' }}>
-      <span className="flex-1 font-medium truncate" style={{ color: 'var(--text-primary)', minWidth: 120 }}>
+    <div
+      className="flex items-center text-xs py-1.5 px-3 gap-2"
+      style={{ borderBottom: '1px solid var(--border-default)' }}
+      title={missingPcmCost ? 'No PCM cost stored in Aurora — monolith data issue. Margin % is not meaningful.' : undefined}
+    >
+      <span className="flex-1 font-medium truncate flex items-center gap-1.5" style={{ color: 'var(--text-primary)', minWidth: 120 }}>
         {client.domain}
+        {missingPcmCost && (
+          <AxisTag color="alert" size="sm" variant="outlined">No PCM cost</AxisTag>
+        )}
       </span>
       <span className="w-16 text-center" style={{ color: 'var(--text-secondary)' }}>
         {client.sends.toLocaleString()}
@@ -42,19 +57,23 @@ function ClientRow({ client }: { client: ClientMarginRow }) {
       <span className="w-20 text-center" style={{ color: 'var(--text-secondary)' }}>
         ${client.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
       </span>
-      <span className="w-20 text-center" style={{ color: 'var(--text-secondary)' }}>
+      <span className="w-20 text-center" style={{ color: missingPcmCost ? 'var(--color-alert-700)' : 'var(--text-secondary)' }}>
         ${client.pcmCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
       </span>
       <span className="w-20 text-center font-medium" style={{ color: marginColor }}>
         {client.margin < 0 ? '-' : ''}${Math.abs(client.margin).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
       </span>
       <span className="w-16 text-center">
-        <AxisTag
-          color={client.marginPercent > 5 ? 'success' : client.marginPercent >= 0 ? 'alert' : 'error'}
-          size="sm"
-        >
-          {client.marginPercent.toFixed(1)}%
-        </AxisTag>
+        {missingPcmCost ? (
+          <AxisTag color="alert" size="sm">n/a</AxisTag>
+        ) : (
+          <AxisTag
+            color={client.marginPercent > 5 ? 'success' : client.marginPercent >= 0 ? 'alert' : 'error'}
+            size="sm"
+          >
+            {client.marginPercent.toFixed(1)}%
+          </AxisTag>
+        )}
       </span>
     </div>
   );
@@ -103,11 +122,16 @@ export function PcmClientMarginsWidget({ data }: PcmClientMarginsWidgetProps) {
   const groups = useMemo((): HealthGroup[] => {
     if (!data?.clients?.length) return [];
 
-    const profitable = data.clients.filter(c => c.marginPercent > 5).sort((a, b) => b.marginPercent - a.marginPercent);
-    const breakEven = data.clients.filter(c => c.marginPercent >= 0 && c.marginPercent <= 5).sort((a, b) => b.marginPercent - a.marginPercent);
-    const losing = data.clients.filter(c => c.marginPercent < 0).sort((a, b) => a.marginPercent - b.marginPercent);
+    // Pull out clients with no stored PCM cost first — they can't be bucketed
+    // honestly (margin % is meaningless when the denominator is missing).
+    const missingPcmCost = data.clients.filter(c => c.sends > 0 && c.pcmCost === 0).sort((a, b) => b.sends - a.sends);
+    const tracked = data.clients.filter(c => !(c.sends > 0 && c.pcmCost === 0));
 
-    return [
+    const profitable = tracked.filter(c => c.marginPercent > 5).sort((a, b) => b.marginPercent - a.marginPercent);
+    const breakEven = tracked.filter(c => c.marginPercent >= 0 && c.marginPercent <= 5).sort((a, b) => b.marginPercent - a.marginPercent);
+    const losing = tracked.filter(c => c.marginPercent < 0).sort((a, b) => a.marginPercent - b.marginPercent);
+
+    const result: HealthGroup[] = [
       {
         label: 'Profitable (>5%)',
         color: 'var(--color-success-700, #15803d)',
@@ -133,6 +157,19 @@ export function PcmClientMarginsWidget({ data }: PcmClientMarginsWidgetProps) {
         totalMargin: losing.reduce((sum, c) => sum + c.margin, 0),
       },
     ];
+
+    if (missingPcmCost.length > 0) {
+      result.push({
+        label: 'Data incomplete — no PCM cost stored',
+        color: 'var(--color-alert-700, #b45309)',
+        bgColor: 'var(--color-alert-50, #fffbeb)',
+        borderColor: 'var(--color-alert-500, #f59e0b)',
+        clients: missingPcmCost,
+        totalMargin: 0,
+      });
+    }
+
+    return result;
   }, [data]);
 
   if (!data || !data.dataAvailable) {

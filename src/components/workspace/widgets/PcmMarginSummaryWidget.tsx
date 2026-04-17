@@ -42,47 +42,66 @@ export function PcmMarginSummaryWidget({ data }: PcmMarginSummaryWidgetProps) {
   if (!data || !data.dataAvailable) {
     return (
       <div className="flex items-center justify-center h-full text-sm" style={{ color: 'var(--text-secondary)' }}>
-        Profitability data pending — awaiting PR #1887 deployment and sync
+        Profitability data pending — awaiting PCM pagination
       </div>
     );
   }
 
   const marginIsNegative = data.grossMargin < 0;
   const marginPctDisplay = `${data.marginPercent.toFixed(1)}%`;
+  const pcmDelta = data.reconciliation?.pcmVsAuroraCostDelta ?? 0;
+  const hasAuroraDrift = Math.abs(pcmDelta) >= 1;
 
   return (
-    <div className="flex w-full h-full flush-cards">
-      <MetricCard
-        label="Total revenue"
-        value={data.totalRevenue}
-        icon={<RevenueIcon />}
-        iconBgClass="bg-main-700"
-        format="currency"
-        subtitle={`$${data.revenuePerPiece.toFixed(4)}/piece across ${data.totalSends.toLocaleString()} sends`}
-      />
-      <MetricCard
-        label="Total PCM cost"
-        value={data.totalPcmCost}
-        icon={<CostIcon />}
-        iconBgClass="bg-accent-1-700"
-        format="currency"
-        subtitle={`$${data.pcmCostPerPiece.toFixed(4)}/piece — what PostcardMania charges us`}
-      />
-      <MetricCard
-        label="Gross margin"
-        value={data.grossMargin}
-        icon={<MarginIcon />}
-        iconBgClass={marginIsNegative ? 'bg-error-700' : 'bg-success-700'}
-        format="currency"
-        subtitle="Revenue minus PCM cost"
-      />
-      <MetricCard
-        label="Margin %"
-        value={marginPctDisplay}
-        icon={<PercentIcon />}
-        iconBgClass={marginIsNegative ? 'bg-error-700' : data.marginPercent < 5 ? 'bg-alert-700' : 'bg-success-700'}
-        subtitle={marginIsNegative ? 'NEGATIVE — losing money on every piece' : data.marginPercent < 5 ? 'Below 5% threshold — pricing review needed' : 'Healthy margin'}
-      />
+    <div className="flex flex-col w-full h-full">
+      <div className="flex w-full flex-1 flush-cards">
+        <MetricCard
+          label="Total revenue"
+          value={data.totalRevenue}
+          icon={<RevenueIcon />}
+          iconBgClass="bg-main-700"
+          format="currency"
+          subtitle={`$${data.revenuePerPiece.toFixed(4)}/piece across ${data.totalSends.toLocaleString()} sends — dm_client_funnel.total_cost`}
+        />
+        <MetricCard
+          label="Total PCM cost"
+          value={data.totalPcmCost}
+          icon={<CostIcon />}
+          iconBgClass="bg-accent-1-700"
+          format="currency"
+          subtitle={`$${data.pcmCostPerPiece.toFixed(4)}/piece · PCM /order × invoice-verified era rates (${(data.pcmPiecesInvoice ?? data.totalSends).toLocaleString()} pieces)`}
+        />
+        <MetricCard
+          label="Gross margin"
+          value={data.grossMargin}
+          icon={<MarginIcon />}
+          iconBgClass={marginIsNegative ? 'bg-error-700' : 'bg-success-700'}
+          format="currency"
+          subtitle="Revenue − PCM-invoice cost (math closes; invoice-authoritative)"
+        />
+        <MetricCard
+          label="Margin %"
+          value={marginPctDisplay}
+          icon={<PercentIcon />}
+          iconBgClass={marginIsNegative ? 'bg-error-700' : data.marginPercent < 5 ? 'bg-alert-700' : 'bg-success-700'}
+          subtitle={marginIsNegative
+            ? 'NEGATIVE — losing money on every piece'
+            : data.marginPercent < 5
+              ? 'Below 5% threshold — pricing review needed'
+              : 'Healthy margin'}
+        />
+      </div>
+      {hasAuroraDrift && data.reconciliation && (
+        <div
+          className="flex-shrink-0 px-3 py-2 text-xs border-t"
+          style={{ borderColor: 'var(--stroke)', backgroundColor: 'var(--surface-sunken)', color: 'var(--content-tertiary)' }}
+        >
+          <strong style={{ color: 'var(--color-alert-700)' }}>Aurora reconciliation:</strong>{' '}
+          Monolith&apos;s <code>dm_client_funnel.total_pcm_cost</code> sums to ${data.reconciliation.auroraStoredPcmCost.toFixed(2)} —{' '}
+          <strong>${Math.abs(pcmDelta).toFixed(2)} {pcmDelta > 0 ? 'LESS' : 'MORE'}</strong> than PCM&apos;s own invoice-derived cost.
+          Root cause: monolith uses $0.625/$0.875 rates (should be $0.63/$0.87) and leaves some pieces un-tagged. Margin above uses the invoice-authoritative number.
+        </div>
+      )}
     </div>
   );
 }

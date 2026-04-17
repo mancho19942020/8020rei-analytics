@@ -1928,11 +1928,11 @@ export const DEFAULT_PCM_VALIDATION_LAYOUT: Widget[] = [
     id: 'pcm-margin-period',
     type: 'pcm-margin-period',
     title: 'Period summary',
-    tooltip: 'Revenue, PCM cost, gross margin, and margin % for the selected date range. Changes with the date filter above.',
+    tooltip: 'Revenue, PCM cost, gross margin, and margin % for the last 30 days (sliding window anchored to today). Independent of the header date filter — the backing table does not yet have enough history to honor wider ranges, so this view is pinned for trust.',
     x: 0, y: 2, w: 12, h: 2,
     minW: 8, minH: 2, maxH: 2,
     flushBody: true,
-    timeBehavior: 'date-filtered',
+    timeBehavior: 'last-30-days',
   },
   // ─── THE TREND (all-time historical) ───
   {

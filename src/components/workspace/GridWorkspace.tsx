@@ -218,7 +218,9 @@ export function GridWorkspace({
                   ? 'all-time'
                   : widgetConfig.timeBehavior === 'date-filtered'
                     ? 'date-range'
-                    : 'none'
+                    : widgetConfig.timeBehavior === 'last-30-days'
+                      ? 'last-30-days'
+                      : 'none'
               }
               onRemove={() => handleRemoveWidget(widgetConfig.id)}
               onSettings={onWidgetSettings ? () => onWidgetSettings(widgetConfig.id) : undefined}

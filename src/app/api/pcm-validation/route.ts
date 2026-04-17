@@ -16,6 +16,24 @@ import { getCached, setCache } from '@/lib/cache';
 import { pcmGet, isPcmConfigured } from '@/lib/pcm-client';
 // Test-domain exclusion — canonical source. Any change applies everywhere simultaneously.
 import { TEST_DOMAINS_SQL as TEST_DOMAINS } from '@/lib/domain-filter';
+// PCM-invoice-authoritative cost: paginate PCM's own orders and apply invoice-verified
+// era rates. This is the "Aurora + PCM, always both" rule. The monolith's stored
+// total_pcm_cost differs from this because (a) it uses $0.625/$0.875 rates and
+// (b) leaves ~8-12% of pieces un-tagged with mail_class.
+import {
+  fetchPcmOrdersSlim,
+  getCachedPcmOrdersSlim,
+  readCache as readOverviewCache,
+} from '@/app/api/dm-overview/compute';
+import type { PcmOrderSlim } from '@/app/api/dm-overview/compute';
+import type { DmOverviewHeadline } from '@/types/dm-overview';
+// Single source of truth for PCM invoice era rates
+import {
+  pcmRate,
+  computePcmInvoiceCost,
+  getPcmEra as getSharedPcmEra,
+  currentPcmRates,
+} from '@/lib/pcm-pricing-eras';
 
 // Strict domain validation — only allow alphanumeric, underscore, hyphen, dot
 function sanitizeDomain(raw: string | null): string | undefined {
@@ -314,18 +332,52 @@ async function getProfitabilitySummary(domain?: string) {
     return NextResponse.json({ dataAvailable: false });
   }
 
-  // ALWAYS use dm_client_funnel cumulative totals — lifetime profitability data
+  // Golden rule: Aurora + PCM, always both. Revenue comes from Aurora
+  // (dm_client_funnel.total_cost — reliable, populated for every send).
+  // PCM cost is computed from PCM's own /order records × invoice-verified
+  // era rates — this is the vendor's ground truth, not the monolith's
+  // broken stored value ($0.625/$0.875 rates on ~92% of pieces).
   const domainWhere = domain ? `AND f.domain = '${domain}'` : '';
   const subDomainWhere = domain ? `AND dcf.domain = '${domain}'` : '';
 
   try {
-    const rows = await runAuroraQuery(`
+    // First try the Overview's Aurora-persisted cache: its `headline` payload
+    // already contains the PCM-invoice cost computed by the 30-min cron.
+    // This gives us the invoice-authoritative number in <300ms — no pagination.
+    const headlineCache = !domain ? await readOverviewCache<DmOverviewHeadline>('headline') : null;
+    if (headlineCache?.data?.companyMargin) {
+      const cm = headlineCache.data.companyMargin;
+      const totalSends = headlineCache.data.lifetimePieces?.aurora ?? 0;
+      const pcmPieces = headlineCache.data.lifetimePieces?.pcm ?? 0;
+      const result = {
+        totalRevenue: cm.clientRevenue,
+        totalPcmCost: cm.pcmCostReal,                      // invoice-authoritative from cron
+        grossMargin: cm.grossMargin,
+        marginPercent: cm.grossMarginPct ?? (cm.clientRevenue > 0 ? (cm.grossMargin / cm.clientRevenue) * 100 : 0),
+        totalSends,
+        pcmPiecesInvoice: pcmPieces,
+        revenuePerPiece: totalSends > 0 ? Math.round((cm.clientRevenue / totalSends) * 10000) / 10000 : 0,
+        pcmCostPerPiece: pcmPieces > 0 ? Math.round((cm.pcmCostReal / pcmPieces) * 10000) / 10000 : 0,
+        dataAvailable: true,
+        reconciliation: {
+          auroraStoredPcmCost: cm.auroraStoredPcmCost ?? 0,
+          auroraStoredMargin: cm.auroraStoredMargin ?? 0,
+          pcmVsAuroraCostDelta: cm.pcmVsAuroraCostDelta ?? 0,
+          note: 'PCM cost from PCM /order × invoice-verified era rates (computed by 30-min Overview cron). Aurora stored cost differs because the monolith uses $0.625/$0.875 rates.',
+        },
+      };
+      setCache(cacheKey, result);
+      return NextResponse.json(result);
+    }
+
+    // No Overview cache hit — fall back to live Aurora query + non-blocking
+    // PCM cache. If PCM cache is cold we return Aurora-stored values with a
+    // "warming" reconciliation note; the user sees fast numbers and refreshes
+    // once the cache warms.
+    const auroraRows = await runAuroraQuery(`
       SELECT
         COALESCE(SUM(f.total_cost), 0) as total_revenue,
-        COALESCE(SUM(f.total_pcm_cost), 0) as total_pcm_cost,
-        COALESCE(SUM(f.margin), 0) as gross_margin,
-        CASE WHEN SUM(f.total_cost) > 0
-          THEN ROUND((SUM(f.margin) / SUM(f.total_cost)) * 100, 2) ELSE 0 END as margin_pct,
+        COALESCE(SUM(f.total_pcm_cost), 0) as aurora_stored_pcm_cost,
         COALESCE(SUM(f.total_sends), 0) as total_sends
       FROM dm_client_funnel f
       INNER JOIN (
@@ -341,35 +393,84 @@ async function getProfitabilitySummary(domain?: string) {
         ${domainWhere}
     `);
 
-    const row = rows[0];
+    const row = auroraRows[0];
     const totalRevenue = Number(row?.total_revenue || 0);
-    const totalPcmCost = Number(row?.total_pcm_cost || 0);
+    const auroraStoredPcmCost = Number(row?.aurora_stored_pcm_cost || 0);
     const totalSends = Number(row?.total_sends || 0);
 
-    // If total_pcm_cost is 0 for all rows, the column likely doesn't have data yet
-    const dataAvailable = totalPcmCost > 0;
+    const orders = readPcmOrdersCacheOrWarm();
+    let pcmCostInvoice: number;
+    let pcmPiecesInvoice: number;
+    let invoiceAvailable: boolean;
+
+    if (orders) {
+      const realOrders = orders.filter(o =>
+        !o.canceled && !o.isTestDomain && (!domain || o.domain === domain)
+      );
+      pcmCostInvoice = computePcmInvoiceCost(realOrders);
+      pcmPiecesInvoice = realOrders.length;
+      invoiceAvailable = true;
+    } else {
+      // Cold — use Aurora-stored as a temporary placeholder. Surface it to the UI.
+      pcmCostInvoice = auroraStoredPcmCost;
+      pcmPiecesInvoice = totalSends;
+      invoiceAvailable = false;
+    }
+
+    const grossMargin = Math.round((totalRevenue - pcmCostInvoice) * 100) / 100;
+    const marginPercent = totalRevenue > 0
+      ? Math.round((grossMargin / totalRevenue) * 10000) / 100
+      : 0;
+    const auroraStoredMargin = Math.round((totalRevenue - auroraStoredPcmCost) * 100) / 100;
+    const pcmVsAuroraCostDelta = Math.round((pcmCostInvoice - auroraStoredPcmCost) * 100) / 100;
 
     const result = {
       totalRevenue,
-      totalPcmCost,
-      grossMargin: Number(row?.gross_margin || 0),
-      marginPercent: Number(row?.margin_pct || 0),
+      totalPcmCost: pcmCostInvoice,
+      grossMargin,
+      marginPercent,
       totalSends,
+      pcmPiecesInvoice,
       revenuePerPiece: totalSends > 0 ? Math.round((totalRevenue / totalSends) * 10000) / 10000 : 0,
-      pcmCostPerPiece: totalSends > 0 ? Math.round((totalPcmCost / totalSends) * 10000) / 10000 : 0,
-      dataAvailable,
+      pcmCostPerPiece: pcmPiecesInvoice > 0 ? Math.round((pcmCostInvoice / pcmPiecesInvoice) * 10000) / 10000 : 0,
+      dataAvailable: totalRevenue > 0,
+      reconciliation: {
+        auroraStoredPcmCost,
+        auroraStoredMargin,
+        pcmVsAuroraCostDelta,
+        note: invoiceAvailable
+          ? 'PCM cost is PCM /order × invoice-verified era rates. Aurora stored cost shown for reconciliation.'
+          : 'PCM /order cache is warming (~90s first load). Showing Aurora-stored PCM cost as placeholder; refresh in ~2 min for invoice-authoritative numbers.',
+      },
     };
 
-    setCache(cacheKey, result);
+    // Shorter cache when invoice data is missing so user gets the real numbers soon after warmup
+    setCache(cacheKey, result, invoiceAvailable ? undefined : 60_000);
     return NextResponse.json(result);
   } catch (error) {
-    // Column doesn't exist yet — graceful fallback
     const msg = error instanceof Error ? error.message : '';
     if (msg.includes('total_pcm_cost') || msg.includes('margin')) {
       return NextResponse.json({ dataAvailable: false });
     }
     throw error;
   }
+}
+
+/**
+ * Non-blocking PCM orders accessor. Returns the in-memory cache if warm,
+ * otherwise returns null and kicks off a background fetch. Endpoints that
+ * depend on PCM orders should fall back to Aurora-side numbers (or the
+ * dm_overview_cache Aurora row) when this returns null — pagination takes
+ * ~90s so we never block a request on it.
+ */
+function readPcmOrdersCacheOrWarm(): PcmOrderSlim[] | null {
+  const cached = getCachedPcmOrdersSlim();
+  if (cached) return cached;
+  // Kick off background pagination — don't await. Next request will hit cache.
+  fetchPcmOrdersSlim().catch(e => {
+    console.error('[pcm-validation] background PCM pagination failed:', e instanceof Error ? e.message : e);
+  });
+  return null;
 }
 
 // ─── Margin by Mail Class ─────────────────────────────────────
@@ -388,15 +489,16 @@ async function getMarginByMailClass(domain?: string) {
   const subWhere = domain ? `AND vsm.domain = '${domain}'` : '';
 
   try {
+    // Compute margin locally (revenue − pcm_cost) rather than reading the
+    // stored `cumulative_margin` column, for the same reason as elsewhere:
+    // stored margin is 0 when pcm_cost is missing, which makes the math fail
+    // the "these three columns add up" test.
     const rows = await runAuroraQuery(`
       SELECT
         vs.mail_class,
         COALESCE(SUM(vs.cumulative_sends), 0) as sends,
         COALESCE(SUM(vs.cumulative_cost), 0) as revenue,
-        COALESCE(SUM(vs.cumulative_pcm_cost), 0) as pcm_cost,
-        COALESCE(SUM(vs.cumulative_margin), 0) as margin,
-        CASE WHEN SUM(vs.cumulative_cost) > 0
-          THEN ROUND((SUM(vs.cumulative_margin) / SUM(vs.cumulative_cost)) * 100, 2) ELSE 0 END as margin_pct
+        COALESCE(SUM(vs.cumulative_pcm_cost), 0) as pcm_cost
       FROM dm_volume_summary vs
       INNER JOIN (
         SELECT vsm.domain, MAX(vsm.date) as md
@@ -414,14 +516,20 @@ async function getMarginByMailClass(domain?: string) {
       GROUP BY vs.mail_class
     `);
 
-    const mailClasses = rows.map(r => ({
-      mailClass: String(r.mail_class),
-      sends: Number(r.sends || 0),
-      revenue: Number(r.revenue || 0),
-      pcmCost: Number(r.pcm_cost || 0),
-      margin: Number(r.margin || 0),
-      marginPercent: Number(r.margin_pct || 0),
-    }));
+    const mailClasses = rows.map(r => {
+      const revenue = Number(r.revenue || 0);
+      const pcmCost = Number(r.pcm_cost || 0);
+      const margin = Math.round((revenue - pcmCost) * 100) / 100;
+      const marginPercent = revenue > 0 ? Math.round((margin / revenue) * 10000) / 100 : 0;
+      return {
+        mailClass: String(r.mail_class),
+        sends: Number(r.sends || 0),
+        revenue,
+        pcmCost,
+        margin,
+        marginPercent,
+      };
+    });
 
     const dataAvailable = mailClasses.length > 0 && mailClasses.some(m => m.pcmCost > 0);
 
@@ -453,14 +561,15 @@ async function getClientMargins(domain?: string) {
   const subDomainWhere = domain ? `AND dcf.domain = '${domain}'` : '';
 
   try {
-    const rows = await runAuroraQuery(`
+    // Revenue (customer-billed) comes from Aurora. PCM cost per domain is
+    // attributed from PCM /order × invoice-verified era rates — the vendor's
+    // own data, not the monolith's broken stored value.
+    const auroraRows = await runAuroraQuery(`
       SELECT
         f.domain,
         COALESCE(f.total_sends, 0) as sends,
         COALESCE(f.total_cost, 0) as revenue,
-        COALESCE(f.total_pcm_cost, 0) as pcm_cost,
-        COALESCE(f.margin, 0) as margin,
-        COALESCE(f.margin_pct, 0) as margin_pct
+        COALESCE(f.total_pcm_cost, 0) as aurora_stored_pcm_cost
       FROM dm_client_funnel f
       INNER JOIN (
         SELECT dcf.domain, MAX(dcf.date) as md
@@ -473,22 +582,54 @@ async function getClientMargins(domain?: string) {
       WHERE f.domain IS NOT NULL
         AND f.domain NOT IN (${TEST_DOMAINS})
         ${domainWhere}
-      ORDER BY f.margin ASC
     `);
 
-    const clients = rows.map(r => ({
-      domain: String(r.domain),
-      sends: Number(r.sends || 0),
-      revenue: Number(r.revenue || 0),
-      pcmCost: Number(r.pcm_cost || 0),
-      margin: Number(r.margin || 0),
-      marginPercent: Number(r.margin_pct || 0),
-    }));
+    // Non-blocking: use PCM cache if warm, fall back to Aurora stored otherwise
+    const orders = readPcmOrdersCacheOrWarm();
+    const pcmCostByDomain = new Map<string, { cost: number; pieces: number }>();
+    if (orders) {
+      for (const o of orders) {
+        if (o.canceled || o.isTestDomain) continue;
+        if (domain && o.domain !== domain) continue;
+        const entry = pcmCostByDomain.get(o.domain) || { cost: 0, pieces: 0 };
+        entry.cost += pcmRate(o.date, o.mailClass);
+        entry.pieces += 1;
+        pcmCostByDomain.set(o.domain, entry);
+      }
+    }
 
-    const dataAvailable = clients.length > 0 && clients.some(c => c.pcmCost > 0);
+    const clients = auroraRows.map(r => {
+      const dom = String(r.domain);
+      const revenue = Number(r.revenue || 0);
+      const auroraStoredPcmCost = Number(r.aurora_stored_pcm_cost || 0);
+      const pcmInvoice = pcmCostByDomain.get(dom);
+      // Use PCM-invoice cost when available; otherwise Aurora-stored (cold cache)
+      const pcmCost = pcmInvoice
+        ? Math.round(pcmInvoice.cost * 100) / 100
+        : auroraStoredPcmCost;
+      const margin = Math.round((revenue - pcmCost) * 100) / 100;
+      const marginPercent = revenue > 0 ? Math.round((margin / revenue) * 10000) / 100 : 0;
+      return {
+        domain: dom,
+        sends: Number(r.sends || 0),
+        revenue,
+        pcmCost,
+        margin,
+        marginPercent,
+        auroraStoredPcmCost,
+        pcmPiecesInvoice: pcmInvoice?.pieces ?? 0,
+      };
+    });
+
+    // Sort by margin ascending (losers first — same sort behavior as before)
+    clients.sort((a, b) => a.margin - b.margin);
+
+    const dataAvailable = clients.length > 0 && clients.some(c => c.pcmCost > 0 || c.revenue > 0);
 
     const result = { clients, dataAvailable };
-    setCache(cacheKey, result);
+    // Short TTL when we fell back to Aurora stored, so the user gets invoice
+    // numbers shortly after the cache warms
+    setCache(cacheKey, result, orders ? undefined : 60_000);
     return NextResponse.json(result);
   } catch (error) {
     const msg = error instanceof Error ? error.message : '';
@@ -501,20 +642,12 @@ async function getClientMargins(domain?: string) {
 
 // ─── Margin Trend (per-piece rate history from dm_property_conversions + PCM eras) ───
 
-// PCM pricing eras — verified from 264 invoice PDFs (see profitability report)
-const PCM_ERAS = [
-  { start: '2024-12', end: '2025-06', fcRate: 0.94, stdRate: 0.74 },
-  { start: '2025-07', end: '2025-10', fcRate: 1.16, stdRate: 0.93 },
-  { start: '2025-11', end: '2099-12', fcRate: 0.87, stdRate: 0.63 },
-];
+// PCM era rates come from `@/lib/pcm-pricing-eras` (single source of truth).
+// See top of file for the import.
 
 function getPcmRates(monthStr: string): { fcRate: number; stdRate: number } {
-  for (const era of PCM_ERAS) {
-    if (monthStr >= era.start && monthStr <= era.end) {
-      return { fcRate: era.fcRate, stdRate: era.stdRate };
-    }
-  }
-  return { fcRate: 0.87, stdRate: 0.63 }; // default to current era
+  const era = getSharedPcmEra(monthStr.length >= 10 ? monthStr : `${monthStr}-15`);
+  return { fcRate: era.fcRate, stdRate: era.stdRate };
 }
 
 function classifyMailClass(unitRate: number): 'first_class' | 'standard' | 'unknown' {
@@ -680,10 +813,20 @@ async function getCurrentRates(domain?: string) {
 
     const blended = blendedRows[0]?.blended_rate ? Number(blendedRows[0].blended_rate) : null;
 
+    // Invoice-verified PCM rates for today's era. These are the rates PCM
+    // actually charges us — NOT what the monolith's parameters.pcm_cost
+    // column says. Widgets should show these as "PCM charges us" so the
+    // story stays consistent with Pricing history.
+    const pcm = currentPcmRates();
+
     const result = {
       standard,
       firstClass,
       blended,
+      pcmStandard: pcm.std,
+      pcmFirstClass: pcm.fc,
+      pcmEraLabel: pcm.era.label,
+      pcmEraStart: pcm.era.start,
       periodStart: stdRow?.period_start ? String(stdRow.period_start).slice(0, 10) : null,
       periodEnd: stdRow?.period_end ? String(stdRow.period_end).slice(0, 10) : null,
       dataAvailable: standard !== null || firstClass !== null,
@@ -940,7 +1083,7 @@ async function getPriceImpact(domain?: string) {
             ROUND(SUM(daily_cost)::numeric / NULLIF(SUM(daily_sends), 0)::numeric, 4) as avg_rate,
             SUM(daily_sends) as total_sends,
             SUM(daily_cost) as total_revenue,
-            SUM(daily_margin) as total_margin,
+            SUM(COALESCE(daily_cost, 0) - COALESCE(daily_pcm_cost, 0)) as total_margin,
             SUM(daily_pcm_cost) as total_pcm_cost,
             COUNT(DISTINCT date) as days_count
           FROM dm_volume_summary
@@ -956,7 +1099,7 @@ async function getPriceImpact(domain?: string) {
             ROUND(SUM(daily_cost)::numeric / NULLIF(SUM(daily_sends), 0)::numeric, 4) as avg_rate,
             SUM(daily_sends) as total_sends,
             SUM(daily_cost) as total_revenue,
-            SUM(daily_margin) as total_margin,
+            SUM(COALESCE(daily_cost, 0) - COALESCE(daily_pcm_cost, 0)) as total_margin,
             SUM(daily_pcm_cost) as total_pcm_cost,
             COUNT(DISTINCT date) as days_count
           FROM dm_volume_summary
@@ -1024,8 +1167,22 @@ async function getPriceImpact(domain?: string) {
 
 // ─── Profitability Period (date-filtered margin summary) ─────
 
-async function getProfitabilityPeriod(domain?: string, days?: number, startDate?: string, endDate?: string) {
-  const cacheKey = `pcm-validation:profitability-period:${domain || 'all'}:${days || 'all'}:${startDate || ''}:${endDate || ''}`;
+// Period summary is intentionally anchored to "last 30 days from TODAY" —
+// dynamically sliding forward, NOT a fixed range baked into the cache.
+// The header's date-range filter is bypassed because `dm_volume_summary`
+// only carries ~5 days of recent data today; honoring a 90-day filter
+// would return the same 5-day slice and mislead the reader.
+//
+// The window is computed server-side as `CURRENT_DATE - INTERVAL '30 days'`
+// so as the monolith backfills the table, the visible data grows organically.
+// The response carries the actual MIN/MAX dates covered by the query so the
+// widget can label the tag honestly — e.g. "Last 30 days · 5 days of synced
+// data (Apr 10 – Apr 15)" — today, "Last 30 days" in full tomorrow.
+const PERIOD_INTENT_DAYS = 30;
+
+async function getProfitabilityPeriod(domain?: string, _days?: number, _startDate?: string, _endDate?: string) {
+  void _days; void _startDate; void _endDate;
+  const cacheKey = `pcm-validation:profitability-period:${domain || 'all'}:last-${PERIOD_INTENT_DAYS}-days`;
   const cached = getCached<unknown>(cacheKey);
   if (cached) return NextResponse.json(cached);
 
@@ -1033,68 +1190,138 @@ async function getProfitabilityPeriod(domain?: string, days?: number, startDate?
     return NextResponse.json({ dataAvailable: false });
   }
 
-  const domainWhere = domain ? `AND domain = '${domain}'` : '';
-
-  // Build date filter
-  let dateFilter = '';
-  let periodLabel = 'All time';
-  if (startDate && endDate) {
-    dateFilter = `AND date >= '${startDate}'::date AND date <= '${endDate}'::date`;
-    periodLabel = `${startDate} – ${endDate}`;
-  } else if (days && days > 0 && days < 3650) {
-    dateFilter = `AND date >= CURRENT_DATE - INTERVAL '${days} days'`;
-    periodLabel = `Last ${days} days`;
-  }
+  const domainWhereVs = domain ? `AND domain = '${domain}'` : '';
 
   try {
-    const rows = await runAuroraQuery(`
+    // ALWAYS anchored to CURRENT_DATE - INTERVAL 'N days'. Sliding window —
+    // when "today" moves, so does the window. No stale data.
+    const dailyRows = await runAuroraQuery(`
       SELECT
-        COALESCE(SUM(daily_cost), 0) as total_revenue,
-        COALESCE(SUM(daily_pcm_cost), 0) as total_pcm_cost,
-        COALESCE(SUM(daily_margin), 0) as gross_margin,
-        COALESCE(SUM(daily_sends), 0) as total_sends,
-        MIN(date) as period_start,
-        MAX(date) as period_end
+        date::date as d,
+        SUM(daily_sends) as pieces,
+        SUM(daily_cost) as revenue,
+        SUM(daily_pcm_cost) as aurora_pcm_cost
       FROM dm_volume_summary
       WHERE (mail_class = 'all' OR mail_class IS NULL)
         AND domain NOT IN (${TEST_DOMAINS})
         AND daily_sends > 0
-        ${domainWhere}
-        ${dateFilter}
+        AND date >= CURRENT_DATE - INTERVAL '${PERIOD_INTENT_DAYS} days'
+        AND date <= CURRENT_DATE
+        ${domainWhereVs}
+      GROUP BY date::date
+      ORDER BY date::date
     `);
 
-    const row = rows[0];
-    const totalRevenue = Number(row?.total_revenue || 0);
-    const totalPcmCost = Number(row?.total_pcm_cost || 0);
-    const grossMargin = Number(row?.gross_margin || 0);
-    const totalSends = Number(row?.total_sends || 0);
-    const marginPercent = totalRevenue > 0 ? Math.round((grossMargin / totalRevenue) * 10000) / 100 : 0;
+    let totalRevenue = 0;
+    let totalSends = 0;
+    let pcmCostInvoice = 0;
+    let pcmPiecesInvoice = 0;
+    let auroraStoredPcmCost = 0;
+    let minDate: string | null = null;
+    let maxDate: string | null = null;
+    const daysWithData = new Set<string>();
 
-    const dataAvailable = totalPcmCost > 0;
+    for (const r of dailyRows) {
+      const date = String((r as Record<string, unknown>).d).slice(0, 10);
+      const pieces = Number((r as Record<string, unknown>).pieces || 0);
+      const revenue = Number((r as Record<string, unknown>).revenue || 0);
+      const auroraPcm = Number((r as Record<string, unknown>).aurora_pcm_cost || 0);
+
+      if (!minDate || date < minDate) minDate = date;
+      if (!maxDate || date > maxDate) maxDate = date;
+      daysWithData.add(date);
+
+      totalRevenue += revenue;
+      totalSends += pieces;
+      auroraStoredPcmCost += auroraPcm;
+
+      if (pieces <= 0) continue;
+      const blended = revenue / pieces;
+      const { fc, std } = splitDailyPieces(date, pieces, blended);
+      pcmCostInvoice += fc * pcmRate(date, 'fc') + std * pcmRate(date, 'std');
+      pcmPiecesInvoice += pieces;
+    }
+
+    pcmCostInvoice = Math.round(pcmCostInvoice * 100) / 100;
+    totalRevenue = Math.round(totalRevenue * 100) / 100;
+    auroraStoredPcmCost = Math.round(auroraStoredPcmCost * 100) / 100;
+
+    const grossMargin = Math.round((totalRevenue - pcmCostInvoice) * 100) / 100;
+    const marginPercent = totalRevenue > 0
+      ? Math.round((grossMargin / totalRevenue) * 10000) / 100
+      : 0;
+    const auroraStoredMargin = Math.round((totalRevenue - auroraStoredPcmCost) * 100) / 100;
+    const pcmVsAuroraCostDelta = Math.round((pcmCostInvoice - auroraStoredPcmCost) * 100) / 100;
+
+    // Honest label: reflects both intent (last 30 days from today) AND the
+    // actual synced coverage (how many of those 30 days have data yet).
+    const intentLabel = `Last ${PERIOD_INTENT_DAYS} days`;
+    const actualDaysCount = daysWithData.size;
+    const coverageNote = actualDaysCount < PERIOD_INTENT_DAYS
+      ? `${actualDaysCount} of ${PERIOD_INTENT_DAYS} days synced (${minDate ?? '—'} – ${maxDate ?? '—'})`
+      : `${PERIOD_INTENT_DAYS} days fully synced`;
+    const periodLabel = `${intentLabel} · ${coverageNote}`;
 
     const result = {
       totalRevenue,
-      totalPcmCost,
+      totalPcmCost: pcmCostInvoice,
       grossMargin,
       marginPercent,
       totalSends,
+      pcmPiecesInvoice,
       revenuePerPiece: totalSends > 0 ? Math.round((totalRevenue / totalSends) * 10000) / 10000 : 0,
-      pcmCostPerPiece: totalSends > 0 ? Math.round((totalPcmCost / totalSends) * 10000) / 10000 : 0,
+      pcmCostPerPiece: pcmPiecesInvoice > 0 ? Math.round((pcmCostInvoice / pcmPiecesInvoice) * 10000) / 10000 : 0,
       periodLabel,
-      periodStart: row?.period_start ? String(row.period_start).slice(0, 10) : null,
-      periodEnd: row?.period_end ? String(row.period_end).slice(0, 10) : null,
-      dataAvailable,
+      periodStart: minDate,
+      periodEnd: maxDate,
+      intendedDays: PERIOD_INTENT_DAYS,
+      actualDaysCount,
+      dataAvailable: totalRevenue > 0 || pcmCostInvoice > 0,
+      sourceTable: 'dm_volume_summary' as const,
+      reconciliation: {
+        auroraStoredPcmCost,
+        auroraStoredMargin,
+        pcmVsAuroraCostDelta,
+        note: 'PCM cost is Aurora daily sends × invoice-verified era rates (per-day-split). Aurora stored cost shown for reconciliation.',
+      },
     };
 
     setCache(cacheKey, result);
     return NextResponse.json(result);
   } catch (error) {
     const msg = error instanceof Error ? error.message : '';
-    if (msg.includes('daily_pcm_cost') || msg.includes('daily_margin') || msg.includes('mail_class')) {
+    if (msg.includes('daily_pcm_cost') || msg.includes('daily_margin') || msg.includes('mail_class') || msg.includes('total_pcm_cost')) {
       return NextResponse.json({ dataAvailable: false });
     }
     throw error;
   }
+}
+
+/**
+ * Classify a day's worth of untagged pieces into FC / Std by matching the
+ * observed blended customer rate against known era customer rates.
+ * Pre-Jan 2026: FC $1.39 / Std $1.08. From 2026-01-16 onwards: FC $0.87 / Std $0.63.
+ * If the blended rate lies between the two era rates, solve the linear system
+ * for the split that produces that blended rate; outside the range, assign
+ * everything to the closer rate.
+ */
+function splitDailyPieces(dateISO: string, pieces: number, blendedRate: number): { fc: number; std: number } {
+  // Known customer eras. When 8020REI changes pricing, add a new entry here
+  // (or derive dynamically from dm_volume_summary — see dm-reports/route.ts
+  // fetchCustomerEras for the live-detection pattern).
+  const customerFc: number = dateISO <= '2026-01-15' ? 1.39 : 0.87;
+  const customerStd: number = dateISO <= '2026-01-15' ? 1.08 : 0.63;
+  if (pieces <= 0) return { fc: 0, std: 0 };
+  if (Math.abs(customerFc - customerStd) < 0.005) return { fc: pieces, std: 0 };
+
+  // Edge cases: blended outside the FC↔Std range → assume all one class
+  if (blendedRate >= customerFc - 0.01) return { fc: pieces, std: 0 };
+  if (blendedRate <= customerStd + 0.01) return { fc: 0, std: pieces };
+
+  // Linear split: customerFc × fc + customerStd × (pieces − fc) = revenue
+  const fcFraction = (blendedRate - customerStd) / (customerFc - customerStd);
+  const fc = Math.max(0, Math.min(pieces, pieces * fcFraction));
+  return { fc, std: pieces - fc };
 }
 
 // ─── Pricing History (daily per-piece rates over time) ───────
