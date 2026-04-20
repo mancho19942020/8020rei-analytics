@@ -250,8 +250,8 @@ export function DmTemplateLeaderboardWidget({ data }: DmTemplateLeaderboardWidge
         }
 
         const tooltipText = confidence === 'low_sample'
-          ? `Based on ${deals} ${deals === 1 ? 'deal' : 'deals'} only. Needs 3+ deals for a confident rating.`
-          : `Based on ${deals} deals. Revenue ÷ cost = ${roas.toFixed(1)}x return.`;
+          ? `Based on ${deals} ${deals === 1 ? 'deal' : 'deals'} only. Needs 3+ deals for a confident rating. Client ROI: deal revenue ÷ client mail spend.`
+          : `${roas.toFixed(1)}x return based on ${deals} deals. Client ROI: deal revenue ÷ client mail spend (not 8020REI company margin).`;
 
         const tagColor = roas >= 2 ? 'success' as const : roas >= 1 ? 'alert' as const : 'error' as const;
 

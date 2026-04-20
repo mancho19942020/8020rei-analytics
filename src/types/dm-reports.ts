@@ -107,6 +107,12 @@ export interface ClientProfitability {
   blendedRate: number;
 }
 
+export interface MonthlyDataMeta {
+  latestMonth: string | null;
+  monthsStale: number;
+  isStale: boolean;
+}
+
 export interface ProfitabilityReportData {
   executiveSummary: ExecutiveSummary;
   dataQuality: DataQuality;
@@ -117,6 +123,7 @@ export interface ProfitabilityReportData {
   };
   monthlyPcmCosts: MonthlyPcmCost[];
   monthlyRevenue: MonthlyRevenue[];
+  monthlyDataMeta?: MonthlyDataMeta;
   allTimeSummary: AllTimeSummary;
   clientProfitability: ClientProfitability[];
   generatedAt: string;

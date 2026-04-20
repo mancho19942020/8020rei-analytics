@@ -64,6 +64,7 @@ const IntegrationStatusTab = dynamic(() => import('@/components/dashboard/Integr
 const DmReportsTab = dynamic(() => import('@/components/dashboard/DmReportsTab').then(m => m.DmReportsTab), { loading: TabSkeleton, ssr: false });
 const DmDataSourcesTab = dynamic(() => import('@/components/dashboard/DmDataSourcesTab').then(m => m.DmDataSourcesTab), { loading: TabSkeleton, ssr: false });
 const SkiptraceTab = dynamic(() => import('@/components/dashboard/SkiptraceTab').then(m => m.SkiptraceTab), { loading: TabSkeleton, ssr: false });
+const DmOverviewTab = dynamic(() => import('@/components/dashboard/DmOverviewTab').then(m => m.DmOverviewTab), { loading: TabSkeleton, ssr: false });
 
 interface MetricValues {
   total_users: number;
@@ -110,7 +111,7 @@ function Dashboard({ slug }: { slug: string[] }) {
   const [activeSubsection, setActiveSubsection] = useState(initialNav.sub);
   const [activeDetailTab, setActiveDetailTab] = useState(initialNav.tab);
   // Legacy — dmCampaignSubTab is now handled via activeDetailTab for dm-campaign subsection
-  const dmCampaignSubTab = activeSubsection === 'dm-campaign' ? activeDetailTab : 'operational-health';
+  const dmCampaignSubTab = activeSubsection === 'dm-campaign' ? activeDetailTab : 'overview';
   const setDmCampaignSubTab = (tab: string) => setActiveDetailTab(tab);
   const { collapsed: sidebarCollapsed, toggle: toggleSidebar } = useSidebarState();
   const [editMode, setEditMode] = useState(false);
@@ -224,7 +225,7 @@ function Dashboard({ slug }: { slug: string[] }) {
   // Auto-disable edit mode on non-grid pages
   const isNonGridPage = activeMainSection === 'engagement-calls' ||
     activeMainSection === 'grafana' ||
-    (activeMainSection === 'features' && activeSubsection === 'dm-campaign' && ['reports', 'data-sources'].includes(dmCampaignSubTab));
+    (activeMainSection === 'features' && activeSubsection === 'dm-campaign' && ['overview', 'reports', 'data-sources'].includes(dmCampaignSubTab));
   useEffect(() => {
     if (isNonGridPage && editMode) setEditMode(false);
   }, [isNonGridPage, editMode]);
@@ -790,8 +791,13 @@ function Dashboard({ slug }: { slug: string[] }) {
             />
           )}
 
+          {/* DM Campaign > Overview — executive headline metrics */}
+          {activeMainSection === 'features' && activeSubsection === 'dm-campaign' && dmCampaignSubTab === 'overview' && (
+            <DmOverviewTab />
+          )}
+
           {/* DM Campaign Tab (Features > DM Campaign) — widget tabs */}
-          {activeMainSection === 'features' && activeSubsection === 'dm-campaign' && !['reports', 'data-sources'].includes(dmCampaignSubTab) && (
+          {activeMainSection === 'features' && activeSubsection === 'dm-campaign' && !['overview', 'reports', 'data-sources'].includes(dmCampaignSubTab) && (
             <RapidResponseTab
               ref={dmCampaignRef}
               days={days}

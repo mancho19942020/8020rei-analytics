@@ -69,16 +69,16 @@ export function AxisTag({
   onDismiss,
   className = '',
 }: AxisTagProps) {
-  // Size classes
+  // Size classes — pill-friendly padding
   const sizeClasses = {
     sm: {
-      tag: 'h-6 px-2 text-label gap-1.5',
+      tag: 'h-6 px-2.5 text-label gap-1.5',
       icon: 'w-3.5 h-3.5',
       dot: 'w-1.5 h-1.5',
       dismiss: 'w-3.5 h-3.5 -mr-0.5',
     },
     md: {
-      tag: 'h-7 px-2.5 text-label gap-2',
+      tag: 'h-7 px-3 text-label gap-2',
       icon: 'w-4 h-4',
       dot: 'w-2 h-2',
       dismiss: 'w-4 h-4 -mr-0.5',
@@ -101,6 +101,7 @@ export function AxisTag({
           };
     }
 
+    // Only uses defined semantic shades: 50, 100, 300, 500, 700, 900, 950
     const colors = {
       neutral: {
         filled: {
@@ -116,50 +117,50 @@ export function AxisTag({
       },
       success: {
         filled: {
-          container: 'bg-success-100 dark:bg-success-900/40 text-success-800 dark:text-success-200',
+          container: 'bg-success-100 dark:bg-success-900/40 text-success-700 dark:text-success-300',
           dot: 'bg-success-500',
-          dismiss: 'text-success-600 dark:text-success-400 hover:text-success-800 dark:hover:text-success-200',
+          dismiss: 'text-success-500 dark:text-success-300 hover:text-success-700 dark:hover:text-success-100',
         },
         outlined: {
-          container: 'bg-transparent border border-success-300 dark:border-success-700 text-success-800 dark:text-success-200',
+          container: 'bg-transparent border border-success-300 dark:border-success-700 text-success-700 dark:text-success-300',
           dot: 'bg-success-500',
-          dismiss: 'text-success-600 dark:text-success-400 hover:text-success-800 dark:hover:text-success-200',
+          dismiss: 'text-success-500 dark:text-success-300 hover:text-success-700 dark:hover:text-success-100',
         },
       },
       alert: {
         filled: {
-          container: 'bg-alert-100 dark:bg-alert-900/40 text-alert-800 dark:text-alert-200',
+          container: 'bg-alert-100 dark:bg-alert-900/40 text-alert-700 dark:text-alert-300',
           dot: 'bg-alert-500',
-          dismiss: 'text-alert-600 dark:text-alert-400 hover:text-alert-800 dark:hover:text-alert-200',
+          dismiss: 'text-alert-500 dark:text-alert-300 hover:text-alert-700 dark:hover:text-alert-100',
         },
         outlined: {
-          container: 'bg-transparent border border-alert-300 dark:border-alert-700 text-alert-800 dark:text-alert-200',
+          container: 'bg-transparent border border-alert-300 dark:border-alert-700 text-alert-700 dark:text-alert-300',
           dot: 'bg-alert-500',
-          dismiss: 'text-alert-600 dark:text-alert-400 hover:text-alert-800 dark:hover:text-alert-200',
+          dismiss: 'text-alert-500 dark:text-alert-300 hover:text-alert-700 dark:hover:text-alert-100',
         },
       },
       error: {
         filled: {
-          container: 'bg-error-100 dark:bg-error-900/40 text-error-800 dark:text-error-200',
+          container: 'bg-error-100 dark:bg-error-900/40 text-error-700 dark:text-error-300',
           dot: 'bg-error-500',
-          dismiss: 'text-error-600 dark:text-error-400 hover:text-error-800 dark:hover:text-error-200',
+          dismiss: 'text-error-500 dark:text-error-300 hover:text-error-700 dark:hover:text-error-100',
         },
         outlined: {
-          container: 'bg-transparent border border-error-300 dark:border-error-700 text-error-800 dark:text-error-200',
+          container: 'bg-transparent border border-error-300 dark:border-error-700 text-error-700 dark:text-error-300',
           dot: 'bg-error-500',
-          dismiss: 'text-error-600 dark:text-error-400 hover:text-error-800 dark:hover:text-error-200',
+          dismiss: 'text-error-500 dark:text-error-300 hover:text-error-700 dark:hover:text-error-100',
         },
       },
       info: {
         filled: {
-          container: 'bg-info-100 dark:bg-info-900/40 text-info-800 dark:text-info-200',
+          container: 'bg-info-100 dark:bg-info-900/40 text-info-700 dark:text-info-300',
           dot: 'bg-info-500',
-          dismiss: 'text-info-600 dark:text-info-400 hover:text-info-800 dark:hover:text-info-200',
+          dismiss: 'text-info-500 dark:text-info-300 hover:text-info-700 dark:hover:text-info-100',
         },
         outlined: {
-          container: 'bg-transparent border border-info-300 dark:border-info-700 text-info-800 dark:text-info-200',
+          container: 'bg-transparent border border-info-300 dark:border-info-700 text-info-700 dark:text-info-300',
           dot: 'bg-info-500',
-          dismiss: 'text-info-600 dark:text-info-400 hover:text-info-800 dark:hover:text-info-200',
+          dismiss: 'text-info-500 dark:text-info-300 hover:text-info-700 dark:hover:text-info-100',
         },
       },
     };
@@ -172,7 +173,7 @@ export function AxisTag({
   // Combined tag classes
   const tagClasses = [
     // Base styles
-    'inline-flex items-center font-medium rounded whitespace-nowrap',
+    'inline-flex items-center font-medium rounded-full whitespace-nowrap',
     // Transition
     'transition-colors duration-150',
     // Size

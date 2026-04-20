@@ -27,9 +27,9 @@ input[type="search"] {
   --surface-sunken: #f3f4f6;
   --surface-chrome: #ffffff; /* Header + nav tabs background */
 
-  /* Text Colors (Light Mode) */
-  --text-primary: #111827;
-  --text-secondary: #374151;
+  /* Text Colors (Light Mode) — softened for professional contrast */
+  --text-primary: #1f2937;
+  --text-secondary: #4b5563;
   --text-tertiary: #6b7280;
   --text-disabled: #9ca3af;
   --text-inverse: #ffffff;

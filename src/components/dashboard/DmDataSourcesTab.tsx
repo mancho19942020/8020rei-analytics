@@ -47,17 +47,18 @@ function generateDataSourcesMarkdown(): string {
   // Source 1: PCM API
   lines.push('## 1. PostcardMania API (External API)');
   lines.push('');
-  lines.push('Third-party mailing vendor. Provides real-time order status, batch tracking, design metadata, and account balance. Accessed via authenticated REST API.');
+  lines.push('Third-party mailing vendor. Provides real-time order count, account balance, and design catalog. Accessed via authenticated REST API.');
   lines.push('');
   lines.push('| Endpoint | Data provided | Used by |');
   lines.push('|----------|---------------|---------|');
-  lines.push('| `/order` | Total orders, status per order, quantities | Operational health, Profitability |');
-  lines.push('| `/integration/balance` | Account balance (money on account) | Profitability |');
-  lines.push('| `/design` | Design templates, approval dates | Profitability |');
-  lines.push('| `/batch` | Batch metadata for invoice matching | Reports |');
-  lines.push('| `/recipient/undeliverable` | Undeliverable recipient tracking | Operational health |');
+  lines.push('| `/auth/login` | Bearer token (55-min cache) | Auth only |');
+  lines.push('| `/order` | Paginated orders with status + `extRefNbr` (domain) | Overview, Operational health, Profitability, Reports |');
+  lines.push('| `/integration/balance` | `moneyOnAccount` current account balance | Overview, Profitability |');
+  lines.push('| `/design` | Paginated design catalog (28 designs) | Profitability → Template catalog |');
   lines.push('');
-  lines.push('> **Read-only policy:** The PCM API integration is strictly read-only by executive directive. Only GET requests are allowed (except authentication). No data is ever written back to PostcardMania.');
+  lines.push('> **Read-only policy:** The PCM API integration is strictly read-only. Only GET requests (plus `POST /auth/login` for token exchange) are allowed. No data is ever written back to PostcardMania. Verified in `src/lib/pcm-client.ts`.');
+  lines.push('');
+  lines.push('> **Known limitation:** `/order` does not support server-side `filterStatus` or per-domain filtering. To compute active piece counts or per-domain breakdowns, the full order list is paginated client-side (~25K orders, ~90s cold). Results are cached in Aurora via `dm_overview_cache` and refreshed every 30 minutes by a cron.');
   lines.push('');
 
   // Source 2: Aurora
@@ -67,11 +68,13 @@ function generateDataSourcesMarkdown(): string {
   lines.push('');
   lines.push('| Table | Description | Key columns | Used by |');
   lines.push('|-------|-------------|-------------|---------|');
-  lines.push('| `dm_client_funnel` | Cumulative per-client totals (latest snapshot per domain) | total_sends, total_cost, total_pcm_cost, margin | All tabs |');
-  lines.push('| `dm_volume_summary` | Daily volume per domain per mail class | daily_sends, daily_cost, mail_class | Profitability, Reports |');
-  lines.push('| `dm_property_conversions` | Individual property records with per-send unit costs | domain, unit_cost, mail_class | Business results, Reports |');
-  lines.push('| `rr_daily_metrics` | Daily operational metrics per domain | sends_total, delivered_count, on_hold | Operational health |');
-  lines.push('| `rr_campaign_snapshots` | Active campaign tracking per domain | domain, campaign_status | Operational health |');
+  lines.push('| `dm_client_funnel` | Cumulative per-client totals (latest snapshot per domain) | total_sends, total_cost, total_pcm_cost, margin, margin_pct | All tabs |');
+  lines.push('| `dm_volume_summary` | Daily volume per domain per mail class + cumulative columns | daily_sends, daily_cost, daily_pcm_cost, daily_margin, mail_class, cumulative_* | Profitability (period + mail-class widgets) |');
+  lines.push('| `dm_property_conversions` | Per-property records with conversion timestamps | domain, first_sent_date, became_lead_at, became_appointment_at, became_deal_at, total_cost, deal_revenue | Business results, Reports monthly revenue |');
+  lines.push('| `rr_daily_metrics` | Daily operational metrics per domain (15-day rolling window) | sends_total, delivered_count, on_hold | Operational health period widgets |');
+  lines.push('| `rr_campaign_snapshots` | Per-campaign status snapshots | domain, campaign_id, status, last_sent_date | Operational health "Is it running?", Overview active-campaigns card |');
+  lines.push('| `rr_pcm_alignment` | Per-domain Aurora↔PCM reconciliation signals | back_office_sync_gap, stale_sent_count, orphaned_orders_count | Operational health "Is it aligned?" + Postal performance |');
+  lines.push('| `dm_overview_cache` | PCM-paginated payloads (headline, send-trend, balance-flow) | cache_key, payload (JSONB), computed_at | Overview tab + Operational health "Is it working?" |');
   lines.push('');
 
   // Source 3: Invoices
@@ -91,23 +94,54 @@ function generateDataSourcesMarkdown(): string {
   // Cross-referencing
   lines.push('## How data is cross-referenced');
   lines.push('');
+  lines.push('### Dual-source principle');
+  lines.push('');
+  lines.push('Every volume / cost / revenue metric is cross-checked against **both PCM and Aurora**. When the two disagree beyond tolerance, the delta is displayed visibly — never hidden. The authoritative source per metric class is:');
+  lines.push('');
+  lines.push('| Metric class | Authoritative source | Why |');
+  lines.push('|---|---|---|');
+  lines.push('| Lifetime pieces (hero) | PCM `/order` (paginated, cached in `dm_overview_cache`) | Captures in-pipeline pieces Aurora misses |');
+  lines.push('| Lifetime revenue / PCM cost / margin | `dm_client_funnel` latest-per-domain | Pre-computed; same SQL across Overview, BR, Profitability, Reports |');
+  lines.push('| Per-property conversions + deal revenue | `dm_property_conversions` with `> first_sent_date` filter | Avoids convenience-column data quality issues |');
+  lines.push('| Campaign count / status | `rr_campaign_snapshots` | 8020REI abstraction; PCM has no campaign primitive |');
+  lines.push('');
+  lines.push('### Cross-tab equality (guaranteed by shared SQL / shared cache)');
+  lines.push('');
+  lines.push('| Metric | Equal across | Mechanism |');
+  lines.push('|---|---|---|');
+  lines.push('| Lifetime mail pieces | Overview headline · OH "Is it working?" | Same `dm_overview_cache.headline` row |');
+  lines.push('| Active / total campaigns | Overview · OH "Is it running?" · BR reconciliation header | Same `rr_campaign_snapshots` SQL |');
+  lines.push('| Lifetime revenue / PCM cost / margin | Overview company margin · Profitability Margin summary · Reports executive summary · BR funnel Mailing spend | Same `dm_client_funnel` latest-per-domain SQL |');
+  lines.push('| Delivery rate | OH "Is it working?" · Profitability | Same SQL against `dm_client_funnel` |');
+  lines.push('| Per-client margin | Profitability Client margins · Reports Per-client profitability | Same `dm_client_funnel` latest-per-domain SQL |');
+  lines.push('');
   lines.push('### Volume reconciliation');
-  lines.push('PCM total active orders (non-canceled) are compared against Aurora\'s cumulative send count. Small deltas are expected from orders still in the PCM processing pipeline.');
+  lines.push('');
+  lines.push('PCM total active orders (non-canceled, excluding test domains) are compared against Aurora\'s cumulative send count. Small deltas are expected from orders still in the PCM processing pipeline.');
   lines.push('');
   lines.push('```');
   lines.push('Match rate = min(PCM orders, Aurora sends) / max(PCM orders, Aurora sends) × 100');
   lines.push('```');
   lines.push('');
+  lines.push('### Terminology — "Sent" vs "Mailed"');
+  lines.push('');
+  lines.push('These are **different metrics** by design, not inconsistencies:');
+  lines.push('- **Sent / pieces** — individual mail pieces (a single property may receive several pieces over time). Source: `dm_client_funnel.total_sends`.');
+  lines.push('- **Mailed** — unique properties that received at least one piece. Source: `dm_property_conversions` (distinct property count).');
+  lines.push('');
   lines.push('### Revenue verification');
-  lines.push('Customer revenue is calculated from `dm_client_funnel.total_cost` (what we charge clients). This is cross-checked against `dm_property_conversions` unit costs × volume.');
+  lines.push('');
+  lines.push('Customer revenue (what 8020REI charges its clients) lives in `dm_client_funnel.total_cost`. It is **populated live by the monolith** — as customer prices change on the platform, this column reflects what was actually charged, and the Profitability/Overview/Reports margin numbers update automatically.');
   lines.push('');
   lines.push('### PCM cost validation');
-  lines.push('Invoice-verified rates per pricing era are compared against `dm_client_funnel.total_pcm_cost`. The monolith uses `parameters.pcm_cost` to populate this field, which may differ from actual invoice amounts.');
   lines.push('');
-  lines.push('> **Known gap:** The monolith\'s `parameters.pcm_cost` values ($0.625/$0.875) do not match any invoice. Actual rates are $0.63/$0.87. This causes platform-computed PCM costs to differ from invoice-verified totals.');
+  lines.push('PCM cost per piece is populated by the monolith via `parameters.pcm_cost`, which drives `dm_client_funnel.total_pcm_cost`. This is not invoice-verified — it is the monolith\'s understanding of the PCM rate at send time.');
+  lines.push('');
+  lines.push('> **Known data issue:** `parameters.pcm_cost` uses $0.625 (Standard) / $0.875 (First class), neither of which matches any PCM invoice. Actual invoice-verified rates are $0.63/$0.87. Two clients (Central City Solutions, Reno Area Home Buyers) have `$0` PCM cost in Aurora entirely. Until this is fixed in the monolith, Margin summary / Client margins carry a systematic error vs. invoice-verified totals. The Reports tab uses the invoice-verified monthly breakdown as a secondary reconciliation.');
   lines.push('');
   lines.push('### Price change detection');
-  lines.push('Per-piece rates are calculated daily from `dm_volume_summary` (daily_cost / daily_sends). Rate changes are auto-detected when the delta exceeds $0.005/piece.');
+  lines.push('');
+  lines.push('Per-piece rates are calculated daily from `dm_volume_summary` (`daily_cost / daily_sends`) per mail class. Rate changes are auto-detected when the day-over-day delta exceeds $0.005/piece. Per-domain rollout status is derived from the most recent rate per domain — a domain on the old rate is flagged "pending migration."');
   lines.push('');
   lines.push('---');
   lines.push('');
@@ -116,49 +150,74 @@ function generateDataSourcesMarkdown(): string {
   lines.push('## What each tab shows');
   lines.push('');
 
+  lines.push('### Overview');
+  lines.push('');
+  lines.push('| Metric | Source | Calculation |');
+  lines.push('|--------|-------|-------------|');
+  lines.push('| Active clients | `rr_campaign_snapshots` | Distinct domains with ≥1 `status=active` campaign (latest snapshot per campaign) |');
+  lines.push('| Lifetime pieces (hero) | PCM `/order` via `dm_overview_cache` | Paginated non-canceled orders, excluding test domains |');
+  lines.push('| Lifetime pieces (Aurora delta) | `dm_client_funnel.total_sends` | Sum of latest-per-domain snapshots |');
+  lines.push('| Company margin | `dm_client_funnel` − PCM test-order cost | `SUM(margin) − SUM(pcm_cost of test-domain orders from PCM)` |');
+  lines.push('| Active campaigns | `rr_campaign_snapshots` | `status=active` count, latest snapshot per campaign |');
+  lines.push('| Send volume trend (14mo) | PCM `/order` by `orderDate` | Grouped by month, FC vs Std split |');
+  lines.push('| Internal test cost | PCM `/order` filtered to test domains | Era-rate × piece count per domain |');
+  lines.push('| Balance reconciliation | PCM `/integration/balance` + daily cost | Running balance vs cumulative cost |');
+  lines.push('');
+
   lines.push('### Operational health');
   lines.push('');
   lines.push('| Metric | Source table | Calculation |');
   lines.push('|--------|-------------|-------------|');
-  lines.push('| Daily sends / deliveries | `rr_daily_metrics` | Sum of sends_total, delivered_count per day |');
-  lines.push('| On-hold / protected / error | `rr_daily_metrics` | Direct column values per domain per day |');
-  lines.push('| Active campaigns | `rr_campaign_snapshots` | Count of domains with active campaign status |');
-  lines.push('| Response rate | `dm_property_conversions` | Properties with response / total mailed |');
-  lines.push('| Delivery rate | `rr_daily_metrics` | delivered_count / sends_total × 100 |');
+  lines.push('| Is it running? (active / total campaigns) | `rr_campaign_snapshots` | Latest snapshot per campaign, `status=active` count |');
+  lines.push('| Is it working? (lifetime pieces, hero) | PCM via `dm_overview_cache.headline` | Same cache row as Overview — bit-for-bit match |');
+  lines.push('| Is it working? (delivery rate) | `dm_client_funnel` | SUM(total_delivered) / SUM(total_sends), latest-per-domain |');
+  lines.push('| Is it aligned? | `rr_pcm_alignment` | Sync gap / stale sent / orphaned orders, thresholds 50/10/5 |');
+  lines.push('| Postal performance | `rr_pcm_alignment` + PCM | Delivery lag + undeliverable rate |');
+  lines.push('| Q2 volume goal + Top contributors | PCM `/order` via shared pagination cache | April cumulative per domain |');
+  lines.push('| Send volume trend (period) | `rr_daily_metrics` | Daily sends/delivered — 15-day rolling window |');
+  lines.push('| Status breakdown | `rr_daily_metrics` | Mail-piece status by period |');
   lines.push('');
 
   lines.push('### Business results');
   lines.push('');
+  lines.push('All widgets are **cohort-aligned**: they filter by `first_sent_date` falling in the selected window, and answer "what happened to this cohort?"');
+  lines.push('');
   lines.push('| Metric | Source table | Calculation |');
   lines.push('|--------|-------------|-------------|');
-  lines.push('| Conversion funnel | `dm_property_conversions` | Mailed → responded → converted stages |');
-  lines.push('| Client performance | `dm_client_funnel` | Per-domain totals: sends, cost, mailed, delivered |');
-  lines.push('| Geographic breakdown | `dm_property_conversions` | Grouped by state/city |');
-  lines.push('| Timeline events | `dm_property_conversions` | Per-property send/response/conversion dates |');
+  lines.push('| Conversion funnel | `dm_property_conversions` | Cohort → leads / appts / contracts / deals (`became_X_at IS NOT NULL AND > first_sent_date`) |');
+  lines.push('| Mailing spend (hero) | `dm_client_funnel.total_cost` | Same SQL as Profitability Revenue — **bit-for-bit match** |');
+  lines.push('| Deal revenue (hero) | `dm_property_conversions.deal_revenue` | Client ROI, not 8020REI revenue |');
+  lines.push('| Client performance | `dm_client_funnel` (latest-per-domain) + `dm_property_conversions` | Per-client, cohort-filtered — row count reconciled with Overview active clients |');
+  lines.push('| Conversion activity (daily) | `dm_property_conversions` | GROUP BY DATE(became_X_at), cohort-filtered — sum matches funnel |');
+  lines.push('| Mailing spend vs. deal revenue | `dm_property_conversions` | Spend by `first_sent_date`, revenue by `became_deal_at` — same cohort |');
+  lines.push('| Geographic breakdown | `dm_property_conversions` | GROUP BY state/county, cohort-filtered |');
+  lines.push('| Template leaderboard | `dm_property_conversions` GROUP BY template | Avoids convenience columns; client-ROI framing |');
   lines.push('');
 
   lines.push('### Profitability');
   lines.push('');
   lines.push('| Metric | Source | Calculation |');
   lines.push('|--------|-------|-------------|');
-  lines.push('| Revenue / PCM cost / margin | `dm_client_funnel` | total_cost − total_pcm_cost = margin |');
-  lines.push('| Per-mail-class margins | `dm_volume_summary` | Cumulative cost/sends per mail class |');
-  lines.push('| Client margins | `dm_client_funnel` | Per-domain: total_cost, total_pcm_cost, margin_pct |');
-  lines.push('| Current rates | `dm_volume_summary` | Last 7 days: daily_cost / daily_sends |');
-  lines.push('| Pricing history | Invoice PDFs + Aurora | Static era rates + live trend |');
-  lines.push('| PCM orders / balance | PCM API | /order total count, /integration/balance |');
+  lines.push('| Margin summary (lifetime) | `dm_client_funnel` latest-per-domain | `total_cost` − `total_pcm_cost` = `margin` — same SQL as Overview company margin |');
+  lines.push('| Period summary (date-range) | `dm_volume_summary` daily totals | `SUM(daily_cost) − SUM(daily_pcm_cost)` within window. **Note:** different source than lifetime — see Known limitations |');
+  lines.push('| Client margins | `dm_client_funnel` latest-per-domain | Per-domain `margin_pct` |');
+  lines.push('| Per-mail-class margins | `dm_volume_summary.cumulative_*` | Grouped by `mail_class`. **Note:** different source than lifetime — see Known limitations |');
+  lines.push('| Current rates | `dm_volume_summary` last 7 days | `SUM(daily_cost) / SUM(daily_sends)` per mail class |');
+  lines.push('| Pricing history (eras) | Invoice PDFs (static) | 264 invoices verified manually |');
+  lines.push('| Price change detection | `dm_volume_summary` | Day-over-day rate delta > $0.005/piece |');
+  lines.push('| PCM orders / balance / designs | PCM API | Counts + balance |');
   lines.push('');
 
   lines.push('### Reports');
   lines.push('');
   lines.push('| Section | Source | Note |');
   lines.push('|---------|-------|------|');
-  lines.push('| Executive summary | `dm_client_funnel` | Live aggregate query |');
-  lines.push('| Data quality | PCM API + Aurora | PCM /order count vs Aurora sends |');
-  lines.push('| Pricing history | Invoice PDFs (static) | Verified from 264 invoices |');
-  lines.push('| Monthly PCM costs | Invoice PDFs (static) | dm_volume_summary lacks historical data |');
-  lines.push('| Monthly revenue | `dm_property_conversions` | Aggregated by month |');
-  lines.push('| Per-client profitability | `dm_client_funnel` | Live per-domain totals |');
+  lines.push('| Executive summary | `dm_client_funnel` | **Same SQL as Profitability Margin summary** — bit-for-bit match |');
+  lines.push('| Data quality | PCM `/order` + `dm_client_funnel` | PCM total vs Aurora total + per-client Aurora sends |');
+  lines.push('| Pricing history | Invoice PDFs (static) | Verified from 264 invoices, 3 PCM eras + 2 customer eras |');
+  lines.push('| Monthly PCM costs | Invoice PDFs (static) | Verified month-by-month — not queried live |');
+  lines.push('| Monthly revenue | `dm_property_conversions` aggregated | Invoice-derived static snapshot (not live) |');
+  lines.push('| Per-client profitability | `dm_client_funnel` latest-per-domain | **Same SQL as Profitability Client margins** — bit-for-bit match |');
   lines.push('');
   lines.push('---');
   lines.push('');
@@ -168,17 +227,17 @@ function generateDataSourcesMarkdown(): string {
   lines.push('');
   lines.push('| Source | Sync frequency | Cache TTL | Latency |');
   lines.push('|--------|----------------|-----------|---------|');
-  lines.push('| Aurora (dm_client_funnel) | Hourly from monolith | 5 minutes | ~1 hour |');
-  lines.push('| Aurora (rr_daily_metrics) | Hourly from monolith | 5 minutes | ~1 hour |');
-  lines.push('| Aurora (dm_volume_summary) | Hourly from monolith | 5 minutes | ~1 hour |');
-  lines.push('| PCM API | On-demand per request | 5 minutes | Real-time |');
-  lines.push('| Invoice-verified data | Static (manual update) | N/A | Snapshot |');
+  lines.push('| Aurora (`dm_client_funnel`, `rr_daily_metrics`, `dm_volume_summary`) | Hourly from monolith | 5 min in-memory per API route | ~1 hour |');
+  lines.push('| Aurora (`dm_overview_cache`) | Refreshed every 30 min by GitHub Actions cron | Read-through | ~30 min |');
+  lines.push('| PCM `/order` paginated pull | On-demand (~90s cold) + 20-min in-memory TTL | Reused by OH, Overview, Reports | Real-time when warm |');
+  lines.push('| PCM `/integration/balance` + `/design` | On-demand per request | 5 min | Real-time |');
+  lines.push('| Invoice-verified data (static) | Manual update after invoice analysis | N/A | Point-in-time snapshot |');
   lines.push('');
 
   // Test domains
   lines.push('## Test domain exclusions');
   lines.push('');
-  lines.push('The following domains are excluded from all queries:');
+  lines.push('All DM Campaign queries exclude the following domains from client-facing metrics. The canonical list lives in `src/lib/domain-filter.ts` — any change applies everywhere simultaneously.');
   lines.push('');
   lines.push('- `8020rei_demo`');
   lines.push('- `8020rei_migracion_test`');
@@ -186,6 +245,11 @@ function generateDataSourcesMarkdown(): string {
   lines.push('- `_test_debug3`');
   lines.push('- `supertest_8020rei_com`');
   lines.push('- `sandbox_8020rei_com`');
+  lines.push('- `qapre_8020rei_com`');
+  lines.push('- `testing5_8020rei_com`');
+  lines.push('- `showcaseproductsecomllc_8020rei_com`');
+  lines.push('');
+  lines.push('> Internal test sends are excluded from revenue / adoption / conversion / campaign metrics, but they **do** incur real PCM cost and appear on Overview → Internal test cost so the P&L stays honest.');
   lines.push('');
   lines.push('---');
   lines.push('');
@@ -193,11 +257,19 @@ function generateDataSourcesMarkdown(): string {
   // Known limitations
   lines.push('## Known limitations');
   lines.push('');
-  lines.push('1. **PCM cost accuracy:** The monolith\'s `parameters.pcm_cost` uses $0.625/$0.875, which don\'t match any invoice. Real rates are $0.63/$0.87. Two clients (Central City Solutions, Reno Area Home Buyers) have $0 PCM cost in Aurora entirely.');
+  lines.push('1. **PCM cost accuracy (monolith bug).** `parameters.pcm_cost` = $0.625/$0.875 doesn\'t match any invoice (real: $0.63/$0.87). Two clients have `$0` PCM cost in Aurora. Margin summary / Client margins carry a systematic error until the monolith field is corrected.');
   lines.push('');
-  lines.push('2. **Historical daily data:** `dm_volume_summary` only contains recent daily records. Historical month-by-month breakdowns rely on verified invoice data.');
+  lines.push('2. **Profitability period vs lifetime use different source tables.** Lifetime reads `dm_client_funnel`; Period reads `dm_volume_summary`. They may disagree for the same window. Reconciliation pending.');
   lines.push('');
-  lines.push('3. **PCM API scope:** The PCM API does not provide per-domain order breakdowns. Per-client reconciliation relies on Aurora\'s per-domain tracking.');
+  lines.push('3. **Pricing history is partly static.** PCM eras are verified from 264 invoices (static, OK). Customer pricing eras in the Reports tab are **hardcoded** and require manual updates whenever 8020REI changes platform pricing — new customer rates will not appear until the eras array is updated.');
+  lines.push('');
+  lines.push('4. **`rr_daily_metrics` holds only ~15 days.** OH period widgets are bounded to this window. Lifetime views use PCM via `dm_overview_cache` instead.');
+  lines.push('');
+  lines.push('5. **`dm_client_funnel` is a rolling snapshot, not a ledger.** ~11 days of coverage, each row a cumulative total. Lifetime totals are correct; a historical per-month margin trend cannot be rebuilt from this table alone.');
+  lines.push('');
+  lines.push('6. **PCM API scope.** No per-domain filtering on `/order`; no server-side status filter. Per-client reconciliation is Aurora-only. Domain-level PCM totals require full pagination + client-side grouping.');
+  lines.push('');
+  lines.push('7. **Reports monthly tables are static.** `monthlyPcmCosts` and `monthlyRevenue` are hardcoded in `dm-reports/route.ts`. They must be extended manually each month until a live query replaces them.');
   lines.push('');
   lines.push('---');
   lines.push('');
@@ -412,24 +484,28 @@ export const DmDataSourcesTab = forwardRef<TabHandle>(function DmDataSourcesTab(
               <SourceCard
                 name="PostcardMania API"
                 type="External API"
-                description="Third-party mailing vendor. Provides real-time order status, batch tracking, design metadata, and account balance. Accessed via authenticated REST API."
+                description="Third-party mailing vendor. Provides real-time order count, account balance, and design catalog. Accessed via authenticated REST API."
                 color="info"
                 details={
                   <div>
                     <MiniTable
                       headers={['Endpoint', 'Data provided', 'Used by']}
                       rows={[
-                        [<Code key="e">/order</Code>, 'Total orders, status per order, quantities', 'Operational health, Profitability'],
-                        [<Code key="e">/integration/balance</Code>, 'Account balance (money on account)', 'Profitability'],
-                        [<Code key="e">/design</Code>, 'Design templates, approval dates', 'Profitability'],
-                        [<Code key="e">/batch</Code>, 'Batch metadata for invoice matching', 'Reports'],
-                        [<Code key="e">/recipient/undeliverable</Code>, 'Undeliverable recipient tracking', 'Operational health'],
+                        [<Code key="e">/auth/login</Code>, 'Bearer token (55-min cache)', 'Auth only'],
+                        [<Code key="e">/order</Code>, 'Paginated orders with status + extRefNbr (domain)', 'Overview, OH, Profitability, Reports'],
+                        [<Code key="e">/integration/balance</Code>, 'moneyOnAccount (current account balance)', 'Overview, Profitability'],
+                        [<Code key="e">/design</Code>, 'Design catalog (28 designs)', 'Profitability → Template catalog'],
                       ]}
                     />
-                    <div className="mt-3">
+                    <div className="mt-3 space-y-2">
                       <AxisCallout type="info" hideIcon>
-                        <strong>Read-only policy:</strong> The PCM API integration is strictly read-only by executive directive.
-                        Only GET requests are allowed (except authentication). No data is ever written back to PostcardMania.
+                        <strong>Read-only policy:</strong> Only GET requests are allowed (plus <Code>POST /auth/login</Code> for token exchange).
+                        No data is ever written back to PostcardMania. Enforced in <Code>src/lib/pcm-client.ts</Code>.
+                      </AxisCallout>
+                      <AxisCallout type="alert" hideIcon>
+                        <strong>Known limitation:</strong> <Code>/order</Code> does not support server-side <Code>filterStatus</Code> or per-domain filtering.
+                        Active-piece counts and per-domain breakdowns require full pagination (~25K orders, ~90s cold).
+                        Results are cached in Aurora via <Code>dm_overview_cache</Code> and refreshed every 30 minutes by a cron.
                       </AxisCallout>
                     </div>
                   </div>
@@ -439,7 +515,7 @@ export const DmDataSourcesTab = forwardRef<TabHandle>(function DmDataSourcesTab(
               <SourceCard
                 name="Aurora PostgreSQL"
                 type="Internal database"
-                description="AWS Aurora PostgreSQL instance that stores processed DM campaign data. Populated by the 8020REI monolith via hourly sync jobs. Accessed via RDS Data API."
+                description="AWS Aurora PostgreSQL instance. Populated by the 8020REI monolith via hourly sync jobs. Accessed via RDS Data API."
                 color="success"
                 details={
                   <MiniTable
@@ -448,32 +524,44 @@ export const DmDataSourcesTab = forwardRef<TabHandle>(function DmDataSourcesTab(
                       [
                         <Code key="t">dm_client_funnel</Code>,
                         'Cumulative per-client totals (latest snapshot per domain)',
-                        'total_sends, total_cost, total_pcm_cost, margin',
+                        'total_sends, total_cost, total_pcm_cost, margin, margin_pct',
                         'All tabs',
                       ],
                       [
                         <Code key="t">dm_volume_summary</Code>,
-                        'Daily volume per domain per mail class',
-                        'daily_sends, daily_cost, mail_class, cumulative_*',
-                        'Profitability, Reports',
+                        'Daily volume per domain per mail class (+ cumulative_* columns)',
+                        'daily_sends, daily_cost, daily_pcm_cost, daily_margin, mail_class',
+                        'Profitability (period + mail-class)',
                       ],
                       [
                         <Code key="t">dm_property_conversions</Code>,
-                        'Individual property records with per-send unit costs',
-                        'domain, unit_cost, mail_class, created_at',
+                        'Per-property records with conversion timestamps',
+                        'first_sent_date, became_lead_at, became_deal_at, total_cost, deal_revenue',
                         'Business results, Reports',
                       ],
                       [
                         <Code key="t">rr_daily_metrics</Code>,
-                        'Daily operational metrics per domain',
-                        'sends_total, sends_success, delivered_count, on_hold',
-                        'Operational health',
+                        'Daily operational metrics (15-day rolling window)',
+                        'sends_total, delivered_count, on_hold',
+                        'OH period widgets',
                       ],
                       [
                         <Code key="t">rr_campaign_snapshots</Code>,
-                        'Active campaign tracking per domain',
-                        'domain, campaign_status, last_send_date',
-                        'Operational health',
+                        'Per-campaign status snapshots',
+                        'domain, campaign_id, status, last_sent_date',
+                        'OH "Is it running?" · Overview active campaigns',
+                      ],
+                      [
+                        <Code key="t">rr_pcm_alignment</Code>,
+                        'Per-domain Aurora↔PCM reconciliation signals',
+                        'back_office_sync_gap, stale_sent_count, orphaned_orders_count',
+                        'OH "Is it aligned?" · Postal performance',
+                      ],
+                      [
+                        <Code key="t">dm_overview_cache</Code>,
+                        'PCM-paginated payloads (headline, send-trend, balance-flow)',
+                        'cache_key, payload (JSONB), computed_at',
+                        'Overview · OH "Is it working?"',
                       ],
                     ]}
                   />
@@ -510,15 +598,53 @@ export const DmDataSourcesTab = forwardRef<TabHandle>(function DmDataSourcesTab(
               <div className="border border-stroke rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--color-main-500)' }} />
-                  <h3 className="text-sm font-semibold text-content-primary">Volume reconciliation</h3>
+                  <h3 className="text-sm font-semibold text-content-primary">Dual-source principle</h3>
                 </div>
                 <p className="text-sm text-content-secondary mb-2">
-                  PCM total active orders (non-canceled) are compared against Aurora&apos;s cumulative send count.
-                  Small deltas are expected from orders still in the PCM processing pipeline.
+                  Every volume / cost / revenue metric is cross-checked against <strong>both PCM and Aurora</strong>.
+                  When the two disagree beyond tolerance, the delta is displayed visibly — never hidden.
                 </p>
-                <div className="text-xs text-content-tertiary p-2 rounded" style={{ backgroundColor: 'var(--surface-sunken)' }}>
-                  Match rate = min(PCM orders, Aurora sends) / max(PCM orders, Aurora sends) × 100
+                <MiniTable
+                  headers={['Metric class', 'Authoritative source', 'Why']}
+                  rows={[
+                    ['Lifetime pieces (hero)', <Code key="1">dm_overview_cache</Code>, 'Sourced from PCM pagination; captures in-pipeline pieces Aurora misses'],
+                    ['Lifetime revenue / PCM cost / margin', <Code key="2">dm_client_funnel</Code>, 'Pre-computed; same SQL across Overview, BR, PP, Reports'],
+                    ['Per-property conversions', <Code key="3">dm_property_conversions</Code>, 'With > first_sent_date filter; avoids convenience-column issues'],
+                    ['Campaign count / status', <Code key="4">rr_campaign_snapshots</Code>, '8020REI abstraction; PCM has no campaign primitive'],
+                  ]}
+                />
+              </div>
+
+              <div className="border border-stroke rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--color-info-500)' }} />
+                  <h3 className="text-sm font-semibold text-content-primary">Cross-tab equality (by construction)</h3>
                 </div>
+                <p className="text-sm text-content-secondary mb-2">
+                  These metrics are guaranteed equal across tabs because they share SQL or share a cache key — not by coincidence.
+                </p>
+                <MiniTable
+                  headers={['Metric', 'Equal across', 'Mechanism']}
+                  rows={[
+                    ['Lifetime mail pieces', 'Overview headline · OH "Is it working?"', 'Same dm_overview_cache.headline row'],
+                    ['Active / total campaigns', 'Overview · OH "Is it running?" · BR reconciliation header', 'Same rr_campaign_snapshots SQL'],
+                    ['Lifetime revenue / PCM cost / margin', 'Overview company margin · PP Margin summary · Reports executive · BR Mailing spend', 'Same dm_client_funnel latest-per-domain SQL'],
+                    ['Per-client margin', 'PP Client margins · Reports Per-client profitability', 'Same SQL, sorted by margin_pct'],
+                  ]}
+                />
+              </div>
+
+              <div className="border border-stroke rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--color-success-500)' }} />
+                  <h3 className="text-sm font-semibold text-content-primary">Terminology — &ldquo;Sent&rdquo; vs &ldquo;Mailed&rdquo;</h3>
+                </div>
+                <p className="text-sm text-content-secondary">
+                  These are <strong>different metrics by design</strong>, not inconsistencies.
+                  <strong> Sent / pieces</strong> = individual mail pieces (<Code>dm_client_funnel.total_sends</Code>; one property may receive several pieces over time).
+                  <strong> Mailed</strong> = unique properties that received ≥1 piece (distinct count in <Code>dm_property_conversions</Code>).
+                  Every widget that uses either term has a tooltip explaining which one it counts.
+                </p>
               </div>
 
               <div className="border border-stroke rounded-lg p-4">
@@ -527,9 +653,9 @@ export const DmDataSourcesTab = forwardRef<TabHandle>(function DmDataSourcesTab(
                   <h3 className="text-sm font-semibold text-content-primary">Revenue verification</h3>
                 </div>
                 <p className="text-sm text-content-secondary">
-                  Customer revenue is calculated from <Code>dm_client_funnel.total_cost</Code> (what we charge clients).
-                  This is cross-checked against <Code>dm_property_conversions</Code> unit costs × volume to verify
-                  that the per-send pricing tiers are applied correctly.
+                  Customer revenue (what 8020REI charges clients) lives in <Code>dm_client_funnel.total_cost</Code>.
+                  It is <strong>populated live by the monolith</strong> — as customer prices change on the platform,
+                  this column reflects what was actually charged, and the Profitability / Overview / Reports margin numbers update automatically.
                 </p>
               </div>
 
@@ -539,14 +665,16 @@ export const DmDataSourcesTab = forwardRef<TabHandle>(function DmDataSourcesTab(
                   <h3 className="text-sm font-semibold text-content-primary">PCM cost validation</h3>
                 </div>
                 <p className="text-sm text-content-secondary mb-2">
-                  Invoice-verified rates per pricing era are compared against <Code>dm_client_funnel.total_pcm_cost</Code>.
-                  The monolith uses <Code>parameters.pcm_cost</Code> to populate this field, which may differ from
-                  actual invoice amounts.
+                  PCM cost per piece is populated by the monolith via <Code>parameters.pcm_cost</Code>, which drives{' '}
+                  <Code>dm_client_funnel.total_pcm_cost</Code>. This is not invoice-verified — it is the monolith&apos;s
+                  understanding of the PCM rate at send time.
                 </p>
                 <AxisCallout type="alert" hideIcon>
-                  <strong>Known gap:</strong> The monolith&apos;s <Code>parameters.pcm_cost</Code> values ($0.625/$0.875)
-                  do not match any invoice. Actual rates are $0.63/$0.87. This causes platform-computed PCM costs to differ
-                  from invoice-verified totals. The Reports tab uses invoice-verified data for monthly breakdowns.
+                  <strong>Known data issue:</strong> <Code>parameters.pcm_cost</Code> uses $0.625 (Std) / $0.875 (FC),
+                  neither of which matches any PCM invoice (actual: $0.63/$0.87). Two clients
+                  (Central City Solutions, Reno Area Home Buyers) have <Code>$0</Code> PCM cost in Aurora entirely.
+                  Until this is fixed in the monolith, Margin summary / Client margins carry a systematic error vs. invoice-verified totals.
+                  The Reports tab uses the invoice-verified monthly breakdown as a secondary reconciliation.
                 </AxisCallout>
               </div>
 
@@ -556,9 +684,9 @@ export const DmDataSourcesTab = forwardRef<TabHandle>(function DmDataSourcesTab(
                   <h3 className="text-sm font-semibold text-content-primary">Price change detection</h3>
                 </div>
                 <p className="text-sm text-content-secondary">
-                  Per-piece rates are calculated daily from <Code>dm_volume_summary</Code> (daily_cost / daily_sends).
-                  Rate changes are auto-detected when the delta exceeds $0.005/piece. Each domain&apos;s rollout to new
-                  rates is tracked independently, comparing against the most common rate across all domains.
+                  Per-piece rates are calculated daily from <Code>dm_volume_summary</Code> (<Code>daily_cost / daily_sends</Code>) per mail class.
+                  Rate changes are auto-detected when the day-over-day delta exceeds $0.005/piece.
+                  Per-domain rollout status is derived from the most recent rate per domain — a domain on the old rate is flagged &ldquo;pending migration.&rdquo;
                 </p>
               </div>
             </div>
@@ -569,16 +697,38 @@ export const DmDataSourcesTab = forwardRef<TabHandle>(function DmDataSourcesTab(
             <div className="space-y-4">
               <div className="border border-stroke rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-2">
+                  <AxisTag color="info" size="sm">Overview</AxisTag>
+                </div>
+                <MiniTable
+                  headers={['Metric', 'Source', 'Calculation']}
+                  rows={[
+                    ['Active clients', <Code key="t">rr_campaign_snapshots</Code>, 'Distinct domains with ≥1 status=active campaign'],
+                    ['Lifetime pieces (hero)', <>PCM via <Code>dm_overview_cache</Code></>, 'Paginated non-canceled orders, excl. test domains'],
+                    ['Lifetime pieces (Aurora delta)', <Code key="t">dm_client_funnel.total_sends</Code>, 'Shown alongside PCM; delta surfaced visibly'],
+                    ['Company margin', <>Aurora − PCM test cost</>, 'SUM(margin) − era-rate × test-domain pieces'],
+                    ['Active campaigns', <Code key="t">rr_campaign_snapshots</Code>, 'status=active latest-per-campaign'],
+                    ['Send volume trend (14mo)', 'PCM /order by orderDate', 'Monthly buckets, FC vs Std split'],
+                    ['Internal test cost', 'PCM /order filtered to test domains', 'Era-rate × piece count per domain'],
+                    ['Balance reconciliation', 'PCM /integration/balance + daily cost', 'Running balance vs cumulative cost'],
+                  ]}
+                />
+              </div>
+
+              <div className="border border-stroke rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
                   <AxisTag color="info" size="sm">Operational health</AxisTag>
                 </div>
                 <MiniTable
-                  headers={['Metric', 'Source table', 'Calculation']}
+                  headers={['Metric', 'Source', 'Calculation']}
                   rows={[
-                    ['Daily sends / deliveries', <Code key="t">rr_daily_metrics</Code>, 'Sum of sends_total, delivered_count per day'],
-                    ['On-hold / protected / error', <Code key="t">rr_daily_metrics</Code>, 'Direct column values per domain per day'],
-                    ['Active campaigns', <Code key="t">rr_campaign_snapshots</Code>, 'Count of domains with active campaign status'],
-                    ['Response rate', <Code key="t">dm_property_conversions</Code>, 'Properties with response / total mailed'],
-                    ['Delivery rate', <Code key="t">rr_daily_metrics</Code>, 'delivered_count / sends_total × 100'],
+                    ['Is it running? (active / total campaigns)', <Code key="t">rr_campaign_snapshots</Code>, 'Latest snapshot per campaign, status=active count'],
+                    ['Is it working? (lifetime pieces, hero)', <>PCM via <Code>dm_overview_cache.headline</Code></>, 'Same cache row as Overview — bit-for-bit match'],
+                    ['Is it working? (delivery rate)', <Code key="t">dm_client_funnel</Code>, 'SUM(total_delivered) / SUM(total_sends), latest-per-domain'],
+                    ['Is it aligned?', <Code key="t">rr_pcm_alignment</Code>, 'Sync gap / stale sent / orphaned, thresholds 50/10/5'],
+                    ['Postal performance', <><Code>rr_pcm_alignment</Code> + PCM</>, 'Delivery lag + undeliverable rate'],
+                    ['Q2 goal · Top contributors', 'PCM /order (shared pagination cache)', 'April cumulative per domain'],
+                    ['Send volume trend (period)', <Code key="t">rr_daily_metrics</Code>, 'Daily sends/delivered — 15-day rolling window'],
+                    ['Status breakdown', <Code key="t">rr_daily_metrics</Code>, 'Mail-piece status by period'],
                   ]}
                 />
               </div>
@@ -587,13 +737,21 @@ export const DmDataSourcesTab = forwardRef<TabHandle>(function DmDataSourcesTab(
                 <div className="flex items-center gap-2 mb-2">
                   <AxisTag color="info" size="sm">Business results</AxisTag>
                 </div>
+                <p className="text-xs text-content-tertiary mb-2">
+                  All widgets are <strong>cohort-aligned</strong>: they filter by <Code>first_sent_date</Code> in the selected window
+                  and answer &ldquo;what happened to this cohort?&rdquo; Sum of daily bars = funnel totals by construction.
+                </p>
                 <MiniTable
-                  headers={['Metric', 'Source table', 'Calculation']}
+                  headers={['Metric', 'Source', 'Calculation']}
                   rows={[
-                    ['Conversion funnel', <Code key="t">dm_property_conversions</Code>, 'Properties mailed → responded → converted stages'],
-                    ['Client performance', <Code key="t">dm_client_funnel</Code>, 'Per-domain totals: sends, cost, mailed, delivered'],
-                    ['Geographic breakdown', <Code key="t">dm_property_conversions</Code>, 'Grouped by state/city from property addresses'],
-                    ['Timeline events', <Code key="t">dm_property_conversions</Code>, 'Per-property send/response/conversion dates'],
+                    ['Conversion funnel', <Code key="t">dm_property_conversions</Code>, 'Cohort → leads / appts / contracts / deals'],
+                    ['Mailing spend (hero)', <Code key="t">dm_client_funnel.total_cost</Code>, 'Same SQL as PP Revenue — bit-for-bit match'],
+                    ['Deal revenue (hero)', <Code key="t">dm_property_conversions.deal_revenue</Code>, 'Client ROI, not 8020REI revenue'],
+                    ['Client performance', <><Code>dm_client_funnel</Code> latest-per-domain + <Code>dm_property_conversions</Code></>, 'Per-client cohort view, reconciles to Overview active clients'],
+                    ['Conversion activity', <Code key="t">dm_property_conversions</Code>, 'GROUP BY DATE(became_X_at), cohort-filtered'],
+                    ['Mailing spend vs. deal revenue', <Code key="t">dm_property_conversions</Code>, 'Spend by first_sent_date, revenue by became_deal_at'],
+                    ['Geographic breakdown', <Code key="t">dm_property_conversions</Code>, 'GROUP BY state/county, cohort-filtered'],
+                    ['Template leaderboard', <Code key="t">dm_property_conversions</Code>, 'GROUP BY template; avoids convenience columns'],
                   ]}
                 />
               </div>
@@ -605,13 +763,14 @@ export const DmDataSourcesTab = forwardRef<TabHandle>(function DmDataSourcesTab(
                 <MiniTable
                   headers={['Metric', 'Source', 'Calculation']}
                   rows={[
-                    ['Revenue / PCM cost / margin', <Code key="t">dm_client_funnel</Code>, 'total_cost (revenue) − total_pcm_cost = margin'],
-                    ['Per-mail-class margins', <Code key="t">dm_volume_summary</Code>, 'Cumulative cost/sends per mail class'],
-                    ['Client margins', <Code key="t">dm_client_funnel</Code>, 'Per-domain: total_cost, total_pcm_cost, margin_pct'],
-                    ['Current rates', <Code key="t">dm_volume_summary</Code>, 'Last 7 days: daily_cost / daily_sends per mail class'],
-                    ['Price change detection', <Code key="t">dm_volume_summary</Code>, 'Rate delta > $0.005/piece flags a change'],
-                    ['Pricing history', 'Invoice PDFs + Aurora', 'Static era rates + live rate trend from dm_volume_summary'],
-                    ['PCM orders / balance', 'PCM API', '/order total count, /integration/balance'],
+                    ['Margin summary (lifetime)', <Code key="t">dm_client_funnel</Code>, 'latest-per-domain — same SQL as Overview company margin'],
+                    ['Period summary (date-range)', <Code key="t">dm_volume_summary</Code>, 'SUM(daily_cost − daily_pcm_cost) within window — see Known limitations'],
+                    ['Client margins', <Code key="t">dm_client_funnel</Code>, 'latest-per-domain, per-domain margin_pct'],
+                    ['Per-mail-class margins', <Code key="t">dm_volume_summary.cumulative_*</Code>, 'GROUP BY mail_class — see Known limitations'],
+                    ['Current rates', <Code key="t">dm_volume_summary</Code>, 'Last 7 days, SUM(daily_cost) / SUM(daily_sends) per mail class'],
+                    ['Pricing history (PCM eras)', 'Invoice PDFs (static)', '264 invoices verified manually'],
+                    ['Price change detection', <Code key="t">dm_volume_summary</Code>, 'Day-over-day rate delta > $0.005/piece'],
+                    ['PCM orders / balance / designs', 'PCM API', 'Counts + balance'],
                   ]}
                 />
               </div>
@@ -623,12 +782,12 @@ export const DmDataSourcesTab = forwardRef<TabHandle>(function DmDataSourcesTab(
                 <MiniTable
                   headers={['Section', 'Source', 'Note']}
                   rows={[
-                    ['Executive summary', <Code key="t">dm_client_funnel</Code>, 'Live aggregate query — totals may differ from invoice-verified amounts'],
-                    ['Data quality', 'PCM API + Aurora', 'PCM /order count vs Aurora cumulative sends'],
-                    ['Pricing history', 'Invoice PDFs (static)', 'Verified from 264 invoices, 3 pricing eras'],
-                    ['Monthly PCM costs', 'Invoice PDFs (static)', 'Verified month-by-month breakdown — dm_volume_summary lacks historical data'],
-                    ['Monthly revenue', <Code key="t">dm_property_conversions</Code>, 'Aggregated by month from individual property records'],
-                    ['Per-client profitability', <Code key="t">dm_client_funnel</Code>, 'Live per-domain totals from latest snapshot'],
+                    ['Executive summary', <Code key="t">dm_client_funnel</Code>, 'Same SQL as PP Margin summary — bit-for-bit match'],
+                    ['Data quality', <>PCM /order + <Code>dm_client_funnel</Code></>, 'PCM total vs Aurora total + per-client Aurora sends'],
+                    ['Pricing history', 'Invoice PDFs (static)', '3 PCM eras + customer eras (requires manual update)'],
+                    ['Monthly PCM costs', 'Invoice PDFs (static)', 'Verified month-by-month — see Known limitations'],
+                    ['Monthly revenue', 'Static snapshot', 'Derived from dm_property_conversions historically'],
+                    ['Per-client profitability', <Code key="t">dm_client_funnel</Code>, 'Same SQL as PP Client margins — bit-for-bit match'],
                   ]}
                 />
               </div>
@@ -638,20 +797,19 @@ export const DmDataSourcesTab = forwardRef<TabHandle>(function DmDataSourcesTab(
           {/* 5. Data freshness */}
           <Section title="Data freshness & caching">
             <MiniTable
-              headers={['Source', 'Sync frequency', 'Cache TTL', 'Latency']}
+              headers={['Source', 'Sync frequency', 'Cache', 'Latency']}
               rows={[
-                ['Aurora (dm_client_funnel)', 'Hourly sync from monolith', '5 minutes', '~1 hour behind real-time'],
-                ['Aurora (rr_daily_metrics)', 'Hourly sync from monolith', '5 minutes', '~1 hour behind real-time'],
-                ['Aurora (dm_volume_summary)', 'Hourly sync from monolith', '5 minutes', '~1 hour behind real-time'],
-                ['PCM API (/order, /balance)', 'On-demand per request', '5 minutes', 'Real-time (API rate limited)'],
-                ['Invoice-verified data', 'Static (updated manually)', 'N/A', 'Snapshot as of last invoice analysis'],
+                [<><Code>dm_client_funnel</Code>, <Code>rr_daily_metrics</Code>, <Code>dm_volume_summary</Code></>, 'Hourly from monolith', '5 min in-memory per API route', '~1 hour behind real-time'],
+                [<Code key="t">dm_overview_cache</Code>, 'Refreshed every 30 min by cron', 'Read-through', '~30 min'],
+                ['PCM /order paginated pull', 'On-demand (~90s cold) + 20-min TTL', 'Reused by OH, Overview, Reports', 'Real-time when warm'],
+                ['PCM /integration/balance + /design', 'On-demand per request', '5 min', 'Real-time'],
+                ['Invoice-verified data', 'Manual update after invoice analysis', 'N/A', 'Point-in-time snapshot'],
               ]}
             />
             <div className="mt-3">
               <AxisCallout type="info" hideIcon>
-                All API responses are cached for <strong>5 minutes</strong> in-memory to reduce database load.
-                Test domains (<Code>8020rei_demo</Code>, <Code>sandbox_8020rei_com</Code>, etc.) are excluded
-                from all queries.
+                Cold-start Overview requests fall back to live PCM pagination only if the cache miss also coincides with an empty Aurora cache row.
+                The 30-min cron keeps <Code>dm_overview_cache</Code> fresh across all Cloud Run replicas.
               </AxisCallout>
             </div>
           </Section>
@@ -659,10 +817,10 @@ export const DmDataSourcesTab = forwardRef<TabHandle>(function DmDataSourcesTab(
           {/* 6. Test domain exclusions */}
           <Section title="Test domain exclusions">
             <p className="text-sm text-content-secondary mb-3">
-              The following domains are automatically excluded from all DM Campaign queries to prevent
-              test data from polluting production metrics:
+              All DM Campaign queries exclude the following domains from client-facing metrics.
+              The canonical list lives in <Code>src/lib/domain-filter.ts</Code> — any change applies everywhere simultaneously.
             </p>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 mb-3">
               {[
                 '8020rei_demo',
                 '8020rei_migracion_test',
@@ -670,30 +828,50 @@ export const DmDataSourcesTab = forwardRef<TabHandle>(function DmDataSourcesTab(
                 '_test_debug3',
                 'supertest_8020rei_com',
                 'sandbox_8020rei_com',
+                'qapre_8020rei_com',
+                'testing5_8020rei_com',
+                'showcaseproductsecomllc_8020rei_com',
               ].map(d => (
                 <AxisTag key={d} color="neutral" size="sm" variant="outlined">{d}</AxisTag>
               ))}
             </div>
+            <AxisCallout type="info" hideIcon>
+              Internal test sends are excluded from revenue / adoption / conversion / campaign metrics,
+              but they <strong>do</strong> incur real PCM cost and appear on Overview → Internal test cost so the P&amp;L stays honest.
+            </AxisCallout>
           </Section>
 
           {/* 7. Known limitations */}
           <Section title="Known limitations">
             <div className="space-y-3">
-              <AxisCallout type="alert" title="PCM cost accuracy">
-                The monolith&apos;s <Code>parameters.pcm_cost</Code> uses $0.625 (Standard) and $0.875 (First Class),
-                which don&apos;t match any actual invoice. Real rates are $0.63/$0.87 (current era). This causes
-                <Code>total_pcm_cost</Code> in Aurora to underreport actual costs for some clients. Two clients
-                (Central City Solutions, Reno Area Home Buyers) have $0 PCM cost in Aurora entirely.
+              <AxisCallout type="alert" title="PCM cost accuracy (monolith bug)">
+                <Code>parameters.pcm_cost</Code> = $0.625/$0.875 doesn&apos;t match any invoice (real: $0.63/$0.87).
+                Two clients (Central City Solutions, Reno Area Home Buyers) have <Code>$0</Code> PCM cost in Aurora.
+                Margin summary / Client margins carry a systematic error until the monolith field is corrected.
               </AxisCallout>
-              <AxisCallout type="alert" title="Historical daily data">
-                The <Code>dm_volume_summary</Code> table only contains recent daily records. Historical
-                month-by-month breakdowns (pre-April 2026) rely on verified invoice data rather than live queries.
-                Future months will be captured in real-time as the table accumulates daily records.
+              <AxisCallout type="alert" title="Profitability period vs. lifetime use different source tables">
+                Lifetime reads <Code>dm_client_funnel</Code>; Period reads <Code>dm_volume_summary</Code>.
+                They may disagree for the same window. Reconciliation pending.
+              </AxisCallout>
+              <AxisCallout type="alert" title="Pricing history is partly static">
+                PCM eras are verified from 264 invoices (static, OK).
+                Customer pricing eras in the Reports tab are <strong>hardcoded</strong> and require manual updates whenever 8020REI changes platform pricing —
+                new customer rates will not appear until the eras array is updated.
+              </AxisCallout>
+              <AxisCallout type="info" title="rr_daily_metrics holds only ~15 days">
+                OH period widgets are bounded to this window. Lifetime views use PCM via <Code>dm_overview_cache</Code> instead.
+              </AxisCallout>
+              <AxisCallout type="info" title="dm_client_funnel is a rolling snapshot, not a ledger">
+                ~11 days of coverage, each row a cumulative total. Lifetime totals are correct;
+                a historical per-month margin trend cannot be rebuilt from this table alone.
               </AxisCallout>
               <AxisCallout type="info" title="PCM API scope">
-                The PCM API does not provide per-domain order breakdowns — it only returns a global total order count.
-                Per-client reconciliation relies entirely on Aurora&apos;s per-domain tracking. Volume deltas between
-                PCM and Aurora represent orders still in the PCM processing pipeline, not data errors.
+                <Code>/order</Code> does not provide per-domain filtering or server-side status filter.
+                Per-client reconciliation is Aurora-only. Domain-level PCM totals require full pagination + client-side grouping.
+              </AxisCallout>
+              <AxisCallout type="info" title="Reports monthly tables are static">
+                <Code>monthlyPcmCosts</Code> and <Code>monthlyRevenue</Code> are hardcoded in <Code>dm-reports/route.ts</Code>.
+                They must be extended manually each month until a live query replaces them.
               </AxisCallout>
             </div>
           </Section>
@@ -703,7 +881,7 @@ export const DmDataSourcesTab = forwardRef<TabHandle>(function DmDataSourcesTab(
         {/* Footer */}
         <div className="mt-8 pt-6 border-t border-stroke mb-8">
           <p className="text-xs text-content-tertiary">
-            Last reviewed: April 16, 2026. For questions about data methodology, contact the Metrics team.
+            Last reviewed: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}. For questions about data methodology, contact the Metrics team.
           </p>
         </div>
       </div>

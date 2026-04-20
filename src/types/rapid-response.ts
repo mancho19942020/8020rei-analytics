@@ -78,6 +78,17 @@ export interface RrQualityMetrics {
   lifetimeSent: number;
   /** Lifetime total mail pieces delivered (from dm_client_funnel) — for cross-tab verification */
   lifetimeDelivered: number;
+  /**
+   * PCM authoritative lifetime piece count — sum of /order results (non-canceled, excluding test domains).
+   * Exact same number as the DM Campaign Overview → Lifetime pieces card. When this is present the widget
+   * should render PCM as the primary number and Aurora (lifetimeSent) as a visible delta. Null if the
+   * dm_overview_cache has not yet been warmed (cron runs every 30 min).
+   */
+  lifetimePiecesPcm: number | null;
+  /** Aurora − PCM (usually negative: in-pipeline pieces not yet counted in Aurora). Null when pcm count absent. */
+  piecesDelta: number | null;
+  /** (piecesDelta / lifetimePiecesPcm) × 100, rounded. Null when pcm count absent. */
+  piecesDeltaPct: number | null;
   /** @deprecated Use lifetimeSent. Previously: pre-computed pcm_submission_rate from rr_daily_metrics */
   pcmSubmissionRate: number;
   errorRate: number;
@@ -102,6 +113,20 @@ export interface RrPcmAlignmentRow {
   backOfficeSyncGap: number;
 }
 
+/**
+ * A single domain flagged for a specific alignment issue. `value` is the count
+ * of the issue (e.g., stale pieces, orphan orders, sync-gap orders). `detail`
+ * is optional human-readable context (e.g., "oldest: 23d" for stale).
+ * `isActive` distinguishes currently-active DM clients (priority to fix) from
+ * legacy clients no longer running DM campaigns (cleanup queue).
+ */
+export interface RrPcmDomainIssue {
+  domain: string;
+  value: number;
+  detail?: string;
+  isActive: boolean;
+}
+
 export interface RrPcmHealth {
   staleSentCount: number;
   orphanedOrdersCount: number;
@@ -115,6 +140,11 @@ export interface RrPcmHealth {
   domainsWithGaps: number;
   domainsWithStale: number;
   domainsWithOrphaned: number;
+  // Per-domain issue lists — sorted by value descending so the worst offenders
+  // lead. Empty arrays are valid (everything healthy).
+  gapDomains: RrPcmDomainIssue[];
+  staleDomains: RrPcmDomainIssue[];
+  orphanedDomains: RrPcmDomainIssue[];
 }
 
 // ---------------------------------------------------------------------------

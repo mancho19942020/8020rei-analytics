@@ -1,0 +1,49 @@
+name: DM Overview Cache Refresh
+
+# Refreshes the Aurora-persisted dm_overview_cache table so user-facing GET
+# requests always read fresh data instantly (<100ms) instead of triggering
+# a ~90s PCM pagination.
+#
+# Cadence: every 30 min. Underlying PCM data moves at batch cadence (hours),
+# so 30 min is plenty of freshness for executives. This also keeps us under
+# ~12K PCM API calls/day vs the 24K of a 15-min cron — safer on rate limits
+# and Cloud Run compute time. Can tighten if staleness ever becomes an issue.
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+jobs:
+  refresh-overview-cache:
+    name: Refresh Aurora dm_overview_cache
+    runs-on: ubuntu-latest
+    timeout-minutes: 5 # PCM pagination can take ~90s; headroom for Aurora writes.
+
+    steps:
+      - name: POST /api/dm-overview/refresh
+        env:
+          SERVICE_URL: https://analytics8020-798362859849.us-central1.run.app
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          RESPONSE=$(curl -s -w "\n%{http_code}\n%{time_total}" \
+            -X POST \
+            -H "x-cron-secret: $CRON_SECRET" \
+            "$SERVICE_URL/api/dm-overview/refresh")
+
+          TIME_TOTAL=$(echo "$RESPONSE" | tail -1)
+          HTTP_CODE=$(echo "$RESPONSE" | tail -2 | head -1)
+          BODY=$(echo "$RESPONSE" | head -n -2)
+
+          echo "HTTP status: $HTTP_CODE"
+          echo "Total wall time: ${TIME_TOTAL}s"
+          echo "Response body: $BODY"
+
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+            DURATION_MS=$(echo "$BODY" | jq -r '.durationMs // "?"')
+            KEY_COUNT=$(echo "$BODY" | jq -r '.keys | length // "?"')
+            echo "::notice::Refreshed ${KEY_COUNT} cache keys in ${DURATION_MS}ms (wall: ${TIME_TOTAL}s)"
+          else
+            echo "::error::Overview refresh failed (HTTP $HTTP_CODE)"
+            exit 1
+          fi

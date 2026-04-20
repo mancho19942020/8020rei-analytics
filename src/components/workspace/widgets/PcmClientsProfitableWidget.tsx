@@ -31,12 +31,17 @@ const columns: Column[] = [
 ];
 
 export function PcmClientsProfitableWidget({ data }: Props) {
-  const tableData = useMemo(() => {
-    if (!data?.clients?.length) return [];
-    return data.clients
+  const { tableData, excludedCount } = useMemo(() => {
+    if (!data?.clients?.length) return { tableData: [], excludedCount: 0 };
+    // Exclude clients whose PCM cost is $0 — their 100% margin is an artifact
+    // of the monolith's parameters.pcm_cost data issue, not real profitability.
+    const excluded = data.clients.filter(c => c.sends > 0 && c.pcmCost === 0);
+    const eligible = data.clients
+      .filter(c => !(c.sends > 0 && c.pcmCost === 0))
       .filter(c => c.marginPercent > 5)
       .sort((a, b) => b.marginPercent - a.marginPercent)
       .map(c => ({ ...c, id: c.domain }));
+    return { tableData: eligible, excludedCount: excluded.length };
   }, [data]);
 
   if (!data?.dataAvailable) {
@@ -73,6 +78,15 @@ export function PcmClientsProfitableWidget({ data }: Props) {
       <div className="flex-1 overflow-hidden">
         <AxisTable columns={columns} data={tableData} rowKey="id" sortable />
       </div>
+      {excludedCount > 0 && (
+        <div
+          className="flex-shrink-0 px-3 py-1.5 text-[11px]"
+          style={{ borderTop: '1px solid var(--stroke)', color: 'var(--content-tertiary)' }}
+        >
+          {excludedCount} client{excludedCount !== 1 ? 's' : ''} excluded from this list — PCM cost not stored in Aurora (monolith data issue).
+          See Client margins for the full per-client breakdown.
+        </div>
+      )}
     </div>
   );
 }

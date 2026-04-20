@@ -11,6 +11,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth-guard';
 import { runAuroraQuery, isAuroraConfigured } from '@/lib/aurora';
 import { getCached, setCache } from '@/lib/cache';
+import { readCache as readOverviewCache, getCachedPcmOrdersSlim } from '@/app/api/dm-overview/compute';
+// Test-domain exclusion — canonical source. Any change applies everywhere simultaneously.
+import { TEST_DOMAINS_SQL as SEED_DOMAINS, EXCLUDE_TEST_DOMAINS_SQL as EXCLUDE_SEED } from '@/lib/domain-filter';
 import type {
   RrSystemStatus,
   RrOperationalPulse,
@@ -23,10 +26,6 @@ import type {
   RrQ2Goal,
   RrQ2GoalClientRow,
 } from '@/types/rapid-response';
-
-// Exclude seed/test domains — must match the same list used in pcm-validation and dm-conversions
-const SEED_DOMAINS = "'8020rei_demo', '8020rei_migracion_test', '_test_debug', '_test_debug3', 'supertest_8020rei_com', 'sandbox_8020rei_com'";
-const EXCLUDE_SEED = `domain NOT IN (${SEED_DOMAINS})`;
 
 /** Build a WHERE clause that excludes seed domains AND optionally filters to a specific domain */
 function domainFilter(domain?: string | null): string {
@@ -95,11 +94,14 @@ export async function GET(request: NextRequest) {
         );
     }
   } catch (error) {
+    // Full error (including any Postgres / SQL detail) stays in the server log.
+    // We return a generic message to the client so stakeholders never see raw
+    // traces or error codes — that's a trust-killer for the dashboard.
     console.error(`[Rapid Response] Error fetching ${type}:`, error);
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Internal error',
+        error: `Unable to load ${type}. Please retry.`,
       },
       { status: 500 }
     );
@@ -143,15 +145,25 @@ async function getOverview(days: number, domain?: string) {
       AND ${domainFilter(domain)}
     `),
 
-    // PCM Health: latest per-domain alignment check within the selected period
+    // PCM Health: latest per-domain alignment check, scoped to the CANONICAL
+    // active-domains set (domains with a row in dm_client_funnel — the same 18
+    // clients used by every other widget). Previously this pulled every domain
+    // ever alignment-checked (170+ historical / inactive / dead entries),
+    // which made the widget read "160/170 synced" and contradicted the 18/18
+    // domain parity the audit reports everywhere else.
     runAuroraQuery(`
-      SELECT DISTINCT ON (domain)
-        domain, stale_sent_count, orphaned_orders_count, oldest_stale_days,
-        delivery_lag_median_days, back_office_sync_gap, checked_at
-      FROM rr_pcm_alignment
-      WHERE ${domainFilter(domain)}
-        AND checked_at >= CURRENT_DATE - INTERVAL '${days} days'
-      ORDER BY domain, checked_at DESC
+      SELECT DISTINCT ON (a.domain)
+        a.domain, a.stale_sent_count, a.orphaned_orders_count, a.oldest_stale_days,
+        a.delivery_lag_median_days, a.back_office_sync_gap, a.checked_at
+      FROM rr_pcm_alignment a
+      INNER JOIN (
+        SELECT DISTINCT domain FROM dm_client_funnel
+        WHERE domain IS NOT NULL AND domain NOT IN (${SEED_DOMAINS})
+      ) canonical ON a.domain = canonical.domain
+      WHERE a.domain NOT IN (${SEED_DOMAINS})
+        AND a.checked_at >= CURRENT_DATE - INTERVAL '${days} days'
+        ${domain ? `AND a.domain = '${domain.replace(/[^a-zA-Z0-9_.]/g, '')}'` : ''}
+      ORDER BY a.domain, a.checked_at DESC
     `),
 
     // Corrected lifetime totals from dm_client_funnel — THE source of truth.
@@ -219,22 +231,108 @@ async function getOverview(days: number, domain?: string) {
   const funnelTotalSends = Number(funnel.total_sends || 0);
   const funnelTotalDelivered = Number(funnel.total_delivered || 0);
 
+  // Cross-tab consistency: when no domain filter is applied, pull the PCM-authoritative
+  // lifetime piece count from dm_overview_cache.headline. This is the SAME number the
+  // Overview tab's "Lifetime pieces" card shows — guaranteed match by construction.
+  // Aurora (funnelTotalSends) is surfaced as a visible delta, never hidden, per the
+  // dual-source principle established 2026-04-17.
+  let lifetimePiecesPcm: number | null = null;
+  let piecesDelta: number | null = null;
+  let piecesDeltaPct: number | null = null;
+  if (!domain) {
+    try {
+      const headlineCache = await readOverviewCache<{
+        lifetimePieces: { pcm: number; aurora: number; delta: number; deltaPct: number };
+      }>('headline');
+      if (headlineCache?.data?.lifetimePieces) {
+        lifetimePiecesPcm = headlineCache.data.lifetimePieces.pcm;
+        // Recompute delta against our Aurora number (authoritative for this widget's
+        // context) rather than reusing the cache's aurora field, in case the caches
+        // are a few minutes apart.
+        piecesDelta = funnelTotalSends - lifetimePiecesPcm;
+        piecesDeltaPct = lifetimePiecesPcm > 0
+          ? Number(((piecesDelta / lifetimePiecesPcm) * 100).toFixed(2))
+          : 0;
+      }
+    } catch (e) {
+      // Cache miss is non-fatal — widget will fall back to Aurora-only display.
+      console.warn('[rapid-response] overview cache read failed:', e instanceof Error ? e.message : String(e));
+    }
+  }
+
   const qualityMetrics: RrQualityMetrics = {
     deliveryRate30d: funnelTotalSends > 0
       ? Number(((funnelTotalDelivered / funnelTotalSends) * 100).toFixed(1))
       : 0,
     lifetimeSent: funnelTotalSends,
     lifetimeDelivered: funnelTotalDelivered,
+    lifetimePiecesPcm,
+    piecesDelta,
+    piecesDeltaPct,
     pcmSubmissionRate: 0, // deprecated — widget now uses lifetimeSent/lifetimeDelivered
     errorRate: sendsTotal > 0 ? Number(((sendsError / sendsTotal) * 100).toFixed(1)) : 0,
     sendsTotal7d: sendsTotal,
     deliveredTotal7d: deliveredCount,
   };
 
-  // Compute PCM Health (aggregated across all domains) with domain-level counts
-  const domainsWithGaps = pcmRows.filter((r: Record<string, unknown>) => Number(r.back_office_sync_gap || 0) > 0).length;
-  const domainsWithStale = pcmRows.filter((r: Record<string, unknown>) => Number(r.stale_sent_count || 0) > 0).length;
-  const domainsWithOrphaned = pcmRows.filter((r: Record<string, unknown>) => Number(r.orphaned_orders_count || 0) > 0).length;
+  // Compute PCM Health (aggregated across all domains) with domain-level counts.
+  //
+  // Threshold rationale (2026-04-17): a domain is counted as "out of sync" only
+  // when its gap exceeds what our alert system considers noise. The alerts
+  // module fires at sync_gap > 50 (warning) and > 200 (critical); anything
+  // below 50 is normal pipeline lag (PCM updates in real-time, Aurora sync is
+  // periodic). Previously ANY non-zero gap counted as out-of-sync, which made
+  // the widget read "8 of 18 synced" when in reality only a handful had
+  // meaningful gaps. Same thresholding for stale + orphaned: zero = healthy,
+  // small = noise, large = actionable.
+  const SYNC_GAP_THRESHOLD = 50;
+  const STALE_THRESHOLD = 10;
+  const ORPHAN_THRESHOLD = 5;
+
+  // Set of domains with ≥1 status='active' campaign right now — used to mark
+  // flagged domains as active (priority) vs legacy (cleanup). Active domains
+  // matter more because active campaigns are currently sending mail.
+  const activeDomainSet = new Set<string>();
+  for (const r of pulseRows as Record<string, unknown>[]) {
+    if (r.status === 'active') activeDomainSet.add(String(r.domain || ''));
+  }
+
+  // Per-domain issue lists — sorted worst-first so the user can name-and-shame
+  // the specific clients responsible. An aggregate "2 need attention" without
+  // names isn't actionable; these arrays feed the widget tooltips.
+  const gapDomains = (pcmRows as Record<string, unknown>[])
+    .filter(r => Number(r.back_office_sync_gap || 0) >= SYNC_GAP_THRESHOLD)
+    .map(r => ({
+      domain: String(r.domain || ''),
+      value: Math.max(0, Number(r.back_office_sync_gap || 0)),
+      isActive: activeDomainSet.has(String(r.domain || '')),
+    }))
+    .sort((a, b) => b.value - a.value);
+
+  const staleDomains = (pcmRows as Record<string, unknown>[])
+    .filter(r => Number(r.stale_sent_count || 0) >= STALE_THRESHOLD)
+    .map(r => ({
+      domain: String(r.domain || ''),
+      value: Number(r.stale_sent_count || 0),
+      detail: Number(r.oldest_stale_days || 0) > 0
+        ? `oldest: ${Number(r.oldest_stale_days)}d`
+        : undefined,
+      isActive: activeDomainSet.has(String(r.domain || '')),
+    }))
+    .sort((a, b) => b.value - a.value);
+
+  const orphanedDomains = (pcmRows as Record<string, unknown>[])
+    .filter(r => Number(r.orphaned_orders_count || 0) >= ORPHAN_THRESHOLD)
+    .map(r => ({
+      domain: String(r.domain || ''),
+      value: Number(r.orphaned_orders_count || 0),
+      isActive: activeDomainSet.has(String(r.domain || '')),
+    }))
+    .sort((a, b) => b.value - a.value);
+
+  const domainsWithGaps = gapDomains.length;
+  const domainsWithStale = staleDomains.length;
+  const domainsWithOrphaned = orphanedDomains.length;
 
   const pcmHealth: RrPcmHealth = {
     staleSentCount: pcmRows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.stale_sent_count || 0), 0),
@@ -252,6 +350,9 @@ async function getOverview(days: number, domain?: string) {
     domainsWithGaps,
     domainsWithStale,
     domainsWithOrphaned,
+    gapDomains,
+    staleDomains,
+    orphanedDomains,
   };
 
   // Compute System Status (verdict banner)
@@ -324,16 +425,13 @@ async function getDailyTrend(days: number, domain?: string) {
 // Campaign List
 // ---------------------------------------------------------------------------
 
-async function getCampaignList(days: number, domain?: string) {
-  const cacheKey = `rapid-response:campaign-list:${days}:${domain || 'all'}`;
+async function getCampaignList(_days: number, domain?: string) {
+  // Return the full historical portfolio (one row per campaign_id, latest snapshot)
+  // so the table's row count always matches the "Is it running?" pill. Period
+  // filtering happens client-side via the `last_sent_date` / `status` columns.
+  const cacheKey = `rapid-response:campaign-list:all:${domain || 'all'}`;
   const cached = getCached(cacheKey);
   if (cached) return NextResponse.json({ success: true, data: cached, cached: true });
-
-  // Filter campaigns to those with activity in the date range.
-  // last_sent_date tracks when the campaign last sent mail.
-  const dateFilter = days < 365
-    ? `AND last_sent_date >= CURRENT_DATE - INTERVAL '${days} days'`
-    : '';
 
   const rows = await runAuroraQuery(`
     SELECT DISTINCT ON (domain, campaign_id)
@@ -344,7 +442,6 @@ async function getCampaignList(days: number, domain?: string) {
       smartdrop_authorization_status, snapshot_at
     FROM rr_campaign_snapshots
     WHERE ${domainFilter(domain)}
-      ${dateFilter}
     ORDER BY domain, campaign_id, snapshot_at DESC
   `);
 
@@ -813,79 +910,110 @@ async function getAlerts(days: number, domain?: string) {
 
 // ---------------------------------------------------------------------------
 // Q2 Volume Goal — tracks progress toward 400K DM pieces in Q2 2026
-// Source: dm_volume_summary preferred (daily_sends), falls back to rr_daily_metrics
-// until dm_volume_summary accumulates daily data over multiple cron cycles.
+//
+// PREFERRED SOURCE: PCM /order (via the IN-MEMORY cache maintained by the
+// dm-overview compute module). This endpoint NEVER triggers a fresh PCM
+// pagination — pagination takes ~90s and would block the entire OH tab. If
+// the cache is warm (populated by the 30-min /refresh cron or a recent
+// Overview tab load), we filter it to Q2 for accurate numbers matching the
+// Overview send-trend. If the cache is cold, we fall back to rr_daily_metrics
+// immediately so OH still loads fast; the next cron cycle will warm the cache
+// and subsequent Q2 renders will switch to PCM-sourced numbers.
 // ---------------------------------------------------------------------------
 
 const Q2_TARGET = 400_000;
 const Q2_START = '2026-04-01';
 const Q2_END = '2026-06-30';
 
+// PCM invoice-verified pricing eras — matches dm-overview/compute.ts. Sum of
+// era rates per piece gives us an accurate Q2 cost estimate without needing
+// PCM's invoice endpoint.
+function pcmEraRate(dateISO: string, mc: 'fc' | 'std'): number {
+  if (dateISO <= '2025-06-27') return mc === 'fc' ? 0.94 : 0.74;
+  if (dateISO <= '2025-10-31') return mc === 'fc' ? 1.14 : 0.93;
+  return mc === 'fc' ? 0.87 : 0.63;
+}
+
 async function getQ2Goal(domain?: string): Promise<ReturnType<typeof NextResponse.json>> {
   const cacheKey = `rapid-response:q2-goal:${domain || 'all'}`;
   const cached = getCached(cacheKey);
   if (cached) return NextResponse.json({ success: true, data: cached, cached: true });
 
-  // Try dm_volume_summary first (preferred source once daily data populates)
-  const vsCheck = await runAuroraQuery(`
-    SELECT COALESCE(SUM(daily_sends), 0) as total
-    FROM dm_volume_summary
+  // Sanitize domain (same pattern as domainFilter)
+  const safeDomain = domain ? domain.replace(/[^a-zA-Z0-9_.]/g, '') : null;
+
+  // Non-blocking: read the in-memory PCM cache maintained by the dm-overview
+  // compute module. Returns null if cold — we don't wait on a ~90s pagination
+  // here, the /refresh cron owns that. OH tab stays fast either way.
+  let currentSends = 0;
+  let totalCost = 0;
+  const perDomain = new Map<string, { sends: number; cost: number }>();
+  let pcmSucceeded = false;
+
+  const cachedOrders = getCachedPcmOrdersSlim();
+  if (cachedOrders && cachedOrders.length > 0) {
+    pcmSucceeded = true;
+    for (const o of cachedOrders) {
+      if (o.canceled || o.isTestDomain) continue;
+      if (!o.date || o.date < Q2_START || o.date > Q2_END) continue;
+      if (safeDomain && o.domain !== safeDomain) continue;
+      currentSends++;
+      const rate = pcmEraRate(o.date, o.mailClass);
+      totalCost += rate;
+      const entry = perDomain.get(o.domain) || { sends: 0, cost: 0 };
+      entry.sends++;
+      entry.cost += rate;
+      perDomain.set(o.domain, entry);
+    }
+  }
+
+  // Lifetime sends per domain — from dm_client_funnel latest-per-domain
+  // (same source as Profitability's margin summary → used here for the "Share
+  // of lifetime" column in the Top contributors table).
+  // NOTE: both `f` and the subquery `fl` expose a `domain` column; every
+  // reference below MUST be explicitly qualified to avoid a 42702 ambiguous
+  // column error.
+  const domainSqlPart = domain
+    ? `AND f.domain = '${domain.replace(/[^a-zA-Z0-9_.]/g, '')}'`
+    : '';
+  const lifetimeRows = await runAuroraQuery(`
+    SELECT f.domain, f.total_sends
+    FROM dm_client_funnel f
+    INNER JOIN (
+      SELECT domain, MAX(date) as md
+      FROM dm_client_funnel
+      GROUP BY domain
+    ) fl ON f.domain = fl.domain AND f.date = fl.md
+    WHERE f.domain IS NOT NULL
+      AND f.domain NOT IN (${SEED_DOMAINS})
+      ${domainSqlPart}
+  `);
+  const lifetimeByDomain = new Map<string, number>();
+  for (const r of lifetimeRows as Record<string, unknown>[]) {
+    lifetimeByDomain.set(String(r.domain || ''), Number(r.total_sends || 0));
+  }
+
+  // Delivered in Q2 window — Aurora rr_daily_metrics (PCM /order doesn't expose
+  // per-piece delivery status in this endpoint). Acceptable because this is a
+  // period-specific number and rr_daily_metrics has the last 15 days, covering
+  // most of Q2 so far.
+  const deliveredRows = await runAuroraQuery(`
+    SELECT COALESCE(SUM(delivered_count), 0) as delivered
+    FROM rr_daily_metrics
     WHERE date >= '${Q2_START}' AND date <= '${Q2_END}'
-      AND daily_sends IS NOT NULL AND daily_sends > 0
-      AND (mail_class = 'all' OR mail_class IS NULL)
       AND ${domainFilter(domain)}
   `);
-  const vsHasData = Number(vsCheck[0]?.total || 0) > 0;
+  const deliveredCount = Number(deliveredRows[0]?.delivered || 0);
 
-  let summaryRows, clientRows;
-
-  if (vsHasData) {
-    // dm_volume_summary has daily data — use it (preferred)
-    [summaryRows, clientRows] = await Promise.all([
-      runAuroraQuery(`
-        SELECT
-          COALESCE(SUM(daily_sends), 0) as total_sends,
-          COALESCE(SUM(daily_delivered), 0) as total_delivered,
-          COALESCE(SUM(daily_cost), 0) as total_cost,
-          COUNT(DISTINCT date) as days_with_data,
-          COUNT(DISTINCT domain) as active_clients
-        FROM dm_volume_summary
-        WHERE date >= '${Q2_START}' AND date <= '${Q2_END}'
-          AND (mail_class = 'all' OR mail_class IS NULL)
-          AND ${domainFilter(domain)}
-      `),
-      // Use dm_client_funnel for lifetime_sends (corrected source of truth)
-      // instead of MAX(cumulative_sends) which includes inflated historical rows
-      runAuroraQuery(`
-        SELECT
-          vs.domain,
-          vs.campaign_type,
-          SUM(vs.daily_sends) as total_sends,
-          COALESCE(cf.total_sends, 0) as lifetime_sends
-        FROM dm_volume_summary vs
-        LEFT JOIN (
-          SELECT f.domain, f.total_sends
-          FROM dm_client_funnel f
-          INNER JOIN (SELECT domain, MAX(date) as md FROM dm_client_funnel GROUP BY domain) fl
-            ON f.domain = fl.domain AND f.date = fl.md
-        ) cf ON vs.domain = cf.domain
-        WHERE vs.date >= '${Q2_START}' AND vs.date <= '${Q2_END}'
-          AND (vs.mail_class = 'all' OR vs.mail_class IS NULL)
-          AND ${domainFilter(domain).replace(/domain /g, 'vs.domain ')}
-        GROUP BY vs.domain, vs.campaign_type, cf.total_sends
-        ORDER BY total_sends DESC
-      `),
-    ]);
-  } else {
-    // Fallback: rr_daily_metrics (available since Apr 3, has Q2 data)
-    [summaryRows, clientRows] = await Promise.all([
+  // Fallback path: if PCM fetch returned nothing, use rr_daily_metrics for the
+  // Q2 aggregate so the widget still renders with limited-history numbers.
+  let clientRows: Record<string, unknown>[] = [];
+  if (!pcmSucceeded) {
+    const [rrSummary, rrClients] = await Promise.all([
       runAuroraQuery(`
         SELECT
           COALESCE(SUM(sends_total), 0) as total_sends,
-          0 as total_delivered,
-          COALESCE(SUM(cost_total), 0) as total_cost,
-          COUNT(DISTINCT date) as days_with_data,
-          COUNT(DISTINCT domain) as active_clients
+          COALESCE(SUM(cost_total), 0) as total_cost
         FROM rr_daily_metrics
         WHERE date >= '${Q2_START}' AND date <= '${Q2_END}'
           AND ${domainFilter(domain)}
@@ -894,8 +1022,7 @@ async function getQ2Goal(domain?: string): Promise<ReturnType<typeof NextRespons
         SELECT
           domain,
           campaign_type,
-          SUM(sends_total) as total_sends,
-          0 as lifetime_sends
+          SUM(sends_total) as total_sends
         FROM rr_daily_metrics
         WHERE date >= '${Q2_START}' AND date <= '${Q2_END}'
           AND ${domainFilter(domain)}
@@ -903,13 +1030,20 @@ async function getQ2Goal(domain?: string): Promise<ReturnType<typeof NextRespons
         ORDER BY total_sends DESC
       `),
     ]);
+    const s = rrSummary[0] || {};
+    currentSends = Number(s.total_sends || 0);
+    totalCost = Number(s.total_cost || 0);
+    clientRows = rrClients as Record<string, unknown>[];
+  } else {
+    // Convert perDomain Map → clientRows shape expected below.
+    clientRows = [...perDomain.entries()].map(([d, v]) => ({
+      domain: d,
+      campaign_type: 'rr',
+      total_sends: v.sends,
+    }));
   }
 
-  const summary = summaryRows[0] || {};
-  const currentSends = Number(summary.total_sends || 0);
-  const deliveredCount = Number(summary.total_delivered || 0);
-  const totalCost = Number(summary.total_cost || 0);
-  const activeClients = Number(summary.active_clients || 0);
+  const activeClients = pcmSucceeded ? perDomain.size : (clientRows.length);
 
   // Calculate elapsed and remaining days in Q2
   const now = new Date();
@@ -927,12 +1061,19 @@ async function getQ2Goal(domain?: string): Promise<ReturnType<typeof NextRespons
   const remaining = Q2_TARGET - currentSends;
   const requiredWeeklyPace = remaining > 0 ? Math.round(remaining / weeksRemaining) : 0;
 
-  const clientBreakdown: RrQ2GoalClientRow[] = clientRows.map((r: Record<string, unknown>) => ({
-    domain: String(r.domain || ''),
-    campaignType: String(r.campaign_type || 'rr'),
-    totalSends: Number(r.total_sends || 0),
-    lifetimeSends: Number(r.lifetime_sends || 0),
-  }));
+  const clientBreakdown: RrQ2GoalClientRow[] = clientRows
+    .map((r: Record<string, unknown>) => {
+      const d = String(r.domain || '');
+      return {
+        domain: d,
+        campaignType: String(r.campaign_type || 'rr'),
+        totalSends: Number(r.total_sends || 0),
+        // PCM path has no campaign-type split, so we look up lifetime from the
+        // dm_client_funnel snapshot (authoritative pre-computed total).
+        lifetimeSends: Number(r.lifetime_sends || lifetimeByDomain.get(d) || 0),
+      };
+    })
+    .sort((a, b) => b.totalSends - a.totalSends);
 
   const data: RrQ2Goal = {
     target: Q2_TARGET,

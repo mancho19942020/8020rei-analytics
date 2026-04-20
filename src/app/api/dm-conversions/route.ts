@@ -16,6 +16,8 @@ import { runAuroraQuery, isAuroraConfigured } from '@/lib/aurora';
 import { getCached, setCache } from '@/lib/cache';
 import { getAlertsData } from './get-alerts-data';
 import { groupByMSA } from '@/lib/msa-lookup';
+// Test-domain exclusion — canonical source. Any change applies everywhere simultaneously.
+import { TEST_DOMAINS_SQL as SEED_DOMAINS, EXCLUDE_TEST_DOMAINS_SQL as EXCLUDE_SEED } from '@/lib/domain-filter';
 import type {
   DmFunnelOverview,
   DmClientPerformanceRow,
@@ -25,10 +27,6 @@ import type {
   RoasConfidence,
   ConversionConfidence,
 } from '@/types/dm-conversions';
-
-// Exclude seed/test domains — must match the same list used in pcm-validation and rapid-response
-const SEED_DOMAINS = "'8020rei_demo', '8020rei_migracion_test', '_test_debug', '_test_debug3', 'supertest_8020rei_com', 'sandbox_8020rei_com'";
-const EXCLUDE_SEED = `domain NOT IN (${SEED_DOMAINS})`;
 
 function domainFilter(domain?: string | null): string {
   if (domain) {
@@ -214,11 +212,12 @@ export async function GET(request: NextRequest) {
         );
     }
   } catch (error) {
+    // Full trace → server log. Generic message → client (never expose SQL / stack to stakeholders).
     console.error(`[DM Conversions] Error fetching ${type}:`, error);
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Internal error',
+        error: `Unable to load ${type}. Please retry.`,
       },
       { status: 500 }
     );
@@ -234,6 +233,8 @@ interface MergedDomainRow {
   domain: string;
   campaignType: string;
   activeCampaigns: number;
+  /** Per-product breakdown (active + total) — e.g. { rr: {active: 2, total: 3}, smartdrop: {active: 1, total: 1} } */
+  campaignBreakdown: Record<string, { active: number; total: number }>;
   totalMailed: number;
   totalSends: number;
   totalDelivered: number;
@@ -268,23 +269,42 @@ async function getMergedClientData(domain?: string, dateCtx?: DateContext): Prom
   const dateFilter = buildSqlDateFilter('first_sent_date', days || 0, startDate, endDate);
 
   const [funnelRows, campaignStatusRows, propertyRows] = await Promise.all([
-    // dm_client_funnel: corrected domain list + lifetime totals for proportional scaling
+    // dm_client_funnel latest-per-domain. PREVIOUSLY used a single global MAX(date),
+    // which dropped any domain that hadn't synced on the exact max date — producing
+    // a variable row count (e.g. 16 instead of 18). Latest-per-domain always returns
+    // every DM-enrolled domain's most recent cumulative snapshot.
+    //
+    // NOTE: no outer WHERE needed — the INNER JOIN against the filtered subquery
+    // is sufficient to exclude test domains. Adding `WHERE domain NOT IN (...)`
+    // at the outer level creates an ambiguous-column reference because both `cf`
+    // and the joined subquery expose `domain`.
+    runAuroraQuery(`
+      SELECT
+        cf.domain,
+        cf.campaign_type,
+        COALESCE(cf.active_campaigns, 0) as active_campaigns,
+        COALESCE(cf.total_properties_mailed, 0) as total_mailed,
+        COALESCE(cf.total_sends, 0) as total_sends,
+        COALESCE(cf.total_delivered, 0) as total_delivered,
+        COALESCE(cf.total_cost, 0) as total_cost
+      FROM dm_client_funnel cf
+      INNER JOIN (
+        SELECT domain, MAX(date) as md
+        FROM dm_client_funnel
+        WHERE domain IS NOT NULL AND ${EXCLUDE_SEED}
+        ${domain ? `AND domain = '${domain.replace(/[^a-zA-Z0-9_.]/g, '')}'` : ''}
+        GROUP BY domain
+      ) l ON cf.domain = l.domain AND cf.date = l.md
+    `),
+    // Per-(domain, campaign_type) active counts + total campaign counts.
+    // Used to render stacked "N RR · M SD" breakdown per client — no longer
+    // collapses mixed-product clients into a single type.
     runAuroraQuery(`
       SELECT
         domain,
         campaign_type,
-        COALESCE(active_campaigns, 0) as active_campaigns,
-        COALESCE(total_properties_mailed, 0) as total_mailed,
-        COALESCE(total_sends, 0) as total_sends,
-        COALESCE(total_delivered, 0) as total_delivered,
-        COALESCE(total_cost, 0) as total_cost
-      FROM dm_client_funnel
-      WHERE date = (SELECT MAX(date) FROM dm_client_funnel WHERE ${domainFilter(domain)})
-        AND ${domainFilter(domain)}
-    `),
-    runAuroraQuery(`
-      SELECT domain, campaign_type,
-        COUNT(*) FILTER (WHERE status = 'active') as active_campaigns
+        COUNT(*) FILTER (WHERE status = 'active') as active_campaigns,
+        COUNT(*) as total_campaigns
       FROM (
         SELECT DISTINCT ON (domain, campaign_id)
           domain, campaign_id, campaign_type, status
@@ -350,14 +370,29 @@ async function getMergedClientData(domain?: string, dateCtx?: DateContext): Prom
     syncWarnings.set(d, `Data sync in progress — ${pct}% of property records loaded. Conversion numbers (leads, deals, revenue) may be lower than actual. This resolves automatically with each nightly sync.`);
   }
 
-  // Build active campaigns lookup
+  // Per-domain, per-product campaign breakdown (active + total per type) —
+  // replaces the old "collapse to single type" logic that hid Smart Drop
+  // campaigns when a client also ran RR.
+  const campaignBreakdownMap = new Map<string, Record<string, { active: number; total: number }>>();
   const activeCampaignsMap = new Map<string, { count: number; type: string }>();
   for (const r of campaignStatusRows) {
     const d = String(r.domain || '');
+    const type = String(r.campaign_type || 'rr');
+    const active = Number(r.active_campaigns || 0);
+    const total = Number(r.total_campaigns || 0);
+
+    const bucket = campaignBreakdownMap.get(d) || {};
+    bucket[type] = { active, total };
+    campaignBreakdownMap.set(d, bucket);
+
+    // Preserve the scalar activeCampaigns/type for back-compat with fields that
+    // still expect a single value. Sum of active campaigns across all products.
     const existing = activeCampaignsMap.get(d);
-    const count = Number(r.active_campaigns || 0);
-    if (!existing || count > existing.count) {
-      activeCampaignsMap.set(d, { count, type: String(r.campaign_type || 'rr') });
+    const summedActive = Object.values(bucket).reduce((s, v) => s + v.active, 0);
+    if (!existing || active > existing.count) {
+      activeCampaignsMap.set(d, { count: summedActive, type });
+    } else {
+      existing.count = summedActive;
     }
   }
 
@@ -415,6 +450,7 @@ async function getMergedClientData(domain?: string, dateCtx?: DateContext): Prom
       domain: d,
       campaignType: liveStatus?.type || funnel.campaignType || 'rr',
       activeCampaigns: liveStatus?.count ?? funnel.activeCampaigns ?? 0,
+      campaignBreakdown: campaignBreakdownMap.get(d) || {},
       totalMailed: mailed,
       totalSends: sends,
       totalDelivered: delivered,
@@ -475,7 +511,7 @@ async function getFunnelOverview(dateCtx: DateContext, domain?: string) {
     prospectToLeadRate: totalMailed > 0 ? Number(((leads / totalMailed) * 100).toFixed(2)) : 0,
     leadToAppointmentRate: leads > 0 ? Number(((appointments / leads) * 100).toFixed(2)) : 0,
     appointmentToContractRate: appointments > 0 ? Number(((contracts / appointments) * 100).toFixed(2)) : 0,
-    contractToDealRate: contracts > 0 ? Number(((deals / totalMailed) * 100).toFixed(2)) : 0,
+    contractToDealRate: contracts > 0 ? Number(((deals / contracts) * 100).toFixed(2)) : 0,
     overallConversionRate: totalMailed > 0 ? Number(((deals / totalMailed) * 100).toFixed(2)) : 0,
     totalCost: Number(totalCost.toFixed(2)),
     totalRevenue: Number(totalRevenue.toFixed(2)),
@@ -505,6 +541,7 @@ async function getClientPerformance(dateCtx: DateContext, domain?: string) {
       domain: row.domain,
       campaignType: row.campaignType,
       activeCampaigns: row.activeCampaigns,
+      campaignBreakdown: row.campaignBreakdown,
       totalMailed: row.totalMailed,
       totalSends: row.totalSends,
       totalDelivered: row.totalDelivered,
@@ -786,70 +823,75 @@ async function getConversionTrend(dateCtx: DateContext, domain?: string) {
   const cached = getCached(cacheKey);
   if (cached) return NextResponse.json({ success: true, data: cached, cached: true });
 
-  // Use dm_client_funnel (has time series) but supplement with dm_property_conversions
-  // for a cumulative total row. This way the trend shows daily changes for 9 domains
-  // (from CF) and the latest point includes all 19 domains (from PC).
-  // When the monolith fix lands, CF will have all domains and this becomes seamless.
-  const [cfRows, pcTotalRows] = await Promise.all([
+  // COHORT-ALIGNED with the Conversion funnel + Client performance:
+  //   - Filter: properties whose `first_sent_date` falls in the selected window.
+  //   - Bucket by DATE(became_X_at) — the chart shows when conversions happened
+  //     for that cohort, even if the conversion date falls outside the window.
+  //
+  // This is the same cohort the funnel sums: sum(activity bars) = funnel total.
+  //
+  // The previous implementation filtered by `became_X_at` in window (activity
+  // semantic), which double-counted conversions for properties first mailed
+  // long ago — producing Activity totals that didn't reconcile with the funnel.
+
+  // Cohort filter: restricts to properties first mailed in the window.
+  const cohortFilter = buildSqlDateFilter('first_sent_date', days, startDate, endDate);
+
+  const [leadRows, apptRows, dealRows] = await Promise.all([
     runAuroraQuery(`
-      SELECT
-        date::TEXT as date,
-        COALESCE(SUM(leads), 0) as leads,
-        COALESCE(SUM(appointments), 0) as appointments,
-        COALESCE(SUM(contracts), 0) as contracts,
-        COALESCE(SUM(deals), 0) as deals,
-        COALESCE(SUM(total_revenue), 0) as total_revenue
-      FROM dm_client_funnel
-      WHERE ${startDate && endDate ? `date >= '${startDate.replace(/[^0-9-]/g, '')}' AND date <= '${endDate.replace(/[^0-9-]/g, '')}'` : `date >= CURRENT_DATE - INTERVAL '${days} days'`}
-        AND ${domainFilter(domain)}
-      GROUP BY date
-      ORDER BY date ASC
-    `),
-    // Get the current total from dm_property_conversions (all domains)
-    runAuroraQuery(`
-      SELECT
-        CURRENT_DATE::TEXT as date,
-        COUNT(DISTINCT CASE WHEN became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as leads,
-        COUNT(DISTINCT CASE WHEN became_appointment_at IS NOT NULL AND became_appointment_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as appointments,
-        COUNT(DISTINCT CASE WHEN became_contract_at IS NOT NULL AND became_contract_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as contracts,
-        COUNT(DISTINCT CASE WHEN became_deal_at IS NOT NULL AND became_deal_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as deals,
-        COALESCE(SUM(CASE WHEN deal_revenue > 0 AND became_deal_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN deal_revenue ELSE 0 END), 0) as total_revenue
+      SELECT DATE(became_lead_at)::TEXT as date,
+        COUNT(DISTINCT property_id) as leads
       FROM dm_property_conversions
-      WHERE ${domainFilter(domain)}
+      WHERE became_lead_at IS NOT NULL
+        AND became_lead_at > first_sent_date
+        AND ${domainFilter(domain)}
         AND ${verifiedDomainsFilter(domain)}
+        ${cohortFilter}
+      GROUP BY DATE(became_lead_at)
+    `),
+    runAuroraQuery(`
+      SELECT DATE(became_appointment_at)::TEXT as date,
+        COUNT(DISTINCT property_id) as appointments
+      FROM dm_property_conversions
+      WHERE became_appointment_at IS NOT NULL
+        AND became_appointment_at > first_sent_date
+        AND became_lead_at IS NOT NULL
+        AND became_lead_at > first_sent_date
+        AND ${domainFilter(domain)}
+        AND ${verifiedDomainsFilter(domain)}
+        ${cohortFilter}
+      GROUP BY DATE(became_appointment_at)
+    `),
+    runAuroraQuery(`
+      SELECT DATE(became_deal_at)::TEXT as date,
+        COUNT(DISTINCT property_id) as deals
+      FROM dm_property_conversions
+      WHERE became_deal_at IS NOT NULL
+        AND became_deal_at > first_sent_date
+        AND became_lead_at IS NOT NULL
+        AND became_lead_at > first_sent_date
+        AND ${domainFilter(domain)}
+        AND ${verifiedDomainsFilter(domain)}
+        ${cohortFilter}
+      GROUP BY DATE(became_deal_at)
     `),
   ]);
 
-  // Use CF rows for the time series, but ensure the latest date reflects PC totals
-  const rows = cfRows.length > 0 ? cfRows : [];
-  const pcTotal = pcTotalRows[0];
-
-  // If PC total has more data than the latest CF row, update/add today's entry
-  if (pcTotal) {
-    const pcLeads = Number(pcTotal.leads || 0);
-    const today = String(pcTotal.date || '');
-    const lastCfRow = rows.length > 0 ? rows[rows.length - 1] : null;
-    const lastCfDate = lastCfRow ? String(lastCfRow.date || '') : '';
-
-    if (pcLeads > 0) {
-      if (lastCfDate === today) {
-        // Replace today's CF entry with the more complete PC data
-        rows[rows.length - 1] = pcTotal;
-      } else {
-        // Add today as a new point
-        rows.push(pcTotal);
-      }
+  // Merge by date client-side.
+  const dayMap = new Map<string, { date: string; leads: number; appointments: number; contracts: number; deals: number; totalRevenue: number }>();
+  const ensureRow = (date: string) => {
+    let row = dayMap.get(date);
+    if (!row) {
+      row = { date, leads: 0, appointments: 0, contracts: 0, deals: 0, totalRevenue: 0 };
+      dayMap.set(date, row);
     }
-  }
+    return row;
+  };
+  for (const r of leadRows) ensureRow(String(r.date)).leads = Number(r.leads || 0);
+  for (const r of apptRows) ensureRow(String(r.date)).appointments = Number(r.appointments || 0);
+  for (const r of dealRows) ensureRow(String(r.date)).deals = Number(r.deals || 0);
 
-  const data = rows.map((r: Record<string, unknown>) => ({
-    date: String(r.date || ''),
-    leads: Number(r.leads || 0),
-    appointments: Number(r.appointments || 0),
-    contracts: Number(r.contracts || 0),
-    deals: Number(r.deals || 0),
-    totalRevenue: Number(Number(r.total_revenue || 0).toFixed(2)),
-  }));
+  const data = Array.from(dayMap.values()).sort((a, b) => a.date.localeCompare(b.date));
 
   setCache(cacheKey, data);
   return NextResponse.json({ success: true, data, cached: false });
@@ -865,64 +907,65 @@ async function getRoasTrend(dateCtx: DateContext, domain?: string) {
   const cached = getCached(cacheKey);
   if (cached) return NextResponse.json({ success: true, data: cached, cached: true });
 
-  // Same approach as conversion trend: CF for time series, PC for accurate totals
-  const [cfRows, pcTotalRows] = await Promise.all([
+  // COHORT-ALIGNED with the Conversion funnel + Client performance + Activity:
+  //   - Filter: properties with `first_sent_date` in the selected window.
+  //   - Spend bucketed by DATE(first_sent_date) = when mailing kicked off.
+  //   - Revenue bucketed by DATE(became_deal_at) = when deals closed.
+  //   - Both series represent the SAME cohort, so sum(spend bars) ≈ funnel cost
+  //     and sum(revenue bars) = funnel revenue.
+  const cohortFilter = buildSqlDateFilter('first_sent_date', days, startDate, endDate);
+
+  const [spendRows, dealRows] = await Promise.all([
     runAuroraQuery(`
-      SELECT
-        date::TEXT as date,
-        COALESCE(SUM(total_cost), 0) as total_cost,
-        COALESCE(SUM(total_revenue), 0) as total_revenue,
-        COALESCE(SUM(deals), 0) as deals
-      FROM dm_client_funnel
-      WHERE ${startDate && endDate ? `date >= '${startDate.replace(/[^0-9-]/g, '')}' AND date <= '${endDate.replace(/[^0-9-]/g, '')}'` : `date >= CURRENT_DATE - INTERVAL '${days} days'`}
+      SELECT DATE(first_sent_date)::TEXT as date,
+        COALESCE(SUM(total_cost), 0) as total_cost
+      FROM dm_property_conversions
+      WHERE first_sent_date IS NOT NULL
         AND ${domainFilter(domain)}
-      GROUP BY date
-      ORDER BY date ASC
+        AND ${verifiedDomainsFilter(domain)}
+        ${cohortFilter}
+      GROUP BY DATE(first_sent_date)
     `),
     runAuroraQuery(`
-      SELECT
-        CURRENT_DATE::TEXT as date,
-        COALESCE(SUM(total_cost), 0) as total_cost,
-        COALESCE(SUM(CASE WHEN deal_revenue > 0 AND became_deal_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN deal_revenue ELSE 0 END), 0) as total_revenue,
-        COUNT(DISTINCT CASE WHEN became_deal_at IS NOT NULL AND became_deal_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as deals
+      SELECT DATE(became_deal_at)::TEXT as date,
+        COALESCE(SUM(deal_revenue), 0) as total_revenue,
+        COUNT(DISTINCT property_id) as deals
       FROM dm_property_conversions
-      WHERE ${domainFilter(domain)}
+      WHERE became_deal_at IS NOT NULL
+        AND became_deal_at > first_sent_date
+        AND became_lead_at IS NOT NULL
+        AND became_lead_at > first_sent_date
+        AND deal_revenue > 0
+        AND ${domainFilter(domain)}
         AND ${verifiedDomainsFilter(domain)}
+        ${cohortFilter}
+      GROUP BY DATE(became_deal_at)
     `),
   ]);
 
-  const roasRows = cfRows.length > 0 ? [...cfRows] : [];
-  const pcRoas = pcTotalRows[0];
-
-  if (pcRoas && Number(pcRoas.deals || 0) > 0) {
-    const today = String(pcRoas.date || '');
-    const lastDate = roasRows.length > 0 ? String(roasRows[roasRows.length - 1].date || '') : '';
-    if (lastDate === today) {
-      roasRows[roasRows.length - 1] = pcRoas;
-    } else {
-      roasRows.push(pcRoas);
+  const dayMap = new Map<string, { date: string; totalCost: number; totalRevenue: number; deals: number; roas: number | null }>();
+  const ensureRow = (date: string) => {
+    let row = dayMap.get(date);
+    if (!row) {
+      row = { date, totalCost: 0, totalRevenue: 0, deals: 0, roas: null };
+      dayMap.set(date, row);
+    }
+    return row;
+  };
+  for (const r of spendRows) ensureRow(String(r.date)).totalCost = Number(Number(r.total_cost || 0).toFixed(2));
+  for (const r of dealRows) {
+    const row = ensureRow(String(r.date));
+    row.totalRevenue = Number(Number(r.total_revenue || 0).toFixed(2));
+    row.deals = Number(r.deals || 0);
+  }
+  // ROAS per day: only when both deals and spend exist on the SAME day.
+  for (const row of dayMap.values()) {
+    if (row.deals > 0 && row.totalCost > 0) {
+      row.roas = Number((row.totalRevenue / row.totalCost).toFixed(2));
     }
   }
 
-  const data = roasRows.map((r: Record<string, unknown>) => {
-    const totalCost = Number(r.total_cost || 0);
-    const totalRevenue = Number(r.total_revenue || 0);
-    const deals = Number(r.deals || 0);
-
-    // Rule 1: Only show ROAS when there are deals (not just revenue)
-    let roas: number | null = null;
-    if (deals > 0 && totalCost > 0) {
-      roas = Number((totalRevenue / totalCost).toFixed(2));
-    }
-
-    return {
-      date: String(r.date || ''),
-      totalCost: Number(totalCost.toFixed(2)),
-      totalRevenue: Number(totalRevenue.toFixed(2)),
-      deals,
-      roas,
-    };
-  });
+  const data = Array.from(dayMap.values()).sort((a, b) => a.date.localeCompare(b.date));
 
   setCache(cacheKey, data);
   return NextResponse.json({ success: true, data, cached: false });

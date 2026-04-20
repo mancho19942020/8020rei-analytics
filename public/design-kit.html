@@ -22,8 +22,8 @@
       --surface-overlay: #f3f4f6;
       --surface-sunken: #f3f4f6;
       --surface-chrome: #ffffff;
-      --text-primary: #111827;
-      --text-secondary: #374151;
+      --text-primary: #1f2937;
+      --text-secondary: #4b5563;
       --text-tertiary: #6b7280;
       --text-disabled: #9ca3af;
       --border-default: #e5e7eb;
@@ -552,57 +552,57 @@
       color: var(--text-disabled);
     }
 
-    /* Callouts */
+    /* Callouts — neutral text, colored accent bar + icon only */
     .callout {
       display: flex;
       gap: 12px;
       padding: 16px;
       border-radius: 8px;
+      border: 1px solid var(--border-default);
       border-left: 8px solid;
+      color: var(--text-secondary);
+    }
+
+    .callout-title {
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 4px;
     }
 
     .callout-info {
       background: #eff6ff;
       border-left-color: #3b82f6;
-      color: #1d4ed8;
     }
 
     .dark .callout-info {
       background: #172554;
-      color: #93c5fd;
     }
 
     .callout-success {
       background: #f0fdf4;
       border-left-color: #22c55e;
-      color: #15803d;
     }
 
     .dark .callout-success {
       background: #052e16;
-      color: #86efac;
     }
 
     .callout-alert {
       background: #fefce8;
       border-left-color: #eab308;
-      color: #a16207;
     }
 
     .dark .callout-alert {
       background: #422006;
-      color: #fde047;
     }
 
     .callout-error {
       background: #fef2f2;
       border-left-color: #ef4444;
-      color: #b91c1c;
     }
 
     .dark .callout-error {
       background: #450a0a;
-      color: #fca5a5;
     }
 
     .callout-icon {
@@ -633,15 +633,15 @@
     .dark .pill-error { background: #7f1d1d; color: #fca5a5; }
     .dark .pill-neutral { background: #374151; color: #d1d5db; }
 
-    /* Tags */
+    /* Tags — pill shape */
     .tag {
       display: inline-flex;
       align-items: center;
       gap: 4px;
-      padding: 4px 10px;
+      padding: 4px 12px;
       font-size: 12px;
       font-weight: 500;
-      border-radius: 4px;
+      border-radius: 9999px;
       background: var(--surface-overlay);
       color: var(--text-secondary);
     }
@@ -2015,15 +2015,21 @@
           <div class="component-card">
             <div class="component-preview" style="flex-direction: column; align-items: stretch;">
               <div class="callout callout-info" style="font-size: 12px;">
-                <span>Info: This is an informational callout.</span>
+                <div>
+                  <div class="callout-title">Note</div>
+                  <span>This is an informational callout with neutral text.</span>
+                </div>
               </div>
               <div class="callout callout-success" style="font-size: 12px;">
-                <span>Success: Operation completed.</span>
+                <div>
+                  <div class="callout-title">Success</div>
+                  <span>Operation completed successfully.</span>
+                </div>
               </div>
             </div>
             <div class="component-info">
               <div class="component-name">AxisCallout</div>
-              <div class="component-desc">Informational banners with 4 types: info, success, alert, error. 8px left accent bar, 8px border-radius.</div>
+              <div class="component-desc">Informational banners with 4 types: info, success, alert, error. 8px left accent bar, neutral border. Title and body use content-primary/secondary for readability; only accent bar and icon carry the status color.</div>
               <div class="component-props">
                 <span class="prop-tag">type</span>
                 <span class="prop-tag">title</span>
@@ -2068,6 +2074,7 @@
               <span class="tag" style="background: #dbeafe; color: #1d4ed8;">Info</span>
               <span class="tag" style="background: #fef9c3; color: #a16207;">Alert</span>
               <span class="tag" style="background: #fee2e2; color: #b91c1c;">Error</span>
+              <span class="tag" style="background: transparent; border: 1px solid #86efac; color: #15803d;">Outlined</span>
               <span class="tag">
                 Dismissible
                 <svg class="tag-close" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -2077,7 +2084,7 @@
             </div>
             <div class="component-info">
               <div class="component-name">AxisTag</div>
-              <div class="component-desc">Categorization labels with 5 colors (neutral, success, info, alert, error), 2 sizes (sm: 24px, md: 28px), 2 variants (filled, outlined). Optional dot, icons, and dismiss button.</div>
+              <div class="component-desc">Pill-shaped categorization labels with 5 colors (neutral, success, info, alert, error), 2 sizes (sm: 24px, md: 28px), 2 variants (filled, outlined). Fully rounded (border-radius: 9999px). Optional dot, icons, and dismiss button.</div>
               <div class="component-props">
                 <span class="prop-tag">color: neutral | success | alert | error | info</span>
                 <span class="prop-tag">size: sm | md</span>

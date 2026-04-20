@@ -11,11 +11,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth-guard';
 import { runAuroraQuery, isAuroraConfigured } from '@/lib/aurora';
 import { getCached, setCache } from '@/lib/cache';
+// Test-domain exclusion — canonical source. Any change applies everywhere simultaneously.
+import { TEST_DOMAINS_SQL as SEED_DOMAINS, EXCLUDE_TEST_DOMAINS_SQL as EXCLUDE_SEED } from '@/lib/domain-filter';
 import type { DmTemplatePerformance } from '@/types/dm-conversions';
-
-// Exclude seed/test domains — must match the same list used in pcm-validation and rapid-response
-const SEED_DOMAINS = "'8020rei_demo', '8020rei_migracion_test', '_test_debug', '_test_debug3', 'supertest_8020rei_com', 'sandbox_8020rei_com'";
-const EXCLUDE_SEED = `domain NOT IN (${SEED_DOMAINS})`;
 
 function domainFilter(domain?: string | null): string {
   if (domain) {
@@ -71,7 +69,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Internal error',
+        error: `Unable to load ${type}. Please retry.`,
       },
       { status: 500 }
     );

@@ -96,6 +96,7 @@ export type WidgetType =
   | 'rr-operational-pulse'
   | 'rr-quality-metrics'
   | 'rr-pcm-health'
+  | 'rr-postal-performance'
   | 'rr-sends-trend'
   | 'rr-status-breakdown'
   | 'rr-alerts-feed'
@@ -104,6 +105,11 @@ export type WidgetType =
   | 'rr-q2-top-contributors'
   | 'rr-system-coverage'
   | 'rr-data-integrity'
+  // Features > 8020REI > DM Campaign Overview tab widgets
+  | 'dm-overview-headline'
+  | 'dm-overview-test-cost-cards'
+  | 'dm-overview-send-trend'
+  | 'dm-overview-balance-flow'
   // Features > 8020REI > DM Campaign Business Results tab widgets
   | 'dm-alerts-feed'
   | 'dm-funnel-overview'
@@ -214,9 +220,13 @@ export interface Widget {
    * How this widget responds to the date filter.
    * - 'all-time': Widget always shows lifetime cumulative data regardless of date filter.
    *   An "All time" tag appears next to the title so users know the filter doesn't apply.
-   * - 'date-filtered': Widget responds to the date filter (default, no tag shown).
+   * - 'date-filtered': Widget responds to the date filter.
+   * - 'last-30-days': Widget is pinned to a sliding 30-day window anchored to today,
+   *   independent of the date filter. Used when the backing table does not yet have
+   *   enough coverage to honor wider ranges — keeps the widget from silently showing
+   *   stale data for larger filters.
    */
-  timeBehavior?: 'all-time' | 'date-filtered';
+  timeBehavior?: 'all-time' | 'date-filtered' | 'last-30-days';
 
   /** Widget-specific configuration */
   config?: Record<string, any>;

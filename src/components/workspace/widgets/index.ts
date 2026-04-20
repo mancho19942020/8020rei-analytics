@@ -76,6 +76,7 @@ export { RrSystemStatusWidget } from './RrSystemStatusWidget';
 export { RrOperationalPulseWidget } from './RrOperationalPulseWidget';
 export { RrQualityMetricsWidget } from './RrQualityMetricsWidget';
 export { RrPcmHealthWidget } from './RrPcmHealthWidget';
+export { RrPostalPerformanceWidget } from './RrPostalPerformanceWidget';
 export { RrSendsTrendWidget } from './RrSendsTrendWidget';
 export { RrStatusBreakdownWidget } from './RrStatusBreakdownWidget';
 export { RrAlertsFeedWidget } from './RrAlertsFeedWidget';
@@ -84,6 +85,12 @@ export { RrQ2GoalWidget } from './RrQ2GoalWidget';
 export { RrQ2TopContributorsWidget } from './RrQ2TopContributorsWidget';
 export { RrSystemCoverageWidget } from './RrSystemCoverageWidget';
 export { RrDataIntegrityWidget } from './RrDataIntegrityWidget';
+
+// Features > 8020REI > DM Campaign Overview tab widgets
+export { DmOverviewHeadlineWidget } from './DmOverviewHeadlineWidget';
+export { DmOverviewTestCostCardsWidget } from './DmOverviewTestCostCardsWidget';
+export { DmOverviewSendTrendWidget } from './DmOverviewSendTrendWidget';
+export { DmOverviewBalanceFlowWidget } from './DmOverviewBalanceFlowWidget';
 
 // Features > 8020REI > DM Campaign Business Results tab widgets
 export { DmAlertsFeedWidget } from './DmAlertsFeedWidget';

@@ -68,15 +68,28 @@ export interface PcmValidationData {
 
 // ─── Profitability Types ──────────────────────────────────────
 
+export interface PcmAuroraReconciliation {
+  /** What Aurora's stored total_pcm_cost says (monolith-computed, often drifts) */
+  auroraStoredPcmCost: number;
+  /** Margin if you used Aurora's stored PCM cost instead of the invoice rate */
+  auroraStoredMargin: number;
+  /** PCM-invoice cost MINUS Aurora stored cost — non-zero means monolith drifts */
+  pcmVsAuroraCostDelta: number;
+  note: string;
+}
+
 export interface ProfitabilitySummary {
   totalRevenue: number;        // dm_client_funnel.total_cost (what we charge clients)
-  totalPcmCost: number;        // dm_client_funnel.total_pcm_cost (what PCM charges us)
-  grossMargin: number;         // revenue - PCM cost
+  totalPcmCost: number;        // PCM /order × invoice-verified era rates (authoritative)
+  grossMargin: number;         // computed: revenue - PCM-invoice cost
   marginPercent: number;       // (margin / revenue) * 100
   totalSends: number;
+  /** Pieces counted in the invoice-cost figure (from PCM /order) */
+  pcmPiecesInvoice?: number;
   revenuePerPiece: number;
   pcmCostPerPiece: number;
-  dataAvailable: boolean;      // false when new columns don't exist yet
+  dataAvailable: boolean;
+  reconciliation?: PcmAuroraReconciliation;
 }
 
 export interface MailClassMargin {
@@ -193,9 +206,15 @@ export interface PriceImpactData {
 }
 
 export interface CurrentRatesData {
+  /** What 8020REI charges customers — derived from dm_volume_summary last 7 days */
   standard: number | null;
   firstClass: number | null;
   blended: number | null;
+  /** What PCM charges 8020REI — invoice-verified era rates (NOT monolith-derived) */
+  pcmStandard?: number;
+  pcmFirstClass?: number;
+  pcmEraLabel?: string;
+  pcmEraStart?: string;
   periodStart: string | null;
   periodEnd: string | null;
   dataAvailable: boolean;

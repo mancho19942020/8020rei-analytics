@@ -1,9 +1,13 @@
 /**
  * Q2 Volume Goal Widget
  *
- * Tracks progress toward 400K DM pieces in Q2 2026 (April-June).
- * Shows progress bar + 5 key metrics. No scroll — everything visible at once.
- * Data source: rr_daily_metrics (per data-consistency-guardian Rule 1).
+ * One question: "where do we stand vs the 400K Q2 target?"
+ * Hero: a big progress bar with the current count and %.
+ * 3 supporting pills: pace-vs-required, days remaining, Q2 spend.
+ *
+ * Data source (2026-04-17): PCM /order via shared in-memory cache (populated
+ * by the 30-min /refresh cron). Falls back to rr_daily_metrics if the cache
+ * is cold. Either way, numbers match Overview → Send volume trend for April.
  */
 
 'use client';
@@ -23,63 +27,66 @@ function formatNumber(n: number): string {
 
 export function RrQ2GoalWidget({ data }: RrQ2GoalWidgetProps) {
   const barPercent = Math.min(data.progressPercent, 100);
+  const barColor = data.onTrack
+    ? 'var(--color-success-500)'
+    : data.progressPercent > 0
+      ? 'var(--color-alert-500)'
+      : 'var(--color-main-300)';
 
   return (
     <div className="flex flex-col gap-3 h-full p-3">
-      {/* Progress bar */}
-      <div className="flex flex-col gap-1">
-        <div className="flex items-center justify-between text-xs" style={{ color: 'var(--text-secondary)' }}>
-          <span>{formatNumber(data.currentSends)} of {formatNumber(data.target)} pieces</span>
-          <span className="font-medium" style={{ color: 'var(--text-primary)' }}>{data.progressPercent}%</span>
+      {/* Hero: progress bar with big "X of 400K" number above */}
+      <div className="flex flex-col gap-2">
+        <div className="flex items-baseline justify-between">
+          <div className="flex items-baseline gap-2">
+            <span
+              className="text-2xl font-bold tracking-tight"
+              style={{ color: 'var(--text-primary)' }}
+            >
+              {formatNumber(data.currentSends)}
+            </span>
+            <span className="text-xs font-medium" style={{ color: 'var(--text-tertiary)' }}>
+              of {formatNumber(data.target)} Q2 target
+            </span>
+          </div>
+          <span
+            className="text-sm font-semibold tabular-nums"
+            style={{ color: barColor }}
+          >
+            {data.progressPercent}%
+          </span>
         </div>
-        <AxisTooltip content="Total mail pieces sent across all clients in Q2 2026 (April 1 - June 30). Source: rr_daily_metrics.">
+        <AxisTooltip content="Total mail pieces sent across all clients in Q2 2026 (April 1 – June 30). Primary source: PCM /order — the same pagination the DM Campaign → Overview tab uses, filtered to the Q2 window. Aurora fallback (rr_daily_metrics, ~15 days) applies if the PCM cache is cold.">
           <div
-            className="w-full rounded-full overflow-hidden"
+            className="w-full rounded-full overflow-hidden cursor-help"
             style={{ height: 10, background: 'var(--surface-sunken)' }}
           >
             <div
               className="h-full rounded-full transition-all duration-500"
-              style={{
-                width: `${barPercent}%`,
-                background: data.onTrack
-                  ? 'var(--color-success-500)'
-                  : data.progressPercent > 0
-                    ? 'var(--color-warning-500)'
-                    : 'var(--color-main-300)',
-              }}
+              style={{ width: `${barPercent}%`, background: barColor }}
             />
           </div>
         </AxisTooltip>
       </div>
 
-      {/* Key metrics — 5 pills, no scroll */}
+      {/* 3 supporting pills — the what-to-do-about-it numbers */}
       <div className="flex flex-col gap-2 flex-1">
         <AxisPill
           label="Weekly pace"
-          value={`${formatNumber(data.weeklyPace)} / wk`}
+          value={`${formatNumber(data.weeklyPace)} / ${formatNumber(data.requiredWeeklyPace)}`}
           type={data.onTrack ? 'good' : 'bad'}
-          tooltip={`Current weekly send rate. Need ${formatNumber(data.requiredWeeklyPace)}/wk to hit 400K by end of Q2.`}
-        />
-        <AxisPill
-          label="Required pace"
-          value={`${formatNumber(data.requiredWeeklyPace)} / wk`}
-          tooltip="Weekly send rate needed for the remaining weeks to reach the 400K target."
+          tooltip={`Current pace ${formatNumber(data.weeklyPace)}/wk vs ${formatNumber(data.requiredWeeklyPace)}/wk required to hit the 400K target by June 30. ${data.onTrack ? 'On track.' : 'Behind.'}`}
         />
         <AxisPill
           label="Days remaining"
-          value={data.daysRemaining}
+          value={`${data.daysRemaining} of ${data.daysElapsed + data.daysRemaining}`}
           type={data.daysRemaining < 14 && data.progressPercent < 80 ? 'bad' : 'default'}
-          tooltip="Calendar days left in Q2 2026 (ends June 30)."
+          tooltip="Days left in Q2 2026 (ends June 30) vs days in the full quarter."
         />
         <AxisPill
-          label="Active clients"
-          value={data.activeClients}
-          tooltip="Distinct client domains with at least one send in Q2."
-        />
-        <AxisPill
-          label="Delivered"
-          value={formatNumber(data.deliveredCount)}
-          tooltip="Total mail pieces confirmed delivered in Q2. This counts individual pieces, not unique properties."
+          label="Q2 spend"
+          value={`$${formatNumber(data.totalCost)}`}
+          tooltip="PCM cost for Q2 pieces sent so far (per-piece era rates × count)."
         />
       </div>
     </div>
