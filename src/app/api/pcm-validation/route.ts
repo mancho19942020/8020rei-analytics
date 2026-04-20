@@ -344,15 +344,41 @@ async function getProfitabilitySummary(domain?: string) {
     // First try the Overview's Aurora-persisted cache: its `headline` payload
     // already contains the PCM-invoice cost computed by the 30-min cron.
     // This gives us the invoice-authoritative number in <300ms — no pagination.
+    //
+    // CROSS-TAB CONSISTENCY CONTRACT: the Profitability Margin summary widget
+    // displays the SAME net company margin as the Overview Company margin card.
+    // Both read from this cache payload. The decomposition is:
+    //   revenue  (Aurora dm_client_funnel.total_cost, real clients only)
+    //   − PCM cost (PCM /order × invoice-verified era rates, real clients only)
+    //   = gross margin
+    //   − internal test-domain PCM cost (QA / sandbox sends 8020REI paid PCM for,
+    //     no client revenue — company P&L honesty)
+    //   = NET company margin     ← the headline number, matches Overview
+    //
+    // Historical bug (2026-04-20): this endpoint only returned `grossMargin`,
+    // while the Overview card returned the net `companyMargin`. Same cache,
+    // different fields, different labels — user saw $2.0K vs $1.8K on two tabs
+    // for what looked like the same metric. Now both return full decomposition.
     const headlineCache = !domain ? await readOverviewCache<DmOverviewHeadline>('headline') : null;
     if (headlineCache?.data?.companyMargin) {
       const cm = headlineCache.data.companyMargin;
       const totalSends = headlineCache.data.lifetimePieces?.aurora ?? 0;
       const pcmPieces = headlineCache.data.lifetimePieces?.pcm ?? 0;
+      const testCost = cm.pcmCostTest ?? 0;
+      const netCompanyMargin = cm.margin;                   // test-cost-deducted, matches Overview
+      const netCompanyMarginPct = cm.marginPct;
       const result = {
         totalRevenue: cm.clientRevenue,
         totalPcmCost: cm.pcmCostReal,                      // invoice-authoritative from cron
         grossMargin: cm.grossMargin,
+        grossMarginPct: cm.grossMarginPct ?? (cm.clientRevenue > 0 ? (cm.grossMargin / cm.clientRevenue) * 100 : 0),
+        // NET company margin — identical to Overview's Company margin card.
+        // Cross-tab consistency contract: these two fields must remain ===.
+        netCompanyMargin,
+        netCompanyMarginPct,
+        internalTestCost: Number(testCost.toFixed(2)),
+        // Legacy alias — `marginPercent` historically meant gross margin %.
+        // Keep it pointing at gross so existing chart/widget math doesn't shift.
         marginPercent: cm.grossMarginPct ?? (cm.clientRevenue > 0 ? (cm.grossMargin / cm.clientRevenue) * 100 : 0),
         totalSends,
         pcmPiecesInvoice: pcmPieces,
@@ -401,25 +427,37 @@ async function getProfitabilitySummary(domain?: string) {
     const orders = readPcmOrdersCacheOrWarm();
     let pcmCostInvoice: number;
     let pcmPiecesInvoice: number;
+    let internalTestCost: number;
     let invoiceAvailable: boolean;
 
     if (orders) {
       const realOrders = orders.filter(o =>
         !o.canceled && !o.isTestDomain && (!domain || o.domain === domain)
       );
+      // Internal test-domain cost — same definition as dm-overview/compute.ts.
+      // Excluded from domain-scoped queries (user is filtering to one client).
+      const testOrders = !domain
+        ? orders.filter(o => !o.canceled && o.isTestDomain)
+        : [];
       pcmCostInvoice = computePcmInvoiceCost(realOrders);
       pcmPiecesInvoice = realOrders.length;
+      internalTestCost = computePcmInvoiceCost(testOrders);
       invoiceAvailable = true;
     } else {
       // Cold — use Aurora-stored as a temporary placeholder. Surface it to the UI.
       pcmCostInvoice = auroraStoredPcmCost;
       pcmPiecesInvoice = totalSends;
+      internalTestCost = 0;
       invoiceAvailable = false;
     }
 
     const grossMargin = Math.round((totalRevenue - pcmCostInvoice) * 100) / 100;
-    const marginPercent = totalRevenue > 0
+    const grossMarginPct = totalRevenue > 0
       ? Math.round((grossMargin / totalRevenue) * 10000) / 100
+      : 0;
+    const netCompanyMargin = Math.round((grossMargin - internalTestCost) * 100) / 100;
+    const netCompanyMarginPct = totalRevenue > 0
+      ? Math.round((netCompanyMargin / totalRevenue) * 10000) / 100
       : 0;
     const auroraStoredMargin = Math.round((totalRevenue - auroraStoredPcmCost) * 100) / 100;
     const pcmVsAuroraCostDelta = Math.round((pcmCostInvoice - auroraStoredPcmCost) * 100) / 100;
@@ -428,7 +466,12 @@ async function getProfitabilitySummary(domain?: string) {
       totalRevenue,
       totalPcmCost: pcmCostInvoice,
       grossMargin,
-      marginPercent,
+      grossMarginPct,
+      netCompanyMargin,
+      netCompanyMarginPct,
+      internalTestCost: Number(internalTestCost.toFixed(2)),
+      // Legacy alias — historically gross margin %, keep for existing consumers.
+      marginPercent: grossMarginPct,
       totalSends,
       pcmPiecesInvoice,
       revenuePerPiece: totalSends > 0 ? Math.round((totalRevenue / totalSends) * 10000) / 10000 : 0,
@@ -715,16 +758,54 @@ async function getMarginTrend(domain?: string, _days?: number) {
       // 'unknown' rates are skipped (very rare)
     }
 
+    // For the current (in-progress) month, we want the chart's last point to
+    // reflect the MOST RECENT rate, not the monthly weighted blend. Otherwise
+    // a rate bump mid-month shows up as an average (e.g. $0.6402 Apr '26 when
+    // Std went $0.63 → $0.66 on Apr 19) and readers reasonably conclude the
+    // chart is stale or the bump never happened. The reference line at the
+    // change date + this last-point override give the user a visible step.
+    //
+    // Source for the "latest rate": same per-day daily rate from dm_volume_summary
+    // that getPriceDetection uses. Pick the most recent day per mail class within
+    // the current month; fall back to the blend if no recent rows.
+    const currentMonthKey = new Date().toISOString().slice(0, 7); // YYYY-MM
+    const latestDailyRows = await runAuroraQuery(`
+      SELECT DISTINCT ON (mail_class)
+        mail_class,
+        ROUND(SUM(daily_cost) OVER (PARTITION BY mail_class, date)::numeric
+          / NULLIF(SUM(daily_sends) OVER (PARTITION BY mail_class, date), 0)::numeric, 4) as latest_rate,
+        date as latest_date
+      FROM dm_volume_summary
+      WHERE mail_class IN ('standard', 'first_class')
+        AND daily_sends > 0
+        AND domain NOT IN (${TEST_DOMAINS})
+        AND to_char(date, 'YYYY-MM') = '${currentMonthKey}'
+        ${domainWhere}
+      ORDER BY mail_class, date DESC
+    `).catch(() => [] as Record<string, unknown>[]);
+
+    const latestStdRate = latestDailyRows.find(r => r.mail_class === 'standard');
+    const latestFcRate = latestDailyRows.find(r => r.mail_class === 'first_class');
+
     // Build trend with all 5 values per month
     const trend = Object.entries(monthMap)
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([month, data]) => {
-        const ourFcRate = data.fcSends > 0
-          ? Math.round((data.fcRateSum / data.fcSends) * 10000) / 10000
-          : 0;
-        const ourStdRate = data.stdSends > 0
-          ? Math.round((data.stdRateSum / data.stdSends) * 10000) / 10000
-          : 0;
+        const isCurrentMonth = month === currentMonthKey;
+
+        // For the current month, override with the latest daily rate (if we found
+        // one). For historical months, keep the weighted blend — those months
+        // are closed and the blend IS the actual average.
+        const ourFcRate = isCurrentMonth && latestFcRate?.latest_rate
+          ? Number(latestFcRate.latest_rate)
+          : data.fcSends > 0
+            ? Math.round((data.fcRateSum / data.fcSends) * 10000) / 10000
+            : 0;
+        const ourStdRate = isCurrentMonth && latestStdRate?.latest_rate
+          ? Number(latestStdRate.latest_rate)
+          : data.stdSends > 0
+            ? Math.round((data.stdRateSum / data.stdSends) * 10000) / 10000
+            : 0;
 
         const pcm = getPcmRates(month);
         const fcMargin = ourFcRate > 0 ? Math.round((ourFcRate - pcm.fcRate) * 10000) / 10000 : 0;
@@ -747,12 +828,26 @@ async function getMarginTrend(domain?: string, _days?: number) {
           blendedMargin,
           fcSends: data.fcSends,
           stdSends: data.stdSends,
+          // Flag so the widget can render a subtle "latest" indicator at the
+          // current-month point instead of implying the month is closed.
+          isCurrentMonth,
         };
       });
 
     const dataAvailable = trend.length > 0;
 
-    const result = { trend, dataAvailable };
+    const result = {
+      trend,
+      dataAvailable,
+      // Surface metadata so the widget footnote can say "Current month: latest
+      // observed rate as of YYYY-MM-DD" — transparent about which point is live
+      // vs. historical closed-month averages.
+      currentMonth: {
+        month: currentMonthKey,
+        standardLatestDate: latestStdRate?.latest_date ? String(latestStdRate.latest_date).slice(0, 10) : null,
+        firstClassLatestDate: latestFcRate?.latest_date ? String(latestFcRate.latest_date).slice(0, 10) : null,
+      },
+    };
     setCache(cacheKey, result);
     return NextResponse.json(result);
   } catch (error) {
@@ -886,6 +981,21 @@ async function getPriceDetection(domain?: string) {
           LAG(date) OVER (PARTITION BY mail_class ORDER BY date) as prev_date
         FROM daily_rates
         WHERE effective_rate IS NOT NULL
+      ),
+      filtered_changes AS (
+        SELECT *
+        FROM rate_changes
+        WHERE prev_rate IS NOT NULL
+          AND ABS(effective_rate - prev_rate) > 0.005
+      ),
+      -- Rank per mail_class so Standard micro-variance cannot
+      -- crowd out First Class changes. Previously a global LIMIT 20
+      -- caused the FC Apr 2026 change to be dropped whenever Standard
+      -- had 20+ recent fluctuations.
+      ranked AS (
+        SELECT *,
+          ROW_NUMBER() OVER (PARTITION BY mail_class ORDER BY date DESC) AS rn
+        FROM filtered_changes
       )
       SELECT
         date as change_date,
@@ -894,11 +1004,9 @@ async function getPriceDetection(domain?: string) {
         effective_rate as new_rate,
         effective_rate - prev_rate as rate_delta,
         daily_sends as sends_on_change_day
-      FROM rate_changes
-      WHERE prev_rate IS NOT NULL
-        AND ABS(effective_rate - prev_rate) > 0.005
+      FROM ranked
+      WHERE rn <= 10
       ORDER BY date DESC
-      LIMIT 20
     `);
 
     const changes = changeRows.map(r => ({
@@ -993,10 +1101,38 @@ async function getPriceDetection(domain?: string) {
       firstClass: buildRollout('first_class'),
     };
 
+    // 4. Sync coverage per mail_class — exposes Aurora sync lag so a missing
+    // recent rate change isn't silently hidden. If FC's max_date is weeks
+    // behind Standard's, a reader can see that the monolith hasn't sent FC
+    // rows yet (or that FC simply has no recent sends).
+    const coverageRows = await runAuroraQuery(`
+      SELECT
+        mail_class,
+        MAX(date)::text AS last_synced_date,
+        COUNT(DISTINCT date) AS days_synced
+      FROM dm_volume_summary
+      WHERE mail_class IN ('standard', 'first_class')
+        AND daily_sends > 0
+        AND domain NOT IN (${TEST_DOMAINS})
+        ${domainWhere}
+      GROUP BY mail_class
+    `);
+    const stdCoverage = coverageRows.find(r => r.mail_class === 'standard');
+    const fcCoverage = coverageRows.find(r => r.mail_class === 'first_class');
+    const coverage = {
+      standard: stdCoverage
+        ? { lastSyncedDate: String(stdCoverage.last_synced_date).slice(0, 10), daysSynced: Number(stdCoverage.days_synced) }
+        : null,
+      firstClass: fcCoverage
+        ? { lastSyncedDate: String(fcCoverage.last_synced_date).slice(0, 10), daysSynced: Number(fcCoverage.days_synced) }
+        : null,
+    };
+
     const result = {
       currentRates,
       changes,
       rolloutStatus,
+      coverage,
       dataAvailable: changes.length > 0 || currentRates.standard !== null || currentRates.firstClass !== null,
     };
 
@@ -1338,12 +1474,17 @@ async function getPricingHistory(domain?: string) {
   const domainWhere = domain ? `AND domain = '${domain}'` : '';
 
   try {
+    // Only read customer-side metrics from dm_volume_summary. daily_pcm_cost
+    // is populated by the monolith from parameters.pcm_cost = $0.625/$0.875
+    // which matches no invoice and is null for ~8% of lifetime / ~88% of recent
+    // pieces (see session 4 report). Use the invoice-verified era rate from
+    // pcm-pricing-eras.ts for the PCM line instead — same source Pricing
+    // overview uses, so the two widgets tell the same story.
     const rows = await runAuroraQuery(`
       SELECT
         date,
         mail_class,
         ROUND(SUM(daily_cost)::numeric / NULLIF(SUM(daily_sends), 0)::numeric, 4) as our_rate,
-        ROUND(SUM(daily_pcm_cost)::numeric / NULLIF(SUM(daily_sends), 0)::numeric, 4) as pcm_rate,
         SUM(daily_sends) as sends
       FROM dm_volume_summary
       WHERE mail_class IN ('standard', 'first_class')
@@ -1376,13 +1517,18 @@ async function getPricingHistory(domain?: string) {
         };
       }
       const entry = dateMap[dateStr];
+      // PCM era rate is applied per-date, per-mail-class from the shared
+      // schedule. For a date inside Era 3 (2025-11 onward) this is $0.63/Std
+      // and $0.87/FC regardless of what the monolith wrote.
+      const pcmEraStd = pcmRate(dateStr, 'std');
+      const pcmEraFc = pcmRate(dateStr, 'fc');
       if (row.mail_class === 'standard') {
         entry.ourStandardRate = Number(row.our_rate);
-        entry.pcmStandardRate = Number(row.pcm_rate);
+        entry.pcmStandardRate = pcmEraStd;
         entry.standardSends = Number(row.sends);
       } else if (row.mail_class === 'first_class') {
         entry.ourFirstClassRate = Number(row.our_rate);
-        entry.pcmFirstClassRate = Number(row.pcm_rate);
+        entry.pcmFirstClassRate = pcmEraFc;
         entry.firstClassSends = Number(row.sends);
       }
     }
@@ -1390,13 +1536,38 @@ async function getPricingHistory(domain?: string) {
     const trend = Object.values(dateMap).sort((a, b) => a.date.localeCompare(b.date));
     const dataAvailable = trend.length > 0;
 
-    const result = { trend, dataAvailable };
+    // Sync coverage footer data — exposes how fresh the customer-rate line is.
+    // Mirrors the coverage field on getPriceDetection.
+    const coverageRows = await runAuroraQuery(`
+      SELECT
+        mail_class,
+        MAX(date)::text AS last_synced_date,
+        COUNT(DISTINCT date) AS days_synced
+      FROM dm_volume_summary
+      WHERE mail_class IN ('standard', 'first_class')
+        AND daily_sends > 0
+        AND domain NOT IN (${TEST_DOMAINS})
+        ${domainWhere}
+      GROUP BY mail_class
+    `);
+    const stdCov = coverageRows.find(r => r.mail_class === 'standard');
+    const fcCov = coverageRows.find(r => r.mail_class === 'first_class');
+    const coverage = {
+      standard: stdCov
+        ? { lastSyncedDate: String(stdCov.last_synced_date).slice(0, 10), daysSynced: Number(stdCov.days_synced) }
+        : null,
+      firstClass: fcCov
+        ? { lastSyncedDate: String(fcCov.last_synced_date).slice(0, 10), daysSynced: Number(fcCov.days_synced) }
+        : null,
+    };
+
+    const result = { trend, coverage, dataAvailable };
     setCache(cacheKey, result);
     return NextResponse.json(result);
   } catch (error) {
     const msg = error instanceof Error ? error.message : '';
     if (msg.includes('mail_class') || msg.includes('daily_pcm_cost')) {
-      return NextResponse.json({ trend: [], dataAvailable: false });
+      return NextResponse.json({ trend: [], coverage: { standard: null, firstClass: null }, dataAvailable: false });
     }
     throw error;
   }

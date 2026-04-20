@@ -92,8 +92,10 @@ export { DmOverviewTestCostCardsWidget } from './DmOverviewTestCostCardsWidget';
 export { DmOverviewSendTrendWidget } from './DmOverviewSendTrendWidget';
 export { DmOverviewBalanceFlowWidget } from './DmOverviewBalanceFlowWidget';
 
-// Features > 8020REI > DM Campaign Business Results tab widgets
+// Features > 8020REI > DM Campaign Operational Health / Business Results tab widgets
 export { DmAlertsFeedWidget } from './DmAlertsFeedWidget';
+export { DmOnHoldBreakdownWidget } from './DmOnHoldBreakdownWidget';
+export type { OnHoldBreakdownData, OnHoldBreakdownCampaign } from './DmOnHoldBreakdownWidget';
 export { DmFunnelOverviewWidget } from './DmFunnelOverviewWidget';
 export { DmClientPerformanceWidget } from './DmClientPerformanceWidget';
 export { DmTemplateLeaderboardWidget } from './DmTemplateLeaderboardWidget';

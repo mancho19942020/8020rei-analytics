@@ -26,10 +26,16 @@ import {
   Legend,
   ReferenceLine,
 } from 'recharts';
-import type { RateHistoryData } from '@/types/pcm-validation';
+import type { RateHistoryData, PriceDetectionData } from '@/types/pcm-validation';
 
 interface PcmMarginTrendWidgetProps {
   data: RateHistoryData | null;
+  /** Optional. When provided, detected rate changes render as vertical
+   *  ReferenceLines on the chart so mid-month transitions aren't hidden by
+   *  monthly aggregation. Example: Apr '26 blends pre- and post-2026-04-19
+   *  rates into a $0.6402 point — the reference line at 2026-04-19 labels
+   *  the transition as "Std +$0.03" so readers see it. */
+  detection?: PriceDetectionData | null;
 }
 
 const tooltipStyle = {
@@ -49,7 +55,7 @@ function formatMonth(v: string): string {
   return `${MONTH_NAMES[monthIdx]} '${year}`;
 }
 
-export function PcmMarginTrendWidget({ data }: PcmMarginTrendWidgetProps) {
+export function PcmMarginTrendWidget({ data, detection }: PcmMarginTrendWidgetProps) {
   const chartData = useMemo(() => {
     if (!data?.trend?.length) return [];
     return data.trend
@@ -66,6 +72,26 @@ export function PcmMarginTrendWidget({ data }: PcmMarginTrendWidgetProps) {
       }));
   }, [data]);
 
+  // Extract rate-change events to render as vertical reference lines on the chart.
+  // Each event is keyed by its month (YYYY-MM) so the line lands in the right
+  // bucket on the monthly x-axis. Covers the common case where an intra-month
+  // rate change blends into the month's weighted average (Apr '26 = $0.6402
+  // instead of showing the $0.63 → $0.66 step).
+  const rateEvents = useMemo(() => {
+    if (!detection?.changes?.length) return [];
+    const byMonth = new Map<string, { month: string; label: string; mailClass: 'standard' | 'first_class'; delta: number }>();
+    for (const c of detection.changes) {
+      const month = c.changeDate.slice(0, 7);
+      const delta = c.newRate - c.oldRate;
+      const label = `${c.mailClass === 'first_class' ? 'FC' : 'Std'} ${delta > 0 ? '+' : ''}$${delta.toFixed(2)} (${c.changeDate})`;
+      const existing = byMonth.get(`${month}-${c.mailClass}`);
+      if (!existing || c.changeDate > existing.label) {
+        byMonth.set(`${month}-${c.mailClass}`, { month, label, mailClass: c.mailClass, delta });
+      }
+    }
+    return Array.from(byMonth.values());
+  }, [detection]);
+
   if (!data || !data.dataAvailable || chartData.length === 0) {
     return (
       <div className="flex items-center justify-center h-full text-sm" style={{ color: 'var(--text-secondary)' }}>
@@ -75,7 +101,8 @@ export function PcmMarginTrendWidget({ data }: PcmMarginTrendWidgetProps) {
   }
 
   return (
-    <div className="h-full w-full p-2">
+    <div className="h-full w-full p-2 flex flex-col">
+      <div className="flex-1 min-h-0">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={chartData} margin={{ top: 5, right: 15, left: 5, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" className="stroke-stroke-subtle" vertical={false} />
@@ -113,6 +140,30 @@ export function PcmMarginTrendWidget({ data }: PcmMarginTrendWidgetProps) {
             stroke="var(--border-default)"
             strokeDasharray="4 4"
           />
+
+          {/* Rate-change reference lines — mid-month transitions detected from
+              dm_volume_summary via getPriceDetection. Without these, a monthly
+              aggregate can hide a rate change: e.g. Apr '26 blending $0.63 and
+              $0.66 Standard into a single $0.6402 point. */}
+          {rateEvents.map((e, idx) => (
+            <ReferenceLine
+              key={`${e.month}-${e.mailClass}-${idx}`}
+              x={e.month}
+              stroke={e.mailClass === 'first_class'
+                ? 'var(--color-main-500, #3b82f6)'
+                : 'var(--color-main-300, #93c5fd)'}
+              strokeDasharray="2 4"
+              strokeWidth={1.25}
+              label={{
+                value: e.label,
+                position: 'insideTopRight',
+                fill: e.mailClass === 'first_class'
+                  ? 'var(--color-main-700, #1d4ed8)'
+                  : 'var(--color-main-500, #3b82f6)',
+                fontSize: 9,
+              }}
+            />
+          ))}
 
           {/* Our rates — blue (what we charge clients) */}
           <Line
@@ -168,6 +219,23 @@ export function PcmMarginTrendWidget({ data }: PcmMarginTrendWidgetProps) {
           />
         </LineChart>
       </ResponsiveContainer>
+      </div>
+      <div className="px-2 pt-1 text-[10px] flex-shrink-0" style={{ color: 'var(--text-tertiary)' }}>
+        {rateEvents.length > 0 ? (
+          <>Monthly aggregates. Mid-month rate changes appear as dashed vertical lines.
+          {data?.currentMonth && (data.currentMonth.standardLatestDate || data.currentMonth.firstClassLatestDate) && (
+            <>
+              {' '}Current month ({data.currentMonth.month}) point shows the latest observed daily rate
+              {data.currentMonth.standardLatestDate && ` (Std through ${data.currentMonth.standardLatestDate}`}
+              {data.currentMonth.firstClassLatestDate && `${data.currentMonth.standardLatestDate ? ', ' : ' ('}FC through ${data.currentMonth.firstClassLatestDate}`}
+              {(data.currentMonth.standardLatestDate || data.currentMonth.firstClassLatestDate) && ')'}, not the month-blended average — so the chart always ends at current pricing.
+            </>
+          )}
+          </>
+        ) : (
+          <>Monthly aggregates. Current-month point shows the latest observed daily rate so the chart always ends at current pricing; prior months are month-blended averages.</>
+        )}
+      </div>
     </div>
   );
 }

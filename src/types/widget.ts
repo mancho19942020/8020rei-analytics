@@ -100,6 +100,7 @@ export type WidgetType =
   | 'rr-sends-trend'
   | 'rr-status-breakdown'
   | 'rr-alerts-feed'
+  | 'rr-on-hold-breakdown'
   | 'rr-campaign-table'
   | 'rr-q2-goal'
   | 'rr-q2-top-contributors'

@@ -37,6 +37,14 @@ export interface RrCampaignSnapshot {
   followUpPendingCount: number;
   smartdropAuthorizationStatus: string | null;
   snapshotAt: string;
+  /** Days since this campaign first showed on_hold_count > 0 in rr_campaign_snapshots.
+   *  Null when the campaign currently has no on-hold pieces. Used to render the
+   *  fresh / stale badge next to the On-hold column. Age is inferred from
+   *  snapshot history (row-level rapid_response_history does not sync to Aurora). */
+  daysSinceFirstHold: number | null;
+  /** 'stale' if daysSinceFirstHold ≥ 7 (overdue for monolith auto-delivery timer),
+   *  'fresh' if < 7, null if no on-hold. */
+  onHoldAgeBucket: 'stale' | 'fresh' | null;
 }
 
 export interface RrOperationalPulse {
@@ -45,6 +53,14 @@ export interface RrOperationalPulse {
   sendsToday: number;
   lastSendTime: string | null;
   totalOnHold: number;
+  /** Pieces in campaigns where first on-hold ≥ 7 days ago (monolith timer gap). */
+  staleOnHold: number;
+  /** Pieces in campaigns where first on-hold < 7 days ago (within normal window). */
+  freshOnHold: number;
+  /** Count of campaigns whose on-hold age is stale. */
+  staleCampaigns: number;
+  /** Oldest days-in-on-hold across any campaign currently holding pieces. */
+  oldestOnHoldDays: number;
   totalFollowUpPending: number;
 }
 

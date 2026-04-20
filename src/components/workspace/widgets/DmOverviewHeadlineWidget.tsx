@@ -10,6 +10,7 @@
 
 'use client';
 
+import { AxisTooltip } from '@/components/axis';
 import type { DmOverviewHeadline } from '@/types/dm-overview';
 
 interface DmOverviewHeadlineWidgetProps {
@@ -81,32 +82,29 @@ function Card({ label, hero, sub, icon, iconBg, secondaryTone = 'neutral', sourc
   // justify-between distributes: (icon+label) ↑ — (hero) — (sub) ↓
   // Fills the card height without trailing empty space.
   return (
-    <div className="flex flex-col justify-between gap-1 p-3 bg-surface-raised border-r border-stroke last:border-r-0 min-w-0 flex-1 h-full relative group/card">
+    <div className="flex flex-col justify-between gap-1 p-3 bg-surface-raised border-r border-stroke last:border-r-0 min-w-0 flex-1 h-full relative group/card" title={sourceNote}>
       <div className="flex items-center gap-2 min-w-0">
         <div className={`w-6 h-6 rounded flex items-center justify-center text-white flex-shrink-0 ${iconBg}`}>{icon}</div>
         <span className="text-sm font-medium text-content-secondary truncate">{label}</span>
         {inconsistency && (
-          <span
-            className="flex-shrink-0 group/warn relative text-alert-700 dark:text-alert-300 cursor-help"
-            role="img"
-            aria-label="Data inconsistency"
+          <AxisTooltip
+            title="Data quality warning"
+            content={inconsistency}
+            placement="top"
+            maxWidth={360}
           >
-            <InconsistencyIcon />
-            <span className="absolute right-0 top-full mt-1 px-3 py-2 rounded-md bg-surface-overlay text-content-primary text-[11px] font-normal opacity-0 group-hover/warn:opacity-100 transition-opacity duration-75 pointer-events-none z-20 border border-alert-500 w-[320px] whitespace-normal text-left leading-snug">
-              <strong className="text-alert-700 dark:text-alert-300">Data quality warning</strong>
-              <br />
-              {inconsistency}
+            <span
+              className="flex-shrink-0 text-alert-700 dark:text-alert-300 cursor-help"
+              role="img"
+              aria-label="Data inconsistency"
+            >
+              <InconsistencyIcon />
             </span>
-          </span>
+          </AxisTooltip>
         )}
       </div>
       <div className="text-[2rem] font-bold text-content-primary tabular-nums leading-[36px] tracking-tight">{hero}</div>
-      <div className={`text-xs ${toneClass} truncate`}>{sub}</div>
-
-      {/* Source tooltip on hover */}
-      <div className="absolute left-0 right-0 bottom-full mb-1 px-3 py-2 rounded-md bg-surface-overlay text-content-primary text-[11px] font-normal opacity-0 group-hover/card:opacity-100 transition-opacity duration-75 pointer-events-none z-10 border border-stroke">
-        {sourceNote}
-      </div>
+      <div className={`text-xs ${toneClass} break-words leading-snug`}>{sub}</div>
     </div>
   );
 }

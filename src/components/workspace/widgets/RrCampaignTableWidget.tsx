@@ -171,17 +171,45 @@ export function RrCampaignTableWidget({ data, onDomainClick }: RrCampaignTableWi
     {
       field: 'onHoldCount',
       header: 'On hold',
-      headerTooltip: 'Mail pieces waiting to be sent (queued but not yet dispatched)',
-      width: 80,
+      headerTooltip: 'Mail pieces waiting to be sent (queued but not yet dispatched). Badge shows whether the campaign has been in hold for ≥ 7 days (stale — overdue for the monolith\'s auto-delivery timer to flip them to undelivered) or < 7 days (fresh — within the normal window). Stale pieces indicate the timer is not running for that campaign.',
+      width: 140,
       align: 'center',
-      render: (value: CellValue) => (
-        <span
-          className={Number(value) > 0 ? 'font-semibold' : ''}
-          style={{ color: Number(value) > 0 ? 'var(--color-error-500)' : 'var(--text-primary)' }}
-        >
-          {value}
-        </span>
-      ),
+      render: (value: CellValue, row: RowData) => {
+        const n = Number(value);
+        if (n === 0) {
+          return <span style={{ color: 'var(--text-tertiary)' }}>0</span>;
+        }
+        const bucket = row.onHoldAgeBucket as 'stale' | 'fresh' | null;
+        const days = row.daysSinceFirstHold as number | null;
+        const isStale = bucket === 'stale';
+        return (
+          <span className="inline-flex items-center gap-1.5">
+            <span
+              className="font-semibold"
+              style={{ color: isStale ? 'var(--color-error-600, #dc2626)' : 'var(--color-alert-700, #b45309)' }}
+            >
+              {n.toLocaleString('en-US')}
+            </span>
+            {bucket && (
+              <span
+                className="text-[10px] font-medium px-1.5 py-0.5 rounded"
+                style={{
+                  backgroundColor: isStale ? 'var(--color-error-50, #fef2f2)' : 'var(--color-alert-50, #fffbeb)',
+                  color: isStale ? 'var(--color-error-700, #b91c1c)' : 'var(--color-alert-700, #b45309)',
+                  border: `1px solid ${isStale ? 'var(--color-error-300, #fca5a5)' : 'var(--color-alert-300, #fcd34d)'}`,
+                }}
+                title={
+                  isStale
+                    ? `Stale: on-hold ≥ 7 days (currently ${days ?? '?'} days). Overdue for the monolith's auto-delivery timer.`
+                    : `Fresh: on-hold < 7 days (currently ${days ?? '?'} days). Within normal window.`
+                }
+              >
+                {isStale ? `stale ${days}d` : 'fresh'}
+              </span>
+            )}
+          </span>
+        );
+      },
     },
   ], [onDomainClick, openDrilldown]);
 
@@ -196,6 +224,8 @@ export function RrCampaignTableWidget({ data, onDomainClick }: RrCampaignTableWi
       totalSent: c.totalSent,
       totalDelivered: c.totalDelivered,
       onHoldCount: c.onHoldCount,
+      daysSinceFirstHold: c.daysSinceFirstHold,
+      onHoldAgeBucket: c.onHoldAgeBucket,
     })),
   [data]);
 

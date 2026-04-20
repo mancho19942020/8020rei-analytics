@@ -63,9 +63,21 @@ export function RrOperationalPulseWidget({ data }: RrOperationalPulseWidgetProps
       />
       <AxisPill
         label="On hold"
-        value={data.totalOnHold}
-        type={data.totalOnHold > 0 ? 'bad' : 'default'}
-        tooltip="Mailings that are waiting to be sent but are blocked — usually because the client's account doesn't have enough balance. Requires immediate attention."
+        value={
+          data.totalOnHold === 0
+            ? '0'
+            : data.staleOnHold > 0
+              ? `${data.totalOnHold.toLocaleString('en-US')} (${data.staleOnHold.toLocaleString('en-US')} stale)`
+              : `${data.totalOnHold.toLocaleString('en-US')} (all fresh)`
+        }
+        type={data.staleOnHold > 0 ? 'bad' : data.totalOnHold > 0 ? 'default' : 'default'}
+        tooltip={
+          data.staleOnHold > 0
+            ? `${data.totalOnHold.toLocaleString('en-US')} mailings on hold. ${data.staleOnHold.toLocaleString('en-US')} have been on-hold ≥ 7 days (stale) — the monolith's auto-delivery timer should have converted them to 'undelivered' but hasn't. ${data.freshOnHold.toLocaleString('en-US')} are < 7 days old (fresh, within normal window). Oldest piece: ${data.oldestOnHoldDays} days. Stale count = 0 means the timer is keeping up; any stale count means pieces are overdue for conversion. See Campaigns table below for the offending campaigns.`
+            : data.totalOnHold > 0
+              ? `${data.totalOnHold.toLocaleString('en-US')} mailings on hold — all within the normal 7-day window (fresh). No pieces overdue for the monolith's auto-delivery timer.`
+              : 'No mailings on hold. All clients have sufficient balance.'
+        }
       />
       <AxisPill
         label="Follow-up pending"

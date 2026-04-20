@@ -14,6 +14,12 @@ import { getCached, setCache } from '@/lib/cache';
 import { readCache as readOverviewCache, getCachedPcmOrdersSlim } from '@/app/api/dm-overview/compute';
 // Test-domain exclusion — canonical source. Any change applies everywhere simultaneously.
 import { TEST_DOMAINS_SQL as SEED_DOMAINS, EXCLUDE_TEST_DOMAINS_SQL as EXCLUDE_SEED } from '@/lib/domain-filter';
+// On-hold stale/fresh helper — single source of truth shared with slack-alerts
+import {
+  queryOnHoldAges,
+  ON_HOLD_STALE_THRESHOLD_DAYS,
+  type OnHoldCampaignRow,
+} from '@/lib/on-hold-ages';
 import type {
   RrSystemStatus,
   RrOperationalPulse,
@@ -85,6 +91,8 @@ export async function GET(request: NextRequest) {
         return await getDomainList();
       case 'q2-goal':
         return await getQ2Goal(domain);
+      case 'on-hold-breakdown':
+        return await getOnHoldBreakdown(domain);
       default:
         return NextResponse.json(
           { success: false, error: `Unknown type: ${type}` },
@@ -191,6 +199,11 @@ async function getOverview(days: number, domain?: string) {
   const totalOnHold = pulseRows.reduce((sum: number, r: Record<string, unknown>) => sum + Number(r.on_hold_count || 0), 0);
   const totalFollowUp = pulseRows.reduce((sum: number, r: Record<string, unknown>) => sum + Number(r.follow_up_pending_count || 0), 0);
 
+  // Stale vs fresh split — same source as Campaigns table + slack alert + future
+  // on-hold breakdown. The sum of stale + fresh must equal totalOnHold above;
+  // any delta is a data discrepancy that should surface in the diagnostic.
+  const onHoldAges = await queryOnHoldAges(domain);
+
   // Find sends today from daily metrics
   const todayRows = await runAuroraQuery(`
     SELECT COALESCE(SUM(sends_total), 0) as sends_today
@@ -212,6 +225,10 @@ async function getOverview(days: number, domain?: string) {
     sendsToday,
     lastSendTime: lastSendDates[0] ? String(lastSendDates[0]) : null,
     totalOnHold,
+    staleOnHold: onHoldAges.staleOnHold,
+    freshOnHold: onHoldAges.freshOnHold,
+    staleCampaigns: onHoldAges.staleCampaigns,
+    oldestOnHoldDays: onHoldAges.oldestAgeDays,
     totalFollowUpPending: totalFollowUp,
   };
 
@@ -431,34 +448,54 @@ async function getCampaignList(_days: number, domain?: string) {
   const cached = getCached(cacheKey);
   if (cached) return NextResponse.json({ success: true, data: cached, cached: true });
 
-  const rows = await runAuroraQuery(`
-    SELECT DISTINCT ON (domain, campaign_id)
-      campaign_id, campaign_name, domain, campaign_type, status,
-      total_sent, total_delivered, last_sent_date,
-      letters_delivered_30d, postcards_delivered_30d,
-      on_hold_count, follow_up_pending_count,
-      smartdrop_authorization_status, snapshot_at
-    FROM rr_campaign_snapshots
-    WHERE ${domainFilter(domain)}
-    ORDER BY domain, campaign_id, snapshot_at DESC
-  `);
+  // Run the two queries in parallel: per-campaign latest snapshot + age-bucket
+  // via the shared queryOnHoldAges helper. Then merge so every row carries
+  // daysSinceFirstHold + ageBucket, powering the "fresh" / "stale Nd" badge
+  // without a second API call.
+  const [rows, ages] = await Promise.all([
+    runAuroraQuery(`
+      SELECT DISTINCT ON (domain, campaign_id)
+        campaign_id, campaign_name, domain, campaign_type, status,
+        total_sent, total_delivered, last_sent_date,
+        letters_delivered_30d, postcards_delivered_30d,
+        on_hold_count, follow_up_pending_count,
+        smartdrop_authorization_status, snapshot_at
+      FROM rr_campaign_snapshots
+      WHERE ${domainFilter(domain)}
+      ORDER BY domain, campaign_id, snapshot_at DESC
+    `),
+    queryOnHoldAges(domain),
+  ]);
 
-  const data: RrCampaignSnapshot[] = rows.map((r: Record<string, unknown>) => ({
-    campaignId: String(r.campaign_id || ''),
-    campaignName: String(r.campaign_name || ''),
-    domain: String(r.domain || ''),
-    campaignType: String(r.campaign_type || '') as 'rr' | 'smartdrop',
-    status: String(r.status || ''),
-    totalSent: Number(r.total_sent || 0),
-    totalDelivered: Number(r.total_delivered || 0),
-    lastSentDate: r.last_sent_date ? String(r.last_sent_date) : null,
-    lettersDelivered30d: Number(r.letters_delivered_30d || 0),
-    postcardsDelivered30d: Number(r.postcards_delivered_30d || 0),
-    onHoldCount: Number(r.on_hold_count || 0),
-    followUpPendingCount: Number(r.follow_up_pending_count || 0),
-    smartdropAuthorizationStatus: r.smartdrop_authorization_status ? String(r.smartdrop_authorization_status) : null,
-    snapshotAt: String(r.snapshot_at || ''),
-  }));
+  const ageIndex = new Map<string, OnHoldCampaignRow>();
+  for (const c of ages.perCampaign) {
+    ageIndex.set(`${c.domain}::${String(c.campaignId)}`, c);
+  }
+
+  const data: RrCampaignSnapshot[] = rows.map((r: Record<string, unknown>) => {
+    const onHold = Number(r.on_hold_count || 0);
+    const ageRow = onHold > 0
+      ? ageIndex.get(`${String(r.domain || '')}::${String(r.campaign_id || '')}`)
+      : undefined;
+    return {
+      campaignId: String(r.campaign_id || ''),
+      campaignName: String(r.campaign_name || ''),
+      domain: String(r.domain || ''),
+      campaignType: String(r.campaign_type || '') as 'rr' | 'smartdrop',
+      status: String(r.status || ''),
+      totalSent: Number(r.total_sent || 0),
+      totalDelivered: Number(r.total_delivered || 0),
+      lastSentDate: r.last_sent_date ? String(r.last_sent_date) : null,
+      lettersDelivered30d: Number(r.letters_delivered_30d || 0),
+      postcardsDelivered30d: Number(r.postcards_delivered_30d || 0),
+      onHoldCount: onHold,
+      followUpPendingCount: Number(r.follow_up_pending_count || 0),
+      smartdropAuthorizationStatus: r.smartdrop_authorization_status ? String(r.smartdrop_authorization_status) : null,
+      snapshotAt: String(r.snapshot_at || ''),
+      daysSinceFirstHold: ageRow?.daysSinceFirstHold ?? null,
+      onHoldAgeBucket: ageRow?.ageBucket ?? null,
+    };
+  });
 
   setCache(cacheKey, data);
   return NextResponse.json({ success: true, data, cached: false });
@@ -1191,4 +1228,53 @@ function computeSystemStatus(
     detail: `${pulse.activeCampaigns} active campaigns, ${pulse.sendsToday} sends today, ${quality.deliveryRate30d}% delivery rate.`,
     lastSyncAt,
   };
+}
+
+/**
+ * On-hold age-bucket breakdown — exposes the gap between "on-hold pieces that
+ * are still within the expected 7-day window" vs "stale pieces the monolith's
+ * auto-delivery timer should have converted to undelivered but hasn't".
+ *
+ * The monolith's row-level rapid_response_history table (which has per-piece
+ * created_at timestamps) does not sync to Aurora — we only receive hourly
+ * campaign snapshots in rr_campaign_snapshots. So we infer piece age by
+ * tracking when each campaign first showed on_hold_count > 0: if that was
+ * ≥ 7 days ago and current on_hold_count is still > 0, those pieces should
+ * have been auto-flipped to undelivered by now.
+ *
+ * Assumption: the monolith's FIFO-ish on-hold handling means the oldest
+ * pieces were on hold first. A campaign with on_hold_count > 0 for 17 days
+ * has pieces at least 17 days old somewhere in that count. This is an
+ * approximation — the authoritative row-level age can only come from the
+ * monolith's MySQL.
+ */
+async function getOnHoldBreakdown(domain?: string) {
+  const cacheKey = `rapid-response:on-hold-breakdown:${domain || 'all'}`;
+  const cached = getCached<unknown>(cacheKey);
+  if (cached) return NextResponse.json(cached);
+
+  // Delegates to the shared helper so every surface (pulse + campaigns table +
+  // slack alert + this endpoint) reads from the same query. Any future refinement
+  // to age inference happens in one place.
+  const ages = await queryOnHoldAges(domain);
+  const result = {
+    totalOnHold: ages.totalOnHold,
+    staleOnHold: ages.staleOnHold,
+    freshOnHold: ages.freshOnHold,
+    oldestAgeDays: ages.oldestAgeDays,
+    campaignsWithHold: ages.campaignsWithHold,
+    staleCampaigns: ages.staleCampaigns,
+    campaigns: ages.perCampaign.map(c => ({
+      domain: c.domain,
+      campaignName: c.campaignName,
+      currentHold: c.currentHold,
+      firstOnHoldSeen: c.firstOnHoldSeen,
+      daysSinceFirstHold: c.daysSinceFirstHold,
+      ageBucket: c.ageBucket,
+    })),
+    thresholdDays: ON_HOLD_STALE_THRESHOLD_DAYS,
+    dataAvailable: true,
+  };
+  setCache(cacheKey, result);
+  return NextResponse.json(result);
 }

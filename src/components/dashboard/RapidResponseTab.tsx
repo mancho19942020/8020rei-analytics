@@ -16,6 +16,7 @@ import { useState, useEffect, useMemo, useCallback, forwardRef, useImperativeHan
 import { buildDateQueryString } from '@/lib/date-utils';
 import { AxisSkeleton, AxisCallout, AxisButton, AxisTag, AxisDomainSearch } from '@/components/axis';
 import { GridWorkspace, WidgetCatalog, WidgetSettings } from '@/components/workspace';
+import { DataReliabilityHint } from '@/components/workspace/DataReliabilityHint';
 import { DmAlertsModal, getAlertCount } from '@/components/dashboard/DmAlertsModal';
 import {
   RrOperationalPulseWidget,
@@ -58,6 +59,8 @@ import {
   PcmClientsLosingWidget,
   PcmDomainTableWidget,
   PcmTemplateTableWidget,
+  DmOnHoldBreakdownWidget,
+  type OnHoldBreakdownData,
 } from '@/components/workspace/widgets';
 import {
   DEFAULT_RAPID_RESPONSE_LAYOUT,
@@ -117,6 +120,7 @@ interface RapidResponseData {
   alerts: RrAlert[];
   q2Goal: RrQ2Goal | null;
   dataQuality: DmDataQuality | null;
+  onHoldBreakdown: OnHoldBreakdownData | null;
 }
 
 interface BusinessResultsData {
@@ -360,7 +364,7 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
       try {
         const dp = buildDateQueryString(days, startDate, endDate);
         const domainParam = selectedDomain ? `&domain=${encodeURIComponent(selectedDomain)}` : '';
-        const [overviewRes, trendRes, campaignRes, alertsRes, statusRes, q2GoalRes, dataQualityRes] =
+        const [overviewRes, trendRes, campaignRes, alertsRes, statusRes, q2GoalRes, dataQualityRes, onHoldBreakdownRes] =
           await Promise.all([
             authFetch(`/api/rapid-response?type=overview&${dp}${domainParam}`).then(r => r.json()),
             authFetch(`/api/rapid-response?type=daily-trend&${dp}${domainParam}`).then(r => r.json()),
@@ -369,6 +373,7 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
             authFetch(`/api/rapid-response?type=status-breakdown&${dp}${domainParam}`).then(r => r.json()),
             authFetch(`/api/rapid-response?type=q2-goal${domainParam}`).then(r => r.json()),
             authFetch(`/api/dm-conversions?type=data-quality&${dp}${domainParam}`).then(r => r.json()),
+            authFetch(`/api/rapid-response?type=on-hold-breakdown${domainParam}`).then(r => r.json()).catch(() => ({ dataAvailable: false })),
           ]);
 
         setData({
@@ -382,6 +387,9 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
           alerts: alertsRes.success ? alertsRes.data.alerts : [],
           q2Goal: q2GoalRes.success ? q2GoalRes.data : null,
           dataQuality: dataQualityRes.success ? dataQualityRes.data : null,
+          onHoldBreakdown: (onHoldBreakdownRes && typeof onHoldBreakdownRes === 'object' && 'dataAvailable' in onHoldBreakdownRes)
+            ? (onHoldBreakdownRes as OnHoldBreakdownData)
+            : null,
         });
 
         const allSuccess = [overviewRes, trendRes, campaignRes, alertsRes, statusRes, q2GoalRes, dataQualityRes].every(r => r.success);
@@ -539,6 +547,7 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
         'rr-sends-trend': <RrSendsTrendWidget data={data.dailyTrend} />,
         'rr-status-breakdown': <RrStatusBreakdownWidget data={data.statusBreakdown} />,
         'rr-alerts-feed': <RrAlertsFeedWidget data={data.alerts} />,
+        'rr-on-hold-breakdown': <DmOnHoldBreakdownWidget data={data.onHoldBreakdown} />,
         'rr-campaign-table': <RrCampaignTableWidget data={data.campaigns} onDomainClick={setSelectedDomain} />,
         'rr-q2-goal': data.q2Goal
           ? <RrQ2GoalWidget data={data.q2Goal} />
@@ -600,7 +609,7 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
         // Active widgets
         'pcm-margin-summary': <PcmMarginSummaryWidget data={pcmData.profitSummary} />,
         'pcm-margin-period': <PcmMarginPeriodWidget data={pcmData.profitPeriod} />,
-        'pcm-margin-trend': <PcmMarginTrendWidget data={pcmData.marginTrend} />,
+        'pcm-margin-trend': <PcmMarginTrendWidget data={pcmData.marginTrend} detection={pcmData.priceDetection} />,
         'pcm-pricing-overview': <PcmPricingOverviewWidget currentRates={pcmData.currentRates} detection={pcmData.priceDetection} mailClassData={pcmData.mailClassMargins} />,
         'pcm-data-match': <PcmDataMatchWidget summary={pcmData.summary} statusComparison={pcmData.statusComparison} />,
         'pcm-clients-profitable': <PcmClientsProfitableWidget data={pcmData.clientMargins} />,
@@ -765,6 +774,11 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
               </AxisCallout>
             )}
 
+            {/* Reliability hint — answers "how trustworthy is each number?" in one hover. */}
+            <div className="flex justify-end mb-1">
+              <DataReliabilityHint tab="operational-health" />
+            </div>
+
             {/* Grid Workspace */}
             <GridWorkspace
               layout={layout}
@@ -818,6 +832,9 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
                   </AxisCallout>
                 )}
 
+                <div className="flex justify-end mb-1">
+                  <DataReliabilityHint tab="business-results" />
+                </div>
                 <GridWorkspace
                   layout={brLayout}
                   onLayoutChange={handleBrLayoutChange}
@@ -875,6 +892,9 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
                   </AxisCallout>
                 )}
 
+                <div className="flex justify-end mb-1">
+                  <DataReliabilityHint tab="profitability" />
+                </div>
                 <GridWorkspace
                   layout={pcmLayout}
                   onLayoutChange={handlePcmLayoutChange}

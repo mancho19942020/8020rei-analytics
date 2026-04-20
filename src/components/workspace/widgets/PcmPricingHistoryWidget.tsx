@@ -64,6 +64,18 @@ export function PcmPricingHistoryWidget({ data }: PcmPricingHistoryWidgetProps) 
     );
   }
 
+  const today = new Date().toISOString().slice(0, 10);
+  const daysBehind = (iso: string) => {
+    const ms = new Date(today).getTime() - new Date(iso).getTime();
+    return Math.max(0, Math.round(ms / (1000 * 60 * 60 * 24)));
+  };
+  const stdCov = data.coverage?.standard;
+  const fcCov = data.coverage?.firstClass;
+  const stdLag = stdCov ? daysBehind(stdCov.lastSyncedDate) : null;
+  const fcLag = fcCov ? daysBehind(fcCov.lastSyncedDate) : null;
+  const showFooter = !!(stdCov || fcCov);
+  const anyStale = (stdLag != null && stdLag >= 2) || (fcLag != null && fcLag >= 2);
+
   return (
     <div className="flex flex-col h-full w-full">
       <div className="flex-1 min-h-0 px-2 pb-2 pt-1">
@@ -141,6 +153,20 @@ export function PcmPricingHistoryWidget({ data }: PcmPricingHistoryWidgetProps) 
           </LineChart>
         </ResponsiveContainer>
       </div>
+      {showFooter && (
+        <div className="px-3 pb-2 pt-1 text-[10px] border-t" style={{
+          color: anyStale ? 'var(--color-alert-700, #b45309)' : 'var(--text-tertiary)',
+          borderColor: 'var(--border-default)',
+          backgroundColor: anyStale ? 'var(--color-alert-50, #fffbeb)' : undefined,
+        }}>
+          <span className="font-medium">Aurora sync:</span>{' '}
+          {stdCov && <>Customer Standard through {stdCov.lastSyncedDate}{stdLag ? ` (${stdLag}d behind)` : ''}</>}
+          {stdCov && fcCov && <span>{' · '}</span>}
+          {fcCov && <>Customer First Class through {fcCov.lastSyncedDate}{fcLag ? ` (${fcLag}d behind)` : ''}</>}
+          {anyStale && <span className="ml-1 italic">— line may not reflect recent rate changes</span>}
+          <span className="ml-1">· PCM vendor rates from pcm-pricing-eras.ts</span>
+        </div>
+      )}
     </div>
   );
 }
