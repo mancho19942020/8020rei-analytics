@@ -187,3 +187,14 @@ export const IMPLEMENTED_RECONCILERS = new Set<string>([
 export function contractId(c: { widget_key: string; sub_key: string | null }): string {
   return c.sub_key ? `${c.widget_key}.${c.sub_key}` : c.widget_key;
 }
+
+/**
+ * The set of widget `type` values that have a reconciliation contract.
+ * Used by the Widget wrapper to decide whether to render the alignment tag —
+ * non-DM-Campaign widgets (Users, Features, Engagement, Geography, etc.) do
+ * NOT reconcile against PCM and must NOT show a "Reconciled Xm ago" tag.
+ */
+export const RECONCILED_WIDGET_KEYS: ReadonlySet<string> = new Set(
+  WIDGET_CONTRACTS.map((c) => c.widget_key),
+);
+
