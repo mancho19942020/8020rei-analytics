@@ -6,6 +6,9 @@
  *
  * The "Lifetime pieces" card visibly surfaces the Aurora-vs-PCM delta (never hide).
  * Each card's footer line names its source table and delta state.
+ *
+ * 2026-04-22: `Card` extracted to `src/components/workspace/HeadlineCard.tsx`
+ * so the Operational Health "Ops status" strip can reuse the same visual.
  */
 
 'use client';
