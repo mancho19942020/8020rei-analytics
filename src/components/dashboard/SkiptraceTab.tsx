@@ -101,6 +101,15 @@ function CommitmentBar({ used, total }: { used: number; total: number }) {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+interface ReconRow {
+  month: string; label: string;
+  inv_requests: number | null;
+  inv_amount: number | null;
+  db_hits: number;
+  delta: number | null;
+  match_pct: number | null;
+}
+
 interface MonthRow {
   month: string; label: string;
   directskip_hits: number; batchleads_hits: number; cache_hits: number;
@@ -127,6 +136,11 @@ interface SkiptraceData {
   by_month: MonthRow[];
   by_client: ClientRow[];
   active_clients_this_month: number;
+  reconciliation: ReconRow[];
+  recon_summary: {
+    total_inv_requests: number; total_inv_cost: number;
+    total_db_hits: number; overall_match_pct: number | null;
+  };
   as_of: string;
 }
 
@@ -143,6 +157,15 @@ const CLIENT_COLUMNS: Column[] = [
   { field: 'margin',           header: 'Margin',        type: 'currency', width: 100, sortable: true },
   { field: 'last_active',      header: 'Last active',   type: 'date',     width: 110, sortable: true },
   { field: 'months_active',    header: 'Months active', type: 'number',   width: 110, sortable: true },
+];
+
+const RECON_COLUMNS: Column[] = [
+  { field: 'label',        header: 'Month',              type: 'text',     width: 90,  sortable: true },
+  { field: 'inv_requests', header: 'Invoice requests',   type: 'number',   width: 150, sortable: true },
+  { field: 'db_hits',      header: 'DB hits (BatchLeads)', type: 'number', width: 150, sortable: true },
+  { field: 'delta',        header: 'Delta (DB − inv)',   type: 'number',   width: 140, sortable: true },
+  { field: 'match_pct',    header: 'Match %',            type: 'number',   width: 90,  sortable: true },
+  { field: 'inv_amount',   header: 'Invoice cost',       type: 'currency', width: 120, sortable: true },
 ];
 
 const HITS_SERIES: StackedBarSeries[] = [
@@ -193,9 +216,9 @@ export function SkiptraceTab() {
       <div className="p-6 flex flex-col gap-6">
         {[1, 2, 3, 4].map((i) => (
           <div key={i} className="bg-surface-base shadow-xs rounded-lg p-5">
-            <AxisSkeleton width="40%" height={16} className="mb-4" />
+            <AxisSkeleton width="40%" height="16px" className="mb-4" />
             <div className="grid grid-cols-4 gap-3">
-              {[1,2,3,4].map((j) => <AxisSkeleton key={j} height={72} />)}
+              {[1,2,3,4].map((j) => <AxisSkeleton key={j} height="72px" />)}
             </div>
           </div>
         ))}
@@ -206,14 +229,14 @@ export function SkiptraceTab() {
   if (error || !data) {
     return (
       <div className="p-6">
-        <AxisCallout variant="error" title="Failed to load skiptrace data">
+        <AxisCallout type="error" title="Failed to load skiptrace data">
           {error ?? 'Unknown error'}
         </AxisCallout>
       </div>
     );
   }
 
-  const { commitment, financials, by_month, by_client, active_clients_this_month } = data;
+  const { commitment, financials, by_month, by_client, active_clients_this_month, reconciliation, recon_summary } = data;
 
   const hitsChartData: StackedBarDataPoint[] = by_month.map((m) => ({
     label: m.label,
@@ -291,7 +314,6 @@ export function SkiptraceTab() {
                 data={hitsChartData}
                 series={HITS_SERIES}
                 showLegend
-                tooltipFormatter={(value) => [fmtN(value as number), '']}
               />
             </div>
           </div>
@@ -301,7 +323,7 @@ export function SkiptraceTab() {
       {/* ── Section 2: Revenue & margin ──────────────────────────────────── */}
       <SectionCard title="Revenue & margin" accent="success">
         <div className="flex flex-col gap-6">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3">
             <KpiCard
               label="Total revenue"
               value={fmt$(financials.total_revenue)}
@@ -312,6 +334,12 @@ export function SkiptraceTab() {
               label="DirectSkip cost"
               value={fmt$(financials.cost_directskip)}
               sub={`${fmtN(financials.directskip_hits)} DS hits × $${COST_DS}`}
+              accent="neutral"
+            />
+            <KpiCard
+              label="Total batch consumption"
+              value={fmtN(financials.batchleads_hits)}
+              sub="BatchLeads hits (all time)"
               accent="neutral"
             />
             <KpiCard
@@ -333,7 +361,6 @@ export function SkiptraceTab() {
                 data={financialChartData}
                 series={FINANCIAL_SERIES}
                 showLegend
-                tooltipFormatter={(value) => [fmt$(value as number), '']}
               />
             </div>
           </div>
@@ -377,7 +404,6 @@ export function SkiptraceTab() {
                 data={adoptionChartData}
                 series={ADOPTION_SERIES}
                 showLegend={false}
-                tooltipFormatter={(value) => [`${value} clients`, '']}
               />
             </div>
           </div>
@@ -428,7 +454,67 @@ export function SkiptraceTab() {
         )}
       </SectionCard>
 
-      {/* ── Section 5: Usage by client ───────────────────────────────────── */}
+      {/* ── Section 5: BatchLeads reconciliation ─────────────────────────── */}
+      <SectionCard title="BatchLeads reconciliation — invoice vs DB" accent="alert">
+        <div className="flex flex-col gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <KpiCard
+              label="Total invoiced (all time)"
+              value={fmtN(recon_summary.total_inv_requests)}
+              sub="Skip Tracing requests billed"
+              accent="neutral"
+            />
+            <KpiCard
+              label="Total DB hits (all time)"
+              value={fmtN(recon_summary.total_db_hits)}
+              sub="BatchLeads hits in DynamoDB"
+              accent="neutral"
+            />
+            <KpiCard
+              label="Overall match"
+              value={recon_summary.overall_match_pct !== null ? fmtPct(recon_summary.overall_match_pct) : '—'}
+              sub="DB hits / invoice requests"
+              accent={
+                recon_summary.overall_match_pct === null ? 'neutral'
+                : recon_summary.overall_match_pct >= 90 ? 'success'
+                : recon_summary.overall_match_pct >= 70 ? 'alert'
+                : 'error'
+              }
+            />
+            <KpiCard
+              label="Total invoice cost"
+              value={fmt$(recon_summary.total_inv_cost)}
+              sub="sum of all BatchData bills"
+              accent="neutral"
+            />
+          </div>
+
+          <div>
+            <p className="text-xs text-content-tertiary mb-1 px-1">
+              Delta = DB hits minus invoice requests. Negative means we paid for more than we logged.
+            </p>
+            <div className="h-[380px]">
+              <AxisTable
+                columns={RECON_COLUMNS}
+                data={reconciliation.map((r) => ({
+                  ...r,
+                  inv_requests: r.inv_requests ?? 0,
+                  inv_amount:   r.inv_amount ?? 0,
+                  delta:        r.delta ?? 0,
+                  match_pct:    r.match_pct ?? 0,
+                })) as unknown as Record<string, unknown>[]}
+                rowKey="month"
+                sortable
+                paginated
+                defaultPageSize={15}
+                rowLabel="months"
+              />
+            </div>
+          </div>
+        </div>
+      </SectionCard>
+
+      {/* ── Section 7: Usage by client ───────────────────────────────────── */}
       <SectionCard title="Usage by client" accent="main">
         <div className="flex flex-col gap-3">
           <AxisInput

@@ -13,6 +13,32 @@ const MONTH_LABELS: Record<string, string> = {
   '2026-06': 'Jun', '2026-07': 'Jul',
 };
 
+// ─── BatchData invoice data (from PDFs in Archivo 3) ─────────────────────────
+interface InvoiceEntry { requests: number; amount: number; }
+const INVOICE_DATA: Record<string, InvoiceEntry> = {
+  '2025-01': { requests: 180,           amount: 12.60 },
+  '2025-02': { requests: 292,           amount: 20.44 },
+  '2025-03': { requests: 472_522,       amount: 2_362.60 },
+  // no 2025-04 invoice
+  '2025-05': { requests: 768_689,       amount: 3_843.44 },
+  '2025-06': { requests: 1_010_740,     amount: 5_053.70 },
+  '2025-07': { requests: 633_505,       amount: 3_167.52 },
+  '2025-08': { requests: 326_439,       amount: 1_632.19 },
+  '2025-09': { requests: 833_550,       amount: 4_167.74 },
+  '2025-10': { requests: 37_742_001,    amount: 188_710.00 },
+  '2025-11': { requests: 12_826_612,    amount: 64_133.06 },
+  '2025-12': { requests: 429_037,       amount: 2_145.18 },
+  '2026-01': { requests: 722_554,       amount: 3_612.77 },
+  '2026-02': { requests: 740_273,       amount: 3_701.55 },
+  '2026-03': { requests: 98_148,        amount: 490.74 },
+};
+
+function formatMonthLabel(ym: string): string {
+  const NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const [y, m] = ym.split('-');
+  return `${NAMES[parseInt(m) - 1]} ${y}`;
+}
+
 interface ProviderStat {
   hits?: number;
   sent?: number;
@@ -33,10 +59,9 @@ export async function GET() {
   }
 
   try {
+    // Full historical scan — no date filter so BL hits include all time
     const items = await dynamoScanAll<SkiptraceLog>({
       TableName: SKIPTRACE_LOGS_TABLE,
-      FilterExpression: 'CreatedAt >= :start',
-      ExpressionAttributeValues: { ':start': COMMITMENT_START },
       ProjectionExpression:
         'DomainDate, CreatedAt, TotalProperties, TotalPropertiesFoundDB, TotalHitsBatchLeads, ProviderStats',
     });
@@ -50,13 +75,16 @@ export async function GET() {
       monthMap[m] = { ds_hits: 0, bl_hits: 0, cache_hits: 0, total_props: 0, domains: new Set() };
     }
 
-    // Client accumulators keyed by domain
+    // Client accumulators keyed by domain (commitment period only)
     const clientMap: Record<string, {
       ds_hits: number; bl_hits: number; cache_hits: number;
       total_props: number; last_active_ms: number; months: Set<string>;
     }> = {};
 
+    // DS metrics scoped to commitment period; BL hits are all-time
     let total_ds_hits = 0, total_bl_hits = 0, total_cache = 0, total_props = 0;
+    // BL hits grouped by month for reconciliation (all historical data)
+    const blMonthMap: Record<string, number> = {};
 
     for (const item of items) {
       const domain = item.DomainDate?.split('#')[0] ?? 'unknown';
@@ -67,28 +95,34 @@ export async function GET() {
       const cache   = item.TotalPropertiesFoundDB ?? 0;
       const props   = item.TotalProperties ?? 0;
 
-      total_ds_hits += ds_hits;
+      // BL hits accumulated for all time regardless of date
       total_bl_hits += bl_hits;
-      total_cache   += cache;
-      total_props   += props;
+      if (bl_hits > 0) blMonthMap[month] = (blMonthMap[month] ?? 0) + bl_hits;
 
-      if (COMMITMENT_MONTHS.includes(month)) {
-        monthMap[month].ds_hits    += ds_hits;
-        monthMap[month].bl_hits    += bl_hits;
-        monthMap[month].cache_hits += cache;
-        monthMap[month].total_props += props;
-        monthMap[month].domains.add(domain);
-      }
+      // DS metrics, cache, and properties only within commitment period
+      if (item.CreatedAt >= COMMITMENT_START) {
+        total_ds_hits += ds_hits;
+        total_cache   += cache;
+        total_props   += props;
 
-      if (!clientMap[domain]) {
-        clientMap[domain] = { ds_hits: 0, bl_hits: 0, cache_hits: 0, total_props: 0, last_active_ms: 0, months: new Set() };
+        if (COMMITMENT_MONTHS.includes(month)) {
+          monthMap[month].ds_hits    += ds_hits;
+          monthMap[month].bl_hits    += bl_hits;
+          monthMap[month].cache_hits += cache;
+          monthMap[month].total_props += props;
+          monthMap[month].domains.add(domain);
+        }
+
+        if (!clientMap[domain]) {
+          clientMap[domain] = { ds_hits: 0, bl_hits: 0, cache_hits: 0, total_props: 0, last_active_ms: 0, months: new Set() };
+        }
+        clientMap[domain].ds_hits     += ds_hits;
+        clientMap[domain].bl_hits     += bl_hits;
+        clientMap[domain].cache_hits  += cache;
+        clientMap[domain].total_props += props;
+        clientMap[domain].last_active_ms = Math.max(clientMap[domain].last_active_ms, item.CreatedAt);
+        if (COMMITMENT_MONTHS.includes(month)) clientMap[domain].months.add(month);
       }
-      clientMap[domain].ds_hits     += ds_hits;
-      clientMap[domain].bl_hits     += bl_hits;
-      clientMap[domain].cache_hits  += cache;
-      clientMap[domain].total_props += props;
-      clientMap[domain].last_active_ms = Math.max(clientMap[domain].last_active_ms, item.CreatedAt);
-      if (COMMITMENT_MONTHS.includes(month)) clientMap[domain].months.add(month);
     }
 
     // Commitment math
@@ -148,6 +182,27 @@ export async function GET() {
 
     const active_clients_this_month = monthMap[current_month]?.domains.size ?? 0;
 
+    // ─── Reconciliation: invoice data vs DynamoDB BL hits by month ────────────
+    const reconMonths = Array.from(
+      new Set([...Object.keys(INVOICE_DATA), ...Object.keys(blMonthMap)])
+    ).sort();
+
+    const reconciliation = reconMonths.map((m) => {
+      const inv          = INVOICE_DATA[m] ?? null;
+      const db_hits      = blMonthMap[m] ?? 0;
+      const inv_requests = inv?.requests ?? null;
+      const inv_amount   = inv?.amount ?? null;
+      const delta        = inv_requests !== null ? db_hits - inv_requests : null;
+      const match_pct    = inv_requests ? Math.round((db_hits / inv_requests) * 100) : null;
+      return { month: m, label: formatMonthLabel(m), inv_requests, inv_amount, db_hits, delta, match_pct };
+    });
+
+    const total_inv_requests = Object.values(INVOICE_DATA).reduce((s, v) => s + v.requests, 0);
+    const total_inv_cost     = Object.values(INVOICE_DATA).reduce((s, v) => s + v.amount, 0);
+    const overall_match_pct  = total_inv_requests > 0
+      ? Math.round((total_bl_hits / total_inv_requests) * 100)
+      : null;
+
     return NextResponse.json({
       success: true,
       data: {
@@ -174,6 +229,13 @@ export async function GET() {
         by_month,
         by_client,
         active_clients_this_month,
+        reconciliation,
+        recon_summary: {
+          total_inv_requests,
+          total_inv_cost,
+          total_db_hits: total_bl_hits,
+          overall_match_pct,
+        },
         as_of: new Date().toISOString(),
       },
     });
