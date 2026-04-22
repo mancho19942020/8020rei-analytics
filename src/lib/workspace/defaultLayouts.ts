@@ -1268,7 +1268,7 @@ export const DM_OVERVIEW_WIDGET_CATALOG: WidgetCatalogItem[] = [
 // Bumped v9 → v10 on 2026-04-20: removed rr-status-breakdown + rr-on-hold-breakdown.
 // Storage key bump forces existing users' localStorage layouts to regenerate from
 // DEFAULT_RAPID_RESPONSE_LAYOUT instead of re-showing the removed widgets.
-export const RAPID_RESPONSE_LAYOUT_STORAGE_KEY = 'rapid-response-layout-v11';
+export const RAPID_RESPONSE_LAYOUT_STORAGE_KEY = 'rapid-response-layout-v12';
 
 export const DEFAULT_RAPID_RESPONSE_LAYOUT: Widget[] = [
   // Row 1: Is it running? | Is it working?  (side-by-side)
@@ -1340,19 +1340,10 @@ export const DEFAULT_RAPID_RESPONSE_LAYOUT: Widget[] = [
     minW: 6, minH: 4, maxW: 12, maxH: 10,
     timeBehavior: 'all-time',
   },
-  // Row 5: Send volume trend (date-filtered)
-  // Status breakdown donut was removed 2026-04-20 per user feedback
-  // ("I'm not using it and I don't find it useful right now").
-  {
-    id: 'rr-sends-trend',
-    type: 'rr-sends-trend',
-    title: 'Send volume trend',
-    tooltip: 'Daily mailing activity within the selected date range. For lifetime monthly send volume, see DM Campaign → Overview → Send volume trend.',
-    x: 0, y: 22,
-    w: 12, h: 5,
-    minW: 4, minH: 3, maxW: 12, maxH: 8,
-    timeBehavior: 'date-filtered',
-  },
+  // Row 5 rr-sends-trend removed 2026-04-22 — the new MTD same-day-cutoff chart
+  // on Overview (Phase 5 rework) carries the mail-class + volume story across
+  // months; a second date-filtered daily send line on OH became duplicative.
+  // See MOTHBALLED_WIDGETS.
   // Row 6 system-coverage + data-integrity widgets removed 2026-04-22 per user:
   // "I'm not using those; we can remove them." Components remain in
   // src/components/workspace/widgets/ for future re-enable. See MOTHBALLED_WIDGETS.
@@ -1393,13 +1384,6 @@ export const RAPID_RESPONSE_WIDGET_CATALOG: WidgetCatalogItem[] = [
     description: 'Domain-level PCM sync health: synced vs out-of-sync domains, stale, orphaned, gap',
     iconKey: 'grid',
     defaultSize: { w: 4, h: 4 },
-  },
-  {
-    type: 'rr-sends-trend',
-    title: 'Send volume trend',
-    description: 'Line chart showing sends, deliveries, and errors over time',
-    iconKey: 'lineChart',
-    defaultSize: { w: 6, h: 5 },
   },
   {
     type: 'rr-campaign-table',
@@ -2001,6 +1985,13 @@ export const MOTHBALLED_WIDGETS: readonly MothballedWidget[] = [
     mothballedAt: '2026-04-22',
     userQuote: 'I think the domain breakdown and template catalog could disappear from this section for now.',
     replacedBy: 'No replacement. Template catalog is static PCM metadata; not needed for trust-critical view.',
+  },
+  {
+    type: 'rr-sends-trend',
+    sourceTab: 'operational-health',
+    mothballedAt: '2026-04-22',
+    userQuote: 'We can remove it from the operational health — what I would like to be able to answer is, how many letters have we sent this month? I should be able to see how many this month, last month, and so on. This is the chart I want to see in the overview.',
+    replacedBy: 'Overview > Send volume trend — reworked 2026-04-22 into a MTD same-day-cutoff stacked-bar chart. Each month covers days 1 through today\'s day-of-month, split First class vs Standard. Answers the "same date last month" boss question that this OH daily line could not.',
   },
 ];
 

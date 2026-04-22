@@ -53,7 +53,17 @@ interface HeadlinePayload {
 }
 
 interface SendTrendPayload {
-  months: Array<{ month: string; fc: number; std: number; total: number }>;
+  series: Array<{
+    month: string;
+    firstClass: number;
+    standard: number;
+    total: number;
+    cutoffDate: string;
+    cutoffDay: number;
+  }>;
+  todayDay: number;
+  alignedAt: string;
+  lifetimeTotal: number;
 }
 
 interface BalanceFlowPayload {
@@ -321,15 +331,21 @@ function extractValues(
         },
       };
 
-    // Send trend: total pieces across all months, vs PCM's own paginated total.
+    // Send trend: the MTD chart itself is same-day-cutoff, so summing its series
+    // is NOT the lifetime total. We expose `lifetimeTotal` separately in the cache
+    // specifically so this reconciliation keeps comparing apples to apples:
+    // "did the sendTrend recount lose any orders vs what headline saw?"
     case 'dm-overview-send-trend':
       if (!sendTrend || !headline) return missing('sendTrend');
       return {
-        hub: sendTrend.months.reduce((s, m) => s + m.total, 0),
+        hub: sendTrend.lifetimeTotal,
         pcm: headline.lifetimePieces.pcm,
         notes: {
-          source: 'PCM /order grouped by month (excl test + canceled)',
-          month_count: sendTrend.months.length,
+          source: 'PCM /order lifetime (clients only) — same-shape as headline.lifetimePieces.pcm',
+          aligned_to_day: sendTrend.todayDay,
+          aligned_at: sendTrend.alignedAt,
+          mtd_sum: sendTrend.series.reduce((s, m) => s + m.total, 0),
+          month_count: sendTrend.series.length,
         },
       };
 

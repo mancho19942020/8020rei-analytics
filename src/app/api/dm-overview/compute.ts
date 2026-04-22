@@ -468,24 +468,55 @@ export async function computeHeadline(orders: PcmOrderSlim[]) {
 }
 
 export async function computeSendTrend(orders: PcmOrderSlim[]) {
+  // MTD same-day-cutoff comparison (2026-04-22 rework):
+  // Each month's bar covers days 1 through today's day-of-month. On Apr 22,
+  // every month's bar reflects pieces sent Apr 1–22, Mar 1–22, Feb 1–22, …
+  // — answering "how many did we send by this same date last month / two
+  // months ago / …" instead of showing a forward-running line.
+  const todayIso = new Date().toISOString().substring(0, 10);
+  const todayDay = parseInt(todayIso.substring(8, 10), 10);
+  const cutoffDay = todayDay;
+
+  let lifetimeTotal = 0;
   const monthly = new Map<string, { fc: number; std: number; total: number }>();
+
   for (const o of orders) {
     if (o.canceled || o.isTestDomain || !o.date) continue;
+    lifetimeTotal++;
+    const day = parseInt(o.date.substring(8, 10), 10);
+    if (day > cutoffDay) continue;
     const month = o.date.substring(0, 7);
-    const entry = monthly.get(month) || { fc: 0, std: 0, total: 0 };
+    const entry = monthly.get(month) ?? { fc: 0, std: 0, total: 0 };
     entry.total++;
     if (o.mailClass === 'fc') entry.fc++;
     else entry.std++;
     monthly.set(month, entry);
   }
+
   const series = [...monthly.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([month, v]) => ({ month, total: v.total, firstClass: v.fc, standard: v.std }));
+    .map(([month, v]) => {
+      // For months with fewer days than today's day-of-month (e.g. Feb when
+      // today is the 31st), the effective cutoff is month-end.
+      const [y, m] = month.split('-').map(Number);
+      const lastDayOfMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
+      const effectiveDay = Math.min(cutoffDay, lastDayOfMonth);
+      return {
+        month,
+        total: v.total,
+        firstClass: v.fc,
+        standard: v.std,
+        cutoffDate: `${month}-${String(effectiveDay).padStart(2, '0')}`,
+        cutoffDay: effectiveDay,
+      };
+    });
 
   return {
     series,
-    sourceNote:
-      'PCM /order grouped by orderDate month. Excludes canceled and test domains. Full history since first PCM order.',
+    todayDay,
+    alignedAt: todayIso,
+    lifetimeTotal,
+    sourceNote: `PCM /order grouped by month. Each month capped at day ${cutoffDay} to match today's day-of-month — same-period comparison ("how many by day ${cutoffDay} each month"). Excludes canceled and test domains. Short months (e.g. February) naturally cap at month-end.`,
     fetchedAt: new Date().toISOString(),
   };
 }

@@ -97,10 +97,20 @@ export interface DmOverviewSendTrendPoint {
   total: number;
   firstClass: number;
   standard: number;
+  /** YYYY-MM-DD — effective cutoff day for this month (min of today's day-of-month and this month's last day). */
+  cutoffDate: string;
+  /** 1..31 — effective cutoff day value, for labelling. */
+  cutoffDay: number;
 }
 
 export interface DmOverviewSendTrend {
   series: DmOverviewSendTrendPoint[];
+  /** Today's day-of-month at compute time (the alignment anchor for every bar). */
+  todayDay: number;
+  /** YYYY-MM-DD — today at compute time. Drives per-visit recomputation. */
+  alignedAt: string;
+  /** Lifetime client-order count (unfiltered by day) — matches headline.lifetimePieces.pcm. Used by the reconciler. */
+  lifetimeTotal: number;
   sourceNote: string;
   fetchedAt: string;
 }
