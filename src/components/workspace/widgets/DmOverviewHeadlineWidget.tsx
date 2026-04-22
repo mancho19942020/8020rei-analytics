@@ -10,7 +10,7 @@
 
 'use client';
 
-import { AxisTooltip } from '@/components/axis';
+import { HeadlineCard } from '@/components/workspace/HeadlineCard';
 import type { DmOverviewHeadline } from '@/types/dm-overview';
 
 interface DmOverviewHeadlineWidgetProps {
@@ -53,72 +53,6 @@ const CampaignsIcon = () => (
   </svg>
 );
 
-interface CardProps {
-  label: string;
-  hero: string;
-  sub: string;
-  icon: React.ReactNode;
-  iconBg: string;
-  secondaryTone?: 'neutral' | 'warning' | 'info';
-  sourceNote: string;
-  /** Optional inconsistency warning — renders a yellow triangle icon + tooltip */
-  inconsistency?: string;
-}
-
-const InconsistencyIcon = () => (
-  <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-  </svg>
-);
-
-function Card({ label, hero, sub, icon, iconBg, secondaryTone = 'neutral', sourceNote, inconsistency }: CardProps) {
-  const toneClass =
-    secondaryTone === 'warning'
-      ? 'text-alert-700 dark:text-alert-300'
-      : secondaryTone === 'info'
-        ? 'text-content-secondary'
-        : 'text-content-tertiary';
-
-  // justify-between distributes: (icon+label) ↑ — (hero) — (sub) ↓
-  // Fills the card height without trailing empty space.
-  //
-  // Tooltip strategy (fixed 2026-04-22):
-  //   - Hover the inconsistency triangle → `Data quality warning` (AxisTooltip)
-  //   - Hover the label → source note explaining where the number comes from
-  //   - Hover anywhere else on the card → nothing
-  // Previously the whole card had `title={sourceNote}` (native HTML title) AND
-  // the icon had an AxisTooltip. Both would fire simultaneously, producing two
-  // overlapping tooltips on the same hover.
-  return (
-    <div className="flex flex-col justify-between gap-1 p-3 bg-surface-raised border-r border-stroke last:border-r-0 min-w-0 flex-1 h-full relative group/card">
-      <div className="flex items-center gap-2 min-w-0">
-        <div className={`w-6 h-6 rounded flex items-center justify-center text-white flex-shrink-0 ${iconBg}`}>{icon}</div>
-        <AxisTooltip content={sourceNote} placement="top" maxWidth={360}>
-          <span className="text-sm font-medium text-content-secondary truncate cursor-help">{label}</span>
-        </AxisTooltip>
-        {inconsistency && (
-          <AxisTooltip
-            title="Data quality warning"
-            content={inconsistency}
-            placement="top"
-            maxWidth={360}
-          >
-            <span
-              className="flex-shrink-0 text-alert-700 dark:text-alert-300 cursor-help"
-              role="img"
-              aria-label="Data inconsistency"
-            >
-              <InconsistencyIcon />
-            </span>
-          </AxisTooltip>
-        )}
-      </div>
-      <div className="text-[2rem] font-bold text-content-primary tabular-nums leading-[36px] tracking-tight">{hero}</div>
-      <div className={`text-xs ${toneClass} break-words leading-snug`}>{sub}</div>
-    </div>
-  );
-}
-
 export function DmOverviewHeadlineWidget({ data }: DmOverviewHeadlineWidgetProps) {
   if (!data) {
     return (
@@ -158,7 +92,7 @@ export function DmOverviewHeadlineWidget({ data }: DmOverviewHeadlineWidgetProps
 
   return (
     <div className="flex w-full h-full flush-cards">
-      <Card
+      <HeadlineCard
         label="Active clients"
         hero={`${adoption.activeClients} / ${adoption.totalClients}`}
         sub={`${adoption.adoptionPct.toFixed(1)}% of the portfolio`}
@@ -167,7 +101,7 @@ export function DmOverviewHeadlineWidget({ data }: DmOverviewHeadlineWidgetProps
         secondaryTone="info"
         sourceNote={adoption.sourceNote}
       />
-      <Card
+      <HeadlineCard
         label="Lifetime pieces"
         hero={abbreviate(pieces.pcm)}
         sub={deltaLabel}
@@ -177,7 +111,7 @@ export function DmOverviewHeadlineWidget({ data }: DmOverviewHeadlineWidgetProps
         sourceNote={pieces.sourceNote}
         inconsistency={piecesInconsistency}
       />
-      <Card
+      <HeadlineCard
         label="Company margin"
         hero={currency(margin.margin)}
         sub={marginSub}
@@ -187,7 +121,7 @@ export function DmOverviewHeadlineWidget({ data }: DmOverviewHeadlineWidgetProps
         sourceNote={margin.sourceNote}
         inconsistency={marginInconsistency}
       />
-      <Card
+      <HeadlineCard
         label="Active campaigns"
         hero={`${campaigns.active} / ${campaigns.total}`}
         sub={`${campaigns.total - campaigns.active} inactive in portfolio`}

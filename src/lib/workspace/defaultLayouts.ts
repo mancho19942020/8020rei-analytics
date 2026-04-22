@@ -1268,7 +1268,7 @@ export const DM_OVERVIEW_WIDGET_CATALOG: WidgetCatalogItem[] = [
 // Bumped v9 → v10 on 2026-04-20: removed rr-status-breakdown + rr-on-hold-breakdown.
 // Storage key bump forces existing users' localStorage layouts to regenerate from
 // DEFAULT_RAPID_RESPONSE_LAYOUT instead of re-showing the removed widgets.
-export const RAPID_RESPONSE_LAYOUT_STORAGE_KEY = 'rapid-response-layout-v13';
+export const RAPID_RESPONSE_LAYOUT_STORAGE_KEY = 'rapid-response-layout-v15';
 
 export const DEFAULT_RAPID_RESPONSE_LAYOUT: Widget[] = [
   // Row 1: Ops status strip (compact: Active · Letters sent · On hold)
@@ -1283,7 +1283,7 @@ export const DEFAULT_RAPID_RESPONSE_LAYOUT: Widget[] = [
     tooltip: 'At-a-glance: how many campaigns are active, how many letters we\'ve sent (lifetime · this month · today), and how many sendings are on hold. Not affected by the date filter.',
     x: 0, y: 0,
     w: 12, h: 2,
-    minW: 8, minH: 2, maxH: 3,
+    minW: 8, minH: 2, maxH: 2,
     flushBody: true,
     timeBehavior: 'all-time',
   },
@@ -1371,7 +1371,7 @@ export const RAPID_RESPONSE_WIDGET_CATALOG: WidgetCatalogItem[] = [
   {
     type: 'rr-ops-status-strip',
     title: 'Ops status',
-    description: 'Compact strip: active campaigns, letters sent (lifetime · this month · today), on-hold count',
+    description: 'Hero-metric strip: active campaigns, letters sent (lifetime · this month · today), on-hold count',
     iconKey: 'grid',
     defaultSize: { w: 12, h: 2 },
   },
