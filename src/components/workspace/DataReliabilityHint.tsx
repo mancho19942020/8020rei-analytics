@@ -38,12 +38,15 @@ function GradeDot({ grade }: { grade: ReliabilityGrade }) {
 
 export function DataReliabilityHint({ tab }: Props) {
   const metrics = reliabilitySummaryFor(tab);
+  // Two-column grid so tabs with many metrics (profitability has 7) fit
+  // without the tooltip scrolling. Single-column on narrow entries (<=3)
+  // would be cleaner but the rare 3-metric case looks fine two-column too.
   const content = (
-    <div style={{ maxWidth: 440, textAlign: 'left' }}>
-      <div style={{ fontWeight: 600, marginBottom: 6, fontSize: 12 }}>
+    <div style={{ width: 720, maxWidth: '90vw', textAlign: 'left' }}>
+      <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 12 }}>
         Data reliability — {metrics.length} key metrics
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 16px' }}>
         {metrics.map(m => (
           <div key={m.metric} style={{ fontSize: 11, lineHeight: 1.4 }}>
             <div>
@@ -60,13 +63,13 @@ export function DataReliabilityHint({ tab }: Props) {
           </div>
         ))}
       </div>
-      <div style={{ marginTop: 8, paddingTop: 6, borderTop: '1px solid rgba(255,255,255,0.15)', fontSize: 10, opacity: 0.7 }}>
+      <div style={{ marginTop: 10, paddingTop: 6, borderTop: '1px solid rgba(255,255,255,0.15)', fontSize: 10, opacity: 0.7 }}>
         HIGH = single authoritative source, live updates · MEDIUM = known lag or approximation, surfaced inline · LOW = stored-value drift, reconciliation visible
       </div>
     </div>
   );
   return (
-    <AxisTooltip content={content} placement="bottom" maxWidth={460}>
+    <AxisTooltip content={content} placement="bottom" maxWidth={740}>
       <span
         className="inline-flex items-center gap-1 text-xs cursor-help"
         style={{ color: 'var(--text-tertiary)' }}
