@@ -260,6 +260,28 @@ export interface CurrentRatesData {
   standard: number | null;
   firstClass: number | null;
   blended: number | null;
+
+  /**
+   * Latest OBSERVED rate per class — takes the single most recent day with
+   * sends in that class. Unlike the 7d avg, this surfaces the newest rate the
+   * moment a single order lands, so rate changes aren't hidden behind a
+   * blended average. When there's been no activity for that class recently,
+   * the value is null and `latestStandardAt` / `latestFirstClassAt` is null.
+   */
+  latestStandard: number | null;
+  latestStandardAt: string | null;
+  latestFirstClass: number | null;
+  latestFirstClassAt: string | null;
+
+  /**
+   * Drift flag per class — true when |latest - 7d avg| / avg exceeds 1%.
+   * Signals either (a) a rate transition is in progress (7d avg still
+   * catching up to latest) OR (b) recent orders at the wrong rate (monolith
+   * update did not propagate). The reconciler uses this to flag drift.
+   */
+  standardDrift: boolean;
+  firstClassDrift: boolean;
+
   /** What PCM charges 8020REI — invoice-verified era rates (NOT monolith-derived) */
   pcmStandard?: number;
   pcmFirstClass?: number;

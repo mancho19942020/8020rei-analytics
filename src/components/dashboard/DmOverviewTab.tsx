@@ -116,6 +116,7 @@ export function DmOverviewTab() {
           tooltip="Active clients from rr_campaign_snapshots. Lifetime pieces: PCM authoritative, Aurora delta surfaced explicitly. Company margin = client revenue − PCM cost (includes internal test sends). Active campaigns: Aurora-only."
           flushBody
           timeScope="all-time"
+          widgetKey="dm-overview-headline"
         >
           <DmOverviewHeadlineWidget data={data.headline} />
         </Widget>
@@ -127,6 +128,7 @@ export function DmOverviewTab() {
           title="Send volume trend"
           tooltip="Monthly mail pieces sent since first PCM order. Sourced from PCM /order (14-month history). Excludes canceled orders and test domains."
           timeScope="all-time"
+          widgetKey="dm-overview-send-trend"
         >
           <DmOverviewSendTrendWidget data={data.sendTrend} />
         </Widget>
@@ -139,6 +141,7 @@ export function DmOverviewTab() {
           tooltip="QA / sandbox environments paid by 8020REI with no client revenue. Deducted from the Company margin card above. One card per active test domain; totals on the right."
           flushBody
           timeScope="all-time"
+          widgetKey="dm-overview-test-cost-cards"
         >
           <DmOverviewTestCostCardsWidget data={data.headline?.testActivity ?? null} />
         </Widget>
@@ -150,6 +153,7 @@ export function DmOverviewTab() {
           title="Balance reconciliation"
           tooltip="Daily PCM cost (era-priced) alongside daily mail pieces, plus the current PCM account balance. Designed to surface days where sends spike but balance has not been topped up — the 'we spent 2K on a 200 top-up' pattern. Fixed 60-day window, independent of the header date filter."
           timeScope="all-time"
+          widgetKey="dm-overview-balance-flow"
         >
           <DmOverviewBalanceFlowWidget data={data.balanceFlow} />
         </Widget>

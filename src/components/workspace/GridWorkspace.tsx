@@ -210,6 +210,7 @@ export function GridWorkspace({
             <Widget
               title={widgetConfig.title}
               tooltip={widgetConfig.tooltip}
+              widgetKey={widgetConfig.type}
               headerExtra={headerExtras?.[widgetConfig.type]}
               editMode={editMode}
               flushBody={widgetConfig.flushBody ?? FLUSH_BODY_WIDGETS_LEGACY.has(widgetConfig.type)}

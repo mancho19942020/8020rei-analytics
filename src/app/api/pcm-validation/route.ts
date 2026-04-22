@@ -908,6 +908,53 @@ async function getCurrentRates(domain?: string) {
 
     const blended = blendedRows[0]?.blended_rate ? Number(blendedRows[0].blended_rate) : null;
 
+    // "Latest observed rate" per class — the single most recent day with
+    // sends in that class. Surfaces price transitions the moment one order
+    // lands at the new rate, rather than hiding it behind a 7-day average
+    // that only catches up after enough volume. If zero sends for a class
+    // in the lookback window (90 days), the value is null with no date —
+    // the widget renders an explicit "no recent orders" instead of a stale
+    // blended number.
+    const latestRows = await runAuroraQuery(`
+      WITH ranked AS (
+        SELECT
+          mail_class,
+          date,
+          daily_cost,
+          daily_sends,
+          ROW_NUMBER() OVER (PARTITION BY mail_class ORDER BY date DESC) AS rn
+        FROM dm_volume_summary
+        WHERE mail_class IN ('standard', 'first_class')
+          AND date >= CURRENT_DATE - INTERVAL '90 days'
+          AND daily_sends > 0
+          AND domain NOT IN (${TEST_DOMAINS})
+          ${domainWhere}
+      )
+      SELECT
+        mail_class,
+        date,
+        ROUND(daily_cost::numeric / NULLIF(daily_sends, 0)::numeric, 4) AS rate
+      FROM ranked
+      WHERE rn = 1
+    `);
+
+    const latestStdRow = latestRows.find(r => r.mail_class === 'standard');
+    const latestFcRow = latestRows.find(r => r.mail_class === 'first_class');
+
+    const latestStandard = latestStdRow ? Number(latestStdRow.rate) : null;
+    const latestStandardAt = latestStdRow?.date ? String(latestStdRow.date).slice(0, 10) : null;
+    const latestFirstClass = latestFcRow ? Number(latestFcRow.rate) : null;
+    const latestFirstClassAt = latestFcRow?.date ? String(latestFcRow.date).slice(0, 10) : null;
+
+    // Drift: latest observed diverges from 7-day avg by >1%. Means either a
+    // rate transition is in progress (avg catching up) or orders landed at
+    // an unexpected rate (monolith update not propagated). Reconciler flags
+    // this as yellow/red depending on magnitude.
+    const driftsAbove = (avg: number | null, latest: number | null) =>
+      avg !== null && latest !== null && avg > 0 && Math.abs(latest - avg) / avg > 0.01;
+    const standardDrift = driftsAbove(standard, latestStandard);
+    const firstClassDrift = driftsAbove(firstClass, latestFirstClass);
+
     // Invoice-verified PCM rates for today's era. These are the rates PCM
     // actually charges us — NOT what the monolith's parameters.pcm_cost
     // column says. Widgets should show these as "PCM charges us" so the
@@ -918,6 +965,12 @@ async function getCurrentRates(domain?: string) {
       standard,
       firstClass,
       blended,
+      latestStandard,
+      latestStandardAt,
+      latestFirstClass,
+      latestFirstClassAt,
+      standardDrift,
+      firstClassDrift,
       pcmStandard: pcm.std,
       pcmFirstClass: pcm.fc,
       pcmEraLabel: pcm.era.label,

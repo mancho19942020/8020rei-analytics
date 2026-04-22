@@ -1,0 +1,51 @@
+name: PCM Alignment Daily Digest
+
+# Mon–Fri at 09:00 EST (14:00 UTC) — posts a single Slack message summarising
+# every widget currently at yellow or red. This is the "morning status" report
+# that complements the inline red-transition alerts fired by the 30-min
+# reconciler.
+#
+# Philosophy (Germán, 2026-04-22):
+#   - Inline alerts only on tier CHANGES (e.g. green → red)
+#   - Daily digest of persistent issues so nothing quietly rots
+#   - Alert fatigue kills signal; two channels balance acuity + persistence
+
+on:
+  schedule:
+    - cron: '0 14 * * 1-5'
+  workflow_dispatch:
+
+jobs:
+  digest:
+    name: PCM alignment daily digest
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+
+    steps:
+      - name: POST /api/pcm-alignment/daily-digest
+        env:
+          SERVICE_URL: https://analytics8020-798362859849.us-central1.run.app
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          RESPONSE=$(curl -s -w "\n%{http_code}\n%{time_total}" \
+            -X POST \
+            -H "x-cron-secret: $CRON_SECRET" \
+            "$SERVICE_URL/api/pcm-alignment/daily-digest")
+
+          TIME_TOTAL=$(echo "$RESPONSE" | tail -1)
+          HTTP_CODE=$(echo "$RESPONSE" | tail -2 | head -1)
+          BODY=$(echo "$RESPONSE" | head -n -2)
+
+          echo "HTTP status: $HTTP_CODE"
+          echo "Total wall time: ${TIME_TOTAL}s"
+          echo "Response body: $BODY"
+
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+            RED=$(echo "$BODY" | jq -r '.red_count // 0')
+            YELLOW=$(echo "$BODY" | jq -r '.yellow_count // 0')
+            SENT=$(echo "$BODY" | jq -r '.slack_sent // false')
+            echo "::notice::Digest posted: ${RED} red, ${YELLOW} yellow (slack_sent=${SENT})"
+          else
+            echo "::error::Daily digest failed (HTTP $HTTP_CODE)"
+            exit 1
+          fi

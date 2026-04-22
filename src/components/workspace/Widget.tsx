@@ -9,6 +9,7 @@
 
 import { ReactNode } from 'react';
 import { AxisTooltip, AxisTag } from '@/components/axis';
+import { WidgetAlignmentTag } from './WidgetAlignmentTag';
 
 /**
  * Custom "All time" pill. AxisTag's `neutral` variant disappears on the dark
@@ -73,6 +74,16 @@ export interface WidgetComponentProps {
   /** @deprecated Use timeScope='all-time'. Kept for backward compatibility. */
   allTime?: boolean;
 
+  /**
+   * PCM alignment widget_key. When set, the Widget renders a "Reconciled Xm
+   * ago" tag in the header action group (alongside the time-scope pill),
+   * reading from /api/pcm-alignment/latest. The tag color reflects severity
+   * (neutral / alert / error); hovering shows the per-sub-metric drift
+   * breakdown. Match the `type` field from defaultLayouts.ts
+   * (e.g. 'dm-overview-headline').
+   */
+  widgetKey?: string;
+
   /** Additional CSS classes */
   className?: string;
 }
@@ -89,6 +100,7 @@ export function Widget({
   flushBody = false,
   timeScope,
   allTime = false,
+  widgetKey,
   className = '',
 }: WidgetComponentProps) {
   // Resolve final scope: explicit `timeScope` wins; legacy `allTime` boolean
@@ -189,6 +201,10 @@ export function Widget({
               </span>
             </AxisTooltip>
           )}
+          {/* PCM alignment tag — shows "Reconciled Xm ago" with color-coded
+              severity. Sits next to the time-scope pill so users see freshness
+              + data-health together. Hover for the drift breakdown. */}
+          {widgetKey && <WidgetAlignmentTag widgetKey={widgetKey} />}
           {/* Export Button */}
           {onExport && (
             <button

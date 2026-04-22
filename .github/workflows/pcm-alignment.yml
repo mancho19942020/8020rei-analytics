@@ -1,0 +1,73 @@
+name: PCM Alignment Reconciler
+
+# Runs the PCM ↔ Metrics Hub alignment reconciler. For each widget in the
+# contract, compares the hub value against PCM's ground truth, classifies the
+# drift (green/yellow/red/info), and writes one AlignmentDoc per run to the
+# Firestore `pcm_alignment_runs` collection.
+#
+# Cadence: every 30 min at :15 and :45. Staggered 15 min from overview-warmup
+# (:00 and :30) so we read its fresh cache rather than triggering a second
+# PCM pagination.
+#
+# Spec: docs/alignment-contracts.md + personal-documents/8020-metrics-hub/2026-04-22/phase-3-reconciler.md
+
+on:
+  schedule:
+    - cron: '15,45 * * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Compute but do not write to Firestore'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+jobs:
+  reconcile:
+    name: PCM alignment reconcile
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: POST /api/pcm-alignment/reconcile
+        env:
+          SERVICE_URL: https://analytics8020-798362859849.us-central1.run.app
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+        run: |
+          QS=""
+          if [ "$DRY_RUN" = "true" ]; then QS="?dry=1"; fi
+
+          RESPONSE=$(curl -s -w "\n%{http_code}\n%{time_total}" \
+            -X POST \
+            -H "x-cron-secret: $CRON_SECRET" \
+            "$SERVICE_URL/api/pcm-alignment/reconcile$QS")
+
+          TIME_TOTAL=$(echo "$RESPONSE" | tail -1)
+          HTTP_CODE=$(echo "$RESPONSE" | tail -2 | head -1)
+          BODY=$(echo "$RESPONSE" | head -n -2)
+
+          echo "HTTP status: $HTTP_CODE"
+          echo "Total wall time: ${TIME_TOTAL}s"
+          echo "Response body: $BODY"
+
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+            DURATION_MS=$(echo "$BODY" | jq -r '.duration_ms // "?"')
+            DOCS=$(echo "$BODY" | jq -r '.docs_written // "?"')
+            GREEN=$(echo "$BODY" | jq -r '.severity_counts.green // 0')
+            YELLOW=$(echo "$BODY" | jq -r '.severity_counts.yellow // 0')
+            RED=$(echo "$BODY" | jq -r '.severity_counts.red // 0')
+            INFO=$(echo "$BODY" | jq -r '.severity_counts.info // 0')
+            echo "::notice::Reconcile complete: ${DOCS} docs written in ${DURATION_MS}ms (green=${GREEN}, yellow=${YELLOW}, red=${RED}, info=${INFO})"
+
+            # Surface red findings prominently in the GitHub Actions summary
+            if [ "$RED" -gt 0 ]; then
+              echo "::warning::${RED} widgets in RED severity — check alerts feed"
+            fi
+          else
+            echo "::error::Reconciler failed (HTTP $HTTP_CODE)"
+            exit 1
+          fi

@@ -32,28 +32,43 @@ function MarginIndicator({ percent }: { percent: number }) {
   );
 }
 
-function MailClassCard({ label, ourRate, pcmRate }: {
+function MailClassCard({ label, ourRate, pcmRate, latestRate, latestAt, drift }: {
   label: string;
-  /** 7-day blended customer rate (what we currently show). */
+  /** 7-day blended customer rate. */
   ourRate: number | null;
   /** PCM vendor rate from the era schedule. */
   pcmRate: number | null;
+  /** Most recent single-day rate for this class — surfaces rate changes instantly. */
+  latestRate: number | null;
+  /** ISO date of the most recent day with sends for this class. */
+  latestAt: string | null;
+  /** True when latest rate differs from 7d avg by >1% — rate transition in progress
+   *  or a monolith pricing update not yet propagated. */
+  drift: boolean;
   /** @deprecated marginData was used to derive margin% from monolith-stored PCM cost;
    *  we now compute both margin$ and margin% directly from the two rates to stay
    *  consistent with Pricing history. */
   marginData?: MailClassMargin;
 }) {
-  // Margin is calculated from the 7-day-blended rate. Previously this card
-  // also rendered a "New rate (eff. YYYY-MM-DD)" line pulled from recent
-  // rate changes, but the extra row broke the card's visual rhythm and
-  // duplicated info already present in the Recent rate alert chip. Removed
-  // per user feedback 2026-04-20.
+  // Margin is calculated from the 7-day-blended rate to stay consistent with
+  // Pricing history. The card also shows "Latest observed" so a rate change
+  // made today is visible immediately — not hidden behind a 7-day average.
   const marginPerPiece = ourRate != null && pcmRate != null
     ? Math.round((ourRate - pcmRate) * 10000) / 10000
     : null;
   const marginPct = ourRate != null && pcmRate != null && ourRate > 0
     ? ((ourRate - pcmRate) / ourRate) * 100
     : null;
+
+  // "Latest" line copy — three states:
+  //   a) no orders in the 90-day lookback for this class → "no recent orders"
+  //   b) latest matches 7d avg (within 1%) → muted: "latest · $X · confirms"
+  //   c) latest differs from 7d avg → drift: "latest · $X on YYYY-MM-DD · diverges"
+  const latestLine = latestRate == null
+    ? { text: 'no recent orders', muted: true, drift: false }
+    : drift
+      ? { text: `latest $${latestRate.toFixed(4)}${latestAt ? ` on ${latestAt}` : ''}`, muted: false, drift: true }
+      : { text: `confirmed today`, muted: true, drift: false };
 
   return (
     <div className="flex-1 rounded-lg p-3 flex flex-col justify-between" style={{ backgroundColor: 'var(--surface-raised)' }}>
@@ -69,7 +84,7 @@ function MailClassCard({ label, ourRate, pcmRate }: {
           <div className="flex items-center justify-between">
             <AxisTooltip
               title="Customer rate — last 7 days blended"
-              content={`The weighted average of what 8020REI charged clients over the last 7 days. Computed live from dm_volume_summary as SUM(daily_cost) / SUM(daily_sends). When a rate change is mid-rollout (e.g. new rate applied on some days but not others), this is the average; the new rate itself appears below as "New rate effective…" when a change is detected.`}
+              content={`The weighted average of what 8020REI charged clients over the last 7 days. Computed live from dm_volume_summary as SUM(daily_cost) / SUM(daily_sends). When a rate change is mid-rollout (e.g. new rate applied on some days but not others), this is the average; the single newest order's rate appears below as "latest" so rate transitions surface instantly.`}
               placement="top"
               maxWidth={320}
             >
@@ -78,6 +93,37 @@ function MailClassCard({ label, ourRate, pcmRate }: {
             <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
               {ourRate != null ? `$${ourRate.toFixed(4)}` : '—'}
             </span>
+          </div>
+          {/* Latest observed — single newest day's rate. Shows `confirmed today` when
+              it matches the 7d avg, the actual value + date when it diverges, or
+              `no recent orders` when this class has had zero activity in 90 days. */}
+          <div className="flex items-center justify-end">
+            <AxisTooltip
+              title={latestRate == null
+                ? `No ${label} orders observed in the last 90 days`
+                : latestLine.drift
+                  ? 'Latest observed rate differs from the 7-day average by >1%'
+                  : 'Latest observed rate agrees with the 7-day average'}
+              content={latestRate == null
+                ? `No orders for this class have been recorded in dm_volume_summary in the last 90 days. The 7-day-average and margin above are stale; if ${label} pricing changed since the last order landed, it won't be visible here until new orders flow. If you expect activity, check the monolith's send pipeline for this class.`
+                : latestLine.drift
+                  ? `The single most recent day with ${label} activity had a per-piece rate of $${latestRate!.toFixed(4)}${latestAt ? ` (on ${latestAt})` : ''}, while the 7-day average above is $${ourRate?.toFixed(4) ?? '—'}. This means either (a) a price change is in progress and the 7d avg is catching up, or (b) recent orders landed at an unexpected rate — a monolith pricing update may not have propagated. The reconciler flags this state as drift.`
+                  : `The single most recent day with ${label} activity (${latestAt ?? 'today'}) agrees with the 7-day average — pricing is stable.`}
+              placement="bottom"
+              maxWidth={380}
+            >
+              <span
+                className="text-[11px] cursor-help"
+                style={{
+                  color: latestLine.drift
+                    ? 'var(--color-alert-700, #b45309)'
+                    : 'var(--text-tertiary)',
+                  fontStyle: latestLine.muted ? 'italic' : 'normal',
+                }}
+              >
+                {latestLine.text}
+              </span>
+            </AxisTooltip>
           </div>
           <div className="flex items-center justify-between">
             <AxisTooltip
@@ -220,12 +266,18 @@ export function PcmPricingOverviewWidget({ currentRates, detection, mailClassDat
           label="Standard"
           ourRate={currentRates?.standard ?? null}
           pcmRate={pcmStandard}
+          latestRate={currentRates?.latestStandard ?? null}
+          latestAt={currentRates?.latestStandardAt ?? null}
+          drift={currentRates?.standardDrift ?? false}
           marginData={stdMargin}
         />
         <MailClassCard
           label="First Class"
           ourRate={currentRates?.firstClass ?? null}
           pcmRate={pcmFirstClass}
+          latestRate={currentRates?.latestFirstClass ?? null}
+          latestAt={currentRates?.latestFirstClassAt ?? null}
+          drift={currentRates?.firstClassDrift ?? false}
           marginData={fcMargin}
         />
       </div>
