@@ -427,7 +427,7 @@ export async function computeHeadline(orders: PcmOrderSlim[]) {
       pcmVsAuroraCostDelta: Number(pcmVsAuroraCostDelta.toFixed(2)),
       coverage: auroraSummary.coverage,
       sourceNote:
-        'PCM cost is computed from PCM /order × invoice-verified era rates (the vendor\'s own data). Revenue comes from dm_client_funnel.total_cost. Gross margin = revenue − PCM-invoice cost. Aurora\'s stored total_pcm_cost is shown for reconciliation; it differs from the invoice-verified value because the monolith uses $0.625/$0.875 rates instead of $0.63/$0.87 and leaves some pieces un-tagged.',
+        'PCM cost (what PCM charges 8020REI) is computed from PCM /order × invoice-verified Era 3 rates $0.63 std / $0.87 FC. Revenue comes from dm_client_funnel.total_cost (what 8020REI charges clients — Johansy set this to $0.66 std / $0.90 FC on 2026-04-16). Gross margin = revenue − PCM-invoice cost. Aurora\'s stored total_pcm_cost is shown for reconciliation; the delta you see in the warning is because the monolith\'s PCM-cost column (parameters.pcm_cost, not the customer-rate column) still uses $0.625/$0.875 instead of the invoice-verified $0.63/$0.87 and leaves ~8% of pieces un-tagged.',
     },
     activeCampaigns: {
       active: campaignCounts.activeCampaigns,

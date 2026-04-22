@@ -81,11 +81,21 @@ function Card({ label, hero, sub, icon, iconBg, secondaryTone = 'neutral', sourc
 
   // justify-between distributes: (icon+label) ↑ — (hero) — (sub) ↓
   // Fills the card height without trailing empty space.
+  //
+  // Tooltip strategy (fixed 2026-04-22):
+  //   - Hover the inconsistency triangle → `Data quality warning` (AxisTooltip)
+  //   - Hover the label → source note explaining where the number comes from
+  //   - Hover anywhere else on the card → nothing
+  // Previously the whole card had `title={sourceNote}` (native HTML title) AND
+  // the icon had an AxisTooltip. Both would fire simultaneously, producing two
+  // overlapping tooltips on the same hover.
   return (
-    <div className="flex flex-col justify-between gap-1 p-3 bg-surface-raised border-r border-stroke last:border-r-0 min-w-0 flex-1 h-full relative group/card" title={sourceNote}>
+    <div className="flex flex-col justify-between gap-1 p-3 bg-surface-raised border-r border-stroke last:border-r-0 min-w-0 flex-1 h-full relative group/card">
       <div className="flex items-center gap-2 min-w-0">
         <div className={`w-6 h-6 rounded flex items-center justify-center text-white flex-shrink-0 ${iconBg}`}>{icon}</div>
-        <span className="text-sm font-medium text-content-secondary truncate">{label}</span>
+        <AxisTooltip content={sourceNote} placement="top" maxWidth={360}>
+          <span className="text-sm font-medium text-content-secondary truncate cursor-help">{label}</span>
+        </AxisTooltip>
         {inconsistency && (
           <AxisTooltip
             title="Data quality warning"
@@ -139,7 +149,7 @@ export function DmOverviewHeadlineWidget({ data }: DmOverviewHeadlineWidgetProps
   // whenever the monolith's parameters.pcm_cost is wrong or incomplete.
   const drift = margin.pcmVsAuroraCostDelta ?? 0;
   const marginInconsistency = Math.abs(drift) >= 50
-    ? `Aurora's stored PCM cost is $${Math.abs(drift).toFixed(0)} ${drift > 0 ? 'LESS' : 'MORE'} than PCM's invoice-derived cost. The card above uses the invoice-authoritative value. Root cause: monolith parameters.pcm_cost uses $0.625/$0.875 rates (should be $0.63/$0.87) and leaves some pieces un-tagged.`
+    ? `Aurora's stored PCM cost is $${Math.abs(drift).toFixed(0)} ${drift > 0 ? 'LESS' : 'MORE'} than PCM's invoice-derived cost. The card above uses the invoice-authoritative value. Root cause: the monolith's parameters.pcm_cost column (what PCM charges 8020REI — NOT the customer-rate column Johansy updated on Apr 16) still uses $0.625/$0.875 rates instead of the invoice-verified $0.63/$0.87 and leaves ~8% of pieces un-tagged.`
     : undefined;
 
   const piecesInconsistency = Math.abs(pieces.deltaPct) > 5
