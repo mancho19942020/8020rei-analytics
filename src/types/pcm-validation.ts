@@ -80,9 +80,27 @@ export interface PcmAuroraReconciliation {
 
 export interface ProfitabilitySummary {
   totalRevenue: number;        // dm_client_funnel.total_cost (what we charge clients)
-  totalPcmCost: number;        // PCM /order × invoice-verified era rates (authoritative)
-  grossMargin: number;         // computed: revenue - PCM-invoice cost
-  marginPercent: number;       // (margin / revenue) * 100
+  totalPcmCost: number;        // PCM /order × invoice-verified era rates — REAL clients only
+  grossMargin: number;         // computed: revenue - PCM-invoice cost (real clients, before test)
+  /** Gross margin as percent of revenue. */
+  grossMarginPct?: number;
+  /**
+   * Net company margin = grossMargin − internalTestCost. Cross-tab consistency
+   * contract: this value MUST equal the Overview Company margin card's `.margin`.
+   * Both read from the same dm_overview_cache.headline payload; if they drift,
+   * scripts/diagnose-cross-tab-consistency.ts flags it.
+   */
+  netCompanyMargin?: number;
+  netCompanyMarginPct?: number;
+  /**
+   * PCM-invoice cost of internal test-domain sends (QA / sandbox). 8020REI paid
+   * PCM for these; no client revenue. Deducted from gross margin in the net
+   * company margin above so the P&L is honest.
+   */
+  internalTestCost?: number;
+  /** Legacy alias — historically meant gross margin %. Kept to avoid breaking
+   *  existing consumers. New code should use `grossMarginPct` or `netCompanyMarginPct`. */
+  marginPercent: number;
   totalSends: number;
   /** Pieces counted in the invoice-cost figure (from PCM /order) */
   pcmPiecesInvoice?: number;
@@ -128,11 +146,25 @@ export interface RateHistoryPoint {
   blendedMargin: number;   // weighted avg margin
   fcSends: number;         // FC volume for that month
   stdSends: number;        // Std volume for that month
+  /** True when this point represents the in-progress current month. For the
+   *  current month, ourFcRate / ourStdRate come from the most recent daily
+   *  rate in dm_volume_summary — not a monthly weighted blend — so the last
+   *  point always reflects the rate clients are charged today. */
+  isCurrentMonth?: boolean;
 }
 
 export interface RateHistoryData {
   trend: RateHistoryPoint[];
   dataAvailable: boolean;
+  /** Metadata on the current-month point: which dates the latest-rate overrides
+   *  came from (or null if no current-month data was available and we fell
+   *  back to the blend). Lets the widget render a footnote like
+   *  "Current month: latest rate as of YYYY-MM-DD". */
+  currentMonth?: {
+    month: string;
+    standardLatestDate: string | null;
+    firstClassLatestDate: string | null;
+  };
 }
 
 export interface PriceAlertData {
@@ -169,6 +201,13 @@ export interface RolloutStatus {
   domains: RolloutDomain[];
 }
 
+export interface MailClassCoverage {
+  /** Most recent sync date for this mail class in dm_volume_summary (YYYY-MM-DD). */
+  lastSyncedDate: string;
+  /** Distinct date count — reflects the rolling retention window (~5–7 days typically). */
+  daysSynced: number;
+}
+
 export interface PriceDetectionData {
   currentRates: {
     standard: number | null;
@@ -180,6 +219,17 @@ export interface PriceDetectionData {
   rolloutStatus: {
     standard: RolloutStatus | null;
     firstClass: RolloutStatus | null;
+  };
+  /**
+   * Sync coverage per mail class. Surfaces Aurora sync lag honestly so readers
+   * can see when a missing rate change is due to monolith sync lag rather than
+   * a bug in the detection query. Added 2026-04-20 after the session surfaced
+   * First Class price change not appearing due to Apr 15 being the last
+   * FC-synced date.
+   */
+  coverage?: {
+    standard: MailClassCoverage | null;
+    firstClass: MailClassCoverage | null;
   };
   dataAvailable: boolean;
 }
@@ -210,6 +260,28 @@ export interface CurrentRatesData {
   standard: number | null;
   firstClass: number | null;
   blended: number | null;
+
+  /**
+   * Latest OBSERVED rate per class — takes the single most recent day with
+   * sends in that class. Unlike the 7d avg, this surfaces the newest rate the
+   * moment a single order lands, so rate changes aren't hidden behind a
+   * blended average. When there's been no activity for that class recently,
+   * the value is null and `latestStandardAt` / `latestFirstClassAt` is null.
+   */
+  latestStandard: number | null;
+  latestStandardAt: string | null;
+  latestFirstClass: number | null;
+  latestFirstClassAt: string | null;
+
+  /**
+   * Drift flag per class — true when |latest - 7d avg| / avg exceeds 1%.
+   * Signals either (a) a rate transition is in progress (7d avg still
+   * catching up to latest) OR (b) recent orders at the wrong rate (monolith
+   * update did not propagate). The reconciler uses this to flag drift.
+   */
+  standardDrift: boolean;
+  firstClassDrift: boolean;
+
   /** What PCM charges 8020REI — invoice-verified era rates (NOT monolith-derived) */
   pcmStandard?: number;
   pcmFirstClass?: number;
@@ -234,5 +306,12 @@ export interface PricingHistoryPoint {
 
 export interface PricingHistoryData {
   trend: PricingHistoryPoint[];
+  /** Per-mail-class last synced date + days available. Lets the widget show a
+   *  "synced through YYYY-MM-DD" footer so a flat customer-rate line isn't
+   *  mistaken for "prices never changed" when the real cause is sync lag. */
+  coverage?: {
+    standard: MailClassCoverage | null;
+    firstClass: MailClassCoverage | null;
+  };
   dataAvailable: boolean;
 }

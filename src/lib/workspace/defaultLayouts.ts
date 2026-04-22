@@ -1265,7 +1265,10 @@ export const DM_OVERVIEW_WIDGET_CATALOG: WidgetCatalogItem[] = [
 // Features > 8020REI > Rapid Response Tab
 // ---------------------------------------------------------------------------
 
-export const RAPID_RESPONSE_LAYOUT_STORAGE_KEY = 'rapid-response-layout-v9';
+// Bumped v9 → v10 on 2026-04-20: removed rr-status-breakdown + rr-on-hold-breakdown.
+// Storage key bump forces existing users' localStorage layouts to regenerate from
+// DEFAULT_RAPID_RESPONSE_LAYOUT instead of re-showing the removed widgets.
+export const RAPID_RESPONSE_LAYOUT_STORAGE_KEY = 'rapid-response-layout-v10';
 
 export const DEFAULT_RAPID_RESPONSE_LAYOUT: Widget[] = [
   // Row 1: Is it running? | Is it working?  (side-by-side)
@@ -1332,34 +1335,30 @@ export const DEFAULT_RAPID_RESPONSE_LAYOUT: Widget[] = [
     timeBehavior: 'all-time',
   },
   // Row 4: Campaigns table (full width)
+  // On-hold age breakdown widget was removed 2026-04-20 per user feedback
+  // ("that is more confusing"). The stale/fresh split now lives inline in the
+  // Is-it-running pulse + a per-row badge on the Campaigns table. See
+  // MOTHBALLED_WIDGETS below for the full record.
   {
     id: 'rr-campaign-table',
     type: 'rr-campaign-table',
     title: 'Campaigns',
-    tooltip: 'All campaigns with their latest-snapshot totals — not affected by the date filter. Sent and Delivered show lifetime totals per campaign.',
+    tooltip: 'All campaigns with their latest-snapshot totals — not affected by the date filter. Sent and Delivered show lifetime totals per campaign. On-hold column includes a "fresh" / "stale Nd" badge: stale = ≥ 7 days in on-hold (overdue for the monolith auto-delivery timer); fresh = < 7 days (within normal window).',
     x: 0, y: 15,
     w: 12, h: 7,
     minW: 6, minH: 4, maxW: 12, maxH: 10,
     timeBehavior: 'all-time',
   },
-  // Row 5: Period charts (date-filtered)
+  // Row 5: Send volume trend (date-filtered)
+  // Status breakdown donut was removed 2026-04-20 per user feedback
+  // ("I'm not using it and I don't find it useful right now").
   {
     id: 'rr-sends-trend',
     type: 'rr-sends-trend',
     title: 'Send volume trend',
     tooltip: 'Daily mailing activity within the selected date range. For lifetime monthly send volume, see DM Campaign → Overview → Send volume trend.',
     x: 0, y: 22,
-    w: 6, h: 5,
-    minW: 4, minH: 3, maxW: 12, maxH: 8,
-    timeBehavior: 'date-filtered',
-  },
-  {
-    id: 'rr-status-breakdown',
-    type: 'rr-status-breakdown',
-    title: 'Status breakdown',
-    tooltip: 'Mail-piece outcomes within the selected date range. Piece status ≠ campaign status (see "Is it running?" for campaign lifecycle).',
-    x: 6, y: 22,
-    w: 6, h: 5,
+    w: 12, h: 5,
     minW: 4, minH: 3, maxW: 12, maxH: 8,
     timeBehavior: 'date-filtered',
   },
@@ -1439,13 +1438,6 @@ export const RAPID_RESPONSE_WIDGET_CATALOG: WidgetCatalogItem[] = [
     defaultSize: { w: 6, h: 5 },
   },
   {
-    type: 'rr-status-breakdown',
-    title: 'Status breakdown',
-    description: 'Donut chart of mailing status distribution',
-    iconKey: 'barChart',
-    defaultSize: { w: 6, h: 5 },
-  },
-  {
     type: 'rr-campaign-table',
     title: 'Campaigns',
     description: 'Sortable table of all campaigns with status and metrics',
@@ -1472,7 +1464,8 @@ export const RAPID_RESPONSE_WIDGET_CATALOG: WidgetCatalogItem[] = [
 // Features > 8020REI > DM Campaign Business Results Tab
 // ---------------------------------------------------------------------------
 
-export const DM_BUSINESS_RESULTS_LAYOUT_STORAGE_KEY = 'dm-business-results-layout-v4';
+// Bumped v4 → v5 on 2026-04-20: removed dm-conversion-trend + dm-revenue-cost.
+export const DM_BUSINESS_RESULTS_LAYOUT_STORAGE_KEY = 'dm-business-results-layout-v5';
 
 export const DEFAULT_DM_BUSINESS_RESULTS_LAYOUT: Widget[] = [
   // Row 1: Conversion Funnel — THE hero metric, answers "how is DM performing?"
@@ -1497,45 +1490,30 @@ export const DEFAULT_DM_BUSINESS_RESULTS_LAYOUT: Widget[] = [
     minW: 6, minH: 5, maxW: 12, maxH: 10,
     timeBehavior: 'date-filtered',
   },
-  // Row 3: Trends — more actionable than static template table
-  {
-    id: 'dm-conversion-trend',
-    type: 'dm-conversion-trend',
-    title: 'Conversion activity',
-    tooltip: 'Cohort view: for properties first mailed in the selected window, the daily rhythm of conversions (buckets = the date each lead/appt/deal happened). Sum of bars reconciles bit-for-bit with the Conversion funnel\'s leads/appts/deals for the same window.',
-    x: 0, y: 15,
-    w: 6, h: 5,
-    minW: 4, minH: 3, maxW: 12, maxH: 8,
-    timeBehavior: 'date-filtered',
-  },
-  {
-    id: 'dm-revenue-cost',
-    type: 'dm-revenue-cost',
-    title: 'Mailing spend vs. deal revenue',
-    tooltip: 'Cohort view for the selected window: daily client mailing spend (red, bucketed by first_sent_date) and deal revenue earned (green, bucketed by became_deal_at). Same cohort as the Conversion funnel — sum of bars reconciles with the funnel\'s cost / revenue. Client ROI framing; see Profitability for 8020REI company margin.',
-    x: 6, y: 15,
-    w: 6, h: 5,
-    minW: 4, minH: 3, maxW: 12, maxH: 8,
-    timeBehavior: 'date-filtered',
-  },
-  // Row 4: Template Leaderboard — optimization detail, not first-glance
+  // Conversion activity + Mailing spend vs deal revenue were removed 2026-04-20
+  // per user: "Conversion activity: maybe we can remove that one and the mailings
+  // spend versus deal revenue. We can also remove those ones for now." Components
+  // remain in the codebase under src/components/workspace/widgets/ for future
+  // re-enable. See MOTHBALLED_WIDGETS below.
+
+  // Row 3: Template Leaderboard — optimization detail, not first-glance
   {
     id: 'dm-template-leaderboard',
     type: 'dm-template-leaderboard',
     title: 'Template leaderboard',
     tooltip: 'Templates ranked by performance within the selected date range. Sent/Delivered = mail pieces (matches OH). Leads/Deals = properties from dm_property_conversions with became_* > first_sent_date. ROAS = client deal revenue ÷ client mail spend (client ROI, not 8020REI company margin).',
-    x: 0, y: 20,
+    x: 0, y: 15,
     w: 12, h: 6,
     minW: 6, minH: 5, maxW: 12, maxH: 10,
     timeBehavior: 'date-filtered',
   },
-  // Row 5: Geographic Breakdown — supporting detail
+  // Row 4: Geographic Breakdown — supporting detail
   {
     id: 'dm-geo-breakdown',
     type: 'dm-geo-breakdown',
     title: 'Geographic breakdown',
     tooltip: 'Conversion rates by state and county within the selected date range. Identifies which geographic markets respond best to direct mail campaigns.',
-    x: 0, y: 26,
+    x: 0, y: 21,
     w: 12, h: 5,
     minW: 6, minH: 4, maxW: 12, maxH: 10,
     timeBehavior: 'date-filtered',
@@ -1563,20 +1541,6 @@ export const DM_BUSINESS_RESULTS_WIDGET_CATALOG: WidgetCatalogItem[] = [
     description: 'Templates ranked by sends, leads, deals, and ROAS',
     iconKey: 'table',
     defaultSize: { w: 6, h: 7 },
-  },
-  {
-    type: 'dm-conversion-trend',
-    title: 'Conversion activity',
-    description: 'Daily new leads, appointments, and deals',
-    iconKey: 'barChart',
-    defaultSize: { w: 6, h: 5 },
-  },
-  {
-    type: 'dm-revenue-cost',
-    title: 'Mailing spend vs. deal revenue',
-    description: 'Daily client mail spend vs. attributed deal revenue',
-    iconKey: 'barChart',
-    defaultSize: { w: 6, h: 5 },
   },
   {
     type: 'dm-geo-breakdown',
@@ -1909,7 +1873,9 @@ export const PLATFORM_ANALYTICS_WIDGET_CATALOG: WidgetCatalogItem[] = [
 // ─── Profitability Layout (formerly PCM & Profitability) ────────
 // Story: Verdict → Trends → Pricing → Data Integrity → Details
 
-export const PCM_VALIDATION_LAYOUT_STORAGE_KEY = 'pcm-validation-layout-v6';
+// Bumped v6 → v7 on 2026-04-20: removed pcm-clients-profitable + pcm-clients-breakeven
+// + pcm-clients-losing (three filtered client-margin tables).
+export const PCM_VALIDATION_LAYOUT_STORAGE_KEY = 'pcm-validation-layout-v7';
 
 export const DEFAULT_PCM_VALIDATION_LAYOUT: Widget[] = [
   // ─── THE VERDICT (all-time) ───
@@ -1964,41 +1930,18 @@ export const DEFAULT_PCM_VALIDATION_LAYOUT: Widget[] = [
     minW: 4, minH: 3, maxH: 6,
     timeBehavior: 'date-filtered',
   },
-  // ─── CLIENT DETAILS (3 separate tables by health) ───
-  {
-    id: 'pcm-clients-profitable',
-    type: 'pcm-clients-profitable',
-    title: 'Profitable clients',
-    tooltip: 'Clients with margins above 5%, sorted by highest margin first.',
-    x: 0, y: 13, w: 12, h: 6,
-    minW: 8, minH: 3, maxH: 10,
-    timeBehavior: 'all-time',
-  },
-  {
-    id: 'pcm-clients-breakeven',
-    type: 'pcm-clients-breakeven',
-    title: 'Break-even clients',
-    tooltip: 'Clients with margins between 0-5%. Pricing review recommended.',
-    x: 0, y: 19, w: 12, h: 6,
-    minW: 8, minH: 3, maxH: 10,
-    timeBehavior: 'all-time',
-  },
-  {
-    id: 'pcm-clients-losing',
-    type: 'pcm-clients-losing',
-    title: 'Losing money',
-    tooltip: 'Clients where we lose money on every piece sent. Worst margins first.',
-    x: 0, y: 25, w: 12, h: 6,
-    minW: 8, minH: 3, maxH: 10,
-    timeBehavior: 'all-time',
-  },
+  // Profitable / Break-even / Losing clients removed 2026-04-20 per user:
+  // "those three tables can disappear." All three were filtered views of the
+  // same per-client margin data already present in the Client margins table.
+  // Components remain in src/components/workspace/widgets/ for future re-enable.
+  // See MOTHBALLED_WIDGETS below.
   // ─── DOMAIN & TEMPLATE DETAILS ───
   {
     id: 'pcm-domain-table',
     type: 'pcm-domain-table',
     title: 'Domain breakdown',
     tooltip: 'Per-domain send totals, delivery counts, and cost per piece.',
-    x: 0, y: 31, w: 12, h: 6,
+    x: 0, y: 13, w: 12, h: 6,
     minW: 8, minH: 3, maxH: 10,
     timeBehavior: 'all-time',
   },
@@ -2007,7 +1950,7 @@ export const DEFAULT_PCM_VALIDATION_LAYOUT: Widget[] = [
     type: 'pcm-template-table',
     title: 'Template catalog',
     tooltip: 'PostcardMania design templates — name, type, size, and mail classes.',
-    x: 0, y: 37, w: 12, h: 6,
+    x: 0, y: 19, w: 12, h: 6,
     minW: 8, minH: 3, maxH: 10,
     timeBehavior: 'all-time',
   },
@@ -2019,11 +1962,85 @@ export const PCM_VALIDATION_WIDGET_CATALOG: WidgetCatalogItem[] = [
   { type: 'pcm-margin-trend', title: 'Pricing history', description: 'Per-piece rates over time: us vs PCM with margin', iconKey: 'lineChart', defaultSize: { w: 12, h: 5 } },
   { type: 'pcm-pricing-overview', title: 'Pricing overview', description: 'Our rates vs PCM rates with margin per piece', iconKey: 'grid', defaultSize: { w: 6, h: 4 } },
   { type: 'pcm-data-match', title: 'Data match', description: 'Domain-level PCM alignment + lifetime send vs order totals', iconKey: 'barChart', defaultSize: { w: 6, h: 4 } },
-  { type: 'pcm-clients-profitable', title: 'Profitable clients', description: 'Clients with margins above 5%', iconKey: 'table', defaultSize: { w: 12, h: 6 } },
-  { type: 'pcm-clients-breakeven', title: 'Break-even clients', description: 'Clients with margins 0-5%', iconKey: 'table', defaultSize: { w: 12, h: 6 } },
-  { type: 'pcm-clients-losing', title: 'Losing money', description: 'Clients with negative margins', iconKey: 'table', defaultSize: { w: 12, h: 6 } },
   { type: 'pcm-domain-table', title: 'Domain breakdown', description: 'Per-domain send totals and cost', iconKey: 'table', defaultSize: { w: 12, h: 6 } },
   { type: 'pcm-template-table', title: 'Template catalog', description: 'PCM design templates', iconKey: 'table', defaultSize: { w: 12, h: 6 } },
+];
+
+// ---------------------------------------------------------------------------
+// MOTHBALLED WIDGETS — removed from default layouts per user direction but
+// preserved in the codebase for easy re-enable.
+//
+// To re-enable: (1) remove the mothball entry below, (2) add the widget back
+// to its tab's DEFAULT_*_LAYOUT and *_WIDGET_CATALOG arrays, (3) bump the tab's
+// LAYOUT_STORAGE_KEY so users' persisted localStorage layouts regenerate.
+//
+// Why a registry instead of deletion: the components still work and may be
+// reused on other tabs (Data Sources, Reports) in future. Keeping the quote
+// from the user's own words documents the intent — no archaeology needed.
+// ---------------------------------------------------------------------------
+export interface MothballedWidget {
+  /** The WidgetType identifier. */
+  type: string;
+  /** Which tab had this widget before it was mothballed. */
+  sourceTab: 'operational-health' | 'business-results' | 'pcm-validation' | 'overview';
+  /** ISO date when mothballed. */
+  mothballedAt: string;
+  /** User's verbatim quote explaining why they wanted it removed. */
+  userQuote: string;
+  /** Our engineering note on where the data now lives (if anywhere). */
+  replacedBy: string;
+}
+
+export const MOTHBALLED_WIDGETS: readonly MothballedWidget[] = [
+  {
+    type: 'rr-status-breakdown',
+    sourceTab: 'operational-health',
+    mothballedAt: '2026-04-20',
+    userQuote: 'The status breakdown on the send volume trend: maybe we could leave only the same volume trend. The status breakdown I\'m not using it and I don\'t find it useful right now.',
+    replacedBy: 'No replacement — reader did not find the donut useful; terminal-status distribution is still implicit in Campaigns table Sent/Delivered columns + quality metrics widget.',
+  },
+  {
+    type: 'rr-on-hold-breakdown',
+    sourceTab: 'operational-health',
+    mothballedAt: '2026-04-20',
+    userQuote: 'That new widget that you constructed, the hold breakdown, I don\'t like it; that is more confusing.',
+    replacedBy: 'Is-it-running pulse On-hold row now shows "N (M stale)" summary; Campaigns table On-hold column shows a per-row "fresh" / "stale Nd" badge. Same stale/fresh vocabulary via the queryOnHoldAges helper in src/lib/on-hold-ages.ts.',
+  },
+  {
+    type: 'dm-conversion-trend',
+    sourceTab: 'business-results',
+    mothballedAt: '2026-04-20',
+    userQuote: 'Conversion activity: maybe we can remove that one [...] we can also remove those ones for now.',
+    replacedBy: 'No replacement — Conversion funnel already carries the headline cohort leads/appts/deals totals.',
+  },
+  {
+    type: 'dm-revenue-cost',
+    sourceTab: 'business-results',
+    mothballedAt: '2026-04-20',
+    userQuote: 'and the mailings spend versus deal revenue. We can also remove those ones for now.',
+    replacedBy: 'No replacement — Client performance table already shows mail spend + deal revenue per client. Profitability tab carries 8020REI-side margin views.',
+  },
+  {
+    type: 'pcm-clients-profitable',
+    sourceTab: 'pcm-validation',
+    mothballedAt: '2026-04-20',
+    userQuote: 'The other tables, the profitable clients, break-even clients, and losing money clients, I don\'t find them necessary; those three tables can disappear.',
+    replacedBy: 'Client margins (pcm-client-margins) already lists every client with margin bucket — sort by margin descending for the profitable view.',
+  },
+  {
+    type: 'pcm-clients-breakeven',
+    sourceTab: 'pcm-validation',
+    mothballedAt: '2026-04-20',
+    userQuote: 'The other tables, the profitable clients, break-even clients, and losing money clients, I don\'t find them necessary; those three tables can disappear.',
+    replacedBy: 'Client margins (pcm-client-margins) with the margin-bucket column covers break-even (0–5%) clients.',
+  },
+  {
+    type: 'pcm-clients-losing',
+    sourceTab: 'pcm-validation',
+    mothballedAt: '2026-04-20',
+    userQuote: 'The other tables, the profitable clients, break-even clients, and losing money clients, I don\'t find them necessary; those three tables can disappear.',
+    replacedBy: 'Client margins (pcm-client-margins) sorted by margin ascending surfaces losing clients first.',
+  },
 ];
 
 /**

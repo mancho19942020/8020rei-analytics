@@ -17,6 +17,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth-guard';
 import { runAuroraQuery, isAuroraConfigured } from '@/lib/aurora';
+import { queryOnHoldAges, ON_HOLD_STALE_THRESHOLD_DAYS } from '@/lib/on-hold-ages';
 import {
   sendSlackMessage,
   sendSlackThreadReply,
@@ -29,6 +30,8 @@ import fs from 'fs';
 import path from 'path';
 // Test-domain exclusion — canonical source. Any change applies everywhere simultaneously.
 import { TEST_DOMAINS_SQL as SEED_DOMAINS, EXCLUDE_TEST_DOMAINS_SQL as EXCLUDE_SEED } from '@/lib/domain-filter';
+import { getCachedPcmOrdersSlim, type PcmOrderSlim } from '@/app/api/dm-overview/compute';
+import { pcmRate, currentPcmRates } from '@/lib/pcm-pricing-eras';
 
 export async function POST(request: NextRequest) {
   const authError = await requireAuth(request);
@@ -594,35 +597,46 @@ async function fetchCurrentAlerts(): Promise<RrAlert[]> {
     });
   }
 
-  // On-hold — only flag campaigns with 50+ mailings on hold
+  // On-hold — use the shared queryOnHoldAges helper so this alert tells the SAME
+  // stale/fresh story as the Is-it-running pulse + Campaigns table badges. Zero
+  // drift risk: one query, one threshold, one vocabulary.
   const ON_HOLD_WARNING = 50;
   const ON_HOLD_CRITICAL = 500;
-  const onHoldDetails: { domain: string; campaign: string; count: number }[] = [];
-  pulseRows.forEach((r: Record<string, unknown>) => {
-    const hold = Number(r.on_hold_count || 0);
-    if (hold >= ON_HOLD_WARNING) {
-      onHoldDetails.push({
-        domain: String(r.domain || 'unknown'),
-        campaign: String(r.campaign_name || 'Unnamed'),
-        count: hold,
-      });
-    }
-  });
-  onHoldDetails.sort((a, b) => b.count - a.count);
-  const totalOnHold = onHoldDetails.reduce((s, d) => s + d.count, 0);
-  if (onHoldDetails.length > 0) {
-    const hasCritical = onHoldDetails.some(d => d.count >= ON_HOLD_CRITICAL);
-    const breakdown = onHoldDetails.map(d => `${d.campaign} (${d.domain}): ${d.count.toLocaleString('en-US')} on hold`).join('; ');
+  const onHoldAges = await queryOnHoldAges();
+  const totalOnHold = onHoldAges.totalOnHold;
+  if (totalOnHold >= ON_HOLD_WARNING) {
+    const hasCritical = totalOnHold >= ON_HOLD_CRITICAL || onHoldAges.staleOnHold > 0;
+    const staleCampaigns = onHoldAges.perCampaign.filter(c => c.ageBucket === 'stale');
+    const freshCampaigns = onHoldAges.perCampaign.filter(c => c.ageBucket === 'fresh');
+    const staleLines = staleCampaigns
+      .slice(0, 5)
+      .map(c => `${c.campaignName} (${c.domain}): ${c.currentHold.toLocaleString('en-US')} (${c.daysSinceFirstHold}d)`)
+      .join('; ');
+    const freshLines = freshCampaigns
+      .slice(0, 3)
+      .map(c => `${c.campaignName} (${c.domain}): ${c.currentHold.toLocaleString('en-US')}`)
+      .join('; ');
+    const entity = [...new Set(onHoldAges.perCampaign.map(c => c.domain))].join(', ');
     alerts.push({
       id: 'rr-on-hold',
-      name: 'Campaigns with mailings on hold',
+      name: onHoldAges.staleOnHold > 0
+        ? 'Mailings on hold — stale pieces overdue for auto-delivery'
+        : 'Mailings on hold',
       severity: hasCritical ? 'critical' : 'warning',
       category: 'rapid-response',
-      description: `${onHoldDetails.length} campaign${onHoldDetails.length > 1 ? 's' : ''} with ${totalOnHold.toLocaleString('en-US')} total mailings on hold — these letters are queued but not sending. Clients may need to recharge their accounts. ${breakdown}.`,
-      entity: [...new Set(onHoldDetails.map(d => d.domain))].join(', '),
-      metrics: { current: totalOnHold, baseline: ON_HOLD_WARNING },
+      description:
+        `${totalOnHold.toLocaleString('en-US')} mailings on hold across ${onHoldAges.campaignsWithHold} campaign${onHoldAges.campaignsWithHold > 1 ? 's' : ''}. ` +
+        `${onHoldAges.staleOnHold.toLocaleString('en-US')} are stale (≥ ${ON_HOLD_STALE_THRESHOLD_DAYS}d — overdue for the monolith's auto-delivery timer to convert to 'undelivered') across ${onHoldAges.staleCampaigns} campaigns. ` +
+        `${onHoldAges.freshOnHold.toLocaleString('en-US')} are fresh (< ${ON_HOLD_STALE_THRESHOLD_DAYS}d — within normal window). ` +
+        `Oldest piece: ${onHoldAges.oldestAgeDays}d.` +
+        (staleLines ? ` Stale campaigns: ${staleLines}.` : '') +
+        (freshLines ? ` Fresh campaigns: ${freshLines}.` : ''),
+      entity,
+      metrics: { current: totalOnHold, baseline: ON_HOLD_WARNING, change_pct: onHoldAges.staleOnHold },
       detected_at: now,
-      action: 'Contact affected clients: their campaigns are active but mailings are paused due to insufficient balance. They need to recharge to resume sending.',
+      action: onHoldAges.staleOnHold > 0
+        ? 'Two actions: (1) for STALE pieces — escalate to monolith team to confirm handleOnHoldRapidResponses is being dispatched (no Kernel.php schedule entry; runs only on client payment). (2) for FRESH pieces — contact affected clients to recharge their ChargeOver balance so the timer moves pieces forward.'
+        : 'Contact affected clients: their campaigns are active but mailings are paused due to insufficient balance. They need to recharge to resume sending.',
       link: '/features/features-rei/dm-campaign/operational-health',
     });
   }
@@ -631,6 +645,13 @@ async function fetchCurrentAlerts(): Promise<RrAlert[]> {
   // The monolith converts on-hold mailings to "undelivered" after 7 days.
   // This alert uses a 9-day lookback (7 days + 2-day buffer) to detect
   // whether the timer is working. Fix deployed by Christian on April 15, 2026.
+  //
+  // IMPORTANT: the "active" (info) and "broken" (critical) branches use
+  // DISTINCT alert ids so persistent-alert tracking can't display a stale
+  // "timer active" title when the actual state has flipped to "broken".
+  // Prior version reused `rr-on-hold-timer` across branches, which caused
+  // the Slack digest to keep the outdated "active" name after the state
+  // flipped to critical.
   const onHold9dAgo = Number(onHold7dAgoRows[0]?.on_hold_9d_ago || 0);
   if (onHold9dAgo > 0 || totalOnHold > 0) {
     const reduction = onHold9dAgo - totalOnHold;
@@ -639,7 +660,7 @@ async function fetchCurrentAlerts(): Promise<RrAlert[]> {
     if (reduction > 100) {
       // Significant drop — the 7-day timer is working
       alerts.push({
-        id: 'rr-on-hold-timer',
+        id: 'rr-on-hold-timer-active',
         name: 'On-hold 7-day auto-delivery timer active',
         severity: 'info',
         category: 'rapid-response',
@@ -653,14 +674,14 @@ async function fetchCurrentAlerts(): Promise<RrAlert[]> {
       // On-hold has been high for 9+ days and hasn't dropped — timer likely broken
       const increase = totalOnHold - onHold9dAgo;
       alerts.push({
-        id: 'rr-on-hold-timer',
-        name: 'On-hold 7-day timer may not be working',
+        id: 'rr-on-hold-timer-broken',
+        name: 'On-hold 7-day timer not converting stale pieces',
         severity: 'critical',
         category: 'rapid-response',
-        description: `On-hold count has not decreased in 9 days — was ${onHold9dAgo.toLocaleString('en-US')}, now ${totalOnHold.toLocaleString('en-US')}${increase > 0 ? ` (+${increase.toLocaleString('en-US')})` : ''}. The 7-day auto-delivery timer should be converting stale on-hold mailings to undelivered, but no reduction is detected after 9 days. Report to Christian — the fix may not be working.`,
+        description: `On-hold count has not decreased in 9 days — was ${onHold9dAgo.toLocaleString('en-US')}, now ${totalOnHold.toLocaleString('en-US')}${increase > 0 ? ` (+${increase.toLocaleString('en-US')})` : ''}. The 7-day auto-delivery timer should be converting stale on-hold mailings to undelivered, but no reduction is detected after 9 days. Monolith's handleOnHoldRapidResponses() only runs on client payment (ConfirmPayChargeOverJob) — app/Console/Kernel.php has no schedule entry so stale pieces accumulate until a recharge.`,
         metrics: { current: totalOnHold, baseline: onHold9dAgo, change_pct: increase > 0 ? Math.round((increase / onHold9dAgo) * 100) : 0 },
         detected_at: now,
-        action: 'Report to Christian (monolith dev): the on-hold auto-delivery timer deployed April 15 does not appear to be converting records. Check the cron job and verify the logic is running in production.',
+        action: 'Report to Christian/Johan (monolith): add a scheduled cron in Kernel.php calling handleOnHoldRapidResponses(). See On-hold age breakdown widget for the offending campaigns.',
         link: '/features/features-rei/dm-campaign/operational-health',
       });
     }
@@ -718,13 +739,13 @@ async function fetchCurrentAlerts(): Promise<RrAlert[]> {
 
       alerts.push({
         id: `rr-price-change-${row.mail_class}-${changeDate}`,
-        name: `${mailClassLabel} mail price ${direction}`,
+        name: `Customer ${mailClassLabel} rate ${direction}`,
         severity: 'warning',
         category: 'rapid-response',
-        description: `${mailClassLabel} effective rate ${direction} from $${oldRate.toFixed(4)} to $${newRate.toFixed(4)} on ${changeDate}. Review margin impact in PCM & Profitability.`,
+        description: `Customer ${mailClassLabel} rate ${direction} from $${oldRate.toFixed(4)} to $${newRate.toFixed(4)} on ${changeDate} — this is what 8020REI charges clients, detected live from dm_volume_summary. PCM vendor rate is unchanged (contract-based). Review margin impact in PCM & Profitability.`,
         metrics: { current: newRate, baseline: oldRate },
         detected_at: now,
-        action: 'Check the Price Change Detection widget in PCM & Profitability tab.',
+        action: 'Check the Customer rate change detected callout on Pricing overview, or the Price change detection widget for full rollout progress.',
         link: '/features/features-rei/dm-campaign/pcm-validation',
       });
     }
@@ -732,7 +753,109 @@ async function fetchCurrentAlerts(): Promise<RrAlert[]> {
     // dm_volume_summary mail_class column may not exist yet — silently skip
   }
 
+  // PCM vendor-rate drift detection.
+  // If PCM changes their contract rate (they charge us more per piece), our
+  // pcm-pricing-eras.ts file goes stale and every margin calc silently
+  // under- or over-states. This detector samples recent PCM /order activity,
+  // computes the actual average invoice rate per mail class over the last
+  // 30 days, and compares to the expected era rate. If the delta is large
+  // enough that it changes margin by > $0.01/piece, fire an alert.
+  try {
+    const pcmAlerts = detectPcmVendorRateDrift();
+    alerts.push(...pcmAlerts);
+  } catch (err) {
+    console.error('[slack-alerts] PCM vendor-rate drift probe failed:', err);
+  }
+
   return alerts;
+}
+
+/**
+ * PCM vendor-rate staleness reminder.
+ *
+ * Why this can't be a hard "drift detector": verified via live probe on
+ * 2026-04-20, the PCM API exposes `/auth/login`, `/order`, `/integration/balance`,
+ * `/design` only. No `/invoice`, `/billing`, `/statement`, `/reports`, `/pricing`
+ * endpoint exists. Per-order records return no cost/rate field either — just
+ * orderID, mailClass, orderDate, status. PCM's monthly invoice PDFs live
+ * outside the API. So we cannot programmatically verify that our hardcoded
+ * era rates still match what PCM is charging.
+ *
+ * What we CAN do: make the human control visible. The advisory fires on every
+ * Slack digest with the current era rates + how many days since pcm-pricing-eras.ts
+ * was last modified (a proxy for "last verified"). After 60 days, severity escalates
+ * from info → warning. This is the closest thing to automation until PCM exposes
+ * a billing endpoint.
+ *
+ * Threshold for escalation: 60 days. Camilo's note in pcm-pricing-eras.ts:
+ *   "PCM invoice rates change only when the vendor contract changes (quarterly
+ *    at most)"
+ * so 60 days without a touch is a reasonable review nudge — not an alarm.
+ */
+function detectPcmVendorRateDrift(): RrAlert[] {
+  const cached = getCachedPcmOrdersSlim();
+  if (!cached || cached.length === 0) return [];
+
+  // Filter to last 30 days of non-canceled production orders.
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now);
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const thirtyDaysAgoISO = thirtyDaysAgo.toISOString().slice(0, 10);
+
+  const recent = cached.filter((o: PcmOrderSlim) =>
+    !o.canceled && !o.isTestDomain && o.date >= thirtyDaysAgoISO
+  );
+  if (recent.length < 50) {
+    // Too few samples — statistical noise dominates. No alert.
+    return [];
+  }
+
+  const expected = currentPcmRates();
+
+  // Read the era file's last-modified date as a proxy for "last verified".
+  // Commits to pcm-pricing-eras.ts only happen when a human reviews PCM
+  // invoices and decides a rate has changed. If the file hasn't been touched
+  // in 60+ days, nudge the human to re-verify.
+  let daysSinceVerified: number | null = null;
+  try {
+    const eraFilePath = path.resolve(process.cwd(), 'src/lib/pcm-pricing-eras.ts');
+    const stat = fs.statSync(eraFilePath);
+    const ageMs = Date.now() - stat.mtimeMs;
+    daysSinceVerified = Math.floor(ageMs / (1000 * 60 * 60 * 24));
+  } catch {
+    // In the Cloud Run bundle, src/ may not be readable at runtime. Silently
+    // skip the freshness signal — the advisory still fires with current rates.
+  }
+
+  const STALE_WARN_DAYS = 60;
+  const isStale = daysSinceVerified !== null && daysSinceVerified >= STALE_WARN_DAYS;
+  const freshnessLine = daysSinceVerified !== null
+    ? ` Era schedule last verified: ${daysSinceVerified}d ago${isStale ? ' — overdue for review' : ''}.`
+    : '';
+
+  return [
+    {
+      id: 'pcm-vendor-rate-drift-advisory',
+      name: isStale
+        ? 'PCM vendor-rate schedule overdue for review'
+        : 'PCM vendor-rate drift monitoring — partial coverage',
+      severity: isStale ? 'warning' : 'info',
+      category: 'rapid-response',
+      description:
+        `Expected PCM vendor rates (from src/lib/pcm-pricing-eras.ts, Era: ${expected.era.label}): ` +
+        `Standard $${expected.std.toFixed(2)}, First Class $${expected.fc.toFixed(2)}. ` +
+        `Recent activity: ${recent.length} non-test PCM orders in the last 30 days.` +
+        freshnessLine +
+        ` Full auto-detection would require a PCM invoice/billing endpoint — verified via live probe that PCM API exposes only /auth/login, /order, /integration/balance, /design. No invoice fields on order records. ` +
+        `Interim safeguard: any change to pcm-pricing-eras.ts requires a commit, so every era update is reviewed.`,
+      metrics: { current: expected.std, baseline: expected.std, change_pct: daysSinceVerified ?? 0 },
+      detected_at: new Date().toISOString(),
+      action: isStale
+        ? `pcm-pricing-eras.ts was last updated ${daysSinceVerified}d ago (threshold ${STALE_WARN_DAYS}d). Ask PCM for the latest invoice PDF, verify Std/FC per-piece rates against the era schedule, and commit an update to src/lib/pcm-pricing-eras.ts if needed — OR commit a no-op comment bump to reset the freshness clock if rates are confirmed unchanged.`
+        : 'No action needed this week. When PCM sends a new contract/invoice, verify the rates against pcm-pricing-eras.ts. A stronger reminder fires after 60d without an era-file touch.',
+      link: '/features/features-rei/dm-campaign/pcm-validation',
+    },
+  ];
 }
 
 // ---------------------------------------------------------------------------

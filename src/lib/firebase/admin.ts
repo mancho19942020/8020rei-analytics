@@ -11,27 +11,38 @@ import { headers } from 'next/headers';
 
 const ALLOWED_DOMAIN = '8020rei.com';
 
-let app: App;
+let app: App | null = null;
 let adminAuth: Auth;
 
-function getAdminAuth(): Auth {
-  if (adminAuth) return adminAuth;
+/**
+ * Returns the shared Firebase Admin app, initializing it on first call.
+ * Used by both auth and Firestore helpers so a single app instance is reused.
+ */
+export function getAdminApp(): App {
+  if (app) return app;
 
   if (getApps().length > 0) {
     app = getApps()[0];
-  } else {
-    const credentialsJson = process.env.FIREBASE_ADMIN_CREDENTIALS_JSON;
-
-    if (credentialsJson) {
-      const serviceAccount = JSON.parse(credentialsJson);
-      app = initializeApp({ credential: cert(serviceAccount) });
-    } else {
-      // Local dev: uses Application Default Credentials (gcloud CLI)
-      app = initializeApp();
-    }
+    return app;
   }
 
-  adminAuth = getAuth(app);
+  const credentialsJson = process.env.FIREBASE_ADMIN_CREDENTIALS_JSON;
+
+  if (credentialsJson) {
+    const serviceAccount = JSON.parse(credentialsJson);
+    app = initializeApp({ credential: cert(serviceAccount) });
+  } else {
+    // Local dev: uses Application Default Credentials (gcloud CLI).
+    // Firestore emulator auto-detected via FIRESTORE_EMULATOR_HOST env var.
+    app = initializeApp();
+  }
+
+  return app;
+}
+
+function getAdminAuth(): Auth {
+  if (adminAuth) return adminAuth;
+  adminAuth = getAuth(getAdminApp());
   return adminAuth;
 }
 

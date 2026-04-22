@@ -47,8 +47,21 @@ export function PcmMarginSummaryWidget({ data }: PcmMarginSummaryWidgetProps) {
     );
   }
 
-  const marginIsNegative = data.grossMargin < 0;
-  const marginPctDisplay = `${data.marginPercent.toFixed(1)}%`;
+  // Cross-tab consistency contract (2026-04-20): the headline here is the NET
+  // company margin — same number as the Overview Company margin card. Previously
+  // this widget showed GROSS margin ($2.0K / 8.2%), which differed from the
+  // Overview's NET margin ($1.8K / 7.5%) by the internal test-domain cost.
+  // User screenshot caught the drift; both surfaces now read the same field
+  // from the same dm_overview_cache.headline payload. The decomposition is
+  // rendered in full so readers see how $2.0K becomes $1.8K.
+  const testCost = data.internalTestCost ?? 0;
+  const netCompanyMargin = data.netCompanyMargin ?? (data.grossMargin - testCost);
+  const netCompanyMarginPct = data.netCompanyMarginPct ?? (
+    data.totalRevenue > 0 ? (netCompanyMargin / data.totalRevenue) * 100 : 0
+  );
+  const grossMarginPct = data.grossMarginPct ?? data.marginPercent;
+  const marginIsNegative = netCompanyMargin < 0;
+  const headlinePctDisplay = `${netCompanyMarginPct.toFixed(1)}%`;
   const pcmDelta = data.reconciliation?.pcmVsAuroraCostDelta ?? 0;
   const hasAuroraDrift = Math.abs(pcmDelta) >= 1;
 
@@ -64,7 +77,7 @@ export function PcmMarginSummaryWidget({ data }: PcmMarginSummaryWidgetProps) {
           subtitle={`$${data.revenuePerPiece.toFixed(4)}/piece across ${data.totalSends.toLocaleString()} sends — dm_client_funnel.total_cost`}
         />
         <MetricCard
-          label="Total PCM cost"
+          label="PCM cost (clients)"
           value={data.totalPcmCost}
           icon={<CostIcon />}
           iconBgClass="bg-accent-1-700"
@@ -75,20 +88,27 @@ export function PcmMarginSummaryWidget({ data }: PcmMarginSummaryWidgetProps) {
           label="Gross margin"
           value={data.grossMargin}
           icon={<MarginIcon />}
-          iconBgClass={marginIsNegative ? 'bg-error-700' : 'bg-success-700'}
+          iconBgClass={data.grossMargin < 0 ? 'bg-error-700' : 'bg-success-700'}
           format="currency"
-          subtitle="Revenue − PCM-invoice cost (math closes; invoice-authoritative)"
+          subtitle={`${grossMarginPct.toFixed(1)}% · revenue − client PCM cost (before internal test overhead)`}
         />
         <MetricCard
-          label="Margin %"
-          value={marginPctDisplay}
+          label="Internal test cost"
+          value={testCost}
+          icon={<CostIcon />}
+          iconBgClass="bg-content-tertiary"
+          format="currency"
+          subtitle={testCost > 0
+            ? 'QA / sandbox sends 8020REI paid PCM for — no client revenue. Deducted below.'
+            : 'No internal test sends in the PCM /order window.'}
+        />
+        <MetricCard
+          label="Net company margin"
+          value={netCompanyMargin}
           icon={<PercentIcon />}
-          iconBgClass={marginIsNegative ? 'bg-error-700' : data.marginPercent < 5 ? 'bg-alert-700' : 'bg-success-700'}
-          subtitle={marginIsNegative
-            ? 'NEGATIVE — losing money on every piece'
-            : data.marginPercent < 5
-              ? 'Below 5% threshold — pricing review needed'
-              : 'Healthy margin'}
+          iconBgClass={marginIsNegative ? 'bg-error-700' : netCompanyMarginPct < 5 ? 'bg-alert-700' : 'bg-success-700'}
+          format="currency"
+          subtitle={`${headlinePctDisplay} · gross margin − test cost · identical to Overview Company margin card`}
         />
       </div>
       {hasAuroraDrift && data.reconciliation && (

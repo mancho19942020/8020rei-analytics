@@ -216,7 +216,7 @@ export function SkiptraceTab() {
       <div className="p-6 flex flex-col gap-6">
         {[1, 2, 3, 4].map((i) => (
           <div key={i} className="bg-surface-base shadow-xs rounded-lg p-5">
-            <AxisSkeleton width="40%" height="16px" className="mb-4" />
+            <div className="mb-4"><AxisSkeleton width="40%" height="16px" /></div>
             <div className="grid grid-cols-4 gap-3">
               {[1,2,3,4].map((j) => <AxisSkeleton key={j} height="72px" />)}
             </div>

@@ -6,7 +6,10 @@
     "dev": "next dev -p 4000",
     "build": "next build",
     "start": "next start -p 4000",
-    "lint": "eslint"
+    "lint": "eslint",
+    "emu": "firebase emulators:start --only firestore",
+    "dev:emu": "FIRESTORE_EMULATOR_HOST=localhost:8080 GCLOUD_PROJECT=web-app-production-451214 next dev -p 4000",
+    "pcm-align:reconcile:dry": "curl -X POST -H 'x-cron-secret: dev' 'http://localhost:4000/api/pcm-alignment/reconcile?dry=1'"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.1031.0",

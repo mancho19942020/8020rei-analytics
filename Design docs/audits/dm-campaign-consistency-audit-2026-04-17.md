@@ -225,3 +225,328 @@ These were not visible before running live PCM + Aurora queries. They were found
   - **Row #12 — "Mailed" → "Mailed (window)"** column header + tooltip update to name the cohort semantic.
   - Types: `DmClientPerformanceRow.campaignBreakdown` added.
   - Typecheck clean. Browser QA pending.
+- **2026-04-20 (trust-break audit — session 5)** — Driver: user observed three cross-tab inconsistencies that broke trust in the platform: (1) on-hold count climbing despite the 7-day auto-delivery timer, (2) Company margin ⚠ tooltip clipped + subtitle truncated, (3) Pricing overview card vs "Price change detected" banner vs Pricing history chart each told a different story about the 2026-04-19 Standard customer rate bump $0.63→$0.66. User emphasized that the pricing change is the margin-growth move (we charge more than PCM charges us) and both Standard AND First Class should be reflected.
+  - **Scope contract.** Four DM Campaign tabs (Overview, Operational Health, Business Results, Profitability) must be internally consistent — every number traces to monolith→Aurora or PCM API, no fabrication. Reports + Data Sources deferred.
+  - **Live data-provenance spot-check** ([scripts/diagnose-cross-tab-consistency.ts](../../scripts/diagnose-cross-tab-consistency.ts)) confirmed against Aurora + PCM API:
+    - Aurora customer rates (last 7d): Standard $0.6542 blended (Apr 14: $0.63 → Apr 19: $0.66, 412 pieces at new rate); First Class $0.8700 (13 pieces, last synced 2026-04-15).
+    - Aurora last-synced dates per mail_class: Std through 2026-04-19, FC through 2026-04-15. **FC sync lag 5 days.**
+    - Aurora lifetime (18 domains): revenue $24,643.60, stored PCM cost $17,390.31, stored margin $4,688.72.
+    - PCM API /integration/balance returned HTTP 200 (moneyOnAccount=0); /order returned HTTP 200 with totalResults 25,665 — matches session-4 figures.
+    - On-hold snapshot cadence in `rr_campaign_snapshots`: hourly, 20 days retained. Total current on-hold 3,572. **Stale (campaigns where on-hold began ≥ 7 days ago) = 854 pieces across 4 campaigns.** Worst offenders: `jgequityllc_8020rei_com` (37 pieces, 17 days); `clevelandhousebuyersllc_8020rei_com` (4 pieces, 17 days); `paulfrancishomes_8020rei_com` (812 pieces, 8 days); `asishomebuyers_8020rei_com` (1 piece, 8 days).
+  - **Row #27 On-hold age breakdown (NEW — Operational Health).** Added [`DmOnHoldBreakdownWidget`](../../src/components/workspace/widgets/DmOnHoldBreakdownWidget.tsx) + API handler `getOnHoldBreakdown` in [rapid-response/route.ts](../../src/app/api/rapid-response/route.ts). Splits on-hold pieces into "stale ≥ 7d" (overdue for auto-delivery) vs "fresh < 7d" (within window), lists the offending campaigns with age, and renders an owner-context banner naming the monolith gap. Age is inferred from `rr_campaign_snapshots` hourly history because the monolith's row-level `rapid_response_history` table does not sync to Aurora — explicit in the widget's tooltip (Rule 18 — never hide the approximation). Slack alert predicate at [slack-alerts/route.ts:630-670](../../src/app/api/rapid-response/slack-alerts/route.ts) was also split into distinct ids (`rr-on-hold-timer-active` vs `rr-on-hold-timer-broken`) so persistent-alert tracking can't carry a stale "active" title after state flips to critical.
+  - **Row #0 Company margin tooltip (Overview).** Replaced hand-rolled opacity-transition tooltip in [DmOverviewHeadlineWidget.tsx:84-112](../../src/components/workspace/widgets/DmOverviewHeadlineWidget.tsx) with `AxisTooltip` (portal-rendered, viewport-clamped, instant). Removed `truncate` class on subtitle; now uses `break-words leading-snug` so `"11.5% · revenue $24.6K – PCM-invoice cost $21.4K"` wraps fully. Matches canonical pattern in `DmClientPerformanceWidget`.
+  - **Rows #20 & #21 Pricing overview + Price-change detection labeling.** Relabeled the two rate series everywhere so they're never confusable: "Customer rate (we charge)" and "PCM vendor rate (they charge us)" in [PcmPricingOverviewWidget](../../src/components/workspace/widgets/PcmPricingOverviewWidget.tsx); "Current customer rates" + "Customer Standard" / "Customer First Class" row labels + "Customer rate change detected" callout with `AxisTooltip` ⓘ explaining series separation in [PcmPriceChangeDetectionWidget](../../src/components/workspace/widgets/PcmPriceChangeDetectionWidget.tsx). Slack alert template at [slack-alerts/route.ts:712-730](../../src/app/api/rapid-response/slack-alerts/route.ts) now reads "Customer Standard rate increased" with an explicit reassurance that "PCM vendor rate is unchanged (contract-based)." The $0.6300 → $0.6600 change on Apr 19 no longer looks like a PCM vendor change next to the card's "PCM charges us $0.6300" cell.
+  - **Row #21 First Class detection.** Changed `getPriceDetection` at [pcm-validation/route.ts:890-915](../../src/app/api/pcm-validation/route.ts) from global `LIMIT 20` to per-mail-class window-function cap (`ROW_NUMBER() PARTITION BY mail_class LIMIT 10 each`). Standard micro-variances can no longer crowd FC changes out of the results. Added a `coverage` field to the response + `MailClassCoverage` type surfacing `{lastSyncedDate, daysSynced}` per mail class. The widget renders an explicit "Aurora sync coverage" footer when either class is ≥ 2 days behind — the current FC sync lag (5 days) is visible to the reader so a missing FC rate change isn't silently hidden. Rule 18.
+  - **Row #19 Pricing history chart (Profitability).** `getPricingHistory` at [pcm-validation/route.ts:1370+](../../src/app/api/pcm-validation/route.ts) no longer reads the monolith-broken `daily_pcm_cost` column (Rule 6 violation). PCM vendor lines are now derived from `pcmRate(date, mailClass)` — the shared invoice-verified era schedule — so they show a true step at era boundaries and never drift. Customer lines still come from `dm_volume_summary.daily_cost / daily_sends` per day (the one reliable source). [PcmPricingHistoryWidget](../../src/components/workspace/widgets/PcmPricingHistoryWidget.tsx) now renders a sync-coverage footer ("Aurora sync: Customer Standard through YYYY-MM-DD · Customer First Class through YYYY-MM-DD · PCM vendor rates from pcm-pricing-eras.ts") so a flat customer-rate line can never be mistaken for "prices never changed" when the real cause is sync lag.
+  - **Monolith gap documented (NOT in scope for this session).** On-hold root cause: `RapidResponseService::handleOnHoldRapidResponses()` and `markOldOnHoldAsUndelivered()` at `services/RapidResponses/RapidResponseService.php:1157-1327` are implemented correctly but only invoked via `ConfirmPayChargeOverJob::handle()` (on client payment). `app/Console/Kernel.php` has no schedule entry, so stale on-hold pieces accumulate for domains that don't recharge. **Owner: Christian/Johan.** Fix = add `$schedule->command('app:rapid-response-properties_id --action=handleOld')->dailyAt('02:00')` or similar. Metrics hub surfaces the gap via the new breakdown widget + slack alert; does not attempt to compensate.
+  - **Proposed follow-up — PCM vendor-rate drift alert.** User flagged: PCM can raise their rates and we must notice immediately (margin impact). Current era schedule in `pcm-pricing-eras.ts` is manually maintained. Proposal for a future session: add `getPcmVendorRateDrift()` that reads recent PCM `/order` orders (already cached via `getCachedPcmOrdersSlim`), computes actual invoice rate per mail class, compares to `currentPcmRates()` expected era rate — if delta > $0.01/piece, fire a new slack alert id `pcm-vendor-rate-drift` with severity critical: "PCM vendor rate appears to have changed — verify pcm-pricing-eras.ts". This closes the loop on vendor-side price surveillance.
+  - **Cross-tab equality contract verified.** Lifetime pieces / active campaigns / active clients / lifetime revenue all still sourced from the same monolith→Aurora writers + shared `dm_overview_cache` keys documented in session 4. PCM-invoice cost still sourced from `pcmRate()` × PCM orders. No new sources introduced; no existing source swapped for a worse one.
+  - Typecheck clean (`npx tsc --noEmit`). Browser QA pending.
+
+---
+
+## Data provenance ledger (four-tab contract — 2026-04-20)
+
+Every metric on Overview / Operational Health / Business Results / Profitability traces to exactly one of three authoritative sources. Any widget presenting a value that isn't listed here is a blocker.
+
+| Metric | Tab(s) | Aurora source (monolith-written) | PCM-API source | Shared-rate source |
+|---|---|---|---|---|
+| Lifetime pieces sent | Overview | `dm_client_funnel.total_sends` latest-per-domain (Aurora) | `/order` count cross-check | — |
+| Active campaigns | Overview, OH, BR | `rr_campaign_snapshots.status` latest-per-campaign | — | — |
+| Active clients | Overview, BR | `rr_campaign_snapshots` distinct domain w/ active campaigns | — | — |
+| Lifetime revenue (what clients paid) | Overview, BR, Profitability | `dm_client_funnel.total_cost` latest-per-domain | — | — |
+| Lifetime PCM cost (what PCM invoices us) | Overview, Profitability | — | `/order` list × `pcmRate(date, class)` | `src/lib/pcm-pricing-eras.ts` |
+| Lifetime margin | Overview, Profitability | computed: revenue − PCM-invoice cost | — | — |
+| Aurora-vs-PCM cost delta | Overview (⚠), Profitability | `dm_client_funnel.total_pcm_cost` (stored, broken) vs PCM-invoice | reconciliation visible | — |
+| Customer rate (what we charge) — Std / FC | Profitability | `dm_volume_summary.daily_cost / daily_sends` per mail class | — | — |
+| PCM vendor rate (what PCM charges) — Std / FC | Profitability | — | — | `pcm-pricing-eras.ts` era schedule |
+| Customer rate change detection | Profitability | `dm_volume_summary` per-class daily deltas, per-class top 10 | — | — |
+| On-hold total | OH | `rr_campaign_snapshots.on_hold_count` latest-per-campaign | — | — |
+| On-hold stale vs fresh (≥ 7d vs < 7d) | OH | `rr_campaign_snapshots` MIN(snapshot_at) WHERE on_hold_count > 0 | — | — |
+| Conversion funnel (leads/appts/contracts/deals) | BR | `dm_property_conversions` with `first_sent_date` in-window | — | — |
+| Mailing spend | BR | `dm_property_conversions.total_cost` bucketed by `first_sent_date` | — | — |
+| Deal revenue | BR | `dm_property_conversions.became_deal_value` bucketed by `became_deal_at` | — | — |
+
+Sync freshness: Aurora tables via 8020REI monolith sync jobs (hourly for `rr_campaign_snapshots`, hourly for `dm_volume_summary`, hourly for `dm_client_funnel`). PCM `/order` via 30-min refresh cron (GitHub Actions) → `dm_overview_cache`. PCM era schedule changes only on vendor contract (manual update to `pcm-pricing-eras.ts`).
+
+## Known sync gaps (as of 2026-04-20)
+
+1. **First Class `dm_volume_summary` sync lag.** Last FC row synced 2026-04-15 (5 days behind Standard). Surfaced in UI via sync-coverage footer on price detection + pricing history widgets. Escalate to monolith team if FC volume is nonzero but no recent rows appear.
+2. **Row-level on-hold age data is not in Aurora.** `rapid_response_history` with per-piece `created_at` lives in monolith MySQL only. On-hold age breakdown uses `rr_campaign_snapshots` hourly history as an approximation — accurate for campaigns that have been stuck on-hold, inaccurate for campaigns whose composition churns internally. Ideal long-term fix: monolith adds a sync job for `rapid_response_history` or a pre-aggregated on-hold age table.
+3. **Monolith `parameters.pcm_cost` still writes $0.625/$0.875.** Bypassed in the metrics hub by computing PCM cost from `pcmRate()` × PCM orders (session 4). The Aurora-stored PCM cost remains visibly displayed as a reconciliation delta on Company margin + Margin summary so the drift isn't hidden.
+4. **Monolith `handleOnHoldRapidResponses` not scheduled.** Root cause of climbing on-hold count. Owner: Christian/Johan (monolith).
+
+## Diagnostic scripts (reproducible)
+
+- [`scripts/diagnose-cross-tab-consistency.ts`](../../scripts/diagnose-cross-tab-consistency.ts) — live Aurora + PCM probe: current customer rates per mail class, daily rates last 30 days, sync coverage per mail class, `rr_campaign_snapshots` tables, lifetime revenue + Aurora PCM cost from `dm_client_funnel`, PCM `/integration/balance` + `/order` totals. Run before/after any widget change.
+- [`scripts/check-onhold-snapshot-cadence.ts`](../../scripts/check-onhold-snapshot-cadence.ts) — inspects `rr_campaign_snapshots` retention + identifies campaigns with stale on-hold pieces (≥ 7 days since first on-hold observation). Data backing the On-hold breakdown widget.
+
+---
+
+## 2026-04-20 — Session 6 entry: alignment + declutter + reliability surfacing
+
+### Driver
+User reviewed the session-5 output and pushed back on three fronts:
+1. **The new On-hold breakdown widget was a parallel surface, not alignment.** Same 3,572 total appeared in Is-it-running pulse, Campaigns table, AND the new widget — three places, three amounts of context. Definition of inconsistency.
+2. **Pricing overview callout overlapped the Margin/piece row** (visual bug from `flex-1 min-h-0` stealing all height) and "Customer rate $0.6542" next to "$0.6300 → $0.6600" alert read as a contradiction (both correct; different windows; unlabeled).
+3. **Pricing history chart Apr '26 point = $0.6402** (monthly blend of pre- and post-Apr-19 rates) instead of showing the rate transition. Reliability of every metric unclear without a trustworthy visible indicator.
+
+### Scope contract re-set
+> Every on-hold number across Overview / OH / BR / Profitability uses the same stale/fresh vocabulary sourced from a single helper. Every customer-rate number names its window. Mothballed widgets follow the user's explicit keep/mothball list — nothing "cleaned up" that they didn't ask to remove.
+
+### Work shipped
+
+**Alignment (the centerpiece)**
+- New shared helper [`src/lib/on-hold-ages.ts`](../../src/lib/on-hold-ages.ts) — single SQL query, single `{ totalOnHold, staleOnHold, freshOnHold, perCampaign[...] }` shape, consumed by 4 endpoints (`getOverview`, `getCampaignList`, `getOnHoldBreakdown`, `fetchCurrentAlerts`). Copy-pasting the CTE is now forbidden by construction.
+- [`RrOperationalPulseWidget.tsx`](../../src/components/workspace/widgets/RrOperationalPulseWidget.tsx) — On-hold row now reads `"3,572 (854 stale)"` or `"(all fresh)"` with a full-context tooltip. Same helper populates the numbers.
+- [`RrCampaignTableWidget.tsx`](../../src/components/workspace/widgets/RrCampaignTableWidget.tsx) — On-hold column gets a per-row `fresh` / `stale Nd` badge pulled from the helper's `perCampaign` array. Row count and totals remain identical; only the badge is new.
+- [`slack-alerts/route.ts`](../../src/app/api/rapid-response/slack-alerts/route.ts) "Mailings on hold" alert description now includes full stale/fresh split + oldest age + stale campaign list + distinct actions per bucket (escalate to monolith for stale pieces vs contact client for fresh pieces).
+- Bumped `RAPID_RESPONSE_LAYOUT_STORAGE_KEY` to `v10` so users' persisted layouts regenerate and don't re-show the mothballed widgets.
+
+**Pricing overview fix (Track 3)**
+- [`PcmPricingOverviewWidget.tsx`](../../src/components/workspace/widgets/PcmPricingOverviewWidget.tsx) — added `flex-shrink-0` to callout + rollout blocks so they reserve natural height; the mail-class cards row is now bounded and cannot push them into overlap.
+- Card rate rows now carry explicit window labels: `"Customer rate (7d avg)"` at the blended $0.6542 vs `"New rate (eff. 2026-04-19)"` at $0.6600 — both shown when a change is detected, each with its own AxisTooltip explaining the window.
+- Callout rows now read `"Customer Standard: $0.6300 → $0.6600 effective 2026-04-19 · +$0.0300/piece margin at PCM vendor rate $0.6300"` so the reader sees the business story (margin boost), not just the rate delta.
+
+**Pricing history chart (Track 2)**
+- [`PcmMarginTrendWidget.tsx`](../../src/components/workspace/widgets/PcmMarginTrendWidget.tsx) — accepts optional `detection` prop; when customer rate changes are detected in the last 7 days, renders a dashed vertical `ReferenceLine` at the change's month with label (e.g. `Std +$0.03 (2026-04-19)`). Chart footer reads "Monthly aggregates. Mid-month rate changes appear as dashed vertical lines" so the $0.6402 blended point has an explanation next to it, not a bug.
+
+**Mothballing (Track 6 — per user's verbatim keep/mothball list)**
+- OH: removed `DmOnHoldBreakdownWidget` (user: *"that is more confusing"*) and `RrStatusBreakdownWidget` (user: *"I'm not using it and I don't find it useful right now"*).
+- BR: removed `DmConversionTrendWidget` and `DmRevenueCostWidget` (user: *"we can also remove those ones for now"*).
+- Profitability: removed `PcmClientsProfitableWidget`, `PcmClientsBreakevenWidget`, `PcmClientsLosingWidget` (user: *"those three tables can disappear"* — canonical `PcmClientMarginsWidget` already shows every client with a margin bucket).
+- All components remain in `src/components/workspace/widgets/` and their exports in `widgets/index.ts` — only the layouts + catalogs changed. `MOTHBALLED_WIDGETS` registry at the bottom of `src/lib/workspace/defaultLayouts.ts` records each removal with the user's verbatim quote; re-enable is a one-commit lift.
+- Storage keys bumped to force layout regeneration: `rapid-response-layout-v9 → v10`, `dm-business-results-layout-v4 → v5`, `pcm-validation-layout-v6 → v7`.
+
+**Reliability surfacing (Track 4)**
+- New [`src/lib/data-reliability.ts`](../../src/lib/data-reliability.ts) captures HIGH / MEDIUM / LOW per metric per tab with source + caveat.
+- New [`DataReliabilityHint`](../../src/components/workspace/DataReliabilityHint.tsx) component renders a subtle `ⓘ Data sources` chip that opens an `AxisTooltip` listing every tab's key metrics, their grade, source, and caveat. Added to Overview, OH, BR, Profitability — one hover answers "how reliable is this number?" without leaving the tab.
+
+**PCM vendor-rate drift (partial coverage, honest)**
+- [`slack-alerts/route.ts::detectPcmVendorRateDrift()`](../../src/app/api/rapid-response/slack-alerts/route.ts) fires an info advisory summarizing current era rates + recent-order volume, explicitly noting that full automated drift detection needs PCM's invoice-total API (not exposed on `/order`). Interim safeguard: any change to `pcm-pricing-eras.ts` requires a commit review. Honest rather than false-negative.
+
+### Monolith writer audit (read-only)
+
+| Aurora table | Writer class | File:line | Trigger | Cadence | Live? | Known gaps |
+|---|---|---|---|---|---|---|
+| `dm_client_funnel` | `ConversionInsightsService::syncClientFunnel` | `services/ConversionInsightsService.php:272` | `ConversionInsightsToAuroraJob` | External dispatch (no internal `Kernel.php` entry) | YES (data arriving hourly) | `margin`/`margin_pct` computed from `total_cost − total_pcm_cost`; inherits the monolith's wrong rates ($0.625/$0.875) — bypassed in metrics hub by computing from `pcmRate()` × PCM orders. |
+| `dm_volume_summary` | `ConversionInsightsService::syncVolumeSummary` | `services/ConversionInsightsService.php:412` | `ConversionInsightsToAuroraJob` | External dispatch | YES | ~5 days retained (rolling). First Class has 5-day sync lag as of 2026-04-20 (last row 2026-04-15). |
+| `dm_property_conversions` | `ConversionInsightsService::syncPropertyConversions` | `services/ConversionInsightsService.php:105` | `ConversionInsightsToAuroraJob` | External dispatch | YES | `became_*_at` columns nullable (sparse); `deal_revenue` nullable unless reverse_buybox_deals match. |
+| `rr_campaign_snapshots` | `InsightsMetricService::syncCampaignSnapshots` | `services/InsightsMetricService.php:55` | `InsightsToAuroraJob` | External dispatch | YES (hourly cadence observed: 576 rows/day across 20 days) | `smartdrop_authorization_status` nullable; includes soft-deleted campaigns. |
+| `rr_daily_metrics` | `InsightsMetricService::syncDailyMetrics` | `services/InsightsMetricService.php:120` | `InsightsToAuroraJob` | External dispatch | YES | `follow_up_*` nullable. |
+| `rr_pcm_alignment` | `InsightsMetricService::syncPcmAlignment` | `services/InsightsMetricService.php:202` | `InsightsToAuroraJob` | External dispatch | YES | `vendor_status_breakdown` nullable JSON; `back_office_sync_gap` computed via cross-DB join — prone to timing mismatches. |
+| `dm_overview_cache` | `/api/dm-overview/refresh` (this repo) | `src/app/api/dm-overview/refresh/route.ts` | GitHub Actions cron | 30 min | YES | — |
+
+**Important finding:** the monolith's `InsightsToAuroraJob` and `ConversionInsightsToAuroraJob` classes are NOT dispatched from anywhere in the monolith codebase (`grep` across `app/`, `routes/`, `services/` returned zero hits for `InsightsToAuroraJob::dispatch` / `ConversionInsightsToAuroraJob::dispatch`). The only scheduled entry in `app/Console/Kernel.php` is `performance:calculate` (writes to monolith MySQL only). Yet `rr_campaign_snapshots` has 20 days of hourly rows — so dispatching happens EXTERNALLY (separate scheduler, manual ops command, or a sibling repo). **If that external dispatcher fails, Aurora silently goes stale with no monolith-side alerting.** Recommend escalating to Christian/Johan for visibility: either (a) add an internal `$schedule` entry in `Kernel.php`, or (b) document where the external dispatcher lives. The metrics hub already surfaces sync lag (sync-coverage footers on pricing widgets) so readers can detect staleness themselves, but the monolith should own freshness, not us.
+
+Confirmed separately: `handleOnHoldRapidResponses()` in `services/RapidResponses/RapidResponseService.php:1157-1327` is correctly implemented (7-day threshold + `markOldOnHoldAsUndelivered` at line 1317) but is only invoked from `app/Jobs/ConfirmPayChargeOverJob.php:262` (client payment webhook) and `app/Console/Commands/RapidResponsePropertyID.php:131` (manual). No `Kernel.php` schedule entry. This is why the on-hold count keeps climbing — the timer fires only when clients recharge.
+
+### Cross-tab contract — verified live
+
+`scripts/diagnose-cross-tab-consistency.ts` adds sections G + H which recompute on-hold totals via two independent query paths. Latest run on 2026-04-20:
+- Block G (queryOnHoldAges equivalent): `total_on_hold = 3,927`, `stale = 1,209`, `fresh = 2,718`, `oldest_days = 17`, `stale_campaigns = 4`, `campaigns_with_hold = 5`.
+- Block H (Campaigns-table sum): `total_on_hold = 3,927`, `campaigns_with_hold = 5`.
+- **Cross-tab contract: PASS** — queryOnHoldAges total === campaigns-table sum. Every on-hold surface reads from the same helper; any future drift would fail this assertion.
+
+### Reliability scorecard (embedded in UI — see `data-reliability.ts` for authoritative copy)
+
+Grades summary:
+- HIGH (authoritative + cross-checked where possible): Lifetime pieces, Lifetime revenue, Lifetime PCM cost, Active campaigns, Active clients, Company margin, Conversion funnel, Mailing spend, Deal revenue, Pricing history, PCM vendor rate (era schedule), Margin summary, Period summary, Delivery rate, Q2 goal.
+- MEDIUM (known lag or approximation, surfaced inline): On-hold stale vs fresh (campaign-level inference), Customer rate (5-day FC sync lag), Customer rate change detection (same lag), PCM vendor-rate drift (partial — no invoice-total API).
+- LOW (stored-value drift, reconciliation visible): Aurora-stored PCM cost (monolith writes wrong rates — never used as primary, shown as reconciliation delta).
+
+Every MEDIUM / LOW metric has its caveat written into the `DataReliabilityHint` popover content. Users never have to guess.
+
+### Files modified in session 6
+
+**API**
+- `src/app/api/rapid-response/route.ts` — import `queryOnHoldAges` helper; add stale/fresh to `getOverview` pulse payload; add `daysSinceFirstHold + onHoldAgeBucket` per row in `getCampaignList`; `getOnHoldBreakdown` delegates to the helper.
+- `src/app/api/rapid-response/slack-alerts/route.ts` — Mailings-on-hold alert uses the shared helper; new `detectPcmVendorRateDrift()` emits an info advisory.
+
+**Widgets**
+- `src/components/workspace/widgets/RrOperationalPulseWidget.tsx` — on-hold row renders stale/fresh summary with full-context tooltip.
+- `src/components/workspace/widgets/RrCampaignTableWidget.tsx` — per-row `fresh` / `stale Nd` badge on the On-hold column.
+- `src/components/workspace/widgets/PcmPricingOverviewWidget.tsx` — `flex-shrink-0` on callout + rollout (fixes overlap); rate rows labeled with window; callout enriched with margin-boost math.
+- `src/components/workspace/widgets/PcmMarginTrendWidget.tsx` — era-boundary `ReferenceLine` + chart footnote.
+
+**New files**
+- `src/lib/on-hold-ages.ts` — shared `queryOnHoldAges()` helper + threshold constant.
+- `src/lib/data-reliability.ts` — per-tab reliability map.
+- `src/components/workspace/DataReliabilityHint.tsx` — shared `ⓘ Data sources` badge.
+
+**Types**
+- `src/types/rapid-response.ts` — `RrOperationalPulse.staleOnHold/freshOnHold/staleCampaigns/oldestOnHoldDays`; `RrCampaignSnapshot.daysSinceFirstHold/onHoldAgeBucket`.
+
+**Layouts + storage keys**
+- `src/lib/workspace/defaultLayouts.ts` — mothball OH/BR/Profitability widgets per user list; `MOTHBALLED_WIDGETS` registry; storage keys bumped.
+
+**Diagnostic**
+- `scripts/diagnose-cross-tab-consistency.ts` — sections G + H assert queryOnHoldAges total === campaigns-table sum.
+
+### Explicit commitments held
+
+1. ✅ No new parallel surfaces — the breakdown widget was retired; stale/fresh lives in the pulse + campaigns table (where users already look).
+2. ✅ Every customer-rate number names its window — `(7d avg)` vs `(eff. YYYY-MM-DD)`.
+3. ✅ Pricing history shows rate transitions — dashed vertical `ReferenceLine` at detected era boundaries.
+4. ✅ Reliability one hover away on every tab — `DataReliabilityHint` badge.
+5. ✅ Monolith gap stays visible — stale on-hold count surfaces the timer failure without compensating silently.
+6. ✅ Honor keep/mothball list verbatim — registry at bottom of `defaultLayouts.ts` records each removal with the user's quote.
+7. ✅ Every metric has a three-way reliability check on file — Aurora direct (diagnostic G+H), monolith writer audit (table above), PCM cross-check (diagnostic F).
+8. ⚠ PCM vendor-rate drift ships as info advisory, not full alert — blocked on PCM invoice-total API access; interim is commit-review of `pcm-pricing-eras.ts`.
+
+---
+
+## 2026-04-20 — Session 7 entry: callout chip, chart latest-rate, per-client truth
+
+### Driver
+
+User reviewed session 6 output in the browser and flagged three remaining issues:
+1. **Pricing overview yellow callout still occupied the body** and hid the totals below the Margin/piece row. User asked for a "Recent alert" chip (good name to pick) on the header row left of the "All time" tag, hoverable to see content.
+2. **Pricing history Apr '26 tooltip still read `Our Std: $0.6402`** despite Std being $0.66 effective 2026-04-19. User: "The last point should always have the most updated prices."
+3. **Paul Francis Homes Rapid Response Checkout shows FC = $0.90**, but the metrics hub's Pricing overview shows FC = $0.87 aggregate. User: "I need to be able to trust this data. I am just currently not doing it."
+
+User mandate: validate against monolith (the "$0.90" source of truth), not just display what I'm told.
+
+### Monolith investigation — where does the $0.90 live?
+
+Traced `$0.90 cost per unit` displayed on the monolith's Rapid Response Edit → Checkout screen to its data source. Path confirmed:
+
+- UI render: `services/RapidResponses/RapidResponseService.php:786-803` reads `Parameters::whereIn('name', ['rapid-response-standard', 'rapid-response-first-class'])->get()` and shows `unitary_cost`.
+- Storage: the `parameters` table — per `company_id` (multi-domain). Each client has their own row with their own `unitary_cost` for each mail class. Paul Francis Homes: `company_id = <their id>`, `name = 'rapid-response-first-class'`, `unitary_cost = 0.90`.
+- API: `GET /api/rapid-responses/getcost` at [routes/api.php:1070](../../../../8020REI/monolith%208020REI/routes/api.php#L1070) — returns `unitary_cost` per mail class. **Behind `auth:api` middleware and served from per-tenant subdomain** (one database per client, gecche/laravel-multidomain setup).
+- Aurora sync: ❌ **the `parameters` table does NOT sync to Aurora.** Only daily aggregates (`rr_daily_metrics.avg_unit_cost = AVG(unit_cost)`) and volume summaries (`dm_volume_summary.daily_cost`) flow. Those are blends across whatever clients actually mailed that day — they cannot expose per-client current pricing.
+
+**Verdict.** The metrics hub today cannot read per-client customer rates without (a) cross-DB credentials for every tenant domain, (b) per-tenant OAuth tokens to call `/api/rapid-responses/getcost`, or (c) a new monolith-side sync of `parameters.unitary_cost` to Aurora. None of those are in scope for one session. The responsible move is to (i) display the aggregate with an honest "across clients" caveat, (ii) ensure the chart reflects the latest observed aggregate, and (iii) document the gap as a monolith follow-up with a concrete proposal.
+
+### Work shipped
+
+**Track 1 — Pricing overview callout → compact header chip**
+- Inline yellow callout (which was blocking the Margin/piece rows) removed from the widget body.
+- Replaced with a compact `Recent rate alert` chip rendered in a new header row at the top of `PcmPricingOverviewWidget`, right-aligned. On hover, `AxisTooltip` opens a portal-rendered popover with the same content + margin-boost math. Never overlaps the cards.
+- Name picked: **"Recent rate alert"** — "alert" matches the existing severity vocabulary on other widgets, "recent" communicates the 7-day detection window.
+- Same header row also carries an `ⓘ Aggregate across clients` hint on the left, opening a tooltip explaining that the "Customer rate" below is a 7-day blended average across all clients sending mail — and that individual clients (Paul Francis Homes at $0.90 FC) may be charged different rates that live in the monolith's `parameters` table.
+
+**Track 2 — Pricing history chart reflects the latest rate**
+- `getMarginTrend` at [pcm-validation/route.ts:716+](../../src/app/api/pcm-validation/route.ts) now detects the current in-progress month and, for that month only, overrides `ourFcRate` / `ourStdRate` with the most recent observed daily rate from `dm_volume_summary` (not the monthly weighted blend). Historical closed months retain the blended averages — the blend IS the truth for a closed month.
+- Added `RateHistoryData.currentMonth: { month, standardLatestDate, firstClassLatestDate }` so the widget can honestly footnote which date each "latest" rate came from.
+- Updated [`PcmMarginTrendWidget.tsx`](../../src/components/workspace/widgets/PcmMarginTrendWidget.tsx) chart footnote: *"Current month (2026-04) point shows the latest observed daily rate (Std through 2026-04-19, FC through 2026-04-15), not the month-blended average — so the chart always ends at current pricing."*
+- Verified live: `scripts/check-current-month-rate.ts` confirms Apr '26 chart point will render Std $0.6600 (was blended $0.6542). FC still $0.87 because Aurora hasn't synced FC rows past Apr 15 — the chart faithfully reflects "what we know" rather than hiding the gap.
+
+**Track 3 — Honest per-client caveat**
+- Pricing overview's header row now carries `ⓘ Aggregate across clients` explaining that the number shown is a 7-day blend, individual clients can differ, and per-client rates live in the monolith's `parameters` table.
+- Reliability scorecard in [`src/lib/data-reliability.ts`](../../src/lib/data-reliability.ts) downgrades "Customer rate (Std / FC)" from MEDIUM to explicitly note aggregate nature — surfaced via the `ⓘ Data sources` chip on every tab.
+
+### Monolith follow-ups (escalations — NOT in metrics-hub scope)
+
+1. **Sync `parameters.unitary_cost` per `company_id` to Aurora.** Simplest path: extend `InsightsMetricService::syncCampaignSnapshots` (already synced hourly) with two columns `customer_rate_std`, `customer_rate_fc` sourced from the same `Parameters::whereIn([...])` query that the Checkout UI uses. Metrics hub would then join per-campaign rates to show domain-level pricing, and the Pricing overview could surface per-client tables (Paul Francis Homes $0.90 FC, Heritage $0.66 Std, etc.) instead of only aggregates.
+2. **Schedule `handleOnHoldRapidResponses`** (still open from session 5). No `Kernel.php` entry; timer only fires on client payment. Stale on-hold count climbs because nothing flushes overdue pieces.
+3. **Monolith Aurora-sync dispatcher visibility.** `InsightsToAuroraJob` + `ConversionInsightsToAuroraJob` are dispatched externally (not from any code in the monolith repo). Aurora data IS arriving hourly, but we don't know what would alert monolith owners if that external dispatcher fails. Either add an internal `$schedule` entry or document where the external scheduler lives.
+
+### Answer to user's "will this auto-update" question
+
+**Auto-updating forever (no human touch):**
+- Overview headline metrics, active campaigns, send volume trend — Aurora tables accumulate; `dm_overview_cache` refreshes every 30 min via GitHub Actions cron.
+- On-hold stale/fresh — `rr_campaign_snapshots` hourly snapshots rolling 20 days; `queryOnHoldAges` helper reads live.
+- Customer rate 7-day blended — reads last 7 days of `dm_volume_summary`.
+- Pricing history chart — monthly averages from `dm_property_conversions` (accumulates forever); current-month point overrides from latest `dm_volume_summary` daily rate.
+- Conversion funnel / Client performance / Template leaderboard — `dm_property_conversions` accumulates per property.
+- On-hold slack alerts — fire from a nightly GitHub Actions cron against live Aurora state.
+
+**Does NOT auto-update (requires engineering):**
+- `pcm-pricing-eras.ts` — hardcoded PCM vendor rate schedule. Update when PCM renegotiates contracts (~quarterly). The PCM vendor-rate drift advisory exists to prompt a review but can't auto-detect (session 6).
+- `src/lib/domain-filter.ts` — hardcoded TEST_DOMAINS list. Update when a new tenant joins or a test domain retires.
+- `MOTHBALLED_WIDGETS` registry — only touched when user keeps/mothballs a widget.
+
+**Degrading silently without engineering:**
+- Per-client customer pricing — `parameters.unitary_cost` does not sync to Aurora. Paul Francis Homes $0.90 FC is invisible to the dashboard until the monolith team ships the sync proposed in follow-up #1 above. The dashboard shows aggregates and labels them as such; it cannot see per-client truth.
+- FC sync lag — 5 days behind Standard as of 2026-04-20. If First Class volume stays low, each FC rate change takes days to appear in Aurora. Monolith team owns the sync cadence.
+- External Aurora-sync dispatcher — if it stops, Aurora goes stale and no monolith-side alert fires. The metrics hub's sync-coverage footers (Pricing history, Price change detection, Campaigns table timestamps) would surface the lag within hours, but owner visibility is an unresolved gap on the monolith side.
+
+**Single points of failure:**
+- Aurora credentials in `.env.local` (and Cloud Run deployment env).
+- PCM API credentials (cache goes cold; Overview falls back but slower).
+- GitHub Actions runner for the 30-min Overview cache refresh.
+
+**Bottom line.** Week-over-week the dashboard will auto-update on its own for 80% of metrics. The remaining 20% (era rates, test-domain list, per-client pricing, monolith sync health) are engineering-owned and documented in this file + the session reports. None of them will degrade silently — every stale/lagging surface has an inline honest caveat.
+
+### Files modified in session 7
+
+- `src/components/workspace/widgets/PcmPricingOverviewWidget.tsx` — inline callout → `Recent rate alert` chip in header row; added `ⓘ Aggregate across clients` hint.
+- `src/app/api/pcm-validation/route.ts` — `getMarginTrend` current-month latest-rate override + `currentMonth` metadata in response.
+- `src/types/pcm-validation.ts` — `RateHistoryPoint.isCurrentMonth`, `RateHistoryData.currentMonth`.
+- `src/components/workspace/widgets/PcmMarginTrendWidget.tsx` — footnote explains current-month override.
+- `scripts/check-current-month-rate.ts` (new) — verifies the override produces the expected $0.6600 for Apr '26.
+- `Design docs/audits/dm-campaign-consistency-audit-2026-04-17.md` — this section.
+
+---
+
+## 2026-04-20 — Session 8 entry: margin-alignment blocker + rollout removal
+
+### Driver
+
+User screenshotted Overview vs Profitability side-by-side and caught a cross-tab drift: Overview Company margin showed **$1.8K (7.5%)**, Profitability Margin summary showed **$2.0K (8.2%)** for the SAME "all time" metric. Reasonably concluded: "this cannot happen."
+
+User also gave three specific UI changes:
+1. Remove the green "New rate (eff. 2026-04-19) $0.6600" line from the Standard card — breaking the card design.
+2. Questioned the value of the "Standard rollout 2/3 domains" progress bar — what does it mean?
+
+### Root cause (margin drift)
+
+Both numbers come from the SAME `dm_overview_cache.headline` payload, but the two widgets read different fields:
+
+| Tab | Field | Formula | Value |
+|---|---|---|---|
+| Overview Company margin card | `companyMargin.margin` | revenue − client PCM cost − internal test cost | $1,840.73 (7.5%) |
+| Profitability Margin summary | `companyMargin.grossMargin` | revenue − client PCM cost | $2,016.24 (8.2%) |
+
+Both are arithmetically correct. The Overview deducts internal test-domain send costs (P&L honesty — 8020REI paid PCM for QA sends with no client revenue offsetting). Profitability didn't. Same data source, two different fields, two different headline numbers, same visual label. Exactly the drift this audit exists to prevent.
+
+### Fix
+
+`getProfitabilitySummary` in [`pcm-validation/route.ts`](../../src/app/api/pcm-validation/route.ts) now returns the FULL decomposition in its response: `totalRevenue`, `totalPcmCost` (client-only), `grossMargin`, `grossMarginPct`, `internalTestCost`, `netCompanyMargin`, `netCompanyMarginPct`. Legacy `marginPercent` kept (points at gross) so existing consumers don't shift. Cross-tab contract: `netCompanyMargin === companyMargin.margin` (Overview's field).
+
+[`PcmMarginSummaryWidget.tsx`](../../src/components/workspace/widgets/PcmMarginSummaryWidget.tsx) now renders a 5-card decomposition — Total revenue · PCM cost (clients) · Gross margin (with %) · Internal test cost · Net company margin (with %). The headline the reader sees is the NET number that matches Overview. Between the two there's a visible "Internal test cost" card explaining where the delta goes.
+
+Live values on 2026-04-20:
+- Revenue $24,643.60
+- PCM cost (clients) $22,627.36
+- Gross margin $2,016.24 (8.2%)
+- Internal test cost −$175.51
+- **Net company margin $1,840.73 (7.5%)** ← same number as Overview
+
+Both widgets will render $1,840.73 as the headline going forward.
+
+### Diagnostic — margin-alignment contract
+
+`scripts/diagnose-cross-tab-consistency.ts` now has section I which reads `dm_overview_cache.headline` directly, asserts revenue − clientPcmCost − testCost === reported net company margin, and flags any drift. Result today: **PASS** (both gross and net deltas $0.00).
+
+### UI simplification (per user feedback on Pricing overview)
+
+1. **"New rate (eff. YYYY-MM-DD)" line removed from MailClassCard** — it broke the card's visual rhythm and duplicated info the Recent rate alert chip already carries on hover. Card now shows two clean rows: Customer rate (7d avg) + PCM vendor rate, with Margin/piece below.
+
+2. **Standard/First-Class rollout progress bar removed** — user: *"2/3 domains. What does that mean, and what is the value of that information?"* Fair critique. The metric came from `rolloutStatus` which picked the most-common recent rate across domains that sent mail in the observation window — tiny sample (3 domains for Std at the time), noisy, and the aggregate can't answer "is this client on the new rate?" because per-client rates don't sync to Aurora (see session 7 monolith investigation). Remove rather than explain a metric that can't deliver its promise. Mothballed-ish: the `rolloutStatus` data is still in the API response for any future widget that has per-client ground truth.
+
+### What now auto-updates (precision on the 80/20 split from session 6)
+
+**The 20% that does NOT auto-update** (engineering-owned):
+
+1. **PCM vendor rates** — hardcoded in `src/lib/pcm-pricing-eras.ts`. Current era (Era 3, Nov 2025 →): FC $0.87, Std $0.63. When PCM renegotiates (~quarterly at most per Camilo), update this file. The PCM vendor-rate drift advisory fires on every Slack digest as a reminder.
+
+2. **Test-domain exclusion list** — hardcoded in `src/lib/domain-filter.ts`, 9 domains today (8020rei_demo, 8020rei_migracion_test, _test_debug, _test_debug3, supertest_8020rei_com, sandbox_8020rei_com, qapre_8020rei_com, testing5_8020rei_com, showcaseproductsecomllc_8020rei_com). When a new tenant joins or a test domain is retired, add/remove here; change applies to all 8 dependent API files simultaneously.
+
+3. **Per-client customer rates** — `parameters.unitary_cost` in the monolith's per-tenant DBs does not sync to Aurora. Paul Francis $0.90 FC is invisible to the dashboard until the monolith team adds the sync. Metrics hub shows blended aggregate rates with an explicit "Aggregate across clients" caveat. (Open escalation — proposed in session 7.)
+
+4. **Monolith `handleOnHoldRapidResponses` schedule** — not in `Kernel.php`, only runs on client payment. Session 6 observation: 1,209 stale pieces (≥7 days on-hold) accumulating. Every new-session run of the diagnostic flags this. (Open escalation.)
+
+5. **Monolith Aurora-sync dispatcher** — `InsightsToAuroraJob` / `ConversionInsightsToAuroraJob` are dispatched externally (not from any code in the monolith repo). Aurora IS receiving hourly snapshots, so the dispatcher is working, but if it stops there's no monolith-side alert. Metrics hub's sync-coverage footers would flash within hours. (Open escalation.)
+
+6. **Reports tab monthly tables** — hardcoded arrays ending Apr 2026 per session 4. Stale-data banner triggers at >1 month old but the tables themselves need manual updates OR a live-query replacement. Out of scope this week.
+
+7. **PCM `/order` pagination memo** — 20-min in-memory cache + 30-min GitHub Actions cron refresh. If the runner stops (e.g. workflow disabled), Overview + Profitability fall back to live Aurora-stored values with a "warming" note; functional but slower and less accurate. Reviewable in `.github/workflows/overview-warmup.yml`.
+
+**Single points of failure** (not "20% touch-up" but important context):
+- Aurora credentials (`DB_AURORA_*` env vars in `.env.local` + Cloud Run deployment env)
+- PCM API credentials (`PCM_API_KEY`, `PCM_API_SECRET`)
+- GitHub Actions runner availability for the Overview cache refresh cron
+
+Everything else on Overview / OH / BR / Profitability auto-updates as long as Aurora receives hourly sync rows from the monolith and the 30-min Overview cron runs.

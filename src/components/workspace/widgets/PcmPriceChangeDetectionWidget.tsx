@@ -10,6 +10,7 @@
 
 'use client';
 
+import { AxisTooltip } from '@/components/axis';
 import type { PriceDetectionData, PriceImpactData } from '@/types/pcm-validation';
 
 interface PcmPriceChangeDetectionWidgetProps {
@@ -18,8 +19,8 @@ interface PcmPriceChangeDetectionWidgetProps {
 }
 
 const MAIL_CLASS_LABELS: Record<string, string> = {
-  standard: 'Standard',
-  first_class: 'First Class',
+  standard: 'Customer Standard',
+  first_class: 'Customer First Class',
 };
 
 function RateCard({ label, rate, period }: { label: string; rate: number | null; period?: string }) {
@@ -153,27 +154,43 @@ export function PcmPriceChangeDetectionWidget({ detection, impact }: PcmPriceCha
     ? `${detection.currentRates.periodStart} – ${detection.currentRates.periodEnd}`
     : undefined;
 
+  // Was the widget's header explicit that these are CUSTOMER rates, not PCM rates?
+  // Prior version labeled rows "Standard"/"First Class" which collides with the
+  // "Standard"/"First Class" labels on Pricing overview's card (where the same
+  // label refers to the PCM vendor rate). Relabeling disambiguates the series.
+  const headerTooltip = (
+    <>This widget tracks changes to <strong>what 8020REI charges its clients</strong> per piece (derived live from <code>dm_volume_summary</code>). PCM vendor rates follow a separate contract schedule in <code>pcm-pricing-eras.ts</code> and do not appear here — the gap between the two is our margin.</>
+  );
+
   return (
     <div className="flex flex-col gap-3 h-full px-3 py-2 overflow-y-auto">
-      {/* Zone 1: Current rates */}
-      <div className="grid grid-cols-2 gap-3">
-        <RateCard label="Standard rate" rate={detection.currentRates.standard} period={period} />
-        <RateCard label="First Class rate" rate={detection.currentRates.firstClass} period={period} />
+      {/* Zone 1: Current customer rates */}
+      <div>
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Current customer rates</span>
+          <AxisTooltip title="Customer rates only" content={headerTooltip} placement="top" maxWidth={340}>
+            <span className="text-[11px] cursor-help" style={{ color: 'var(--text-tertiary)' }}>ⓘ</span>
+          </AxisTooltip>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <RateCard label="Customer Standard" rate={detection.currentRates.standard} period={period} />
+          <RateCard label="Customer First Class" rate={detection.currentRates.firstClass} period={period} />
+        </div>
       </div>
 
       {/* Zone 2: Rollout progress */}
       {(detection.rolloutStatus.standard || detection.rolloutStatus.firstClass) && (
         <div className="flex flex-col gap-1.5">
-          <RolloutProgress label="Standard" status={detection.rolloutStatus.standard} />
-          <RolloutProgress label="First Class" status={detection.rolloutStatus.firstClass} />
+          <RolloutProgress label="Customer Standard" status={detection.rolloutStatus.standard} />
+          <RolloutProgress label="Customer First Class" status={detection.rolloutStatus.firstClass} />
         </div>
       )}
 
-      {/* Zone 3: Detected changes */}
+      {/* Zone 3: Detected customer-rate changes */}
       {detection.changes.length > 0 ? (
         <div>
           <div className="text-xs font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
-            Detected rate changes
+            Detected customer-rate changes
           </div>
           <div className="space-y-1">
             {detection.changes.slice(0, 8).map((change, i) => (
@@ -184,10 +201,50 @@ export function PcmPriceChangeDetectionWidget({ detection, impact }: PcmPriceCha
       ) : (
         <div className="rounded-lg p-2.5" style={{ backgroundColor: 'var(--surface-raised)' }}>
           <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-            No rate changes detected. Monitoring for deviations greater than $0.005/piece.
+            No customer-rate changes detected. Monitoring for deviations greater than $0.005/piece.
           </p>
         </div>
       )}
+
+      {/* Zone 5: Sync coverage — explicit honesty about what Aurora has received.
+          If First Class hasn't synced past some date, this surface tells the
+          reader the detection query isn't missing the change — the data simply
+          isn't here yet. Rule 18: never hide inconsistencies. */}
+      {detection.coverage && (() => {
+        const today = new Date().toISOString().slice(0, 10);
+        const daysBehind = (iso: string) => {
+          const ms = new Date(today).getTime() - new Date(iso).getTime();
+          return Math.max(0, Math.round(ms / (1000 * 60 * 60 * 24)));
+        };
+        const std = detection.coverage.standard;
+        const fc = detection.coverage.firstClass;
+        const stdLag = std ? daysBehind(std.lastSyncedDate) : null;
+        const fcLag = fc ? daysBehind(fc.lastSyncedDate) : null;
+        const anyStale = (stdLag != null && stdLag >= 2) || (fcLag != null && fcLag >= 2);
+        if (!anyStale && std && fc) return null;
+        return (
+          <div className="rounded-lg p-2.5 text-xs" style={{
+            backgroundColor: anyStale ? 'var(--color-alert-50, #fffbeb)' : 'var(--surface-raised)',
+            border: anyStale ? '1px solid var(--color-alert-300, #fcd34d)' : undefined,
+            color: anyStale ? 'var(--color-alert-700, #b45309)' : 'var(--text-tertiary)',
+          }}>
+            <div className="font-medium mb-1">Aurora sync coverage</div>
+            <div className="space-y-0.5">
+              <div>
+                Customer Standard: {std ? `last synced ${std.lastSyncedDate}${stdLag ? ` (${stdLag}d behind)` : ''}` : 'no data'}
+              </div>
+              <div>
+                Customer First Class: {fc ? `last synced ${fc.lastSyncedDate}${fcLag ? ` (${fcLag}d behind)` : ''}` : 'no data'}
+              </div>
+              {anyStale && (
+                <div className="mt-1 italic">
+                  Sync lag suspected — if an expected rate change isn&apos;t visible above, verify the monolith has sent recent rows to dm_volume_summary.
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Zone 4: Financial impact */}
       {impact?.dataAvailable && impact.impacts.length > 0 && (
