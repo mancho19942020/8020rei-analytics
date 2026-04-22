@@ -51,6 +51,8 @@ export interface RrOperationalPulse {
   activeCampaigns: number;
   totalCampaigns: number;
   sendsToday: number;
+  /** Pieces sent month-to-date (from day 1 of current month through today). Added 2026-04-22 for the Ops status strip. */
+  sendsThisMonth: number;
   lastSendTime: string | null;
   totalOnHold: number;
   /** Pieces in campaigns where first on-hold ≥ 7 days ago (monolith timer gap). */

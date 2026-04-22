@@ -20,6 +20,7 @@ import { DataReliabilityHint } from '@/components/workspace/DataReliabilityHint'
 import { DmAlertsModal, getAlertCount } from '@/components/dashboard/DmAlertsModal';
 import {
   RrOperationalPulseWidget,
+  RrOpsStatusStripWidget,
   RrQualityMetricsWidget,
   RrPcmHealthWidget,
   RrPostalPerformanceWidget,
@@ -534,6 +535,9 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
       return {
         'rr-operational-pulse': data.operationalPulse
           ? <RrOperationalPulseWidget data={data.operationalPulse} />
+          : null,
+        'rr-ops-status-strip': data.operationalPulse
+          ? <RrOpsStatusStripWidget pulse={data.operationalPulse} quality={data.qualityMetrics ?? null} />
           : null,
         'rr-quality-metrics': data.qualityMetrics
           ? <RrQualityMetricsWidget data={data.qualityMetrics} />

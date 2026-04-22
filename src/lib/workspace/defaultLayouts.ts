@@ -1268,39 +1268,43 @@ export const DM_OVERVIEW_WIDGET_CATALOG: WidgetCatalogItem[] = [
 // Bumped v9 → v10 on 2026-04-20: removed rr-status-breakdown + rr-on-hold-breakdown.
 // Storage key bump forces existing users' localStorage layouts to regenerate from
 // DEFAULT_RAPID_RESPONSE_LAYOUT instead of re-showing the removed widgets.
-export const RAPID_RESPONSE_LAYOUT_STORAGE_KEY = 'rapid-response-layout-v12';
+export const RAPID_RESPONSE_LAYOUT_STORAGE_KEY = 'rapid-response-layout-v13';
 
 export const DEFAULT_RAPID_RESPONSE_LAYOUT: Widget[] = [
-  // Row 1: Is it running? | Is it working?  (side-by-side)
+  // Row 1: Ops status strip (compact: Active · Letters sent · On hold)
+  // Replaces the old "Is it running?" card (rr-operational-pulse) per
+  // Germán's 2026-04-22 ask: "consolidate those three data points into a
+  // smaller format." The full pulse widget remains in the catalog for
+  // power users who want the long form.
   {
-    id: 'rr-operational-pulse',
-    type: 'rr-operational-pulse',
-    title: 'Is it running?',
-    tooltip: 'Current campaign state. Not affected by the date filter.',
+    id: 'rr-ops-status-strip',
+    type: 'rr-ops-status-strip',
+    title: 'Ops status',
+    tooltip: 'At-a-glance: how many campaigns are active, how many letters we\'ve sent (lifetime · this month · today), and how many sendings are on hold. Not affected by the date filter.',
     x: 0, y: 0,
-    w: 6, h: 5,
-    minW: 4, minH: 4, maxW: 12, maxH: 8,
+    w: 12, h: 2,
+    minW: 8, minH: 2, maxH: 3,
+    flushBody: true,
     timeBehavior: 'all-time',
   },
+  // Row 2: Is it working? | Is it aligned?  (side-by-side)
   {
     id: 'rr-quality-metrics',
     type: 'rr-quality-metrics',
     title: 'Is it working?',
     tooltip: 'Lifetime send + delivery health. Delivery rate matches Profitability → Margin summary.',
-    x: 6, y: 0,
+    x: 0, y: 2,
     w: 6, h: 5,
     minW: 4, minH: 4, maxW: 12, maxH: 8,
     timeBehavior: 'all-time',
   },
-  // Row 2: Is it aligned? (full width; postal-performance mothballed 2026-04-22,
-  // will return folded into the "Is it working?" pill in the upcoming ops-strip rework.)
   {
     id: 'rr-pcm-health',
     type: 'rr-pcm-health',
     title: 'Is it aligned?',
     tooltip: 'Do OUR records match PCM\'s records? Denominator = all DM-enrolled domains (historical + active). Click the "need attention" tag for the breakdown.',
-    x: 0, y: 5,
-    w: 12, h: 5,
+    x: 6, y: 2,
+    w: 6, h: 5,
     minW: 4, minH: 4, maxW: 12, maxH: 8,
     timeBehavior: 'all-time',
   },
@@ -1310,7 +1314,7 @@ export const DEFAULT_RAPID_RESPONSE_LAYOUT: Widget[] = [
     type: 'rr-q2-goal',
     title: 'Q2 volume goal',
     tooltip: 'Progress toward 400K DM pieces for Q2 2026 (April-June). Source: PCM /order via shared cache.',
-    x: 0, y: 10,
+    x: 0, y: 7,
     w: 6, h: 5,
     minW: 4, minH: 5, maxW: 12, maxH: 8,
     timeBehavior: 'all-time',
@@ -1320,7 +1324,7 @@ export const DEFAULT_RAPID_RESPONSE_LAYOUT: Widget[] = [
     type: 'rr-q2-top-contributors',
     title: 'Top contributors',
     tooltip: 'Per-client contribution toward the Q2 400K target.',
-    x: 6, y: 10,
+    x: 6, y: 7,
     w: 6, h: 5,
     minW: 4, minH: 4, maxW: 12, maxH: 10,
     timeBehavior: 'all-time',
@@ -1335,7 +1339,7 @@ export const DEFAULT_RAPID_RESPONSE_LAYOUT: Widget[] = [
     type: 'rr-campaign-table',
     title: 'Campaigns',
     tooltip: 'All campaigns with their latest-snapshot totals — not affected by the date filter. Sent and Delivered show lifetime totals per campaign. On-hold column includes a "fresh" / "stale Nd" badge: stale = ≥ 7 days in on-hold (overdue for the monolith auto-delivery timer); fresh = < 7 days (within normal window).',
-    x: 0, y: 15,
+    x: 0, y: 12,
     w: 12, h: 7,
     minW: 6, minH: 4, maxW: 12, maxH: 10,
     timeBehavior: 'all-time',
@@ -1365,9 +1369,16 @@ export const RAPID_RESPONSE_WIDGET_CATALOG: WidgetCatalogItem[] = [
     defaultSize: { w: 8, h: 6 },
   },
   {
+    type: 'rr-ops-status-strip',
+    title: 'Ops status',
+    description: 'Compact strip: active campaigns, letters sent (lifetime · this month · today), on-hold count',
+    iconKey: 'grid',
+    defaultSize: { w: 12, h: 2 },
+  },
+  {
     type: 'rr-operational-pulse',
-    title: 'Is it running?',
-    description: 'Active campaigns, sends today, last send time, on-hold count',
+    title: 'Is it running? (long form)',
+    description: 'Active campaigns, sends today, last send time, on-hold count — legacy long-form card',
     iconKey: 'grid',
     defaultSize: { w: 4, h: 4 },
   },

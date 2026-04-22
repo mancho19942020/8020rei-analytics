@@ -137,6 +137,7 @@ export const WIDGET_CONTRACTS: readonly WidgetContract[] = [
   // Reconciler emits `info` severity + a freshness stamp; Phase 3b/c adds real reconcilers.
   // Listed here so the widget chrome in Phase 4 can still read a "Reconciled: N min ago" footer.
   { widget_key: 'rr-operational-pulse',   sub_key: null, tab: 'operational-health', thresholds: DEFAULT_THRESHOLDS, autocorrect_action: 'flag-monolith', label: 'Is it working?',           splits_by_campaign_type: false },
+  { widget_key: 'rr-ops-status-strip',    sub_key: null, tab: 'operational-health', thresholds: DEFAULT_THRESHOLDS, autocorrect_action: 'flag-monolith', label: 'Ops status',              splits_by_campaign_type: false },
   { widget_key: 'rr-quality-metrics',     sub_key: null, tab: 'operational-health', thresholds: DEFAULT_THRESHOLDS, autocorrect_action: 'flag-monolith', label: 'Quality metrics',         splits_by_campaign_type: false },
   { widget_key: 'rr-pcm-health',          sub_key: null, tab: 'operational-health', thresholds: DEFAULT_THRESHOLDS, autocorrect_action: 'refresh-cache', label: 'Is it aligned?',          splits_by_campaign_type: false },
   { widget_key: 'rr-postal-performance',  sub_key: null, tab: 'operational-health', thresholds: DEFAULT_THRESHOLDS, autocorrect_action: 'flag-monolith', label: 'Postal performance',      splits_by_campaign_type: false },

@@ -94,6 +94,7 @@ export type WidgetType =
   // Features > 8020REI > Rapid Response tab widgets
   | 'rr-system-status'
   | 'rr-operational-pulse'
+  | 'rr-ops-status-strip'
   | 'rr-quality-metrics'
   | 'rr-pcm-health'
   | 'rr-postal-performance'

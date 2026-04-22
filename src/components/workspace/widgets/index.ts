@@ -74,6 +74,7 @@ export { DeliveryTimelineWidget } from './DeliveryTimelineWidget';
 // Features > 8020REI > Rapid Response tab widgets
 export { RrSystemStatusWidget } from './RrSystemStatusWidget';
 export { RrOperationalPulseWidget } from './RrOperationalPulseWidget';
+export { RrOpsStatusStripWidget } from './RrOpsStatusStripWidget';
 export { RrQualityMetricsWidget } from './RrQualityMetricsWidget';
 export { RrPcmHealthWidget } from './RrPcmHealthWidget';
 export { RrPostalPerformanceWidget } from './RrPostalPerformanceWidget';

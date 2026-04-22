@@ -45,6 +45,7 @@ const FLUSH_BODY_WIDGETS_LEGACY = new Set<WidgetType>([
   'pcm-margin-period',
   'pcm-reconciliation-overview',
   'rr-operational-pulse',
+  'rr-ops-status-strip',
   'rr-quality-metrics',
   'rr-pcm-health',
 ]);

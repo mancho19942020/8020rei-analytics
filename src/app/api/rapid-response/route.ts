@@ -204,13 +204,21 @@ async function getOverview(days: number, domain?: string) {
   // any delta is a data discrepancy that should surface in the diagnostic.
   const onHoldAges = await queryOnHoldAges(domain);
 
-  // Find sends today from daily metrics
-  const todayRows = await runAuroraQuery(`
-    SELECT COALESCE(SUM(sends_total), 0) as sends_today
-    FROM rr_daily_metrics
-    WHERE date = CURRENT_DATE AND ${domainFilter(domain)}
-  `);
+  // Find sends today + month-to-date from daily metrics
+  const [todayRows, monthRows] = await Promise.all([
+    runAuroraQuery(`
+      SELECT COALESCE(SUM(sends_total), 0) as sends_today
+      FROM rr_daily_metrics
+      WHERE date = CURRENT_DATE AND ${domainFilter(domain)}
+    `),
+    runAuroraQuery(`
+      SELECT COALESCE(SUM(sends_total), 0) as sends_month
+      FROM rr_daily_metrics
+      WHERE date >= DATE_TRUNC('month', CURRENT_DATE) AND ${domainFilter(domain)}
+    `),
+  ]);
   const sendsToday = Number(todayRows[0]?.sends_today || 0);
+  const sendsThisMonth = Number(monthRows[0]?.sends_month || 0);
 
   // Find the most recent send across all campaigns
   const lastSendDates = pulseRows
@@ -223,6 +231,7 @@ async function getOverview(days: number, domain?: string) {
     activeCampaigns,
     totalCampaigns: pulseRows.length,
     sendsToday,
+    sendsThisMonth,
     lastSendTime: lastSendDates[0] ? String(lastSendDates[0]) : null,
     totalOnHold,
     staleOnHold: onHoldAges.staleOnHold,
