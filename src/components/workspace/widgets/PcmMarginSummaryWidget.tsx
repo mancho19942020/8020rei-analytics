@@ -82,7 +82,7 @@ export function PcmMarginSummaryWidget({ data }: PcmMarginSummaryWidgetProps) {
           icon={<CostIcon />}
           iconBgClass="bg-accent-1-700"
           format="currency"
-          subtitle={`$${data.pcmCostPerPiece.toFixed(4)}/piece · PCM /order × invoice-verified era rates (${(data.pcmPiecesInvoice ?? data.totalSends).toLocaleString()} pieces)`}
+          subtitle={`$${data.pcmCostPerPiece.toFixed(4)}/piece · era-computed vendor cost (PCM /order × invoice-verified era rates, ${(data.pcmPiecesInvoice ?? data.totalSends).toLocaleString()} pieces). Differs from PCM dashboard "Amount Spent" by canceled/credited orders — tracked by the Reconciled tag.`}
         />
         <MetricCard
           label="Gross margin"

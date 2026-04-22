@@ -1268,7 +1268,7 @@ export const DM_OVERVIEW_WIDGET_CATALOG: WidgetCatalogItem[] = [
 // Bumped v9 → v10 on 2026-04-20: removed rr-status-breakdown + rr-on-hold-breakdown.
 // Storage key bump forces existing users' localStorage layouts to regenerate from
 // DEFAULT_RAPID_RESPONSE_LAYOUT instead of re-showing the removed widgets.
-export const RAPID_RESPONSE_LAYOUT_STORAGE_KEY = 'rapid-response-layout-v10';
+export const RAPID_RESPONSE_LAYOUT_STORAGE_KEY = 'rapid-response-layout-v11';
 
 export const DEFAULT_RAPID_RESPONSE_LAYOUT: Widget[] = [
   // Row 1: Is it running? | Is it working?  (side-by-side)
@@ -1292,24 +1292,15 @@ export const DEFAULT_RAPID_RESPONSE_LAYOUT: Widget[] = [
     minW: 4, minH: 4, maxW: 12, maxH: 8,
     timeBehavior: 'all-time',
   },
-  // Row 2: Is it aligned? | Postal performance  (side-by-side)
+  // Row 2: Is it aligned? (full width; postal-performance mothballed 2026-04-22,
+  // will return folded into the "Is it working?" pill in the upcoming ops-strip rework.)
   {
     id: 'rr-pcm-health',
     type: 'rr-pcm-health',
     title: 'Is it aligned?',
     tooltip: 'Do OUR records match PCM\'s records? Denominator = all DM-enrolled domains (historical + active). Click the "need attention" tag for the breakdown.',
     x: 0, y: 5,
-    w: 6, h: 5,
-    minW: 4, minH: 4, maxW: 12, maxH: 8,
-    timeBehavior: 'all-time',
-  },
-  {
-    id: 'rr-postal-performance',
-    type: 'rr-postal-performance',
-    title: 'Postal performance',
-    tooltip: 'How fast USPS delivers and how often addresses come back undeliverable. About the post office, not our record alignment.',
-    x: 6, y: 5,
-    w: 6, h: 5,
+    w: 12, h: 5,
     minW: 4, minH: 4, maxW: 12, maxH: 8,
     timeBehavior: 'all-time',
   },
@@ -1362,29 +1353,9 @@ export const DEFAULT_RAPID_RESPONSE_LAYOUT: Widget[] = [
     minW: 4, minH: 3, maxW: 12, maxH: 8,
     timeBehavior: 'date-filtered',
   },
-  // Row 6+: System health indicators
-  {
-    id: 'rr-system-coverage',
-    type: 'rr-system-coverage',
-    title: 'System coverage',
-    tooltip: 'Data pipeline coverage: how many clients, templates, and properties are tracked, plus the attribution rate.',
-    x: 0, y: 27,
-    w: 12, h: 2,
-    minW: 8, minH: 2, maxH: 2,
-    flushBody: true,
-    timeBehavior: 'all-time',
-  },
-  {
-    id: 'rr-data-integrity',
-    type: 'rr-data-integrity',
-    title: 'Data integrity',
-    tooltip: 'Data pipeline integrity checks: backfilled dates, unattributed conversions, zero-revenue deals, and pre-send conversions.',
-    x: 0, y: 29,
-    w: 12, h: 2,
-    minW: 8, minH: 2, maxH: 2,
-    flushBody: true,
-    timeBehavior: 'all-time',
-  },
+  // Row 6 system-coverage + data-integrity widgets removed 2026-04-22 per user:
+  // "I'm not using those; we can remove them." Components remain in
+  // src/components/workspace/widgets/ for future re-enable. See MOTHBALLED_WIDGETS.
 ];
 
 export const RAPID_RESPONSE_WIDGET_CATALOG: WidgetCatalogItem[] = [
@@ -1424,13 +1395,6 @@ export const RAPID_RESPONSE_WIDGET_CATALOG: WidgetCatalogItem[] = [
     defaultSize: { w: 4, h: 4 },
   },
   {
-    type: 'rr-postal-performance',
-    title: 'Postal performance',
-    description: 'USPS delivery lag and undeliverable rate — post-office performance',
-    iconKey: 'grid',
-    defaultSize: { w: 4, h: 4 },
-  },
-  {
     type: 'rr-sends-trend',
     title: 'Send volume trend',
     description: 'Line chart showing sends, deliveries, and errors over time',
@@ -1444,20 +1408,6 @@ export const RAPID_RESPONSE_WIDGET_CATALOG: WidgetCatalogItem[] = [
     iconKey: 'table',
     defaultSize: { w: 7, h: 6 },
   },
-  {
-    type: 'rr-system-coverage',
-    title: 'System coverage',
-    description: 'Clients, templates, properties tracked and attribution rate',
-    iconKey: 'grid',
-    defaultSize: { w: 12, h: 2 },
-  },
-  {
-    type: 'rr-data-integrity',
-    title: 'Data integrity',
-    description: 'Backfilled dates, unattributed conversions, zero-revenue deals',
-    iconKey: 'grid',
-    defaultSize: { w: 12, h: 2 },
-  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -1465,7 +1415,7 @@ export const RAPID_RESPONSE_WIDGET_CATALOG: WidgetCatalogItem[] = [
 // ---------------------------------------------------------------------------
 
 // Bumped v4 → v5 on 2026-04-20: removed dm-conversion-trend + dm-revenue-cost.
-export const DM_BUSINESS_RESULTS_LAYOUT_STORAGE_KEY = 'dm-business-results-layout-v5';
+export const DM_BUSINESS_RESULTS_LAYOUT_STORAGE_KEY = 'dm-business-results-layout-v6';
 
 export const DEFAULT_DM_BUSINESS_RESULTS_LAYOUT: Widget[] = [
   // Row 1: Conversion Funnel — THE hero metric, answers "how is DM performing?"
@@ -1507,17 +1457,9 @@ export const DEFAULT_DM_BUSINESS_RESULTS_LAYOUT: Widget[] = [
     minW: 6, minH: 5, maxW: 12, maxH: 10,
     timeBehavior: 'date-filtered',
   },
-  // Row 4: Geographic Breakdown — supporting detail
-  {
-    id: 'dm-geo-breakdown',
-    type: 'dm-geo-breakdown',
-    title: 'Geographic breakdown',
-    tooltip: 'Conversion rates by state and county within the selected date range. Identifies which geographic markets respond best to direct mail campaigns.',
-    x: 0, y: 21,
-    w: 12, h: 5,
-    minW: 6, minH: 4, maxW: 12, maxH: 10,
-    timeBehavior: 'date-filtered',
-  },
+  // Row 4 geographic breakdown removed 2026-04-22 per user: no PCM reconciliation
+  // possible for it (contract marks autocorrect=none). Component remains in
+  // src/components/workspace/widgets/ for future re-enable. See MOTHBALLED_WIDGETS.
 ];
 
 export const DM_BUSINESS_RESULTS_WIDGET_CATALOG: WidgetCatalogItem[] = [
@@ -1541,13 +1483,6 @@ export const DM_BUSINESS_RESULTS_WIDGET_CATALOG: WidgetCatalogItem[] = [
     description: 'Templates ranked by sends, leads, deals, and ROAS',
     iconKey: 'table',
     defaultSize: { w: 6, h: 7 },
-  },
-  {
-    type: 'dm-geo-breakdown',
-    title: 'Geographic breakdown',
-    description: 'Conversion rates by state and county',
-    iconKey: 'globe',
-    defaultSize: { w: 12, h: 6 },
   },
 ];
 
@@ -1875,7 +1810,7 @@ export const PLATFORM_ANALYTICS_WIDGET_CATALOG: WidgetCatalogItem[] = [
 
 // Bumped v6 → v7 on 2026-04-20: removed pcm-clients-profitable + pcm-clients-breakeven
 // + pcm-clients-losing (three filtered client-margin tables).
-export const PCM_VALIDATION_LAYOUT_STORAGE_KEY = 'pcm-validation-layout-v7';
+export const PCM_VALIDATION_LAYOUT_STORAGE_KEY = 'pcm-validation-layout-v8';
 
 export const DEFAULT_PCM_VALIDATION_LAYOUT: Widget[] = [
   // ─── THE VERDICT (all-time) ───
@@ -1936,24 +1871,10 @@ export const DEFAULT_PCM_VALIDATION_LAYOUT: Widget[] = [
   // Components remain in src/components/workspace/widgets/ for future re-enable.
   // See MOTHBALLED_WIDGETS below.
   // ─── DOMAIN & TEMPLATE DETAILS ───
-  {
-    id: 'pcm-domain-table',
-    type: 'pcm-domain-table',
-    title: 'Domain breakdown',
-    tooltip: 'Per-domain send totals, delivery counts, and cost per piece.',
-    x: 0, y: 13, w: 12, h: 6,
-    minW: 8, minH: 3, maxH: 10,
-    timeBehavior: 'all-time',
-  },
-  {
-    id: 'pcm-template-table',
-    type: 'pcm-template-table',
-    title: 'Template catalog',
-    tooltip: 'PostcardMania design templates — name, type, size, and mail classes.',
-    x: 0, y: 19, w: 12, h: 6,
-    minW: 8, minH: 3, maxH: 10,
-    timeBehavior: 'all-time',
-  },
+  // pcm-domain-table + pcm-template-table removed 2026-04-22 per user:
+  // "I think the domain breakdown and template catalog could disappear from this
+  // section for now." Components remain in src/components/workspace/widgets/ for
+  // future re-enable. See MOTHBALLED_WIDGETS.
 ];
 
 export const PCM_VALIDATION_WIDGET_CATALOG: WidgetCatalogItem[] = [
@@ -1962,8 +1883,6 @@ export const PCM_VALIDATION_WIDGET_CATALOG: WidgetCatalogItem[] = [
   { type: 'pcm-margin-trend', title: 'Pricing history', description: 'Per-piece rates over time: us vs PCM with margin', iconKey: 'lineChart', defaultSize: { w: 12, h: 5 } },
   { type: 'pcm-pricing-overview', title: 'Pricing overview', description: 'Our rates vs PCM rates with margin per piece', iconKey: 'grid', defaultSize: { w: 6, h: 4 } },
   { type: 'pcm-data-match', title: 'Data match', description: 'Domain-level PCM alignment + lifetime send vs order totals', iconKey: 'barChart', defaultSize: { w: 6, h: 4 } },
-  { type: 'pcm-domain-table', title: 'Domain breakdown', description: 'Per-domain send totals and cost', iconKey: 'table', defaultSize: { w: 12, h: 6 } },
-  { type: 'pcm-template-table', title: 'Template catalog', description: 'PCM design templates', iconKey: 'table', defaultSize: { w: 12, h: 6 } },
 ];
 
 // ---------------------------------------------------------------------------
@@ -2040,6 +1959,48 @@ export const MOTHBALLED_WIDGETS: readonly MothballedWidget[] = [
     mothballedAt: '2026-04-20',
     userQuote: 'The other tables, the profitable clients, break-even clients, and losing money clients, I don\'t find them necessary; those three tables can disappear.',
     replacedBy: 'Client margins (pcm-client-margins) sorted by margin ascending surfaces losing clients first.',
+  },
+  {
+    type: 'rr-postal-performance',
+    sourceTab: 'operational-health',
+    mothballedAt: '2026-04-22',
+    userQuote: 'Postal performance could be like that data point. The median delivery tag is something that could be; those two tags could be living inside, maybe the easy-to-work-with.',
+    replacedBy: 'Will return folded into the "Is it working?" pill (rr-quality-metrics) as tooltip sub-metrics in the upcoming Ops status strip rework (Phase B of the 2026-04-22 simplification plan).',
+  },
+  {
+    type: 'rr-system-coverage',
+    sourceTab: 'operational-health',
+    mothballedAt: '2026-04-22',
+    userQuote: 'At the bottom, we have system coverage and data integrity. I\'m not using those; we can remove them.',
+    replacedBy: 'No replacement. User not using this view; re-enable only on explicit request.',
+  },
+  {
+    type: 'rr-data-integrity',
+    sourceTab: 'operational-health',
+    mothballedAt: '2026-04-22',
+    userQuote: 'At the bottom, we have system coverage and data integrity. I\'m not using those; we can remove them.',
+    replacedBy: 'No replacement. Reconciler-driven alignment tags in every widget header now surface integrity issues in-place via the PCM auto-alignment system shipped 2026-04-22.',
+  },
+  {
+    type: 'dm-geo-breakdown',
+    sourceTab: 'business-results',
+    mothballedAt: '2026-04-22',
+    userQuote: 'Geographic breakdown, maybe.',
+    replacedBy: 'No replacement. Not PCM-reconcilable (alignment contract marks autocorrect=none). Re-enable when geo becomes a priority.',
+  },
+  {
+    type: 'pcm-domain-table',
+    sourceTab: 'pcm-validation',
+    mothballedAt: '2026-04-22',
+    userQuote: 'I think the domain breakdown and template catalog could disappear from this section for now.',
+    replacedBy: 'Per-domain detail still available via pcm-data-match (Data match widget).',
+  },
+  {
+    type: 'pcm-template-table',
+    sourceTab: 'pcm-validation',
+    mothballedAt: '2026-04-22',
+    userQuote: 'I think the domain breakdown and template catalog could disappear from this section for now.',
+    replacedBy: 'No replacement. Template catalog is static PCM metadata; not needed for trust-critical view.',
   },
 ];
 

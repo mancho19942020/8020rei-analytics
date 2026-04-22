@@ -225,7 +225,7 @@ export function DmClientPerformanceWidget({ data, onDomainClick }: DmClientPerfo
     {
       field: 'totalCost',
       header: 'Mail spend',
-      headerTooltip: 'What this client paid 8020REI for mailings in the selected window (cohort view). Lifetime sum across all clients matches Profitability → Margin summary → Revenue.',
+      headerTooltip: 'What this client paid 8020REI for mailings in the selected window (cohort view) — i.e. 8020REI revenue, NOT what PCM charged us. PCM\'s own dashboard shows "Amount Spent" (vendor invoice) which will differ from this number by canceled/credited orders and era-rate drift — tracked by the Reconciled tag. Lifetime sum across clients matches Profitability → Margin summary → Revenue.',
       width: 90,
       minWidth: 80,
       align: 'center',
@@ -380,15 +380,15 @@ export function DmClientPerformanceWidget({ data, onDomainClick }: DmClientPerfo
             <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>deals</span>
           </div>
           <AxisTooltip
-            content="What clients paid 8020REI for mailings in this window. Same column as Profitability → Margin summary → Revenue."
+            content="What clients paid 8020REI for mailings (billed revenue) — NOT what PCM charged us. PCM's dashboard shows a different number labelled 'Amount Spent' (vendor invoice) — the gap is reconciled by the Reconciled tag in this widget's header. Same column as Profitability → Margin summary → Revenue."
             placement="top"
-            maxWidth={280}
+            maxWidth={320}
           >
             <div className="flex items-baseline gap-1.5" style={{ cursor: 'help' }}>
               <span className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
                 {formatCurrency(totals.totalCost)}
               </span>
-              <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>mail spend</span>
+              <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>mail spend <span style={{ color: 'var(--text-tertiary)', opacity: 0.7 }}>(billed to client)</span></span>
             </div>
           </AxisTooltip>
           <AxisTooltip
