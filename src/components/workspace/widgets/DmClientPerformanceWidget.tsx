@@ -197,7 +197,7 @@ export function DmClientPerformanceWidget({ data, onDomainClick }: DmClientPerfo
     {
       field: 'deals',
       header: 'Deals',
-      headerTooltip: 'Properties in this client\'s cohort (first mailed in window) that reached Deal after the first send. Click to see which properties.',
+      headerTooltip: 'Properties in this client\'s cohort (first mailed in window) that ever reached "Deal" status in the monolith, via any channel. Sourced from log_status_properties. Always ≥ the count on the app\'s /dm-campaign/sending-status page, which filters to deals tied to a specific Rapid Response campaign (via rapid_response_id) — a tighter scope. Click to see which properties.',
       type: 'number',
       width: 70,
       minWidth: 60,
