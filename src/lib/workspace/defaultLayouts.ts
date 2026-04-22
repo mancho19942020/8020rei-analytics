@@ -1268,7 +1268,7 @@ export const DM_OVERVIEW_WIDGET_CATALOG: WidgetCatalogItem[] = [
 // Bumped v9 → v10 on 2026-04-20: removed rr-status-breakdown + rr-on-hold-breakdown.
 // Storage key bump forces existing users' localStorage layouts to regenerate from
 // DEFAULT_RAPID_RESPONSE_LAYOUT instead of re-showing the removed widgets.
-export const RAPID_RESPONSE_LAYOUT_STORAGE_KEY = 'rapid-response-layout-v15';
+export const RAPID_RESPONSE_LAYOUT_STORAGE_KEY = 'rapid-response-layout-v16';
 
 export const DEFAULT_RAPID_RESPONSE_LAYOUT: Widget[] = [
   // Row 1: Ops status strip (compact: Active · Letters sent · On hold)
@@ -1276,14 +1276,16 @@ export const DEFAULT_RAPID_RESPONSE_LAYOUT: Widget[] = [
   // Germán's 2026-04-22 ask: "consolidate those three data points into a
   // smaller format." The full pulse widget remains in the catalog for
   // power users who want the long form.
+  // Row 1 mirrors the DM Campaign → Overview → Headline metrics settings
+  // so the strip's cards render with identical proportions (Germán's ref).
   {
     id: 'rr-ops-status-strip',
     type: 'rr-ops-status-strip',
     title: 'Ops status',
     tooltip: 'At-a-glance: how many campaigns are active, how many letters we\'ve sent (lifetime · this month · today), and how many sendings are on hold. Not affected by the date filter.',
     x: 0, y: 0,
-    w: 12, h: 2,
-    minW: 8, minH: 2, maxH: 2,
+    w: 12, h: 3,
+    minW: 12, maxW: 12, minH: 3, maxH: 4,
     flushBody: true,
     timeBehavior: 'all-time',
   },
@@ -1293,7 +1295,7 @@ export const DEFAULT_RAPID_RESPONSE_LAYOUT: Widget[] = [
     type: 'rr-quality-metrics',
     title: 'Is it working?',
     tooltip: 'Lifetime send + delivery health. Delivery rate matches Profitability → Margin summary.',
-    x: 0, y: 2,
+    x: 0, y: 3,
     w: 6, h: 5,
     minW: 4, minH: 4, maxW: 12, maxH: 8,
     timeBehavior: 'all-time',
@@ -1303,7 +1305,7 @@ export const DEFAULT_RAPID_RESPONSE_LAYOUT: Widget[] = [
     type: 'rr-pcm-health',
     title: 'Is it aligned?',
     tooltip: 'Do OUR records match PCM\'s records? Denominator = all DM-enrolled domains (historical + active). Click the "need attention" tag for the breakdown.',
-    x: 6, y: 2,
+    x: 6, y: 3,
     w: 6, h: 5,
     minW: 4, minH: 4, maxW: 12, maxH: 8,
     timeBehavior: 'all-time',
@@ -1314,7 +1316,7 @@ export const DEFAULT_RAPID_RESPONSE_LAYOUT: Widget[] = [
     type: 'rr-q2-goal',
     title: 'Q2 volume goal',
     tooltip: 'Progress toward 400K DM pieces for Q2 2026 (April-June). Source: PCM /order via shared cache.',
-    x: 0, y: 7,
+    x: 0, y: 8,
     w: 6, h: 5,
     minW: 4, minH: 5, maxW: 12, maxH: 8,
     timeBehavior: 'all-time',
@@ -1324,7 +1326,7 @@ export const DEFAULT_RAPID_RESPONSE_LAYOUT: Widget[] = [
     type: 'rr-q2-top-contributors',
     title: 'Top contributors',
     tooltip: 'Per-client contribution toward the Q2 400K target.',
-    x: 6, y: 7,
+    x: 6, y: 8,
     w: 6, h: 5,
     minW: 4, minH: 4, maxW: 12, maxH: 10,
     timeBehavior: 'all-time',
@@ -1339,7 +1341,7 @@ export const DEFAULT_RAPID_RESPONSE_LAYOUT: Widget[] = [
     type: 'rr-campaign-table',
     title: 'Campaigns',
     tooltip: 'All campaigns with their latest-snapshot totals — not affected by the date filter. Sent and Delivered show lifetime totals per campaign. On-hold column includes a "fresh" / "stale Nd" badge: stale = ≥ 7 days in on-hold (overdue for the monolith auto-delivery timer); fresh = < 7 days (within normal window).',
-    x: 0, y: 12,
+    x: 0, y: 13,
     w: 12, h: 7,
     minW: 6, minH: 4, maxW: 12, maxH: 10,
     timeBehavior: 'all-time',
@@ -1373,7 +1375,7 @@ export const RAPID_RESPONSE_WIDGET_CATALOG: WidgetCatalogItem[] = [
     title: 'Ops status',
     description: 'Hero-metric strip: active campaigns, letters sent (lifetime · this month · today), on-hold count',
     iconKey: 'grid',
-    defaultSize: { w: 12, h: 2 },
+    defaultSize: { w: 12, h: 3 },
   },
   {
     type: 'rr-operational-pulse',
