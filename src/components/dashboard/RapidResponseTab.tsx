@@ -16,7 +16,6 @@ import { useState, useEffect, useMemo, useCallback, forwardRef, useImperativeHan
 import { buildDateQueryString } from '@/lib/date-utils';
 import { AxisSkeleton, AxisCallout, AxisButton, AxisTag, AxisDomainSearch } from '@/components/axis';
 import { GridWorkspace, WidgetCatalog, WidgetSettings, Widget as WidgetShell } from '@/components/workspace';
-import { DataReliabilityHint } from '@/components/workspace/DataReliabilityHint';
 import { DmAlertsModal, getAlertCount } from '@/components/dashboard/DmAlertsModal';
 import {
   RrOperationalPulseWidget,
@@ -777,11 +776,6 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
               </AxisCallout>
             )}
 
-            {/* Reliability hint — answers "how trustworthy is each number?" in one hover. */}
-            <div className="flex justify-end mb-1">
-              <DataReliabilityHint tab="operational-health" />
-            </div>
-
             {/* Ops status strip — rendered OUTSIDE the grid with a fixed 150px
                 height so its HeadlineCards render at the same proportions as
                 DM Campaign → Overview → Headline metrics (which also uses a
@@ -857,9 +851,6 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
                   </AxisCallout>
                 )}
 
-                <div className="flex justify-end mb-1">
-                  <DataReliabilityHint tab="business-results" />
-                </div>
                 <GridWorkspace
                   layout={brLayout}
                   onLayoutChange={handleBrLayoutChange}
@@ -917,9 +908,6 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
                   </AxisCallout>
                 )}
 
-                <div className="flex justify-end mb-1">
-                  <DataReliabilityHint tab="profitability" />
-                </div>
                 <GridWorkspace
                   layout={pcmLayout}
                   onLayoutChange={handlePcmLayoutChange}
