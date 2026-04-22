@@ -60,6 +60,7 @@ interface SendTrendPayload {
     total: number;
     cutoffDate: string;
     cutoffDay: number;
+    isCurrentMonth: boolean;
   }>;
   todayDay: number;
   alignedAt: string;

@@ -1,13 +1,16 @@
 /**
- * DM Overview — Send volume trend (MTD same-day-cutoff, 2026-04-22 rework)
+ * DM Overview — Send volume trend (monthly volume chart, 2026-04-22 rework v2)
  *
- * Stacked bar chart: one bar per month, capped at today's day-of-month. On
- * Apr 22, every bar covers days 1–22 of its month (Apr 1–22, Mar 1–22, …),
- * answering Germán's "how many did we send by this same date each month"
- * boss question.
+ * Stacked bar chart, one bar per month:
+ * - Past months show full-month totals (end-of-month).
+ * - The current month shows pieces sent so far (day 1 → today).
+ *
+ * Updates automatically via the /api/dm-overview/refresh cron — no manual
+ * step. When the month ends, the current-month bar freezes at its full total
+ * and a new bar for the next month appears on the 1st.
  *
  * Defensive fallbacks (2026-04-22 fix): if the cached payload pre-dates the
- * Phase 5 rewrite and is missing `todayDay` / `cutoffDay`, compute them
+ * rewrite and is missing todayDay / cutoffDay / isCurrentMonth, compute them
  * locally from today's date so the chart still renders meaningful labels
  * during the ~30 min window before the /refresh cron rebuilds the cache.
  */
@@ -24,6 +27,7 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
+  Cell,
 } from 'recharts';
 import type { DmOverviewSendTrend } from '@/types/dm-overview';
 
@@ -59,15 +63,21 @@ interface ChartRow {
   standard: number;
   total: number;
   cutoffDay: number;
+  isCurrentMonth: boolean;
 }
 
 function CustomTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: ChartRow }> }) {
   if (!active || !payload || payload.length === 0) return null;
   const row = payload[0].payload;
   const monthName = MONTH_FULL[row.monthIndex - 1];
-  const header = row.cutoffDay === 1
-    ? `${monthName} 1, ${row.year}`
-    : `${monthName} 1–${row.cutoffDay}, ${row.year}`;
+  let header: string;
+  if (row.isCurrentMonth) {
+    header = row.cutoffDay === 1
+      ? `${monthName} 1, ${row.year} (month-to-date)`
+      : `${monthName} 1–${row.cutoffDay}, ${row.year} (month-to-date)`;
+  } else {
+    header = `${monthName} ${row.year} (full month)`;
+  }
   return (
     <div style={tooltipStyle}>
       <div style={{ fontWeight: 600, marginBottom: 4 }}>{header}</div>
@@ -82,19 +92,22 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: Array<
 export function DmOverviewSendTrendWidget({ data }: Props) {
   // Local "today" used only as a fallback when the cached payload is stale.
   // Real value always comes from `data.todayDay` once the cache refreshes.
-  const fallbackTodayDay = new Date().getDate();
+  const now = new Date();
+  const fallbackTodayDay = now.getDate();
+  const fallbackTodayMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
   const alignDay = data?.todayDay ?? fallbackTodayDay;
 
   const chartData = useMemo<ChartRow[]>(() => {
     if (!data?.series) return [];
     return data.series.map((s) => {
-      // Back-fill cutoffDay/cutoffDate if the cache was written before the
-      // Phase 5 rewrite. After a single /api/dm-overview/refresh run these
-      // will always be present on the server side.
+      // Back-fill missing fields if the cache was written before the current
+      // rewrite. After one /api/dm-overview/refresh run these will always be
+      // present on the server side.
       const [y, m] = s.month.split('-').map(Number);
       const monthLastDay = lastDayOfMonth(s.month);
-      const cutoffDay = s.cutoffDay ?? Math.min(alignDay, monthLastDay);
+      const isCurrentMonth = s.isCurrentMonth ?? (s.month === fallbackTodayMonth);
+      const cutoffDay = s.cutoffDay ?? (isCurrentMonth ? alignDay : monthLastDay);
       return {
         month: s.month,
         year: y,
@@ -103,9 +116,10 @@ export function DmOverviewSendTrendWidget({ data }: Props) {
         standard: s.standard ?? 0,
         total: s.total ?? 0,
         cutoffDay,
+        isCurrentMonth,
       };
     });
-  }, [data, alignDay]);
+  }, [data, alignDay, fallbackTodayMonth]);
 
   if (!data || chartData.length === 0) {
     return (
@@ -120,9 +134,9 @@ export function DmOverviewSendTrendWidget({ data }: Props) {
       <div
         className="text-xs px-2 pb-1"
         style={{ color: 'var(--text-tertiary)' }}
-        title={`Today is day ${alignDay} of the month. Each bar shows pieces sent day 1 through day ${alignDay} of that month, so every month is compared over the same number of days. The chart advances automatically each day.`}
+        title="Past months show their full totals. The current-month bar grows each day; when the month ends it freezes at full total and the next month starts. Updates automatically every 30 minutes via the overview-refresh cron — no manual step."
       >
-        Each bar covers day 1 → day {alignDay} of its month — same-period comparison across the last {chartData.length} months.
+        Past months = full totals. Current month = pieces sent so far (day 1 → {alignDay}). Updates daily.
       </div>
       <div className="flex-1 min-h-0">
         <ResponsiveContainer width="100%" height="100%">
@@ -155,14 +169,30 @@ export function DmOverviewSendTrendWidget({ data }: Props) {
               name="Standard"
               fill="var(--color-chart-6)"
               radius={[0, 0, 0, 0]}
-            />
+            >
+              {chartData.map((row) => (
+                <Cell
+                  key={`std-${row.month}`}
+                  fill={row.isCurrentMonth ? 'var(--color-chart-6)' : 'var(--color-chart-6)'}
+                  fillOpacity={row.isCurrentMonth ? 0.55 : 1}
+                />
+              ))}
+            </Bar>
             <Bar
               dataKey="firstClass"
               stackId="pieces"
               name="First class"
               fill="var(--color-chart-3)"
               radius={[3, 3, 0, 0]}
-            />
+            >
+              {chartData.map((row) => (
+                <Cell
+                  key={`fc-${row.month}`}
+                  fill={row.isCurrentMonth ? 'var(--color-chart-3)' : 'var(--color-chart-3)'}
+                  fillOpacity={row.isCurrentMonth ? 0.55 : 1}
+                />
+              ))}
+            </Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>

@@ -468,14 +468,17 @@ export async function computeHeadline(orders: PcmOrderSlim[]) {
 }
 
 export async function computeSendTrend(orders: PcmOrderSlim[]) {
-  // MTD same-day-cutoff comparison (2026-04-22 rework):
-  // Each month's bar covers days 1 through today's day-of-month. On Apr 22,
-  // every month's bar reflects pieces sent Apr 1–22, Mar 1–22, Feb 1–22, …
-  // — answering "how many did we send by this same date last month / two
-  // months ago / …" instead of showing a forward-running line.
+  // Monthly volume trend (2026-04-22 rework, v2):
+  // - Past months show FULL-MONTH totals (complete Jan, Feb, Mar, …).
+  // - Current month shows month-to-date through today only.
+  // The current-month bar grows each day; when the month ends it freezes at
+  // the full total and a new bar starts on the 1st of the next month. All of
+  // this happens automatically — the /api/dm-overview/refresh cron runs every
+  // 30 min and calls `new Date()` on each invocation, so "today" advances
+  // naturally without any manual intervention.
   const todayIso = new Date().toISOString().substring(0, 10);
+  const todayMonth = todayIso.substring(0, 7); // YYYY-MM
   const todayDay = parseInt(todayIso.substring(8, 10), 10);
-  const cutoffDay = todayDay;
 
   let lifetimeTotal = 0;
   const monthly = new Map<string, { fc: number; std: number; total: number }>();
@@ -483,31 +486,34 @@ export async function computeSendTrend(orders: PcmOrderSlim[]) {
   for (const o of orders) {
     if (o.canceled || o.isTestDomain || !o.date) continue;
     lifetimeTotal++;
-    const day = parseInt(o.date.substring(8, 10), 10);
-    if (day > cutoffDay) continue;
-    const month = o.date.substring(0, 7);
-    const entry = monthly.get(month) ?? { fc: 0, std: 0, total: 0 };
+    const orderMonth = o.date.substring(0, 7);
+    // Only the current month is capped. Prior months include every day.
+    if (orderMonth === todayMonth) {
+      const day = parseInt(o.date.substring(8, 10), 10);
+      if (day > todayDay) continue;
+    }
+    const entry = monthly.get(orderMonth) ?? { fc: 0, std: 0, total: 0 };
     entry.total++;
     if (o.mailClass === 'fc') entry.fc++;
     else entry.std++;
-    monthly.set(month, entry);
+    monthly.set(orderMonth, entry);
   }
 
   const series = [...monthly.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([month, v]) => {
-      // For months with fewer days than today's day-of-month (e.g. Feb when
-      // today is the 31st), the effective cutoff is month-end.
+      const isCurrent = month === todayMonth;
       const [y, m] = month.split('-').map(Number);
-      const lastDayOfMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
-      const effectiveDay = Math.min(cutoffDay, lastDayOfMonth);
+      const monthLastDay = new Date(Date.UTC(y, m, 0)).getUTCDate();
+      const cutoffDay = isCurrent ? todayDay : monthLastDay;
       return {
         month,
         total: v.total,
         firstClass: v.fc,
         standard: v.std,
-        cutoffDate: `${month}-${String(effectiveDay).padStart(2, '0')}`,
-        cutoffDay: effectiveDay,
+        cutoffDate: `${month}-${String(cutoffDay).padStart(2, '0')}`,
+        cutoffDay,
+        isCurrentMonth: isCurrent,
       };
     });
 
@@ -516,7 +522,7 @@ export async function computeSendTrend(orders: PcmOrderSlim[]) {
     todayDay,
     alignedAt: todayIso,
     lifetimeTotal,
-    sourceNote: `PCM /order grouped by month. Each month capped at day ${cutoffDay} to match today's day-of-month — same-period comparison ("how many by day ${cutoffDay} each month"). Excludes canceled and test domains. Short months (e.g. February) naturally cap at month-end.`,
+    sourceNote: `PCM /order grouped by month. Past months show full-month totals (end-of-month). The current month (${todayMonth}) shows pieces sent from day 1 through day ${todayDay} (month-to-date). Updates automatically each day via the /api/dm-overview/refresh cron. Excludes canceled and test domains.`,
     fetchedAt: new Date().toISOString(),
   };
 }

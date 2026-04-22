@@ -97,10 +97,12 @@ export interface DmOverviewSendTrendPoint {
   total: number;
   firstClass: number;
   standard: number;
-  /** YYYY-MM-DD — effective cutoff day for this month (min of today's day-of-month and this month's last day). */
+  /** YYYY-MM-DD — last day included in this bar: today for the current month; end-of-month for past months. */
   cutoffDate: string;
-  /** 1..31 — effective cutoff day value, for labelling. */
+  /** Day number at `cutoffDate`. Useful for labelling. */
   cutoffDay: number;
+  /** true only for the month matching today's YYYY-MM — drives the "so far" partial-bar UX. */
+  isCurrentMonth: boolean;
 }
 
 export interface DmOverviewSendTrend {
