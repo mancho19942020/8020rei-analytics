@@ -285,14 +285,7 @@ export function DmClientPerformanceWidget({ data, onDomainClick }: DmClientPerfo
         const exact = `exact: ${iso}`;
         const tooltip = [sourceLabel, relative, exact].filter(Boolean).join(' · ');
         return (
-          <span
-            title={tooltip}
-            style={{
-              color: 'var(--text-primary)',
-              opacity: source === 'observed' ? 1 : 0.75,
-              fontStyle: source === 'observed' ? 'normal' : 'italic',
-            }}
-          >
+          <span title={tooltip} style={{ color: 'var(--text-primary)' }}>
             {label}
           </span>
         );

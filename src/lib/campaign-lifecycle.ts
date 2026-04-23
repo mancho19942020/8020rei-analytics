@@ -5,12 +5,18 @@
  * Both the Operational Health → Campaign table and Business Results → Client
  * Performance widgets import from here so the dates they display never diverge.
  *
- * Data source: Aurora `rr_campaign_snapshots` (append-only, hourly cron).
- * For each campaign_id we compute:
- *   - currentStatus: latest snapshot status ('active' | 'draft' | 'disabled' | 'eliminated')
- *   - stoppedAt: most recent snapshot_at where status transitioned `active -> non-active`.
- *     If the campaign is currently active (even after a prior stop), stoppedAt is NULL
- *     so the UI never claims a currently-active client is "stopped".
+ * Data source: Aurora `rr_campaign_snapshots` (append-only, hourly cron) +
+ * `dm_property_conversions` for authoritative per-campaign last-send dates.
+ * For each (domain, campaign_id) pair we compute:
+ *   - currentStatus: latest snapshot status ('active' | 'draft' | 'disabled' | 'eliminated' | 'paused')
+ *   - stoppedAt: hour-precise active→non-active transition if observed in
+ *     snapshot history, else the campaign's real last-send date.
+ *   - stoppedAtSource: 'observed' | 'last-sent' | null — drives the tooltip.
+ *
+ * IMPORTANT: `campaign_id` is NOT globally unique — each tenant monolith has
+ * its own `rapid_responses` table with its own id sequence, so two different
+ * clients can both have campaign_id=1. The unique key is (domain, campaign_id).
+ * All aggregations and lookups here partition by that composite key.
  */
 import { runAuroraQuery } from './aurora';
 import { EXCLUDE_TEST_DOMAINS_SQL as EXCLUDE_SEED } from './domain-filter';
@@ -22,8 +28,7 @@ import { EXCLUDE_TEST_DOMAINS_SQL as EXCLUDE_SEED } from './domain-filter';
  *                    campaign's last_sent_date as the most business-meaningful
  *                    "effectively stopped" proxy ("last mailed on this day").
  *
- *  Draft / eliminated campaigns that NEVER sent mail return `null` — we have no
- *  meaningful "stopped" date for a campaign that never ran.
+ *  Campaigns that never sent mail and were never seen flipping return `null`.
  */
 export type StoppedAtSource = 'observed' | 'last-sent';
 
@@ -33,8 +38,7 @@ export interface CampaignLifecycle {
   domain: string;
   currentStatus: string;
   /** ISO timestamp or null. Null when the campaign is currently active, or when
-   *  we have no data at all (e.g. draft campaign never captured in a non-active
-   *  snapshot and never sent mail). */
+   *  we have no usable data (e.g. draft campaign never sent + never flipped). */
   stoppedAt: string | null;
   /** Provenance of stoppedAt. Null iff stoppedAt is null. */
   stoppedAtSource: StoppedAtSource | null;
@@ -46,9 +50,14 @@ function sanitizeDomain(domain?: string | null): string | null {
   return domain.replace(/[^a-zA-Z0-9_.]/g, '') || null;
 }
 
+/** Composite key for a campaign unique across tenants. */
+export function lifecycleKey(domain: string, campaignId: string | number): string {
+  return `${domain}::${String(campaignId)}`;
+}
+
 /**
  * Query per-campaign lifecycle across all snapshots.
- * Returns one row per campaign_id present in rr_campaign_snapshots.
+ * Returns one row per (domain, campaign_id) pair present in rr_campaign_snapshots.
  */
 export async function queryCampaignLifecycles(domain?: string): Promise<CampaignLifecycle[]> {
   const safeDomain = sanitizeDomain(domain);
@@ -57,37 +66,55 @@ export async function queryCampaignLifecycles(domain?: string): Promise<Campaign
   const rows = await runAuroraQuery(`
     WITH transitions AS (
       SELECT
+        domain,
         campaign_id,
         status,
         snapshot_at,
-        LAG(status) OVER (PARTITION BY campaign_id ORDER BY snapshot_at) AS prev_status
+        LAG(status) OVER (PARTITION BY domain, campaign_id ORDER BY snapshot_at) AS prev_status
       FROM rr_campaign_snapshots
       WHERE ${EXCLUDE_SEED}
         ${domainClause}
     ),
     stops AS (
-      SELECT campaign_id, MAX(snapshot_at) AS observed_stopped_at
+      SELECT domain, campaign_id, MAX(snapshot_at) AS observed_stopped_at
       FROM transitions
       WHERE prev_status = 'active' AND status <> 'active'
-      GROUP BY campaign_id
+      GROUP BY domain, campaign_id
+    ),
+    -- Authoritative per-campaign last-send date. We query dm_property_conversions
+    -- (not rr_campaign_snapshots.last_sent_date) because the snapshot's
+    -- last_sent_date mirrors a denormalized monolith column that's NULL for
+    -- many historical campaigns. dm_property_conversions has MAX(last_sent_date)
+    -- per (domain, campaign_id) derived from real send rows — populated
+    -- whenever mail was sent.
+    real_last_send AS (
+      SELECT domain, campaign_id, MAX(last_sent_date) AS last_sent
+      FROM dm_property_conversions
+      WHERE ${EXCLUDE_SEED}
+        ${domainClause}
+        AND last_sent_date IS NOT NULL
+      GROUP BY domain, campaign_id
     ),
     latest AS (
-      SELECT DISTINCT ON (campaign_id)
-        campaign_id, campaign_name, domain, status, last_sent_date
+      SELECT DISTINCT ON (domain, campaign_id)
+        domain, campaign_id, campaign_name, status
       FROM rr_campaign_snapshots
       WHERE ${EXCLUDE_SEED}
         ${domainClause}
-      ORDER BY campaign_id, snapshot_at DESC
+      ORDER BY domain, campaign_id, snapshot_at DESC
     )
     SELECT
+      l.domain,
       l.campaign_id,
       l.campaign_name,
-      l.domain,
       l.status AS current_status,
-      l.last_sent_date,
+      rls.last_sent AS last_sent_date,
       s.observed_stopped_at
     FROM latest l
-    LEFT JOIN stops s ON s.campaign_id = l.campaign_id
+    LEFT JOIN stops s
+      ON s.domain = l.domain AND s.campaign_id = l.campaign_id
+    LEFT JOIN real_last_send rls
+      ON rls.domain = l.domain AND rls.campaign_id = l.campaign_id
     ORDER BY l.domain, l.campaign_id
   `);
 
@@ -154,12 +181,13 @@ export function deriveClientStoppedAt(
 }
 
 /**
- * Build an in-memory index: campaignId -> lifecycle.
- * Convenience for API routes that already iterate rr_campaign_snapshots rows.
+ * Build an in-memory index: "${domain}::${campaignId}" -> lifecycle.
+ * campaign_id is NOT globally unique — it's per-tenant — so we must index by
+ * the composite (domain, campaignId) key.
  */
-export function indexLifecyclesByCampaignId(lifecycles: CampaignLifecycle[]): Map<string, CampaignLifecycle> {
+export function indexLifecyclesByCampaignKey(lifecycles: CampaignLifecycle[]): Map<string, CampaignLifecycle> {
   const m = new Map<string, CampaignLifecycle>();
-  for (const lc of lifecycles) m.set(lc.campaignId, lc);
+  for (const lc of lifecycles) m.set(lifecycleKey(lc.domain, lc.campaignId), lc);
   return m;
 }
 

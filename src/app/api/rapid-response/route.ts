@@ -24,7 +24,8 @@ import {
 // → Client Performance so both widgets agree on "who stopped and when".
 import {
   queryCampaignLifecycles,
-  indexLifecyclesByCampaignId,
+  indexLifecyclesByCampaignKey,
+  lifecycleKey,
 } from '@/lib/campaign-lifecycle';
 import type {
   RrSystemStatus,
@@ -489,14 +490,14 @@ async function getCampaignList(_days: number, domain?: string) {
     ageIndex.set(`${c.domain}::${String(c.campaignId)}`, c);
   }
 
-  const lifecycleIndex = indexLifecyclesByCampaignId(lifecycles);
+  const lifecycleIndex = indexLifecyclesByCampaignKey(lifecycles);
 
   const data: RrCampaignSnapshot[] = rows.map((r: Record<string, unknown>) => {
     const onHold = Number(r.on_hold_count || 0);
     const ageRow = onHold > 0
       ? ageIndex.get(`${String(r.domain || '')}::${String(r.campaign_id || '')}`)
       : undefined;
-    const lifecycle = lifecycleIndex.get(String(r.campaign_id || ''));
+    const lifecycle = lifecycleIndex.get(lifecycleKey(String(r.domain || ''), String(r.campaign_id || '')));
     return {
       campaignId: String(r.campaign_id || ''),
       campaignName: String(r.campaign_name || ''),

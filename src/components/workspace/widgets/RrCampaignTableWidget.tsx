@@ -152,16 +152,7 @@ export function RrCampaignTableWidget({ data, onDomainClick }: RrCampaignTableWi
         const exact = `exact: ${iso}`;
         const tooltip = [sourceLabel, relative, exact].filter(Boolean).join(' · ');
         return (
-          <span
-            title={tooltip}
-            style={{
-              color: 'var(--text-primary)',
-              // Render fallback dates slightly dimmer so the observed vs fallback distinction
-              // is visible at a glance without adding a second column.
-              opacity: source === 'observed' ? 1 : 0.75,
-              fontStyle: source === 'observed' ? 'normal' : 'italic',
-            }}
-          >
+          <span title={tooltip} style={{ color: 'var(--text-primary)' }}>
             {label}
           </span>
         );
