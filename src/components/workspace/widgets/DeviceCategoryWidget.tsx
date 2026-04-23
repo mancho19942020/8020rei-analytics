@@ -12,16 +12,16 @@ import { MetricCard, TrendData } from '@/components/workspace/MetricCard';
 
 const colorMap = {
   blue: {
-    bg: 'bg-blue-700',
-    stroke: 'rgb(59, 130, 246)',
+    bg: 'bg-main-700',
+    stroke: 'var(--color-main-500)',
   },
   green: {
-    bg: 'bg-green-700',
-    stroke: 'rgb(34, 197, 94)',
+    bg: 'bg-success-700',
+    stroke: 'var(--color-success-500)',
   },
   orange: {
-    bg: 'bg-orange-700',
-    stroke: 'rgb(249, 115, 22)',
+    bg: 'bg-alert-700',
+    stroke: 'var(--color-alert-500)',
   },
 };
 
@@ -74,7 +74,7 @@ export function DeviceCategoryWidget({ data }: DeviceCategoryWidgetProps) {
   const hasTablet = tablet && tablet.users > 0;
 
   return (
-    <div className="flex flex-col gap-3 w-full h-full">
+    <div className="flex flex-col w-full h-full flush-cards-vertical">
       {/* Desktop */}
       {desktop && (
         <MetricCard

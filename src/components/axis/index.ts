@@ -50,6 +50,18 @@ export type { AxisModalProps } from './AxisModal';
 export { AxisDateRangePicker } from './AxisDateRangePicker';
 export type { AxisDateRangePickerProps, DateRangeValue } from './AxisDateRangePicker';
 
+export { AxisDomainSearch } from './AxisDomainSearch';
+export type { AxisDomainSearchProps } from './AxisDomainSearch';
+
+export { AxisSidebar } from './AxisSidebar';
+export type { AxisSidebarProps } from './AxisSidebar';
+
+export { AxisSidebarItem } from './AxisSidebarItem';
+export type { AxisSidebarItemProps } from './AxisSidebarItem';
+
+export { AxisSidebarSection } from './AxisSidebarSection';
+export type { AxisSidebarSectionProps } from './AxisSidebarSection';
+
 // Export type definitions
 export * from '@/types/axis';
 export * from '@/types/table';

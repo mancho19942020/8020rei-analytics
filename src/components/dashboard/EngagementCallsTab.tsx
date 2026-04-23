@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import { AxisSkeleton, AxisCallout, AxisButton, AxisTag } from '@/components/axis';
 import { TabHandle } from '@/types/widget';
+import { authFetch } from '@/lib/auth-fetch';
 
 // Types for engagement call documents
 interface ClientInsight {
@@ -559,7 +560,7 @@ export const EngagementCallsTab = forwardRef<TabHandle>(function EngagementCalls
     try {
       const params = new URLSearchParams({ includePreview: 'true' });
       if (refresh) params.set('refresh', 'true');
-      const res = await fetch(`/api/engagement-calls?${params}`);
+      const res = await authFetch(`/api/engagement-calls?${params}`);
       const json = await res.json();
 
       if (json.success) {
@@ -578,7 +579,7 @@ export const EngagementCallsTab = forwardRef<TabHandle>(function EngagementCalls
     setLoadingDocument(true);
 
     try {
-      const res = await fetch(`/api/engagement-calls/${id}`);
+      const res = await authFetch(`/api/engagement-calls/${id}`);
       const json = await res.json();
 
       if (json.success) {
@@ -614,7 +615,7 @@ export const EngagementCallsTab = forwardRef<TabHandle>(function EngagementCalls
       const formData = new FormData();
       formData.append('file', file);
 
-      const res = await fetch('/api/engagement-calls/upload', {
+      const res = await authFetch('/api/engagement-calls/upload', {
         method: 'POST',
         body: formData,
       });

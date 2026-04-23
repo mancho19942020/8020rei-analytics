@@ -39,14 +39,18 @@ export type WidgetType =
   | 'clients-overview'
   | 'clients-table'
   | 'client-activity-trend'
-  // Traffic tab widgets
+  // Engagement tab widgets (formerly Traffic)
+  | 'sessions-by-day'
+  | 'first-visits-trend'
+  | 'peak-hours'
+  | 'avg-session-duration'
+  | 'sessions-per-user'
+  | 'active-days'
+  // Legacy traffic widgets (kept for backwards compat)
   | 'traffic-by-source'
   | 'traffic-by-medium'
   | 'traffic-browser'
   | 'top-referrers'
-  | 'top-pages'
-  | 'sessions-by-day'
-  | 'first-visits-trend'
   // Technology tab widgets
   | 'device-category'
   | 'browser-distribution'
@@ -86,7 +90,80 @@ export type WidgetType =
   | 'api-endpoint-breakdown'
   | 'api-top-clients'
   | 'api-error-tracker'
-  | 'api-recent-logs';
+  | 'api-recent-logs'
+  // Features > 8020REI > Rapid Response tab widgets
+  | 'rr-system-status'
+  | 'rr-operational-pulse'
+  | 'rr-ops-status-strip'
+  | 'rr-quality-metrics'
+  | 'rr-pcm-health'
+  | 'rr-postal-performance'
+  | 'rr-sends-trend'
+  | 'rr-status-breakdown'
+  | 'rr-alerts-feed'
+  | 'rr-on-hold-breakdown'
+  | 'rr-campaign-table'
+  | 'rr-q2-goal'
+  | 'rr-q2-top-contributors'
+  | 'rr-system-coverage'
+  | 'rr-data-integrity'
+  // Features > 8020REI > DM Campaign Overview tab widgets
+  | 'dm-overview-headline'
+  | 'dm-overview-test-cost-cards'
+  | 'dm-overview-send-trend'
+  | 'dm-overview-balance-flow'
+  // Features > 8020REI > DM Campaign Business Results tab widgets
+  | 'dm-alerts-feed'
+  | 'dm-funnel-overview'
+  | 'dm-client-performance'
+  | 'dm-template-leaderboard'
+  | 'dm-conversion-trend'
+  | 'dm-revenue-cost'
+  | 'dm-geo-breakdown'
+  // Product Tasks > AI Task Board widgets
+  | 'asana-board-overview'
+  | 'asana-tasks-table'
+  | 'asana-team-workload'
+  | 'asana-section-breakdown'
+  | 'asana-weekly-trend'
+  | 'asana-task-aging'
+  | 'asana-alerts-feed'
+  // Product Tasks > Bugs & DI Board widgets
+  | 'asana-bugs-overview'
+  | 'asana-bugs-table'
+  | 'asana-bugs-team-workload'
+  | 'asana-bugs-section-breakdown'
+  | 'asana-bugs-weekly-trend'
+  | 'asana-bugs-aging'
+  | 'asana-bugs-alerts-feed'
+  // Platform Analytics tab widgets
+  | 'pa-active-users'
+  | 'pa-visitor-log'
+  | 'pa-usage-trends'
+  | 'pa-popular-sections'
+  | 'pa-peak-hours'
+  | 'pa-user-engagement'
+  // Features > 8020REI > DM Campaign PCM & Profitability tab widgets
+  | 'pcm-reconciliation-overview'
+  | 'pcm-volume-comparison'
+  | 'pcm-cost-analysis'
+  | 'pcm-status-comparison'
+  | 'pcm-mismatch-table'
+  | 'pcm-margin-summary'
+  | 'pcm-mail-class-comparison'
+  | 'pcm-client-margins'
+  | 'pcm-margin-trend'
+  | 'pcm-price-alert'
+  | 'pcm-price-change-detection'
+  | 'pcm-pricing-overview'
+  | 'pcm-pricing-history'
+  | 'pcm-data-match'
+  | 'pcm-margin-period'
+  | 'pcm-clients-profitable'
+  | 'pcm-clients-breakeven'
+  | 'pcm-clients-losing'
+  | 'pcm-domain-table'
+  | 'pcm-template-table';
 
 /**
  * Widget Configuration
@@ -102,6 +179,9 @@ export interface Widget {
 
   /** Display title */
   title: string;
+
+  /** Tooltip description shown on hover next to the title */
+  tooltip?: string;
 
   /** Grid column position (0-based) */
   x: number;
@@ -129,6 +209,26 @@ export interface Widget {
 
   /** Whether widget is static (cannot be moved/resized) */
   static?: boolean;
+
+  /**
+   * Remove body padding so content (metric cards, pill grids) goes edge-to-edge.
+   * SET THIS when the widget uses MetricCard rows, AxisPill grids, or any content
+   * that should fill the widget body without internal padding.
+   * When true, the Widget wrapper uses py-2 header (compact) and no body padding.
+   */
+  flushBody?: boolean;
+
+  /**
+   * How this widget responds to the date filter.
+   * - 'all-time': Widget always shows lifetime cumulative data regardless of date filter.
+   *   An "All time" tag appears next to the title so users know the filter doesn't apply.
+   * - 'date-filtered': Widget responds to the date filter.
+   * - 'last-30-days': Widget is pinned to a sliding 30-day window anchored to today,
+   *   independent of the date filter. Used when the backing table does not yet have
+   *   enough coverage to honor wider ranges — keeps the widget from silently showing
+   *   stale data for larger filters.
+   */
+  timeBehavior?: 'all-time' | 'date-filtered' | 'last-30-days';
 
   /** Widget-specific configuration */
   config?: Record<string, any>;

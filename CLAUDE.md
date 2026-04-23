@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-8020 Lens — analytics dashboard for 8020REI. Next.js 16 (App Router) frontend with a Fastify backend. Uses the **Axis Design System**, Firebase Auth, BigQuery for data, and a widget-based drag-drop workspace (react-grid-layout).
+Metrics Hub — analytics dashboard for 8020REI. Next.js 16 (App Router) frontend with a Fastify backend. Uses the **Axis Design System**, Firebase Auth, BigQuery for data, and a widget-based drag-drop workspace (react-grid-layout).
 
 ## Commands
 
@@ -54,6 +54,16 @@ The header and all navigation tab rows are **always fixed at the top** of the vi
 
 See the dashboard-builder skill (`SKILL.md`) for the full page structure template.
 
+### Sentence Case for All Titles (MANDATORY — Global Rule)
+
+All UI titles use **sentence case**: only the first word is capitalized. This applies to widget titles, tab labels, alert names, callout headlines, table headers, and any user-facing heading.
+
+- "Key metrics" not "Key Metrics"
+- "Is it running?" not "Is It Running?"
+- "Critical issues detected" not "Critical Issues Detected"
+
+**Exceptions:** Acronyms stay uppercase (API, PCM, DAU, WAU, MAU, US). Proper nouns stay capitalized (e.g. "Zillow", "Google").
+
 ### Styling: Custom CSS over Tailwind
 
 Tailwind color classes (e.g. `bg-neutral-100`, `text-main-500`) **do not work reliably** in this project. Always use the custom CSS classes from `globals.css`:
@@ -66,7 +76,7 @@ Tailwind color classes (e.g. `bg-neutral-100`, `text-main-500`) **do not work re
 ### Light/Dark Mode
 
 - Light: header + nav tabs are white (`chrome-bg`), content area is gray (`light-gray-bg`), cards white
-- Dark: header + nav tabs use `--surface-chrome` (#0d1321, slightly darker), content uses `--surface-base` (#111827), no pure black
+- Dark: header + nav tabs use `--surface-chrome` (#0a101c, darker gray-navy), content uses `--surface-base` (#0e1421), no pure black
 
 ### Design System Tokens
 
@@ -75,6 +85,10 @@ Only use defined semantic color shades: 50, 100, 300, 500, 700, 900, 950. Use se
 ### Dashboard Builder Skill
 
 Before building any new dashboard tab, widget, or navigation item, read `.claude/skills/dashboard-builder/SKILL.md`. It contains required patterns for widgets (export support, settings, shadows) and corrections learned from prior work.
+
+### Data Consistency Guardian
+
+**MUST run after creating or modifying any DM Campaign metric, widget, or API endpoint.** Read `.claude/skills/data-consistency-guardian/SKILL.md`. It enforces that every metric pulls from the correct source-of-truth table (`dm_property_conversions` for conversions, `rr_*` tables for operational health), uses correct terminology ("Sent" = mail pieces, "Mailed" = unique properties), and has tooltips explaining what each number counts. Run BEFORE presenting DM-related work as complete.
 
 ### Widget Development
 
@@ -94,16 +108,19 @@ Widgets live in `src/components/workspace/widgets/`. Each widget receives data v
 - `credentials/` directory holds service account key files
 - Next.js output mode: `standalone` (for Docker/Cloud Run deployment)
 
-## CRITICAL: Deploy Protocol
+## Deploy Protocol
 
-**There is NO CI/CD pipeline.** Pushing to GitHub does NOT deploy to Cloud Run. Whenever the user asks to push, you MUST also deploy. Read `.claude/skills/deploy-to-cloud-run/SKILL.md` for the full protocol.
+Pushing to `main` (directly or via merged PR) **automatically deploys** to Cloud Run via GitHub Actions (`.github/workflows/deploy.yml`). No manual deploy step is needed.
 
-Quick reference: after `git push origin main`, always run the deploy script from the skill (regenerate env vars YAML, then `gcloud run deploy`).
+If auto-deploy fails, read `.claude/skills/deploy-to-cloud-run/SKILL.md` for the manual fallback protocol.
 
 ## Other Skills
 
 - `.claude/skills/deploy-to-cloud-run/` — **Auto-deploy protocol (MUST run after every git push)**
 - `.claude/skills/design-system-docs/` — Design system documentation and component patterns
+- `.claude/skills/data-consistency-guardian/` — **MUST run after creating or modifying any DM Campaign metric, widget, or API endpoint.** Enforces source-of-truth alignment, terminology consistency, tooltip coverage, and cross-section data integrity.
+- `.claude/skills/metrics-auditor/` — **MUST run after creating or modifying any widget, API endpoint, or query within the DM Campaign section.** Audits cross-tab data consistency across Operational Health, Business Results, and PCM & Profitability. Verifies delivery rates, test domain exclusions, terminology, source tables, and tooltip completeness. Run BEFORE presenting any DM Campaign work as complete.
+- `.claude/skills/design-kit-guardian/` — **MUST run after creating or modifying any UI component** (widgets, tabs, charts). Audits Axis Design System compliance: correct component usage, CSS variable tokens, BaseChart wrappers, dark mode. Run BEFORE presenting UI work as complete.
 - `.claude/skills/gcp-guardian/` — GCP security best practices
 
 ## Documentation

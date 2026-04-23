@@ -31,10 +31,10 @@
 
 'use client';
 
-import { useEffect, useRef, ReactNode } from 'react';
+import { useEffect, useRef, useCallback, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
-type ModalSize = 'sm' | 'md' | 'lg';
+type ModalSize = 'sm' | 'md' | 'lg' | 'xl';
 
 export interface AxisModalProps {
   /** Whether the modal is visible */
@@ -51,12 +51,15 @@ export interface AxisModalProps {
   size?: ModalSize;
   /** Prevent closing on backdrop click */
   disableBackdropClose?: boolean;
+  /** When true, the body does not scroll — children manage their own scroll (e.g. a full-height AxisTable) */
+  fitContent?: boolean;
 }
 
 const SIZE_WIDTHS: Record<ModalSize, number> = {
   sm: 480,
   md: 600,
   lg: 780,
+  xl: 1000,
 };
 
 export function AxisModal({
@@ -67,9 +70,14 @@ export function AxisModal({
   footer,
   size = 'md',
   disableBackdropClose = false,
+  fitContent = false,
 }: AxisModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
   const maxWidth = SIZE_WIDTHS[size];
+
+  // Keep onClose ref current without re-triggering effects
+  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
 
   // Lock body scroll while open
   useEffect(() => {
@@ -86,7 +94,7 @@ export function AxisModal({
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        onClose();
+        onCloseRef.current();
         return;
       }
 
@@ -115,7 +123,7 @@ export function AxisModal({
     };
 
     document.addEventListener('keydown', handleKeyDown);
-    // Move focus into dialog
+    // Move focus into dialog only when first opening
     setTimeout(() => {
       const dialog = dialogRef.current;
       if (!dialog) return;
@@ -126,7 +134,7 @@ export function AxisModal({
     }, 50);
 
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open || typeof document === 'undefined') return null;
 
@@ -153,7 +161,7 @@ export function AxisModal({
           backgroundColor: 'rgba(0, 0, 0, 0.45)',
           backdropFilter: 'blur(2px)',
         }}
-        onClick={disableBackdropClose ? undefined : onClose}
+        onClick={disableBackdropClose ? undefined : () => onCloseRef.current()}
         aria-hidden="true"
       />
 
@@ -164,7 +172,8 @@ export function AxisModal({
           position: 'relative',
           width: '100%',
           maxWidth,
-          maxHeight: 'calc(100vh - 48px)',
+          height: fitContent ? '70vh' : undefined,
+          maxHeight: '70vh',
           display: 'flex',
           flexDirection: 'column',
           borderRadius: 16,
@@ -211,11 +220,15 @@ export function AxisModal({
           </button>
         </div>
 
-        {/* Body (scrollable) */}
+        {/* Body */}
         <div
           style={{
             flex: 1,
-            overflowY: 'auto',
+            minHeight: 0,
+            display: fitContent ? 'flex' : undefined,
+            flexDirection: fitContent ? 'column' : undefined,
+            overflow: fitContent ? 'hidden' : undefined,
+            overflowY: fitContent ? undefined : 'auto',
             padding: '24px',
           }}
         >

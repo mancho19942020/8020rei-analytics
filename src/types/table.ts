@@ -19,8 +19,8 @@ export interface Column {
   type?: ColumnType;
   /** Text alignment (auto-determined if not specified) */
   align?: ColumnAlign;
-  /** Column width in pixels */
-  width?: number;
+  /** Column width in pixels or CSS string (e.g. '33%') */
+  width?: number | string;
   /** Minimum width in pixels */
   minWidth?: number;
   /** Maximum width in pixels */
@@ -29,6 +29,8 @@ export interface Column {
   sortable?: boolean;
   /** Hide column */
   hidden?: boolean;
+  /** Tooltip shown on hover over the column header */
+  headerTooltip?: string;
   /** Custom cell renderer — when provided, overrides default formatting */
   render?: (value: CellValue, row: RowData) => ReactNode;
 }

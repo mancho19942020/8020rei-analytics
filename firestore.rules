@@ -1,0 +1,25 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // pcm_alignment_runs: the audit log written by the 30-min reconciler.
+    // Spec: personal-documents/8020-metrics-hub/2026-04-22/phase-2-schema.md
+    //
+    // Read: authenticated @8020rei.com users (so a future alignment-history
+    //       page can render without a server proxy).
+    // Write: disallowed for client SDKs. Only the Admin SDK (cron running
+    //        inside the Cloud Run service) can write; it bypasses these rules.
+    match /pcm_alignment_runs/{docId} {
+      allow read: if request.auth != null
+                  && request.auth.token.email.matches('.*@8020rei[.]com$');
+      allow write: if false;
+    }
+
+    // Existing: grafana_contributors (pre-PCM-alignment, untouched here).
+    match /grafana_contributors/{uid} {
+      allow read: if request.auth != null
+                  && request.auth.token.email.matches('.*@8020rei[.]com$');
+      allow write: if request.auth != null && request.auth.uid == uid;
+    }
+  }
+}

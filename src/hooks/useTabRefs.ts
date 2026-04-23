@@ -10,24 +10,30 @@ import { TabHandle } from '@/types/widget';
 
 /** Maps a navigation key to a ref. The key is derived from the tab's position in the nav hierarchy. */
 type TabRefKey =
-  | 'users' | 'features' | 'clients' | 'traffic' | 'technology'
+  | 'users' | 'features' | 'clients' | 'engagement' | 'technology'
   | 'geography' | 'events' | 'insights'
-  | 'client-domains' | 'product-jira-projects'
-  | 'properties-api';
+  | 'import' | 'product-jira-projects'
+  | 'properties-api' | 'dm-campaign'
+  | 'ai-task-board' | 'bugs-di-board'
+  | 'platform-analytics';
 
 export function useTabRefs() {
   const refs: Record<TabRefKey, React.RefObject<TabHandle | null>> = {
     'users': useRef<TabHandle>(null),
     'features': useRef<TabHandle>(null),
     'clients': useRef<TabHandle>(null),
-    'traffic': useRef<TabHandle>(null),
+    'engagement': useRef<TabHandle>(null),
     'technology': useRef<TabHandle>(null),
     'geography': useRef<TabHandle>(null),
     'events': useRef<TabHandle>(null),
     'insights': useRef<TabHandle>(null),
-    'client-domains': useRef<TabHandle>(null),
+    'import': useRef<TabHandle>(null),
     'product-jira-projects': useRef<TabHandle>(null),
     'properties-api': useRef<TabHandle>(null),
+    'dm-campaign': useRef<TabHandle>(null),
+    'ai-task-board': useRef<TabHandle>(null),
+    'bugs-di-board': useRef<TabHandle>(null),
+    'platform-analytics': useRef<TabHandle>(null),
   };
 
   /**
@@ -38,18 +44,23 @@ export function useTabRefs() {
     subsection: string,
     detailTab: string
   ): TabRefKey | null => {
-    // Product section tabs
-    if (mainSection === 'product') {
-      if (subsection === 'client-domains' || subsection === 'product-jira-projects') {
-        return subsection as TabRefKey;
-      }
+    // Feedback Loop > Import tab
+    if (mainSection === 'feedback-loop' && subsection === 'import') {
+      return 'import';
+    }
+    // Features > 8020REI detail tabs (subsection is the tab itself after nav restructure)
+    if (mainSection === 'features') {
+      if (subsection === 'properties-api') return 'properties-api';
+      if (subsection === 'dm-campaign') return 'dm-campaign';
+    }
+    // Product Tasks subsections
+    if (mainSection === 'product-tasks') {
+      if (subsection === 'ai-task-board') return 'ai-task-board';
+      if (subsection === 'bugs-di-board') return 'bugs-di-board';
       return null;
     }
-    // Features > 8020REI detail tabs
-    if (mainSection === 'features' && subsection === 'features-rei') {
-      if (detailTab === 'properties-api') return 'properties-api';
-      return null;
-    }
+    // Platform Analytics (standalone main section)
+    if (mainSection === 'platform-analytics') return 'platform-analytics';
     // GA4 detail tabs
     if (detailTab && detailTab !== 'overview' && detailTab in refs) {
       return detailTab as TabRefKey;

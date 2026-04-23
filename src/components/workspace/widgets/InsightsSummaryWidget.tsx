@@ -135,29 +135,29 @@ function SeverityInfoModal({ isOpen, onClose, severity }: SeverityInfoModalProps
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
+    setMounted(() => true);
   }, []);
 
   const info = SEVERITY_INFO[severity];
 
   const colorClasses = {
     critical: {
-      headerBg: 'bg-red-500 dark:bg-red-600',
-      badgeBg: 'bg-red-100 dark:bg-red-900/30',
-      badgeText: 'text-red-700 dark:text-red-400',
-      iconBg: 'bg-red-100 dark:bg-red-900/30',
+      headerBg: 'bg-error-500',
+      badgeBg: 'bg-error-100 dark:bg-error-900',
+      badgeText: 'text-error-700 dark:text-error-300',
+      iconBg: 'bg-error-100 dark:bg-error-900',
     },
     warning: {
-      headerBg: 'bg-amber-500 dark:bg-amber-600',
-      badgeBg: 'bg-amber-100 dark:bg-amber-900/30',
-      badgeText: 'text-amber-700 dark:text-amber-400',
-      iconBg: 'bg-amber-100 dark:bg-amber-900/30',
+      headerBg: 'bg-alert-500',
+      badgeBg: 'bg-alert-100 dark:bg-alert-900',
+      badgeText: 'text-alert-700 dark:text-alert-300',
+      iconBg: 'bg-alert-100 dark:bg-alert-900',
     },
     info: {
-      headerBg: 'bg-blue-500 dark:bg-blue-600',
-      badgeBg: 'bg-blue-100 dark:bg-blue-900/30',
-      badgeText: 'text-blue-700 dark:text-blue-400',
-      iconBg: 'bg-blue-100 dark:bg-blue-900/30',
+      headerBg: 'bg-info-500',
+      badgeBg: 'bg-info-100 dark:bg-info-900',
+      badgeText: 'text-info-700 dark:text-info-300',
+      iconBg: 'bg-info-100 dark:bg-info-900',
     },
   };
 
@@ -170,7 +170,7 @@ function SeverityInfoModal({ isOpen, onClose, severity }: SeverityInfoModalProps
     <div className="fixed inset-0 z-[9999] flex items-center justify-center">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        className="absolute inset-0 bg-surface-overlay/80 backdrop-blur-sm"
         onClick={onClose}
       />
 
@@ -299,32 +299,32 @@ interface SeverityCardProps {
 function SeverityCard({ label, count, icon, color, description, onLearnMore }: SeverityCardProps) {
   const colorClasses = {
     critical: {
-      bg: 'bg-red-500 dark:bg-red-600',
-      text: 'text-red-600 dark:text-red-400',
-      border: 'border-red-200 dark:border-red-800 hover:border-red-300 dark:hover:border-red-700',
-      learnMoreBg: 'bg-red-100 dark:bg-red-900/30 hover:bg-red-200 dark:hover:bg-red-900/50',
-      learnMoreText: 'text-red-700 dark:text-red-400',
+      bg: 'bg-error-500',
+      text: 'text-error-700 dark:text-error-300',
+      border: 'border-error-100 dark:border-error-900 hover:border-error-300 dark:hover:border-error-700',
+      learnMoreBg: 'bg-error-50 dark:bg-error-950 hover:bg-error-100 dark:hover:bg-error-900',
+      learnMoreText: 'text-error-700 dark:text-error-300',
     },
     warning: {
-      bg: 'bg-amber-500 dark:bg-amber-600',
-      text: 'text-amber-600 dark:text-amber-400',
-      border: 'border-amber-200 dark:border-amber-800 hover:border-amber-300 dark:hover:border-amber-700',
-      learnMoreBg: 'bg-amber-100 dark:bg-amber-900/30 hover:bg-amber-200 dark:hover:bg-amber-900/50',
-      learnMoreText: 'text-amber-700 dark:text-amber-400',
+      bg: 'bg-alert-500',
+      text: 'text-alert-700 dark:text-alert-300',
+      border: 'border-alert-100 dark:border-alert-900 hover:border-alert-300 dark:hover:border-alert-700',
+      learnMoreBg: 'bg-alert-50 dark:bg-alert-950 hover:bg-alert-100 dark:hover:bg-alert-900',
+      learnMoreText: 'text-alert-700 dark:text-alert-300',
     },
     info: {
-      bg: 'bg-blue-500 dark:bg-blue-600',
-      text: 'text-blue-600 dark:text-blue-400',
-      border: 'border-blue-200 dark:border-blue-800 hover:border-blue-300 dark:hover:border-blue-700',
-      learnMoreBg: 'bg-blue-100 dark:bg-blue-900/30 hover:bg-blue-200 dark:hover:bg-blue-900/50',
-      learnMoreText: 'text-blue-700 dark:text-blue-400',
+      bg: 'bg-info-500',
+      text: 'text-info-700 dark:text-info-300',
+      border: 'border-info-100 dark:border-info-900 hover:border-info-300 dark:hover:border-info-700',
+      learnMoreBg: 'bg-info-50 dark:bg-info-950 hover:bg-info-100 dark:hover:bg-info-900',
+      learnMoreText: 'text-info-700 dark:text-info-300',
     },
   };
 
   const classes = colorClasses[color];
 
   return (
-    <div className={`flex flex-col p-3 bg-surface-raised rounded-xl border ${classes.border} hover:shadow-sm transition-all duration-200`}>
+    <div className={`flex flex-col p-3 bg-surface-raised border ${classes.border} transition-all duration-200 flex-1 min-w-0`}>
       {/* Header: Icon + Label + Learn More */}
       <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-2">
@@ -377,7 +377,7 @@ export function InsightsSummaryWidget({ data }: InsightsSummaryWidgetProps) {
 
   return (
     <>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
+      <div className="flex w-full h-full flush-cards">
         {/* Critical Alerts */}
         <SeverityCard
           label="Critical"

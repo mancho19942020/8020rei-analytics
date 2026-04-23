@@ -29,6 +29,7 @@ import {
   DEFAULT_PROPERTIES_API_LAYOUT,
   PROPERTIES_API_LAYOUT_STORAGE_KEY,
   PROPERTIES_API_WIDGET_CATALOG,
+  loadLayout,
 } from '@/lib/workspace/defaultLayouts';
 import { Widget, TabHandle } from '@/types/widget';
 import {
@@ -40,6 +41,7 @@ import {
   formatApiErrorsForExport,
   formatApiRecentLogsForExport,
 } from '@/lib/export';
+import { authFetch } from '@/lib/auth-fetch';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -145,19 +147,9 @@ export const PropertiesApiTab = forwardRef<TabHandle, PropertiesApiTabProps>(
     const [logPagination, setLogPagination] = useState({ page: 1, pageSize: 15, total: 0, totalPages: 0 });
 
     // Load layout from localStorage or use default
-    const [layout, setLayout] = useState<Widget[]>(() => {
-      if (typeof window !== 'undefined') {
-        const saved = localStorage.getItem(PROPERTIES_API_LAYOUT_STORAGE_KEY);
-        if (saved) {
-          try {
-            return JSON.parse(saved);
-          } catch (e) {
-            console.error('Failed to parse saved properties-api layout:', e);
-          }
-        }
-      }
-      return DEFAULT_PROPERTIES_API_LAYOUT;
-    });
+    const [layout, setLayout] = useState<Widget[]>(() =>
+      loadLayout(PROPERTIES_API_LAYOUT_STORAGE_KEY, DEFAULT_PROPERTIES_API_LAYOUT)
+    );
 
     // Expose methods to parent via ref
     useImperativeHandle(ref, () => ({
@@ -179,12 +171,12 @@ export const PropertiesApiTab = forwardRef<TabHandle, PropertiesApiTabProps>(
         const dp = buildDateQueryString(days, startDate, endDate);
         const [overviewRes, timeSeriesRes, clientsRes, endpointsRes, errorsRes, logsRes] =
           await Promise.all([
-            fetch(`/api/properties-api?type=overview&${dp}`).then((r) => r.json()),
-            fetch(`/api/properties-api?type=usage-over-time&${dp}&granularity=${granularity}`).then((r) => r.json()),
-            fetch(`/api/properties-api?type=by-client&${dp}&limit=20`).then((r) => r.json()),
-            fetch(`/api/properties-api?type=by-endpoint&${dp}`).then((r) => r.json()),
-            fetch(`/api/properties-api?type=errors&${dp}`).then((r) => r.json()),
-            fetch(`/api/properties-api?type=recent-logs&${dp}&page=1&pageSize=15`).then((r) => r.json()),
+            authFetch(`/api/properties-api?type=overview&${dp}`).then((r) => r.json()),
+            authFetch(`/api/properties-api?type=usage-over-time&${dp}&granularity=${granularity}`).then((r) => r.json()),
+            authFetch(`/api/properties-api?type=by-client&${dp}&limit=20`).then((r) => r.json()),
+            authFetch(`/api/properties-api?type=by-endpoint&${dp}`).then((r) => r.json()),
+            authFetch(`/api/properties-api?type=errors&${dp}`).then((r) => r.json()),
+            authFetch(`/api/properties-api?type=recent-logs&${dp}&page=1&pageSize=15`).then((r) => r.json()),
           ]);
 
         setData({
@@ -216,7 +208,7 @@ export const PropertiesApiTab = forwardRef<TabHandle, PropertiesApiTabProps>(
     // Load a different page of logs
     const fetchLogs = useCallback(async (page: number) => {
       try {
-        const res = await fetch(`/api/properties-api?type=recent-logs&${buildDateQueryString(days, startDate, endDate)}&page=${page}&pageSize=15`);
+        const res = await authFetch(`/api/properties-api?type=recent-logs&${buildDateQueryString(days, startDate, endDate)}&page=${page}&pageSize=15`);
         const json = await res.json();
         if (json.success) {
           setData((prev) => prev ? { ...prev, recentLogs: json.data } : prev);
@@ -347,16 +339,17 @@ export const PropertiesApiTab = forwardRef<TabHandle, PropertiesApiTabProps>(
         {/* Edit Mode Callout */}
         {editMode && (
           <div className="mb-4">
-            <AxisCallout type="info" title="Edit mode active">
+            <AxisCallout type="info" title="Edit layout mode active">
               <p>Drag widgets to rearrange, resize from corners, or use the widget menu to configure.</p>
             </AxisCallout>
           </div>
         )}
 
-        {/* Partial error banner */}
+        {/* Partial error banner — sanitized; raw backend error stays in the
+            browser console so stakeholders never see SQL / stack traces. */}
         {error && data?.overview && (
-          <AxisCallout type="alert" title="Partial data">
-            <p>{error}</p>
+          <AxisCallout type="alert" title="Some numbers didn't load">
+            <p>Refreshing the page usually resolves this. If it persists, reach out on #metrics-hub.</p>
           </AxisCallout>
         )}
 

@@ -146,11 +146,11 @@ export function getDomainLeaderboardQuery(dateRange: DateRangeParams = {}): stri
       COUNTIF(LOWER(record_type) = 'appointment' AND ${dateCondition}) as appointments_count,
       COUNTIF(LOWER(record_type) = 'deal' AND ${dateCondition}) as deals_count,
       COALESCE(SUM(CASE WHEN ${dateCondition} THEN revenue ELSE NULL END), 0) as total_revenue,
-      FORMAT_DATE('%Y-%m-%d', MAX(date)) as last_activity_date,
-      DATE_DIFF(CURRENT_DATE(), MAX(date), DAY) as days_since_activity,
+      FORMAT_DATE('%Y-%m-%d', MAX(CASE WHEN date <= CURRENT_DATE() THEN date ELSE NULL END)) as last_activity_date,
+      DATE_DIFF(CURRENT_DATE(), MAX(CASE WHEN date <= CURRENT_DATE() THEN date ELSE NULL END), DAY) as days_since_activity,
       CASE
-        WHEN DATE_DIFF(CURRENT_DATE(), MAX(date), DAY) <= 15 THEN 'healthy'
-        WHEN DATE_DIFF(CURRENT_DATE(), MAX(date), DAY) <= 90 THEN 'at-risk'
+        WHEN DATE_DIFF(CURRENT_DATE(), MAX(CASE WHEN date <= CURRENT_DATE() THEN date ELSE NULL END), DAY) <= 15 THEN 'healthy'
+        WHEN DATE_DIFF(CURRENT_DATE(), MAX(CASE WHEN date <= CURRENT_DATE() THEN date ELSE NULL END), DAY) <= 90 THEN 'at-risk'
         ELSE 'inactive'
       END as risk_level
     FROM ${TABLE}

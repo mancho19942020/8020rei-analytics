@@ -25,6 +25,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   'Feature': 'rgb(168, 85, 247)',    // purple
   'Engagement': 'rgb(249, 115, 22)', // orange
   'Growth': 'rgb(34, 197, 94)',      // green
+  'Rapid Response': 'rgb(236, 72, 153)', // pink
 };
 
 const DEFAULT_COLORS = [

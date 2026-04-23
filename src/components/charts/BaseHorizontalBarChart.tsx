@@ -61,10 +61,10 @@ export function BaseHorizontalBarChart({
         data={data}
         layout="vertical"
         margin={{
-          top: 20,
+          top: 5,
           right: 40,
           left: 10,
-          bottom: 20,
+          bottom: 5,
         }}
       >
         <CartesianGrid

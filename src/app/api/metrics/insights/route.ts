@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth-guard';
 import { runQuery } from '@/lib/bigquery';
 import { getCached, setCache } from '@/lib/cache';
+import { isAuroraConfigured } from '@/lib/aurora';
 import {
   getDauAnomalyQuery,
   getEventVolumeAnomalyQuery,
@@ -20,7 +22,7 @@ interface Alert {
   id: string;
   name: string;
   severity: 'critical' | 'warning' | 'info';
-  category: 'platform' | 'client' | 'feature' | 'engagement' | 'growth';
+  category: 'platform' | 'client' | 'feature' | 'engagement' | 'growth' | 'rapid-response';
   description: string;
   entity?: string;
   metrics?: {
@@ -258,6 +260,9 @@ function detectFirstVisitsAlert(data: any[]): Alert | null {
 // ============================================
 
 export async function GET(request: NextRequest) {
+  const authError = await requireAuth(request);
+  if (authError) return authError;
+
   const searchParams = request.nextUrl.searchParams;
   const userType = (searchParams.get('userType') || 'all') as UserType;
 
@@ -326,6 +331,21 @@ export async function GET(request: NextRequest) {
     // Growth alerts
     const firstVisitsAlert = detectFirstVisitsAlert(firstVisitsAnomaly);
     if (firstVisitsAlert) alerts.push(firstVisitsAlert);
+
+    // Rapid Response alerts (from Aurora)
+    if (isAuroraConfigured()) {
+      try {
+        const rrRes = await fetch(
+          `${request.nextUrl.origin}/api/rapid-response?type=alerts&days=30`
+        );
+        const rrJson = await rrRes.json();
+        if (rrJson.success && rrJson.data?.alerts) {
+          alerts.push(...rrJson.data.alerts);
+        }
+      } catch (err) {
+        console.warn('[API/Insights] Failed to fetch Rapid Response alerts:', err);
+      }
+    }
 
     // Sort alerts by severity (critical first, then warning, then info)
     const severityOrder = { critical: 0, warning: 1, info: 2 };

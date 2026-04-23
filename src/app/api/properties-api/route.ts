@@ -7,10 +7,14 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth-guard';
 import { runAuroraQuery, isAuroraConfigured } from '@/lib/aurora';
 import { getCached, setCache } from '@/lib/cache';
 
 export async function GET(request: NextRequest) {
+  const authError = await requireAuth(request);
+  if (authError) return authError;
+
   if (!isAuroraConfigured()) {
     return NextResponse.json(
       { success: false, error: 'Aurora data source is not configured' },
@@ -47,7 +51,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Internal error',
+        error: `Unable to load ${type}. Please retry.`,
       },
       { status: 500 }
     );

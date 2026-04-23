@@ -48,7 +48,7 @@ const UsersIcon = () => (
 
 export function UserActivityWidget({ data }: UserActivityWidgetProps) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full h-full">
+    <div className="flex w-full h-full flush-cards">
       {/* DAU */}
       <MetricCard
         label="Daily Active Users"

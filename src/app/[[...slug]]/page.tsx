@@ -1,27 +1,36 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState, useEffect, useMemo, useCallback, Suspense, use } from 'react';
+import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { useAuth } from '@/lib/firebase/AuthContext';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { DesignKitButton } from '@/components/DesignKitButton';
-import { Logo } from '@/components/Logo';
-import { AxisSelect, AxisSelectOption, AxisSkeleton, AxisCallout, AxisButton, AxisNavigationTab, AxisToggle, AxisDateRangePicker, DateRangeValue } from '@/components/axis';
+import { canAccessDesignKit, canAccessPlatformAnalytics } from '@/lib/access';
+import { SuggestionsButton } from '@/components/SuggestionsButton';
+import { SuggestionsModal } from '@/components/SuggestionsModal';
+import { WelcomeModal } from '@/components/WelcomeModal';
+import { AxisSelect, AxisSelectOption, AxisSkeleton, AxisCallout, AxisButton, AxisNavigationTab, AxisToggle, AxisDateRangePicker, DateRangeValue, AxisSidebar } from '@/components/axis';
 import { GridWorkspace, MetricsOverviewWidget, TimeSeriesWidget, BarChartWidget, DataTableWidget, WidgetCatalog, WidgetSettings } from '@/components/workspace';
-import { DEFAULT_LAYOUT, LAYOUT_STORAGE_KEY, OVERVIEW_WIDGET_CATALOG } from '@/lib/workspace/defaultLayouts';
+import { DataReliabilityHint } from '@/components/workspace/DataReliabilityHint';
+import type { DmCampaignTab } from '@/lib/data-reliability';
+import { DEFAULT_LAYOUT, LAYOUT_STORAGE_KEY, OVERVIEW_WIDGET_CATALOG, loadLayout } from '@/lib/workspace/defaultLayouts';
 import {
   MAIN_SECTION_TABS,
   SUBSECTION_TABS_MAP,
   GA4_DETAIL_TABS,
   FEATURES_REI_DETAIL_TABS,
+  DM_CAMPAIGN_SUB_TABS,
   FEATURES_ROOFING_DETAIL_TABS,
   PIPELINES_REI_DETAIL_TABS,
   PIPELINES_ROOFING_DETAIL_TABS,
   getDetailTabsForSubsection,
   getDefaultDetailTab,
+  buildNavUrl,
+  parseNavFromSlug,
 } from '@/lib/navigation';
 import { useTabRefs } from '@/hooks/useTabRefs';
+import { useSidebarState } from '@/hooks/useSidebarState';
 import {
   exportToCSV,
   formatMetricsForExport,
@@ -30,6 +39,8 @@ import {
   formatClientsForExport,
 } from '@/lib/export';
 import { Widget } from '@/types/widget';
+import { initTracker, trackNavigation } from '@/lib/platform-tracker';
+import { authFetch } from '@/lib/auth-fetch';
 
 // Lazy-load tab components — only loaded when the user navigates to them
 const TabSkeleton = () => <div className="flex-1 flex items-center justify-center p-8"><AxisSkeleton variant="custom" width="100%" height="256px" /></div>;
@@ -37,7 +48,7 @@ const TabSkeleton = () => <div className="flex-1 flex items-center justify-cente
 const UsersTab = dynamic(() => import('@/components/dashboard/UsersTab').then(m => m.UsersTab), { loading: TabSkeleton, ssr: false });
 const FeaturesTab = dynamic(() => import('@/components/dashboard/FeaturesTab').then(m => m.FeaturesTab), { loading: TabSkeleton, ssr: false });
 const ClientsTab = dynamic(() => import('@/components/dashboard/ClientsTab').then(m => m.ClientsTab), { loading: TabSkeleton, ssr: false });
-const TrafficTab = dynamic(() => import('@/components/dashboard/TrafficTab').then(m => m.TrafficTab), { loading: TabSkeleton, ssr: false });
+const EngagementTab = dynamic(() => import('@/components/dashboard/EngagementTab').then(m => m.EngagementTab), { loading: TabSkeleton, ssr: false });
 const TechnologyTab = dynamic(() => import('@/components/dashboard/TechnologyTab').then(m => m.TechnologyTab), { loading: TabSkeleton, ssr: false });
 const GeographyTab = dynamic(() => import('@/components/dashboard/GeographyTab').then(m => m.GeographyTab), { loading: TabSkeleton, ssr: false });
 const EventsTab = dynamic(() => import('@/components/dashboard/EventsTab').then(m => m.EventsTab), { loading: TabSkeleton, ssr: false });
@@ -45,7 +56,14 @@ const InsightsTab = dynamic(() => import('@/components/dashboard/InsightsTab').t
 const EngagementCallsTab = dynamic(() => import('@/components/dashboard/EngagementCallsTab').then(m => m.EngagementCallsTab), { loading: TabSkeleton, ssr: false });
 const GrafanaTab = dynamic(() => import('@/components/dashboard/GrafanaTab').then(m => m.GrafanaTab), { loading: TabSkeleton, ssr: false });
 const PropertiesApiTab = dynamic(() => import('@/components/dashboard/PropertiesApiTab').then(m => m.PropertiesApiTab), { loading: TabSkeleton, ssr: false });
+const RapidResponseTab = dynamic(() => import('@/components/dashboard/RapidResponseTab').then(m => m.RapidResponseTab), { loading: TabSkeleton, ssr: false });
 const ClientDomainsTab = dynamic(() => import('@/components/dashboard/ClientDomainsTab').then(m => m.ClientDomainsTab), { loading: TabSkeleton, ssr: false });
+const AiTaskBoardTab = dynamic(() => import('@/components/dashboard/AiTaskBoardTab').then(m => m.AiTaskBoardTab), { loading: TabSkeleton, ssr: false });
+const BugsDiBoardTab = dynamic(() => import('@/components/dashboard/BugsDiBoardTab').then(m => m.BugsDiBoardTab), { loading: TabSkeleton, ssr: false });
+const PlatformAnalyticsTab = dynamic(() => import('@/components/dashboard/PlatformAnalyticsTab').then(m => m.PlatformAnalyticsTab), { loading: TabSkeleton, ssr: false });
+const DmReportsTab = dynamic(() => import('@/components/dashboard/DmReportsTab').then(m => m.DmReportsTab), { loading: TabSkeleton, ssr: false });
+const DmDataSourcesTab = dynamic(() => import('@/components/dashboard/DmDataSourcesTab').then(m => m.DmDataSourcesTab), { loading: TabSkeleton, ssr: false });
+const DmOverviewTab = dynamic(() => import('@/components/dashboard/DmOverviewTab').then(m => m.DmOverviewTab), { loading: TabSkeleton, ssr: false });
 
 interface MetricValues {
   total_users: number;
@@ -70,7 +88,7 @@ const USER_TYPE_OPTIONS: AxisSelectOption[] = [
   { value: 'unclassified', label: 'Unclassified' },
 ];
 
-function Dashboard() {
+function Dashboard({ slug }: { slug: string[] }) {
   const { user, loading: authLoading, signOut } = useAuth();
   const router = useRouter();
   const [data, setData] = useState<DashboardData | null>(null);
@@ -83,78 +101,68 @@ function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [isCached, setIsCached] = useState(false);
-  // URL search params for deep linking
-  const searchParams = useSearchParams();
 
-  // Helper: resolve initial tab state from URL params
-  const getInitialNavState = useCallback(() => {
-    const section = searchParams.get('section') || 'product';
-    // Validate section exists
-    const validSection = MAIN_SECTION_TABS.find(t => t.id === section) ? section : 'product';
+  // Parse navigation state from URL path segments
+  const initialNav = useMemo(() => parseNavFromSlug(slug), []);  // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Resolve subsection
-    const subParam = searchParams.get('sub');
-    const subsections = SUBSECTION_TABS_MAP[validSection];
-    let validSub = '';
-    if (subsections && subsections.length > 0) {
-      const matchedSub = subParam ? subsections.find(t => t.id === subParam && !t.disabled) : null;
-      validSub = matchedSub ? matchedSub.id : (subsections.find(s => !s.disabled)?.id || subsections[0].id);
-    }
-
-    // Resolve detail tab
-    const tabParam = searchParams.get('tab');
-    let validTab = '';
-    const detailTabs = getDetailTabsForSubsection(validSection, validSub);
-    if (detailTabs) {
-      const matchedTab = tabParam ? detailTabs.find(t => t.id === tabParam && !t.disabled) : null;
-      validTab = matchedTab ? matchedTab.id : (detailTabs.find(t => !t.disabled)?.id || detailTabs[0].id);
-    }
-
-    return { section: validSection, sub: validSub, tab: validTab };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Navigation state (3 levels) — initialized from URL
-  const initialNav = useMemo(() => getInitialNavState(), [getInitialNavState]);
+  // Navigation state (3 levels) — initialized from URL path
   const [activeMainSection, setActiveMainSection] = useState(initialNav.section);
   const [activeSubsection, setActiveSubsection] = useState(initialNav.sub);
   const [activeDetailTab, setActiveDetailTab] = useState(initialNav.tab);
+  // Legacy — dmCampaignSubTab is now handled via activeDetailTab for dm-campaign subsection
+  const dmCampaignSubTab = activeSubsection === 'dm-campaign' ? activeDetailTab : 'overview';
+  const setDmCampaignSubTab = (tab: string) => setActiveDetailTab(tab);
+  const { collapsed: sidebarCollapsed, toggle: toggleSidebar } = useSidebarState();
   const [editMode, setEditMode] = useState(false);
   const [showEditCallout, setShowEditCallout] = useState(false);
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const [showWidgetCatalog, setShowWidgetCatalog] = useState(false);
   const [selectedWidgetForSettings, setSelectedWidgetForSettings] = useState<Widget | null>(null);
-  const [layout, setLayout] = useState<Widget[]>(() => {
-    // Load saved layout from localStorage on mount
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem(LAYOUT_STORAGE_KEY);
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch (e) {
-          console.error('Failed to parse saved layout:', e);
-        }
-      }
-    }
-    return DEFAULT_LAYOUT;
-  });
+  const [layout, setLayout] = useState<Widget[]>(() =>
+    loadLayout(LAYOUT_STORAGE_KEY, DEFAULT_LAYOUT)
+  );
 
-  // Sync navigation state → URL search params (replaceState to avoid history spam)
+  // Sync navigation state → clean URL path (replaceState to avoid history spam)
   useEffect(() => {
-    const params = new URLSearchParams();
-    params.set('section', activeMainSection);
-    // Only include sub if this section has subsections
-    if (activeSubsection && SUBSECTION_TABS_MAP[activeMainSection]) {
-      params.set('sub', activeSubsection);
-    }
-    // Only include tab if this section+sub has detail tabs
-    if (activeDetailTab && getDetailTabsForSubsection(activeMainSection, activeSubsection)) {
-      params.set('tab', activeDetailTab);
-    }
-    const newUrl = `${window.location.pathname}?${params.toString()}`;
+    const sub = SUBSECTION_TABS_MAP[activeMainSection] ? activeSubsection : '';
+    const tab = getDetailTabsForSubsection(activeMainSection, activeSubsection) ? activeDetailTab : '';
+    const newUrl = buildNavUrl(activeMainSection, sub, tab);
     window.history.replaceState(null, '', newUrl);
   }, [activeMainSection, activeSubsection, activeDetailTab]);
 
   // Tab refs for imperative actions (resetLayout, openWidgetCatalog)
   const tabRefs = useTabRefs();
+  // Destructure refs to avoid "Cannot access refs during render" (React Compiler)
+  const {
+    users: usersRef, features: featuresRef, clients: clientsRef, engagement: engagementRef,
+    technology: technologyRef, geography: geographyRef, events: eventsRef,
+    insights: insightsRef, import: importRef, 'properties-api': propertiesApiRef,
+    'dm-campaign': dmCampaignRef,
+    'ai-task-board': aiTaskBoardRef,
+    'bugs-di-board': bugsDiBoardRef,
+    'platform-analytics': platformAnalyticsRef,
+  } = tabRefs.refs;
+
+  // Sidebar navigation callbacks (shared between sidebar and legacy nav)
+  const handleSectionChange = useCallback((section: string) => {
+    setActiveMainSection(section);
+    const subsections = SUBSECTION_TABS_MAP[section];
+    if (subsections && subsections.length > 0) {
+      const firstEnabled = subsections.find(s => !s.disabled);
+      if (firstEnabled) {
+        setActiveSubsection(firstEnabled.id);
+        const defaultTab = getDefaultDetailTab(firstEnabled.id);
+        if (defaultTab) setActiveDetailTab(defaultTab);
+      }
+    }
+  }, []);
+
+  const handleSubsectionChange = useCallback((section: string, sub: string) => {
+    setActiveMainSection(section);
+    setActiveSubsection(sub);
+    const defaultTab = getDefaultDetailTab(sub);
+    if (defaultTab) setActiveDetailTab(defaultTab);
+  }, []);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -163,17 +171,7 @@ function Dashboard() {
     }
   }, [user, authLoading, router]);
 
-  useEffect(() => {
-    if (user) {
-      fetchData();
-    }
-  }, [dateRange, userType, user]);
-
-  useEffect(() => {
-    if (editMode) setShowEditCallout(true);
-  }, [editMode]);
-
-  async function fetchData() {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
 
@@ -182,7 +180,7 @@ function Dashboard() {
       : `days=${dateRange.days}`;
 
     try {
-      const res = await fetch(`/api/metrics?${dateParams}&userType=${userType}`);
+      const res = await authFetch(`/api/metrics?${dateParams}&userType=${userType}`);
       const json = await res.json();
 
       if (json.success) {
@@ -192,12 +190,44 @@ function Dashboard() {
       } else {
         setError(json.error || 'Error fetching data');
       }
-    } catch (err) {
+    } catch {
       setError('Failed to connect to API');
     }
 
     setLoading(false);
-  }
+  }, [dateRange, userType]);
+
+  useEffect(() => {
+    if (user) {
+      fetchData();
+    }
+  }, [fetchData, user]);
+
+  // Initialize platform tracker when user is authenticated
+  useEffect(() => {
+    if (user?.email) {
+      initTracker(user.email, user.displayName || undefined);
+    }
+  }, [user?.email, user?.displayName]);
+
+  // Track navigation changes
+  useEffect(() => {
+    if (user?.email) {
+      trackNavigation(activeMainSection, activeSubsection, activeDetailTab);
+    }
+  }, [activeMainSection, activeSubsection, activeDetailTab, user?.email]);
+
+  useEffect(() => {
+    if (editMode) setShowEditCallout(true);
+  }, [editMode]);
+
+  // Auto-disable edit mode on non-grid pages
+  const isNonGridPage = activeMainSection === 'engagement-calls' ||
+    activeMainSection === 'grafana' ||
+    (activeMainSection === 'features' && activeSubsection === 'dm-campaign' && ['overview', 'reports', 'data-sources'].includes(dmCampaignSubTab));
+  useEffect(() => {
+    if (isNonGridPage && editMode) setEditMode(false);
+  }, [isNonGridPage, editMode]);
 
   // Handle layout changes
   const handleLayoutChange = (newLayout: Widget[]) => {
@@ -341,54 +371,43 @@ function Dashboard() {
 
   if (loading) {
     return (
-      <div className="h-screen flex flex-col bg-surface-base">
-        <div className="w-full flex flex-col flex-1 min-h-0">
-          {/* Header Skeleton - minimal bar */}
+      <div className="h-screen flex flex-row bg-surface-base">
+        {/* Sidebar Skeleton */}
+        <div className="w-60 flex-shrink-0 h-full border-r border-stroke chrome-bg flex flex-col">
+          <div className="px-4 h-14 flex items-center border-b border-stroke">
+            <AxisSkeleton variant="custom" width="120px" height="20px" rounded="md" />
+          </div>
+          <div className="flex-1 px-3 py-3 space-y-2">
+            {Array.from({ length: 7 }).map((_, i) => (
+              <AxisSkeleton key={i} variant="custom" width="100%" height="32px" rounded="md" />
+            ))}
+          </div>
+        </div>
+
+        {/* Content Column Skeleton */}
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Header Skeleton */}
           <div className="flex-shrink-0 px-6 py-3 border-b border-stroke chrome-bg">
-            <div className="flex justify-between items-center">
-              <AxisSkeleton variant="custom" width="120px" height="24px" rounded="md" />
-              <div className="flex gap-2">
-                <AxisSkeleton variant="button" size="sm" />
-                <AxisSkeleton variant="button" size="sm" />
-              </div>
+            <div className="flex justify-end items-center gap-2">
+              <AxisSkeleton variant="button" size="sm" />
+              <AxisSkeleton variant="button" size="sm" />
             </div>
           </div>
 
-          {/* Navigation Skeleton - simple horizontal bar */}
-          <div className="flex-shrink-0 px-6 py-3 border-b border-stroke chrome-bg">
-            <AxisSkeleton variant="custom" width="100%" height="32px" rounded="md" />
-          </div>
-
-          {/* Second Navigation Skeleton */}
+          {/* Detail Tab Skeleton */}
           <div className="flex-shrink-0 px-6 py-3 border-b border-stroke chrome-bg">
             <AxisSkeleton variant="custom" width="60%" height="32px" rounded="md" />
           </div>
 
-          {/* Toolbar Skeleton - simple bar */}
-          <div className="flex-shrink-0 px-6 py-2 border-b border-stroke chrome-bg">
-            <div className="flex justify-between items-center">
-              <AxisSkeleton variant="custom" width="180px" height="24px" rounded="md" />
-              <div className="flex gap-2">
-                <AxisSkeleton variant="custom" width="120px" height="32px" rounded="md" />
-                <AxisSkeleton variant="custom" width="120px" height="32px" rounded="md" />
-              </div>
-            </div>
-          </div>
-
-          {/* Main Content - Minimalistic widget blocks */}
+          {/* Main Content Skeleton */}
           <div className="flex-1 overflow-y-auto px-6 py-4 light-gray-bg">
-            {/* Top row - metrics widgets */}
             <div className="mb-4">
               <AxisSkeleton variant="widget" height="120px" fullWidth />
             </div>
-
-            {/* Charts row */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
               <AxisSkeleton variant="chart" height="300px" />
               <AxisSkeleton variant="chart" height="300px" />
             </div>
-
-            {/* Table widget */}
             <AxisSkeleton variant="widget" height="280px" fullWidth />
           </div>
         </div>
@@ -414,66 +433,85 @@ function Dashboard() {
   if (!data) return null;
 
   return (
-    <div className="h-screen flex flex-col bg-surface-base">
-      <div className="w-full flex flex-col flex-1 min-h-0">
+    <div className="h-screen flex flex-row bg-surface-base">
+      {/* Welcome modal — shows once per user on first visit */}
+      <WelcomeModal />
+
+      {/* Sidebar Navigation (replaces Level 1 + Level 2 horizontal tabs) */}
+      <AxisSidebar
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={toggleSidebar}
+        activeSection={activeMainSection}
+        activeSubsection={activeSubsection}
+        onSectionChange={handleSectionChange}
+        onSubsectionChange={handleSubsectionChange}
+        hiddenSections={canAccessPlatformAnalytics(user?.email) ? undefined : new Set(['platform-analytics'])}
+      />
+
+      {/* Content Column */}
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <header className="flex-shrink-0 px-6 py-3 border-b border-stroke chrome-bg">
-          <div className="flex justify-between items-center gap-4">
-            {/* Logo */}
-            <Logo className="h-4 w-auto" />
+        <header className="flex-shrink-0 px-6 h-14 border-b border-stroke chrome-bg">
+          <div className="flex items-center gap-4 h-full">
+            {/* Updated timestamp — left-aligned */}
+            {lastUpdated && (
+              <span className="text-xs text-content-tertiary whitespace-nowrap mr-auto">
+                Updated: {new Date(lastUpdated).toLocaleString('en-US', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: 'numeric'
+                })}
+                {isCached && ' (cached)'}
+              </span>
+            )}
 
-            {/* Right side actions - consistent height */}
-            <div className="flex items-center gap-2">
+            {/* Right side actions */}
+            <div className="flex items-center gap-2 ml-auto">
 
-              {/* Global Tools */}
-              <div className="flex items-center gap-2">
-                {/* Updated timestamp */}
-                {lastUpdated && (
-                  <span className="text-xs text-content-tertiary whitespace-nowrap">
-                    Updated: {new Date(lastUpdated).toLocaleString('en-US', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                      day: '2-digit',
-                      month: '2-digit',
-                      year: 'numeric'
-                    })}
-                    {isCached && ' (cached)'}
-                  </span>
-                )}
-
-                {/* Edit Layout Toggle */}
+              {/* Edit Layout Toggle — hidden on non-grid pages */}
+              {activeMainSection !== 'engagement-calls' &&
+               activeMainSection !== 'grafana' &&
+               !(activeMainSection === 'features' && activeSubsection === 'dm-campaign' && ['reports', 'data-sources'].includes(dmCampaignSubTab)) && (
                 <AxisToggle
                   checked={editMode}
                   onChange={setEditMode}
                   label="Edit Layout"
                 />
+              )}
 
-                {/* User Type Filter */}
-                {activeMainSection !== 'product' && (
-                  <AxisSelect
+              <div className="w-3" /> {/* Spacer between toggle and filters */}
+
+              {/* User Type Filter — only shown for GA4 analytics tabs where it affects the data */}
+              {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && (
+                <AxisSelect
                   value={userType}
                   onChange={(val) => setUserType(val as 'all' | 'internal' | 'external' | 'unclassified')}
-                    options={USER_TYPE_OPTIONS}
-                    size="sm"
-                    fullWidth={false}
-                    className="w-36"
-                  />
-                )}
-
-                {/* Time Filter */}
-                <AxisDateRangePicker
-                  value={dateRange}
-                  onChange={setDateRange}
-                  size="sm"
+                  options={USER_TYPE_OPTIONS}
+                  size="md"
+                  fullWidth={false}
+                  className="w-40"
                 />
-              </div>
+              )}
 
-              {/* Divider */}
-              <div className="h-5 w-px bg-stroke mx-1" />
+              {/* Time Filter */}
+              <AxisDateRangePicker
+                value={dateRange}
+                onChange={setDateRange}
+                size="md"
+              />
 
-              {/* Design Kit */}
+              {/* Design Kit — visible only to authorized contributors */}
+              {canAccessDesignKit(user?.email) && (
+                <div className="h-9 flex items-center">
+                  <DesignKitButton />
+                </div>
+              )}
+
+              {/* Suggestions */}
               <div className="h-9 flex items-center">
-                <DesignKitButton />
+                <SuggestionsButton onClick={() => setSuggestionsOpen(true)} />
               </div>
 
               {/* Theme Toggle */}
@@ -483,7 +521,7 @@ function Dashboard() {
 
               {/* User Info */}
               {user && (
-                <div className="h-9 flex items-center gap-2 px-3 bg-surface-raised rounded-lg border border-stroke">
+                <div className="h-9 flex items-center gap-2 px-3 bg-surface-raised rounded-sm border border-stroke">
                   {user.photoURL && (
                     <img
                       src={user.photoURL}
@@ -498,58 +536,19 @@ function Dashboard() {
               )}
 
               {/* Sign Out Button */}
-              <button
+              <AxisButton
+                variant="outlined"
+                size="md"
                 onClick={signOut}
-                className="h-9 px-3 bg-surface-raised border border-stroke text-content-secondary hover:bg-surface-base hover:text-content-primary hover:border-stroke-strong rounded-lg transition-colors duration-200 text-sm font-medium"
               >
                 Sign Out
-              </button>
+              </AxisButton>
             </div>
           </div>
         </header>
 
-        {/* First-Level Navigation - Main Sections */}
-        <nav className="flex-shrink-0 px-6 border-b border-stroke chrome-bg">
-          <AxisNavigationTab
-            activeTab={activeMainSection}
-            onTabChange={(section) => {
-              setActiveMainSection(section);
-              // Reset subsection to first available when changing main section
-              const subsections = SUBSECTION_TABS_MAP[section];
-              if (subsections && subsections.length > 0) {
-                const firstEnabled = subsections.find(s => !s.disabled);
-                if (firstEnabled) {
-                  setActiveSubsection(firstEnabled.id);
-                  const defaultTab = getDefaultDetailTab(firstEnabled.id);
-                  if (defaultTab) setActiveDetailTab(defaultTab);
-                }
-              }
-            }}
-            tabs={MAIN_SECTION_TABS}
-            variant="line"
-            size="sm"
-          />
-        </nav>
-
-        {/* Second-Level Navigation - Sub-sections (show for all main sections) */}
-        {SUBSECTION_TABS_MAP[activeMainSection] && (
-          <nav className="flex-shrink-0 px-6 border-b border-stroke chrome-bg">
-            <AxisNavigationTab
-              activeTab={activeSubsection}
-              onTabChange={(sub) => {
-                setActiveSubsection(sub);
-                const defaultTab = getDefaultDetailTab(sub);
-                if (defaultTab) setActiveDetailTab(defaultTab);
-              }}
-              tabs={SUBSECTION_TABS_MAP[activeMainSection]}
-              variant="line"
-              size="sm"
-            />
-          </nav>
-        )}
-
-        {/* Third-Level Navigation - Detail Tabs (for GA4 analytics sections) */}
-        {activeMainSection === 'analytics' && (activeSubsection === '8020rei-ga4' || activeSubsection === '8020roofing-ga4') && (
+        {/* Third-Level Navigation - Detail Tabs (for GA4 analytics) */}
+        {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && (
           <nav className="flex-shrink-0 px-6 border-b border-stroke chrome-bg">
             <AxisNavigationTab
               activeTab={activeDetailTab}
@@ -561,52 +560,41 @@ function Dashboard() {
           </nav>
         )}
 
-        {/* Third-Level Navigation - Detail Tabs for Features > 8020 REI */}
-        {activeMainSection === 'features' && activeSubsection === 'features-rei' && (
+        {/* Detail Tabs for Features > DM Campaign (Operational health, Business results, PCM).
+            The "Data sources" reliability hint lives here, right-aligned on the same
+            row, so it's a single global surface across all DM Campaign sub-tabs
+            (moved 2026-04-22 from per-tab right-floating positions). Hidden on
+            Reports / Data sources sub-tabs since the hint covers the four data tabs. */}
+        {activeMainSection === 'features' && activeSubsection === 'dm-campaign' && (
           <nav className="flex-shrink-0 px-6 border-b border-stroke chrome-bg">
-            <AxisNavigationTab
-              activeTab={activeDetailTab}
-              onTabChange={setActiveDetailTab}
-              tabs={FEATURES_REI_DETAIL_TABS}
-              variant="line"
-              size="sm"
-            />
+            <div className="flex items-center justify-between gap-4">
+              <AxisNavigationTab
+                activeTab={activeDetailTab}
+                onTabChange={setActiveDetailTab}
+                tabs={DM_CAMPAIGN_SUB_TABS}
+                variant="line"
+                size="sm"
+              />
+              {(() => {
+                const hintTab: DmCampaignTab | null =
+                  dmCampaignSubTab === 'overview' ? 'overview'
+                  : dmCampaignSubTab === 'operational-health' ? 'operational-health'
+                  : dmCampaignSubTab === 'business-results' ? 'business-results'
+                  : dmCampaignSubTab === 'pcm-validation' ? 'profitability'
+                  : null;
+                return hintTab ? <DataReliabilityHint tab={hintTab} /> : null;
+              })()}
+            </div>
           </nav>
         )}
 
-        {/* Third-Level Navigation - Detail Tabs for Features > 8020 Roofing */}
-        {activeMainSection === 'features' && activeSubsection === 'features-roofing' && (
-          <nav className="flex-shrink-0 px-6 border-b border-stroke chrome-bg">
-            <AxisNavigationTab
-              activeTab={activeDetailTab}
-              onTabChange={setActiveDetailTab}
-              tabs={FEATURES_ROOFING_DETAIL_TABS}
-              variant="line"
-              size="sm"
-            />
-          </nav>
-        )}
-
-        {/* Third-Level Navigation - Detail Tabs for Pipelines > 8020 REI */}
+        {/* Detail Tabs for Pipelines */}
         {activeMainSection === 'pipelines' && activeSubsection === 'pipelines-rei' && (
           <nav className="flex-shrink-0 px-6 border-b border-stroke chrome-bg">
             <AxisNavigationTab
               activeTab={activeDetailTab}
               onTabChange={setActiveDetailTab}
               tabs={PIPELINES_REI_DETAIL_TABS}
-              variant="line"
-              size="sm"
-            />
-          </nav>
-        )}
-
-        {/* Third-Level Navigation - Detail Tabs for Pipelines > 8020 Roofing */}
-        {activeMainSection === 'pipelines' && activeSubsection === 'pipelines-roofing' && (
-          <nav className="flex-shrink-0 px-6 border-b border-stroke chrome-bg">
-            <AxisNavigationTab
-              activeTab={activeDetailTab}
-              onTabChange={setActiveDetailTab}
-              tabs={PIPELINES_ROOFING_DETAIL_TABS}
               variant="line"
               size="sm"
             />
@@ -644,7 +632,7 @@ function Dashboard() {
               {/* Edit Mode Info */}
               {editMode && showEditCallout && (
                 <div className="mb-4 relative">
-                  <AxisCallout type="info" title="Edit Mode Active">
+                  <AxisCallout type="info" title="Edit layout mode active">
                     <p className="text-body-regular">
                       Drag widgets by their handle icon to reposition them. Resize widgets by dragging their edges.
                       Your layout will be saved automatically.
@@ -676,7 +664,7 @@ function Dashboard() {
           {/* Users Tab */}
           {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && activeDetailTab === 'users' && (
             <UsersTab
-              ref={tabRefs.refs['users']}
+              ref={usersRef}
               days={days}
               userType={userType}
               startDate={startDate}
@@ -689,7 +677,7 @@ function Dashboard() {
           {/* Features Tab */}
           {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && activeDetailTab === 'features' && (
             <FeaturesTab
-              ref={tabRefs.refs['features']}
+              ref={featuresRef}
               days={days}
               userType={userType}
               startDate={startDate}
@@ -702,7 +690,7 @@ function Dashboard() {
           {/* Clients Tab */}
           {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && activeDetailTab === 'clients' && (
             <ClientsTab
-              ref={tabRefs.refs['clients']}
+              ref={clientsRef}
               days={days}
               userType={userType}
               startDate={startDate}
@@ -712,10 +700,10 @@ function Dashboard() {
             />
           )}
 
-          {/* Traffic Tab */}
-          {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && activeDetailTab === 'traffic' && (
-            <TrafficTab
-              ref={tabRefs.refs['traffic']}
+          {/* Engagement Tab (formerly Traffic) */}
+          {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && activeDetailTab === 'engagement' && (
+            <EngagementTab
+              ref={engagementRef}
               days={days}
               userType={userType}
               startDate={startDate}
@@ -728,7 +716,7 @@ function Dashboard() {
           {/* Technology Tab */}
           {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && activeDetailTab === 'technology' && (
             <TechnologyTab
-              ref={tabRefs.refs['technology']}
+              ref={technologyRef}
               days={days}
               userType={userType}
               startDate={startDate}
@@ -741,7 +729,7 @@ function Dashboard() {
           {/* Geography Tab */}
           {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && activeDetailTab === 'geography' && (
             <GeographyTab
-              ref={tabRefs.refs['geography']}
+              ref={geographyRef}
               days={days}
               userType={userType}
               startDate={startDate}
@@ -754,7 +742,7 @@ function Dashboard() {
           {/* Events Tab */}
           {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && activeDetailTab === 'events' && (
             <EventsTab
-              ref={tabRefs.refs['events']}
+              ref={eventsRef}
               days={days}
               userType={userType}
               startDate={startDate}
@@ -767,7 +755,7 @@ function Dashboard() {
           {/* Insights Tab */}
           {activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4' && activeDetailTab === 'insights' && (
             <InsightsTab
-              ref={tabRefs.refs['insights']}
+              ref={insightsRef}
               days={days}
               userType={userType}
               startDate={startDate}
@@ -787,10 +775,10 @@ function Dashboard() {
             <GrafanaTab />
           )}
 
-          {/* Product > Client Domains Tab */}
-          {activeMainSection === 'product' && activeSubsection === 'client-domains' && (
+          {/* Feedback Loop > Import Tab */}
+          {activeMainSection === 'feedback-loop' && activeSubsection === 'import' && (
             <ClientDomainsTab
-              ref={tabRefs.refs['client-domains']}
+              ref={importRef}
               days={days}
               startDate={startDate}
               endDate={endDate}
@@ -800,10 +788,74 @@ function Dashboard() {
           )}
 
 
-          {/* Properties API Tab (Features > 8020REI > Properties API) */}
-          {activeMainSection === 'features' && activeSubsection === 'features-rei' && activeDetailTab === 'properties-api' && (
+          {/* Properties API Tab (Features > Properties API) */}
+          {activeMainSection === 'features' && activeSubsection === 'properties-api' && (
             <PropertiesApiTab
-              ref={tabRefs.refs['properties-api']}
+              ref={propertiesApiRef}
+              days={days}
+              startDate={startDate}
+              endDate={endDate}
+              editMode={editMode}
+              onEditModeChange={setEditMode}
+            />
+          )}
+
+          {/* DM Campaign > Overview — executive headline metrics */}
+          {activeMainSection === 'features' && activeSubsection === 'dm-campaign' && dmCampaignSubTab === 'overview' && (
+            <DmOverviewTab />
+          )}
+
+          {/* DM Campaign Tab (Features > DM Campaign) — widget tabs */}
+          {activeMainSection === 'features' && activeSubsection === 'dm-campaign' && !['overview', 'reports', 'data-sources'].includes(dmCampaignSubTab) && (
+            <RapidResponseTab
+              ref={dmCampaignRef}
+              days={days}
+              startDate={startDate}
+              endDate={endDate}
+              editMode={editMode}
+              onEditModeChange={setEditMode}
+              activeSubTab={dmCampaignSubTab}
+            />
+          )}
+
+          {/* DM Campaign > Reports tab — document-style reports */}
+          {activeMainSection === 'features' && activeSubsection === 'dm-campaign' && dmCampaignSubTab === 'reports' && (
+            <DmReportsTab />
+          )}
+
+          {/* DM Campaign > Data sources tab — methodology & transparency */}
+          {activeMainSection === 'features' && activeSubsection === 'dm-campaign' && dmCampaignSubTab === 'data-sources' && (
+            <DmDataSourcesTab />
+          )}
+
+          {/* Product Tasks > AI Task Board */}
+          {activeMainSection === 'product-tasks' && activeSubsection === 'ai-task-board' && (
+            <AiTaskBoardTab
+              ref={aiTaskBoardRef}
+              days={days}
+              startDate={startDate}
+              endDate={endDate}
+              editMode={editMode}
+              onEditModeChange={setEditMode}
+            />
+          )}
+
+          {/* Product Tasks > Bugs & DI Board */}
+          {activeMainSection === 'product-tasks' && activeSubsection === 'bugs-di-board' && (
+            <BugsDiBoardTab
+              ref={bugsDiBoardRef}
+              days={days}
+              startDate={startDate}
+              endDate={endDate}
+              editMode={editMode}
+              onEditModeChange={setEditMode}
+            />
+          )}
+
+          {/* Platform Analytics Tab (German only) */}
+          {activeMainSection === 'platform-analytics' && canAccessPlatformAnalytics(user?.email) && (
+            <PlatformAnalyticsTab
+              ref={platformAnalyticsRef}
               days={days}
               startDate={startDate}
               endDate={endDate}
@@ -813,9 +865,13 @@ function Dashboard() {
           )}
 
           {/* Under Construction placeholder for sections without real content */}
-          {activeMainSection !== 'product' && activeMainSection !== 'engagement-calls' && activeMainSection !== 'grafana' &&
+          {activeMainSection !== 'engagement-calls' && activeMainSection !== 'grafana' &&
+           activeMainSection !== 'platform-analytics' &&
            !(activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4') &&
-           !(activeMainSection === 'features' && activeSubsection === 'features-rei' && activeDetailTab === 'properties-api') && (
+           !(activeMainSection === 'features' && activeSubsection === 'properties-api') &&
+           !(activeMainSection === 'features' && activeSubsection === 'dm-campaign') &&
+           !(activeMainSection === 'feedback-loop' && activeSubsection === 'import') &&
+           !(activeMainSection === 'product-tasks') && (
             <div className="flex items-center justify-center min-h-full">
               <div className="text-center">
                 {/* Construction Icon */}
@@ -866,14 +922,22 @@ function Dashboard() {
         onSave={handleUpdateWidget}
         onDelete={handleDeleteWidget}
       />
+
+      {/* Suggestions Modal */}
+      <SuggestionsModal
+        isOpen={suggestionsOpen}
+        onClose={() => setSuggestionsOpen(false)}
+        user={user}
+      />
     </div>
   );
 }
 
-export default function Page() {
+export default function Page({ params }: { params: Promise<{ slug?: string[] }> }) {
+  const { slug } = use(params);
   return (
     <Suspense>
-      <Dashboard />
+      <Dashboard slug={slug || []} />
     </Suspense>
   );
 }

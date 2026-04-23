@@ -22,7 +22,7 @@ import {
   RegionWidget,
   CityWidget,
 } from '@/components/workspace/widgets';
-import { DEFAULT_GEOGRAPHY_LAYOUT, GEOGRAPHY_LAYOUT_STORAGE_KEY, GEOGRAPHY_WIDGET_CATALOG } from '@/lib/workspace/defaultLayouts';
+import { DEFAULT_GEOGRAPHY_LAYOUT, GEOGRAPHY_LAYOUT_STORAGE_KEY, GEOGRAPHY_WIDGET_CATALOG, loadLayout } from '@/lib/workspace/defaultLayouts';
 import { Widget, TabHandle } from '@/types/widget';
 import {
   exportToCSV,
@@ -32,6 +32,7 @@ import {
   formatCityForExport,
 } from '@/lib/export';
 import { buildDateQueryString } from '@/lib/date-utils';
+import { authFetch } from '@/lib/auth-fetch';
 
 interface TrendData {
   value: number;
@@ -92,19 +93,9 @@ export const GeographyTab = forwardRef<TabHandle, GeographyTabProps>(function Ge
   const [selectedWidgetForSettings, setSelectedWidgetForSettings] = useState<Widget | null>(null);
 
   // Load layout from localStorage or use default
-  const [layout, setLayout] = useState<Widget[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem(GEOGRAPHY_LAYOUT_STORAGE_KEY);
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch (e) {
-          console.error('Failed to parse saved geography layout:', e);
-        }
-      }
-    }
-    return DEFAULT_GEOGRAPHY_LAYOUT;
-  });
+  const [layout, setLayout] = useState<Widget[]>(() =>
+    loadLayout(GEOGRAPHY_LAYOUT_STORAGE_KEY, DEFAULT_GEOGRAPHY_LAYOUT)
+  );
 
   // Expose methods to parent via ref
   useImperativeHandle(ref, () => ({
@@ -121,7 +112,7 @@ export const GeographyTab = forwardRef<TabHandle, GeographyTabProps>(function Ge
     setError(null);
 
     try {
-      const res = await fetch(`/api/metrics/geography?${buildDateQueryString(days, startDate, endDate)}&userType=${userType}`);
+      const res = await authFetch(`/api/metrics/geography?${buildDateQueryString(days, startDate, endDate)}&userType=${userType}`);
       const json = await res.json();
 
       if (json.success) {
@@ -289,7 +280,7 @@ export const GeographyTab = forwardRef<TabHandle, GeographyTabProps>(function Ge
       {/* Edit Mode Info */}
       {editMode && (
         <div className="mb-4">
-          <AxisCallout type="info" title="Edit Mode Active">
+          <AxisCallout type="info" title="Edit layout mode active">
             <p className="text-body-regular">
               Drag widgets by their handle icon to reposition them. Resize widgets by dragging their edges.
               Your layout will be saved automatically.

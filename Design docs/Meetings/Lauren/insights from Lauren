@@ -1,0 +1,97 @@
+# Metrics Hub — Meeting Insights & Action Items
+**Meeting:** Engagement Call – Property Investors of Central Florida
+**Date:** April 9, 2026
+**Attendees:** German Alvarez, Lauren Oxman, Daniela Borrego
+
+---
+
+## 🔴 Immediate Fixes (Address Now)
+
+### 1. Deal & Lead Validation Logic — Date Cross-Reference
+- **Issue:** Some deals/leads are being counted where the conversion date is *before* the first send date (confirmed false flag: Joe Homebuyer).
+- **Fix:** Enforce the rule that **lead conversion date AND deal conversion date must be strictly AFTER the first send date**. Any record violating this must be excluded or flagged.
+
+### 2. Delayed Feedback Loop Uploads — Unknown Date Problem
+- **Issue:** When a client uploads a lead without a date, the system automatically sets the date to today. This causes leads/deals to appear tied to a recent send when they may have actually converted months earlier.
+- **Fix:** Divide deals/leads into two categories:
+  - ✅ **Clean:** Converted date is after the first send date with a reasonable time gap.
+  - ⚠️ **Flagged:** Converted date is after first send, but the gap or context suggests the feedback loop was uploaded late (date may have been auto-set by the system).
+
+### 3. Short Conversion Time Flag
+- **Issue:** Some records show a deal closing within 30 days of the first send. Given the typical cash conversion cycle (homeowner receives letter → calls → appointment → contract → close), this is unlikely in most cases.
+- **Fix:** Flag any lead or deal where the time between first send and conversion is suspiciously short. These should be displayed with a visual warning and taken with a grain of salt. Still include them, but don't treat them as clean data.
+
+### 4. Geographic Breakdown — Fix Granularity
+- **Issue:** Current geographic breakdown doesn't distinguish well between high-density and low-density client regions.
+- **Fix:**
+  - For **areas with the most clients / fewest available seats:** break down by **county** (competition context makes this relevant).
+  - For **all other areas:** break down by **MSA (Metropolitan Statistical Area)**, not by state.
+  - Remove or demote state-level breakdowns — they are not actionable.
+
+---
+
+## 🟡 Improvements & Discussion Points (Next Meeting)
+
+### 5. Alert Threshold — Define Response Rate Ratios
+- **Issue:** Current alerts are triggering too aggressively (e.g., at 500 properties with zero leads). The threshold for "underperforming" has not been formally defined.
+- **Discussion needed:**
+  - What is the average expected response rate for rapid response campaigns?
+  - At what ratio should an alert trigger? (e.g., X sends with 0 leads)
+  - **Ratios must be adjusted by region** — national averages are risky. Cultural and demographic differences affect response rates significantly (e.g., Southern markets may respond better to postcards/longer letters; Northeast markets may respond to check letters with specific offer percentages).
+- **Action:** German to research regional cultural/behavioral differences (with Claude) to inform regional alert thresholds.
+
+### 6. Alert Delivery Channel — Rethink Distribution
+- **Issue:** Sending all CSMs daily Slack alerts for every campaign issue is creating noise. CSMs are not currently prepared to take action on these daily.
+- **Lauren's preference:** Alerts should be actionable and contextual, delivered through a channel the CS team is already using. Suggested alternatives:
+  - A **Salesmate task** triggered by the alert.
+  - An **AI-updated engagement call prep document** so CSMs surface relevant issues naturally during their client calls.
+- **Decision:** Bring **Thomas** into the next meeting — this falls within his emerging role and these are decisions Lauren does not want to override him on.
+- **Interim:** German to remove Lauren and CSMs from the Slack alerts channel until the system is refined and actionable.
+
+### 7. Underperforming Campaign Definition — Align Product & CS
+- **Issue:** No clear definition of what "underperforming" means for a rapid response campaign. Hall of Fame took ~6 months to produce a deal — that could look like underperformance early on.
+- **Discussion needed:**
+  - At what point does a campaign trigger a strategy review vs. a product/configuration check?
+  - The pipeline should be: **1) Validate the feature is working technically (PostCardMania delivery, campaign config) → 2) Then evaluate strategy (templates, distress types, counties, property types).**
+  - Campaigns with high activity but zero results should prompt: (a) tech/config audit first, then (b) strategy suggestion.
+
+### 8. On-Hold Letters — Define "Recent" Threshold
+- **Issue:** Some clients (e.g., Cleveland) have thousands of letters on hold due to past balance issues. When the balance is recharged, only new incoming properties are sent — the on-holds are stuck.
+- **Discussion needed (with John):** Define what "recent enough" means for an on-hold to still be worth sending (aligns with rapid response principles — you need to be first to contact). On-holds older than a set threshold should be discarded, not sent.
+- **Note:** Lauren has reservations about sending old on-holds in general — this needs alignment before any auto-send logic is built.
+
+---
+
+## 🟢 Validated & Working — Good News to Share with Clients
+
+- Several clients have generated real deals from rapid response campaigns, including: **Central City Solutions, Hall of Fame, Reno, Heritage, Family-Owned Homebuyers.**
+- Central City: campaign is now inactive but produced **6 deals** — strong re-engagement talking point ("You had 6 deals from this, why not reopen it?").
+- Reno: **16 leads, 1 deal.**
+- Template leaderboard is live — can now tell clients which letter types (e.g., check letter) are converting better.
+- Geographic breakdown (once fixed) will show clients where rapid response is winning.
+
+---
+
+## 📋 Action Items Summary
+
+| # | Owner | Action | Timeline |
+|---|-------|--------|----------|
+| 1 | German | Enforce: conversion date must be after first send date for both leads and deals | Now |
+| 2 | German | Flag deals/leads where feedback loop may have been uploaded late (auto-date issue) | Now |
+| 3 | German | Add flag for suspiciously short conversion windows | Now |
+| 4 | German | Fix geographic breakdown: county for dense markets, MSA for others, remove state | Now |
+| 5 | German | Remove Lauren & CSMs from Slack alerts channel until system is refined | Now |
+| 6 | German | Set up next meeting — invite Thomas | ASAP |
+| 7 | German | Research regional behavioral/cultural differences to inform alert thresholds | Before next meeting |
+| 8 | German | Prepare formal discussion on alert thresholds & ratios for next meeting | Before next meeting |
+| 9 | German + John | Define "recent" on-hold threshold — what is still worth sending? | Before next meeting |
+| 10 | Thomas (TBD) | Own the alert delivery channel decision — Slack vs. Salesmate task vs. AI call prep | Next meeting |
+
+---
+
+## 🗒️ Additional Context & Notes
+
+- The metrics hub currently has two tabs: **Operational Health** (for product/tech monitoring) and **Business Results** (for CS team and client conversations). These serve different audiences and should remain separate.
+- The broader goal of the alert system is to reach a state of **minimal critical alerts** — the long-term health signal, not a daily noise machine.
+- Rapid response is the focus of all this tracking. SmartDrop is the next feature to be introduced and will eventually be tracked similarly.
+- German is capturing this meeting transcript into the project so all points can be addressed systematically.

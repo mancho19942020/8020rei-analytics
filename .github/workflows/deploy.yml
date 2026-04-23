@@ -1,0 +1,145 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches: [main]
+
+# Only one deploy at a time
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Generate env vars file
+        env:
+          DRIVE_CREDS: ${{ secrets.GOOGLE_DRIVE_CREDENTIALS_JSON }}
+          BQ_PRODUCT_CREDS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_PRODUCT_JSON }}
+          AURORA_RESOURCE_ARN: ${{ secrets.DB_AURORA_RESOURCE_ARN }}
+          AURORA_SECRET_ARN: ${{ secrets.DB_AURORA_SECRET_ARN }}
+          AURORA_ACCESS_KEY: ${{ secrets.DB_AURORA_ACCESS_KEY_ID }}
+          AURORA_SECRET_KEY: ${{ secrets.DB_AURORA_SECRET_ACCESS_KEY }}
+          AURORA_REGION: ${{ secrets.DB_AURORA_DEFAULT_REGION }}
+          AURORA_DB: ${{ secrets.AWS_AURORA_GRAFANA_DB }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_DM_ALERTS_WEBHOOK_URL }}
+          SLACK_BOT: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL: ${{ secrets.SLACK_DM_ALERTS_CHANNEL_ID }}
+          SLACK_BIZ_CHANNEL: ${{ secrets.SLACK_BUSINESS_ALERTS_CHANNEL_ID }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          FIREBASE_ADMIN_CREDS: ${{ secrets.FIREBASE_ADMIN_CREDENTIALS_JSON }}
+          PCM_KEY: ${{ secrets.PCM_API_KEY }}
+          PCM_SECRET: ${{ secrets.PCM_API_SECRET }}
+        run: |
+          python3 << 'PYEOF'
+          import os, json
+
+          env_vars = {
+              'GOOGLE_CLOUD_PROJECT': 'web-app-production-451214',
+              'BIGQUERY_DATASET': 'analytics_489035450',
+              'BIGQUERY_PRODUCT_PROJECT': 'bigquery-467404',
+              'BIGQUERY_PRODUCT_DATASET': 'domain',
+              'GOOGLE_DRIVE_FOLDER_ID': '1y0QT_u6zUIzZowqvqu_HiR4-MveBeFMH',
+              'GOOGLE_DRIVE_CREDENTIALS_JSON': os.environ['DRIVE_CREDS'],
+              'GOOGLE_APPLICATION_CREDENTIALS_PRODUCT_JSON': os.environ['BQ_PRODUCT_CREDS'],
+              'DB_AURORA_RESOURCE_ARN': os.environ['AURORA_RESOURCE_ARN'],
+              'DB_AURORA_SECRET_ARN': os.environ['AURORA_SECRET_ARN'],
+              'DB_AURORA_ACCESS_KEY_ID': os.environ['AURORA_ACCESS_KEY'],
+              'DB_AURORA_SECRET_ACCESS_KEY': os.environ['AURORA_SECRET_KEY'],
+              'DB_AURORA_DEFAULT_REGION': os.environ['AURORA_REGION'],
+              'AWS_AURORA_GRAFANA_DB': os.environ['AURORA_DB'],
+          }
+
+          # Add auth secrets for API protection
+          cron_secret = os.environ.get('CRON_SECRET', '')
+          if cron_secret:
+              env_vars['CRON_SECRET'] = cron_secret
+              print('✓ CRON_SECRET configured (cron alert auth)')
+          else:
+              print('⚠ No CRON_SECRET — cron alert endpoints will be open')
+
+          firebase_admin_creds = os.environ.get('FIREBASE_ADMIN_CREDS', '')
+          if firebase_admin_creds:
+              env_vars['FIREBASE_ADMIN_CREDENTIALS_JSON'] = firebase_admin_creds
+              print('✓ FIREBASE_ADMIN_CREDENTIALS_JSON configured (API token verification)')
+          else:
+              print('⚠ No FIREBASE_ADMIN_CREDENTIALS_JSON — API routes will use default credentials')
+
+          # Add Slack credentials (bot token + channel for threading, webhook as fallback)
+          slack_bot = os.environ.get('SLACK_BOT', '')
+          slack_channel = os.environ.get('SLACK_CHANNEL', '')
+          slack_url = os.environ.get('SLACK_WEBHOOK', '')
+          slack_biz_channel = os.environ.get('SLACK_BIZ_CHANNEL', '')
+          if slack_bot and slack_channel:
+              env_vars['SLACK_BOT_TOKEN'] = slack_bot
+              env_vars['SLACK_DM_ALERTS_CHANNEL_ID'] = slack_channel
+              print(f'✓ Slack Bot Token + Channel ID configured (threaded messages)')
+          if slack_biz_channel:
+              env_vars['SLACK_BUSINESS_ALERTS_CHANNEL_ID'] = slack_biz_channel
+              print(f'✓ SLACK_BUSINESS_ALERTS_CHANNEL_ID configured (business alerts)')
+          if slack_url:
+              env_vars['SLACK_DM_ALERTS_WEBHOOK_URL'] = slack_url
+              print(f'✓ SLACK_DM_ALERTS_WEBHOOK_URL configured (fallback)')
+          if not slack_bot and not slack_url:
+              print('⚠ No Slack credentials — alerts will be disabled in production')
+
+          # Add PCM API credentials (PostcardMania read-only API)
+          pcm_key = os.environ.get('PCM_KEY', '')
+          pcm_secret = os.environ.get('PCM_SECRET', '')
+          if pcm_key and pcm_secret:
+              env_vars['PCM_API_KEY'] = pcm_key
+              env_vars['PCM_API_SECRET'] = pcm_secret
+              print('✓ PCM_API_KEY + PCM_API_SECRET configured (read-only)')
+          else:
+              print('⚠ No PCM credentials — PCM reconciliation will show "Not configured"')
+
+          # Validate JSON credentials
+          for key in ['GOOGLE_DRIVE_CREDENTIALS_JSON', 'GOOGLE_APPLICATION_CREDENTIALS_PRODUCT_JSON']:
+              try:
+                  j = json.loads(env_vars[key])
+                  print(f'✓ {key} valid — type: {j.get("type")}, project: {j.get("project_id")}')
+              except Exception as e:
+                  print(f'ERROR: {key} is invalid JSON: {e}')
+                  raise SystemExit(1)
+
+          with open('/tmp/env-vars.yaml', 'w') as f:
+              for k, v in env_vars.items():
+                  escaped = v.replace('\\', '\\\\').replace('"', '\\"')
+                  f.write(f'{k}: "{escaped}"\n')
+          print(f'✓ Generated {len(env_vars)} env vars to /tmp/env-vars.yaml')
+          PYEOF
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy analytics8020 \
+            --source . \
+            --region us-central1 \
+            --allow-unauthenticated \
+            --env-vars-file /tmp/env-vars.yaml \
+            --quiet
+
+      - name: Verify deployment
+        run: |
+          URL=$(gcloud run services describe analytics8020 --region us-central1 --format='value(status.url)')
+          echo "✓ Deployed to: $URL"
+          STATUS=$(curl -s -o /dev/null -w '%{http_code}' "$URL" --max-time 15 || echo "000")
+          if [ "$STATUS" = "200" ] || [ "$STATUS" = "302" ] || [ "$STATUS" = "307" ]; then
+            echo "✓ Service is responding (HTTP $STATUS)"
+          else
+            echo "⚠ Service returned HTTP $STATUS — check Cloud Run logs"
+          fi

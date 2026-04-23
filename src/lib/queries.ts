@@ -3752,3 +3752,265 @@ export function getFirstVisitsAnomalyQuery(userType: UserType = 'all'): string {
     WHERE event_date = FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY))
   `;
 }
+
+/**
+ * Get activity heatmap by hour and day of week.
+ * Returns session counts for each hour/day combination.
+ */
+export function getPeakHoursQuery(dateRange: DateRangeParams, userType: UserType = 'all'): string {
+  if (userType === 'all') {
+    return `
+      SELECT
+        EXTRACT(DAYOFWEEK FROM PARSE_DATE('%Y%m%d', event_date)) as day_of_week,
+        EXTRACT(HOUR FROM TIMESTAMP_MICROS(event_timestamp)) as hour,
+        COUNT(DISTINCT CONCAT(user_pseudo_id,
+          CAST((SELECT value.int_value FROM UNNEST(event_params) WHERE key = 'ga_session_id') AS STRING)
+        )) as sessions
+      FROM ${TABLE}
+      WHERE ${getDateFilter(dateRange)}
+      GROUP BY day_of_week, hour
+      ORDER BY day_of_week, hour
+    `;
+  }
+
+  const targetAffiliation = userType === 'internal' ? 'internal' : 'external';
+
+  return `
+    WITH session_affiliation AS (
+      SELECT
+        user_pseudo_id,
+        LAST_VALUE(
+          (SELECT value.string_value FROM UNNEST(user_properties) WHERE key = 'user_affiliation')
+          IGNORE NULLS
+        ) OVER (
+          PARTITION BY user_pseudo_id
+          ORDER BY event_timestamp
+          ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+        ) as final_affiliation
+      FROM ${TABLE}
+      WHERE ${getDateFilter(dateRange)}
+    ),
+    filtered_sessions AS (
+      SELECT DISTINCT user_pseudo_id
+      FROM session_affiliation
+      WHERE final_affiliation = '${targetAffiliation}'
+    )
+    SELECT
+      EXTRACT(DAYOFWEEK FROM PARSE_DATE('%Y%m%d', e.event_date)) as day_of_week,
+      EXTRACT(HOUR FROM TIMESTAMP_MICROS(e.event_timestamp)) as hour,
+      COUNT(DISTINCT CONCAT(e.user_pseudo_id,
+        CAST((SELECT value.int_value FROM UNNEST(e.event_params) WHERE key = 'ga_session_id') AS STRING)
+      )) as sessions
+    FROM ${TABLE} e
+    INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
+    WHERE ${getDateFilter(dateRange)}
+    GROUP BY day_of_week, hour
+    ORDER BY day_of_week, hour
+  `;
+}
+
+/**
+ * Get average session duration trend over time.
+ * Returns average engagement time per day based on user_engagement events.
+ */
+export function getAvgSessionDurationTrendQuery(dateRange: DateRangeParams, userType: UserType = 'all'): string {
+  if (userType === 'all') {
+    return `
+      WITH session_data AS (
+        SELECT
+          event_date,
+          user_pseudo_id,
+          (SELECT value.int_value FROM UNNEST(event_params) WHERE key = 'ga_session_id') as session_id,
+          SUM(CASE WHEN event_name = 'user_engagement'
+            THEN COALESCE((SELECT value.int_value FROM UNNEST(event_params) WHERE key = 'engagement_time_msec'), 0)
+            ELSE 0 END) as engagement_time_ms
+        FROM ${TABLE}
+        WHERE ${getDateFilter(dateRange)}
+        GROUP BY event_date, user_pseudo_id, session_id
+      )
+      SELECT
+        event_date,
+        ROUND(AVG(engagement_time_ms) / 1000, 1) as avg_duration_sec,
+        COUNT(*) as total_sessions
+      FROM session_data
+      GROUP BY event_date
+      ORDER BY event_date
+    `;
+  }
+
+  const targetAffiliation = userType === 'internal' ? 'internal' : 'external';
+
+  return `
+    WITH session_affiliation AS (
+      SELECT
+        user_pseudo_id,
+        LAST_VALUE(
+          (SELECT value.string_value FROM UNNEST(user_properties) WHERE key = 'user_affiliation')
+          IGNORE NULLS
+        ) OVER (
+          PARTITION BY user_pseudo_id
+          ORDER BY event_timestamp
+          ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+        ) as final_affiliation
+      FROM ${TABLE}
+      WHERE ${getDateFilter(dateRange)}
+    ),
+    filtered_sessions AS (
+      SELECT DISTINCT user_pseudo_id
+      FROM session_affiliation
+      WHERE final_affiliation = '${targetAffiliation}'
+    ),
+    session_data AS (
+      SELECT
+        e.event_date,
+        e.user_pseudo_id,
+        (SELECT value.int_value FROM UNNEST(e.event_params) WHERE key = 'ga_session_id') as session_id,
+        SUM(CASE WHEN e.event_name = 'user_engagement'
+          THEN COALESCE((SELECT value.int_value FROM UNNEST(e.event_params) WHERE key = 'engagement_time_msec'), 0)
+          ELSE 0 END) as engagement_time_ms
+      FROM ${TABLE} e
+      INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
+      WHERE ${getDateFilter(dateRange)}
+      GROUP BY e.event_date, e.user_pseudo_id, session_id
+    )
+    SELECT
+      event_date,
+      ROUND(AVG(engagement_time_ms) / 1000, 1) as avg_duration_sec,
+      COUNT(*) as total_sessions
+    FROM session_data
+    GROUP BY event_date
+    ORDER BY event_date
+  `;
+}
+
+/**
+ * Get daily sessions per user trend.
+ * Returns sessions per user ratio for each day.
+ */
+export function getSessionsPerUserTrendQuery(dateRange: DateRangeParams, userType: UserType = 'all'): string {
+  if (userType === 'all') {
+    return `
+      SELECT
+        event_date,
+        COUNT(DISTINCT CONCAT(user_pseudo_id,
+          CAST((SELECT value.int_value FROM UNNEST(event_params) WHERE key = 'ga_session_id') AS STRING)
+        )) as total_sessions,
+        COUNT(DISTINCT user_pseudo_id) as unique_users,
+        ROUND(SAFE_DIVIDE(
+          COUNT(DISTINCT CONCAT(user_pseudo_id,
+            CAST((SELECT value.int_value FROM UNNEST(event_params) WHERE key = 'ga_session_id') AS STRING)
+          )),
+          COUNT(DISTINCT user_pseudo_id)
+        ), 2) as sessions_per_user
+      FROM ${TABLE}
+      WHERE ${getDateFilter(dateRange)}
+      GROUP BY event_date
+      ORDER BY event_date
+    `;
+  }
+
+  const targetAffiliation = userType === 'internal' ? 'internal' : 'external';
+
+  return `
+    WITH session_affiliation AS (
+      SELECT
+        user_pseudo_id,
+        LAST_VALUE(
+          (SELECT value.string_value FROM UNNEST(user_properties) WHERE key = 'user_affiliation')
+          IGNORE NULLS
+        ) OVER (
+          PARTITION BY user_pseudo_id
+          ORDER BY event_timestamp
+          ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+        ) as final_affiliation
+      FROM ${TABLE}
+      WHERE ${getDateFilter(dateRange)}
+    ),
+    filtered_sessions AS (
+      SELECT DISTINCT user_pseudo_id
+      FROM session_affiliation
+      WHERE final_affiliation = '${targetAffiliation}'
+    )
+    SELECT
+      e.event_date,
+      COUNT(DISTINCT CONCAT(e.user_pseudo_id,
+        CAST((SELECT value.int_value FROM UNNEST(e.event_params) WHERE key = 'ga_session_id') AS STRING)
+      )) as total_sessions,
+      COUNT(DISTINCT e.user_pseudo_id) as unique_users,
+      ROUND(SAFE_DIVIDE(
+        COUNT(DISTINCT CONCAT(e.user_pseudo_id,
+          CAST((SELECT value.int_value FROM UNNEST(e.event_params) WHERE key = 'ga_session_id') AS STRING)
+        )),
+        COUNT(DISTINCT e.user_pseudo_id)
+      ), 2) as sessions_per_user
+    FROM ${TABLE} e
+    INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
+    WHERE ${getDateFilter(dateRange)}
+    GROUP BY e.event_date
+    ORDER BY e.event_date
+  `;
+}
+
+/**
+ * Get active days per user histogram.
+ * Returns how many users had 1 active day, 2 active days, etc.
+ */
+export function getActiveDaysPerUserQuery(dateRange: DateRangeParams, userType: UserType = 'all'): string {
+  if (userType === 'all') {
+    return `
+      WITH user_active_days AS (
+        SELECT
+          user_pseudo_id,
+          COUNT(DISTINCT event_date) as active_days
+        FROM ${TABLE}
+        WHERE ${getDateFilter(dateRange)}
+        GROUP BY user_pseudo_id
+      )
+      SELECT
+        active_days,
+        COUNT(*) as user_count
+      FROM user_active_days
+      GROUP BY active_days
+      ORDER BY active_days
+    `;
+  }
+
+  const targetAffiliation = userType === 'internal' ? 'internal' : 'external';
+
+  return `
+    WITH session_affiliation AS (
+      SELECT
+        user_pseudo_id,
+        LAST_VALUE(
+          (SELECT value.string_value FROM UNNEST(user_properties) WHERE key = 'user_affiliation')
+          IGNORE NULLS
+        ) OVER (
+          PARTITION BY user_pseudo_id
+          ORDER BY event_timestamp
+          ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+        ) as final_affiliation
+      FROM ${TABLE}
+      WHERE ${getDateFilter(dateRange)}
+    ),
+    filtered_sessions AS (
+      SELECT DISTINCT user_pseudo_id
+      FROM session_affiliation
+      WHERE final_affiliation = '${targetAffiliation}'
+    ),
+    user_active_days AS (
+      SELECT
+        e.user_pseudo_id,
+        COUNT(DISTINCT e.event_date) as active_days
+      FROM ${TABLE} e
+      INNER JOIN filtered_sessions fs ON e.user_pseudo_id = fs.user_pseudo_id
+      WHERE ${getDateFilter(dateRange)}
+      GROUP BY e.user_pseudo_id
+    )
+    SELECT
+      active_days,
+      COUNT(*) as user_count
+    FROM user_active_days
+    GROUP BY active_days
+    ORDER BY active_days
+  `;
+}

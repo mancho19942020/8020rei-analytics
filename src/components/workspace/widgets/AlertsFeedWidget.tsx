@@ -17,7 +17,7 @@ interface Alert {
   id: string;
   name: string;
   severity: 'critical' | 'warning' | 'info';
-  category: 'platform' | 'client' | 'feature' | 'engagement' | 'growth';
+  category: 'platform' | 'client' | 'feature' | 'engagement' | 'growth' | 'rapid-response';
   description: string;
   entity?: string;
   metrics?: {
@@ -69,15 +69,16 @@ function SeverityBadge({ severity }: { severity: Alert['severity'] }) {
 
 // Category badge component
 function CategoryBadge({ category }: { category: Alert['category'] }) {
-  const categoryConfig = {
+  const categoryConfig: Record<string, { icon: string; label: string }> = {
     platform: { icon: '🖥️', label: 'Platform' },
     client: { icon: '🏢', label: 'Client' },
     feature: { icon: '⚙️', label: 'Feature' },
     engagement: { icon: '📊', label: 'Engagement' },
     growth: { icon: '📈', label: 'Growth' },
+    'rapid-response': { icon: '📬', label: 'Rapid Response' },
   };
 
-  const config = categoryConfig[category];
+  const config = categoryConfig[category] || { icon: '❓', label: category };
 
   return (
     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-surface-base text-content-secondary border border-stroke">

@@ -22,7 +22,7 @@ import {
   OperatingSystemWidget,
   DeviceLanguageWidget,
 } from '@/components/workspace/widgets';
-import { DEFAULT_TECHNOLOGY_LAYOUT, TECHNOLOGY_LAYOUT_STORAGE_KEY, TECHNOLOGY_WIDGET_CATALOG } from '@/lib/workspace/defaultLayouts';
+import { DEFAULT_TECHNOLOGY_LAYOUT, TECHNOLOGY_LAYOUT_STORAGE_KEY, TECHNOLOGY_WIDGET_CATALOG, loadLayout } from '@/lib/workspace/defaultLayouts';
 import { Widget, TabHandle } from '@/types/widget';
 import {
   exportToCSV,
@@ -32,6 +32,7 @@ import {
   formatDeviceLanguageForExport,
 } from '@/lib/export';
 import { buildDateQueryString } from '@/lib/date-utils';
+import { authFetch } from '@/lib/auth-fetch';
 
 interface TrendData {
   value: number;
@@ -91,19 +92,9 @@ export const TechnologyTab = forwardRef<TabHandle, TechnologyTabProps>(function 
   const [selectedWidgetForSettings, setSelectedWidgetForSettings] = useState<Widget | null>(null);
 
   // Load layout from localStorage or use default
-  const [layout, setLayout] = useState<Widget[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem(TECHNOLOGY_LAYOUT_STORAGE_KEY);
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch (e) {
-          console.error('Failed to parse saved technology layout:', e);
-        }
-      }
-    }
-    return DEFAULT_TECHNOLOGY_LAYOUT;
-  });
+  const [layout, setLayout] = useState<Widget[]>(() =>
+    loadLayout(TECHNOLOGY_LAYOUT_STORAGE_KEY, DEFAULT_TECHNOLOGY_LAYOUT)
+  );
 
   // Expose methods to parent via ref
   useImperativeHandle(ref, () => ({
@@ -120,7 +111,7 @@ export const TechnologyTab = forwardRef<TabHandle, TechnologyTabProps>(function 
     setError(null);
 
     try {
-      const res = await fetch(`/api/metrics/technology?${buildDateQueryString(days, startDate, endDate)}&userType=${userType}`);
+      const res = await authFetch(`/api/metrics/technology?${buildDateQueryString(days, startDate, endDate)}&userType=${userType}`);
       const json = await res.json();
 
       if (json.success) {
@@ -286,7 +277,7 @@ export const TechnologyTab = forwardRef<TabHandle, TechnologyTabProps>(function 
       {/* Edit Mode Info */}
       {editMode && (
         <div className="mb-4">
-          <AxisCallout type="info" title="Edit Mode Active">
+          <AxisCallout type="info" title="Edit layout mode active">
             <p className="text-body-regular">
               Drag widgets by their handle icon to reposition them. Resize widgets by dragging their edges.
               Your layout will be saved automatically.

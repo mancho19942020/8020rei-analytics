@@ -7,6 +7,8 @@
 export { BigQueryService } from './bigquery.service.js';
 export { CacheService, CACHE_TTLS } from './cache.service.js';
 export { AuroraService } from './aurora.service.js';
+export { PcmApiClient, PcmReadOnlyViolationError } from './pcm-api-client.js';
+export { PcmReconciliationService } from './pcm-reconciliation.js';
 
 // Future services (to be implemented):
 // export { SalesforceService } from './salesforce.service.js';

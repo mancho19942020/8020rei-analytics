@@ -56,7 +56,7 @@ for FILE in $CHANGED_FILES; do
 
   # Skip non-component files (configs, types-only, etc.)
   case "$FILE" in
-    *.config.*|*.d.ts|scripts/*|backend/*) continue ;;
+    *.config.*|*.d.ts|scripts/*|backend/*|src/app/api/*) continue ;;
   esac
 
   LINE_NUM=0

@@ -47,6 +47,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   useEffect(() => {
     // Listen for authentication state changes
+    if (!auth) { setLoading(false); return; }
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         // User is signed in
@@ -59,7 +60,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         } else {
           // Not a company email - sign them out
           console.log('[Firebase Auth] Non-company email blocked:', email);
-          await firebaseSignOut(auth);
+          await firebaseSignOut(auth!);
           setUser(null);
           alert('Access denied. Only @8020rei.com email addresses are allowed.');
         }
@@ -81,7 +82,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       provider.setCustomParameters({
         prompt: 'select_account',
       });
-      await signInWithPopup(auth, provider);
+      await signInWithPopup(auth!, provider);
       // The onAuthStateChanged listener will handle the rest
     } catch (error: any) {
       console.error('[Firebase Auth] Sign in error:', error);
@@ -98,7 +99,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const signOut = async () => {
     try {
-      await firebaseSignOut(auth);
+      await firebaseSignOut(auth!);
     } catch (error) {
       console.error('[Firebase Auth] Sign out error:', error);
       alert('Sign out failed. Please try again.');

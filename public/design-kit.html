@@ -21,8 +21,9 @@
       --surface-raised: #f9fafb;
       --surface-overlay: #f3f4f6;
       --surface-sunken: #f3f4f6;
-      --text-primary: #111827;
-      --text-secondary: #374151;
+      --surface-chrome: #ffffff;
+      --text-primary: #1f2937;
+      --text-secondary: #4b5563;
       --text-tertiary: #6b7280;
       --text-disabled: #9ca3af;
       --border-default: #e5e7eb;
@@ -46,10 +47,11 @@
 
     /* Dark Mode */
     .dark {
-      --surface-base: #111827;
-      --surface-raised: #1f2937;
-      --surface-overlay: #374151;
-      --surface-sunken: #030712;
+      --surface-base: #0e1421;
+      --surface-raised: #1a232f;
+      --surface-overlay: #2f3745;
+      --surface-sunken: #02050f;
+      --surface-chrome: #0a101c;
       --text-primary: #f9fafb;
       --text-secondary: #d1d5db;
       --text-tertiary: #9ca3af;
@@ -522,15 +524,19 @@
     /* Inputs */
     .input {
       height: 36px;
-      padding: 0 12px;
+      padding: 0 16px;
       font-size: 14px;
       border: 1px solid var(--border-default);
-      border-radius: 12px;
+      border-radius: 4px;
       background: var(--surface-base);
       color: var(--text-primary);
       font-family: inherit;
       transition: all 0.15s ease;
     }
+
+    .input-sm { height: 28px; padding: 0 12px; font-size: 12px; }
+    .input-md { height: 36px; padding: 0 16px; font-size: 14px; }
+    .input-lg { height: 44px; padding: 0 20px; font-size: 16px; }
 
     .input:focus {
       outline: none;
@@ -538,61 +544,65 @@
       box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
     }
 
+    .input:hover {
+      border-color: var(--border-strong);
+    }
+
     .input::placeholder {
       color: var(--text-disabled);
     }
 
-    /* Callouts */
+    /* Callouts — neutral text, colored accent bar + icon only */
     .callout {
       display: flex;
       gap: 12px;
       padding: 16px;
-      border-radius: 12px;
-      border-left: 4px solid;
+      border-radius: 8px;
+      border: 1px solid var(--border-default);
+      border-left: 8px solid;
+      color: var(--text-secondary);
+    }
+
+    .callout-title {
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 4px;
     }
 
     .callout-info {
       background: #eff6ff;
       border-left-color: #3b82f6;
-      color: #1d4ed8;
     }
 
     .dark .callout-info {
       background: #172554;
-      color: #93c5fd;
     }
 
     .callout-success {
       background: #f0fdf4;
       border-left-color: #22c55e;
-      color: #15803d;
     }
 
     .dark .callout-success {
       background: #052e16;
-      color: #86efac;
     }
 
     .callout-alert {
       background: #fefce8;
       border-left-color: #eab308;
-      color: #a16207;
     }
 
     .dark .callout-alert {
       background: #422006;
-      color: #fde047;
     }
 
     .callout-error {
       background: #fef2f2;
       border-left-color: #ef4444;
-      color: #b91c1c;
     }
 
     .dark .callout-error {
       background: #450a0a;
-      color: #fca5a5;
     }
 
     .callout-icon {
@@ -623,15 +633,15 @@
     .dark .pill-error { background: #7f1d1d; color: #fca5a5; }
     .dark .pill-neutral { background: #374151; color: #d1d5db; }
 
-    /* Tags */
+    /* Tags — pill shape */
     .tag {
       display: inline-flex;
       align-items: center;
       gap: 4px;
-      padding: 4px 10px;
+      padding: 4px 12px;
       font-size: 12px;
       font-weight: 500;
-      border-radius: 4px;
+      border-radius: 9999px;
       background: var(--surface-overlay);
       color: var(--text-secondary);
     }
@@ -650,7 +660,7 @@
     /* Toggle */
     .toggle {
       position: relative;
-      width: 44px;
+      width: 48px;
       height: 24px;
       background: var(--border-default);
       border-radius: 12px;
@@ -675,7 +685,7 @@
     }
 
     .toggle.active .toggle-knob {
-      transform: translateX(20px);
+      transform: translateX(24px);
     }
 
     /* Checkbox */
@@ -687,8 +697,8 @@
     }
 
     .checkbox {
-      width: 18px;
-      height: 18px;
+      width: 20px;
+      height: 20px;
       border: 2px solid var(--border-strong);
       border-radius: 4px;
       display: flex;
@@ -959,6 +969,140 @@
       animation: skeleton-wave 1.5s infinite;
       border-radius: 6px;
     }
+
+    /* Select (distinct from .input) */
+    .select {
+      height: 36px;
+      padding: 0 32px 0 16px;
+      font-size: 14px;
+      border: 1px solid var(--border-default);
+      border-radius: 4px;
+      background: var(--surface-base);
+      color: var(--text-primary);
+      font-family: inherit;
+      transition: all 0.15s ease;
+      appearance: none;
+      cursor: pointer;
+      background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+      background-size: 20px 20px;
+    }
+
+    .select:hover { border-color: var(--border-strong); }
+    .select:focus { outline: none; border-color: var(--main-500); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+    .select-sm { height: 28px; padding: 0 28px 0 12px; font-size: 12px; }
+    .select-md { height: 36px; padding: 0 32px 0 16px; font-size: 14px; }
+    .select-lg { height: 44px; padding: 0 36px 0 20px; font-size: 16px; }
+
+    /* Date Range Picker */
+    .date-picker-trigger {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      height: 36px;
+      padding: 0 16px;
+      font-size: 14px;
+      border: 1px solid var(--border-default);
+      border-radius: 4px;
+      background: var(--surface-base);
+      color: var(--text-primary);
+      font-family: inherit;
+      transition: all 0.15s ease;
+      cursor: pointer;
+    }
+
+    .date-picker-trigger:hover { border-color: var(--border-strong); }
+    .date-picker-trigger svg { width: 14px; height: 14px; opacity: 0.6; flex-shrink: 0; }
+    .date-picker-trigger .chevron { width: 12px; height: 12px; opacity: 0.5; }
+    .date-picker-sm { height: 28px; padding: 0 12px; font-size: 12px; }
+    .date-picker-md { height: 36px; padding: 0 16px; font-size: 14px; }
+    .date-picker-lg { height: 44px; padding: 0 20px; font-size: 16px; }
+
+    .date-picker-dropdown {
+      border: 1px solid var(--border-default);
+      border-radius: 4px;
+      background: var(--surface-base);
+      box-shadow: var(--shadow-md);
+      padding: 6px;
+      margin-top: 4px;
+      width: 288px;
+    }
+
+    .date-picker-preset {
+      display: block;
+      width: 100%;
+      text-align: left;
+      padding: 6px 8px;
+      font-size: 12px;
+      border: none;
+      border-radius: 4px;
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.15s ease;
+    }
+
+    .date-picker-preset:hover { background: var(--surface-raised); }
+    .date-picker-preset.active { background: var(--main-500); color: white; }
+
+    .date-picker-section-label {
+      padding: 4px 8px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-tertiary);
+    }
+
+    .date-picker-custom {
+      display: flex;
+      gap: 8px;
+      padding: 8px;
+      border-top: 1px solid var(--border-default);
+      margin-top: 4px;
+    }
+
+    .date-picker-custom input {
+      flex: 1;
+      height: 28px;
+      padding: 0 6px;
+      font-size: 12px;
+      border: 1px solid var(--border-default);
+      border-radius: 4px;
+      background: var(--surface-base);
+      color: var(--text-primary);
+      font-family: inherit;
+    }
+
+    /* Pill (Metric Display) */
+    .metric-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 8px;
+      background: var(--surface-raised);
+      border: 1px solid var(--border-default);
+    }
+
+    .metric-pill-label {
+      font-size: 12px;
+      color: var(--text-tertiary);
+    }
+
+    .metric-pill-value {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .metric-pill-good .metric-pill-value { color: #16a34a; }
+    .metric-pill-bad .metric-pill-value { color: #dc2626; }
+
+    .dark .metric-pill-good .metric-pill-value { color: #4ade80; }
+    .dark .metric-pill-bad .metric-pill-value { color: #f87171; }
 
     /* Toast Notification */
     .toast {
@@ -1248,6 +1392,22 @@
                 <div class="swatch-info">
                   <div class="swatch-name">surface-overlay</div>
                   <div class="swatch-value">Modals, popovers</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+              <div class="color-swatch" onclick="copyClass('bg-surface-sunken')">
+                <div class="swatch-preview" style="background: var(--surface-sunken); border: 1px solid var(--border-default);"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">surface-sunken</div>
+                  <div class="swatch-value">Sunken, minimal areas</div>
+                </div>
+                <div class="copy-indicator">Click to copy</div>
+              </div>
+              <div class="color-swatch" onclick="copyClass('chrome-bg')">
+                <div class="swatch-preview" style="background: var(--surface-chrome); border: 1px solid var(--border-default);"></div>
+                <div class="swatch-info">
+                  <div class="swatch-name">surface-chrome</div>
+                  <div class="swatch-value">Sidebar, header, nav tabs</div>
                 </div>
                 <div class="copy-indicator">Click to copy</div>
               </div>
@@ -1795,40 +1955,53 @@
       <!-- Components Section -->
       <section id="components">
         <h2 class="section-title">Component Library</h2>
-        <p class="section-subtitle">13 production-ready Axis components with full dark mode support.</p>
+        <p class="section-subtitle">15 production-ready Axis components with full dark mode support.</p>
 
         <div class="component-grid">
           <!-- AxisButton -->
           <div class="component-card">
-            <div class="component-preview">
-              <button class="btn btn-filled btn-md">Filled</button>
-              <button class="btn btn-outlined btn-md">Outlined</button>
-              <button class="btn btn-ghost btn-md">Ghost</button>
-              <button class="btn btn-destructive btn-md">Delete</button>
+            <div class="component-preview" style="flex-direction: column; gap: 16px; align-items: flex-start;">
+              <!-- Variants -->
+              <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                <button class="btn btn-filled btn-md">Filled</button>
+                <button class="btn btn-outlined btn-md">Outlined</button>
+                <button class="btn btn-ghost btn-md">Ghost</button>
+                <button class="btn btn-destructive btn-md">Delete</button>
+              </div>
+              <!-- Sizes -->
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <button class="btn btn-filled btn-sm">Small (28px)</button>
+                <button class="btn btn-filled btn-md">Medium (36px)</button>
+                <button class="btn btn-filled btn-lg">Large (44px)</button>
+              </div>
             </div>
             <div class="component-info">
               <div class="component-name">AxisButton</div>
-              <div class="component-desc">Versatile button with 3 variants, 3 sizes, loading state, and icon support. Dark mode aware: filled uses <code>main-500</code> base in dark mode for vibrant contrast, <code>main-700</code> in light mode. Never use non-existent token steps (600, 400, 200) — valid steps are 50, 100, 300, 500, 700, 900, 950.</div>
+              <div class="component-desc">Versatile button with 3 variants, 3 sizes (sm: 28px, md: 36px, lg: 44px), loading state, and icon support. Dark mode: filled uses <code>main-500</code> in dark, <code>main-700</code> in light. Valid token steps: 50, 100, 300, 500, 700, 900, 950.</div>
               <div class="component-props">
-                <span class="prop-tag">variant</span>
-                <span class="prop-tag">size</span>
+                <span class="prop-tag">variant: filled | outlined | ghost</span>
+                <span class="prop-tag">size: sm | md | lg</span>
                 <span class="prop-tag">destructive</span>
                 <span class="prop-tag">loading</span>
                 <span class="prop-tag">iconLeft</span>
                 <span class="prop-tag">iconRight</span>
+                <span class="prop-tag">iconOnly</span>
               </div>
             </div>
           </div>
 
           <!-- AxisInput -->
           <div class="component-card">
-            <div class="component-preview">
-              <input type="text" class="input" placeholder="Enter text..." style="width: 200px;">
+            <div class="component-preview" style="flex-direction: column; gap: 8px; align-items: flex-start;">
+              <input type="text" class="input input-sm" placeholder="Small (28px)" style="width: 200px;">
+              <input type="text" class="input input-md" placeholder="Medium (36px)" style="width: 200px;">
+              <input type="text" class="input input-lg" placeholder="Large (44px)" style="width: 200px;">
             </div>
             <div class="component-info">
               <div class="component-name">AxisInput</div>
-              <div class="component-desc">Text input with label, error states, password toggle, and icon support.</div>
+              <div class="component-desc">Text input with 3 sizes (sm: 28px, md: 36px, lg: 44px), label, error states, password toggle, and icon support. Border radius: 4px (rounded-sm). Search type (type="search") renders a single custom clear (X) button; the native browser clear button is hidden globally via CSS to prevent duplicates.</div>
               <div class="component-props">
+                <span class="prop-tag">size: sm | md | lg</span>
                 <span class="prop-tag">label</span>
                 <span class="prop-tag">error</span>
                 <span class="prop-tag">type</span>
@@ -1842,15 +2015,21 @@
           <div class="component-card">
             <div class="component-preview" style="flex-direction: column; align-items: stretch;">
               <div class="callout callout-info" style="font-size: 12px;">
-                <span>Info: This is an informational callout.</span>
+                <div>
+                  <div class="callout-title">Note</div>
+                  <span>This is an informational callout with neutral text.</span>
+                </div>
               </div>
               <div class="callout callout-success" style="font-size: 12px;">
-                <span>Success: Operation completed.</span>
+                <div>
+                  <div class="callout-title">Success</div>
+                  <span>Operation completed successfully.</span>
+                </div>
               </div>
             </div>
             <div class="component-info">
               <div class="component-name">AxisCallout</div>
-              <div class="component-desc">Informational banners with 4 types: info, success, alert, error.</div>
+              <div class="component-desc">Informational banners with 4 types: info, success, alert, error. 8px left accent bar, neutral border. Title and body use content-primary/secondary for readability; only accent bar and icon carry the status color.</div>
               <div class="component-props">
                 <span class="prop-tag">type</span>
                 <span class="prop-tag">title</span>
@@ -1861,40 +2040,58 @@
 
           <!-- AxisPill -->
           <div class="component-card">
-            <div class="component-preview">
-              <span class="pill pill-info">Info</span>
-              <span class="pill pill-success">Success</span>
-              <span class="pill pill-alert">Alert</span>
-              <span class="pill pill-error">Error</span>
-              <span class="pill pill-neutral">Neutral</span>
+            <div class="component-preview" style="flex-direction: column; gap: 8px; align-items: stretch;">
+              <div class="metric-pill">
+                <span class="metric-pill-label">Properties:</span>
+                <span class="metric-pill-value">45K</span>
+              </div>
+              <div class="metric-pill metric-pill-good">
+                <span class="metric-pill-label">Revenue:</span>
+                <span class="metric-pill-value">$99.9K</span>
+              </div>
+              <div class="metric-pill metric-pill-bad">
+                <span class="metric-pill-label">Churn:</span>
+                <span class="metric-pill-value">12%</span>
+              </div>
             </div>
             <div class="component-info">
               <div class="component-name">AxisPill</div>
-              <div class="component-desc">Status badges with 5 semantic color variants.</div>
+              <div class="component-desc">Compact, non-clickable metric display with label + value layout. Three types: default (neutral), good (green value), bad (red value). Optional tooltip on hover over the label (uses AxisTooltip). Used in insights bars and dashboards.</div>
               <div class="component-props">
-                <span class="prop-tag">type</span>
-                <span class="prop-tag">size</span>
+                <span class="prop-tag">label</span>
+                <span class="prop-tag">value</span>
+                <span class="prop-tag">type: default | good | bad</span>
+                <span class="prop-tag">tooltip?: string</span>
               </div>
             </div>
           </div>
 
           <!-- AxisTag -->
           <div class="component-card">
-            <div class="component-preview">
+            <div class="component-preview" style="flex-wrap: wrap;">
+              <span class="tag">Neutral</span>
+              <span class="tag" style="background: #dcfce7; color: #15803d;">Success</span>
+              <span class="tag" style="background: #dbeafe; color: #1d4ed8;">Info</span>
+              <span class="tag" style="background: #fef9c3; color: #a16207;">Alert</span>
+              <span class="tag" style="background: #fee2e2; color: #b91c1c;">Error</span>
+              <span class="tag" style="background: transparent; border: 1px solid #86efac; color: #15803d;">Outlined</span>
               <span class="tag">
-                Tag Label
+                Dismissible
                 <svg class="tag-close" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </span>
-              <span class="tag" style="background: #dbeafe; color: #1d4ed8;">Blue Tag</span>
             </div>
             <div class="component-info">
               <div class="component-name">AxisTag</div>
-              <div class="component-desc">Removable tags with multiple color options for filters and categories.</div>
+              <div class="component-desc">Pill-shaped categorization labels with 5 colors (neutral, success, info, alert, error), 2 sizes (sm: 24px, md: 28px), 2 variants (filled, outlined). Fully rounded (border-radius: 9999px). Optional dot, icons, and dismiss button.</div>
               <div class="component-props">
-                <span class="prop-tag">color</span>
-                <span class="prop-tag">onRemove</span>
+                <span class="prop-tag">color: neutral | success | alert | error | info</span>
+                <span class="prop-tag">size: sm | md</span>
+                <span class="prop-tag">variant: filled | outlined</span>
+                <span class="prop-tag">dot</span>
+                <span class="prop-tag">dismissible</span>
+                <span class="prop-tag">onDismiss</span>
               </div>
             </div>
           </div>
@@ -1911,7 +2108,7 @@
             </div>
             <div class="component-info">
               <div class="component-name">AxisToggle</div>
-              <div class="component-desc">Binary on/off switch with label and hint text support.</div>
+              <div class="component-desc">Binary on/off switch (48×24px) with label, hint text, and disabled state. Knob: 20×20px.</div>
               <div class="component-props">
                 <span class="prop-tag">checked</span>
                 <span class="prop-tag">onChange</span>
@@ -1943,7 +2140,7 @@
             </div>
             <div class="component-info">
               <div class="component-name">AxisCheckbox</div>
-              <div class="component-desc">Checkbox input with label and error state support.</div>
+              <div class="component-desc">Checkbox (20×20px) with label, error state, and indeterminate state support.</div>
               <div class="component-props">
                 <span class="prop-tag">checked</span>
                 <span class="prop-tag">onChange</span>
@@ -1955,22 +2152,31 @@
 
           <!-- AxisSelect -->
           <div class="component-card">
-            <div class="component-preview">
-              <select class="input" style="width: 200px;">
-                <option>Select an option...</option>
+            <div class="component-preview" style="flex-direction: column; gap: 8px; align-items: flex-start;">
+              <select class="select select-sm" style="width: 200px;">
+                <option>Small (28px)</option>
                 <option>Option 1</option>
-                <option>Option 2</option>
-                <option>Option 3</option>
+              </select>
+              <select class="select select-md" style="width: 200px;">
+                <option>Medium (36px)</option>
+                <option>Option 1</option>
+              </select>
+              <select class="select select-lg" style="width: 200px;">
+                <option>Large (44px)</option>
+                <option>Option 1</option>
               </select>
             </div>
             <div class="component-info">
               <div class="component-name">AxisSelect</div>
-              <div class="component-desc">Dropdown select with searchable options and custom styling.</div>
+              <div class="component-desc">Native dropdown with 3 sizes (sm: 28px, md: 36px, lg: 44px), chevron icon, label, error, and helper text. Border radius: 4px (rounded-sm).</div>
               <div class="component-props">
                 <span class="prop-tag">options</span>
                 <span class="prop-tag">value</span>
                 <span class="prop-tag">onChange</span>
-                <span class="prop-tag">searchable</span>
+                <span class="prop-tag">size: sm | md | lg</span>
+                <span class="prop-tag">label</span>
+                <span class="prop-tag">error</span>
+                <span class="prop-tag">placeholder</span>
               </div>
             </div>
           </div>
@@ -2046,6 +2252,153 @@
             </div>
           </div>
 
+          <!-- AxisSidebar -->
+          <div class="component-card">
+            <div class="component-preview" style="display: flex; gap: 24px; align-items: stretch; min-height: 320px;">
+              <!-- Expanded sidebar -->
+              <div style="width: 240px; border: 1px solid var(--border-default); border-radius: 8px; display: flex; flex-direction: column; background: var(--surface-chrome); font-size: 13px;">
+                <div style="padding: 12px 16px; border-bottom: 1px solid var(--border-default); display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-weight: 600; font-size: 14px; color: var(--text-primary);">Metrics Hub</span>
+                  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" style="color: var(--text-secondary);"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12"/></svg>
+                </div>
+                <div style="flex: 1; padding: 8px; overflow-y: auto;">
+                  <!-- Active item -->
+                  <div style="display: flex; align-items: center; gap: 12px; height: 32px; padding: 0 12px; border-radius: 6px; background: var(--color-main-700); color: #ffffff; font-weight: 500; cursor: pointer;">
+                    <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75Z M9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625Z M16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z"/></svg>
+                    <span>Analytics</span>
+                  </div>
+                  <!-- Expanded section with subsections -->
+                  <div style="margin-top: 2px;">
+                    <div style="display: flex; align-items: center; gap: 12px; height: 32px; padding: 0 12px; border-radius: 6px; color: var(--text-secondary); cursor: pointer;">
+                      <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="m21 7.5-9-5.25L3 7.5m18 0-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9"/></svg>
+                      <span>Features</span>
+                      <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" style="margin-left: auto; transform: rotate(90deg);"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/></svg>
+                    </div>
+                    <!-- Subsection items -->
+                    <div style="padding-left: 40px; margin-top: 2px;">
+                      <div style="height: 28px; display: flex; align-items: center; padding: 0 12px; border-radius: 6px; color: var(--text-secondary); font-size: 12px; cursor: pointer;">8020REI</div>
+                      <div style="height: 28px; display: flex; align-items: center; padding: 0 12px; border-radius: 6px; color: var(--text-disabled); font-size: 12px; opacity: 0.5;">8020Roofing</div>
+                    </div>
+                  </div>
+                  <!-- Regular item -->
+                  <div style="display: flex; align-items: center; gap: 12px; height: 32px; padding: 0 12px; border-radius: 6px; color: var(--text-secondary); margin-top: 2px; cursor: pointer;">
+                    <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 0 0 2.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 0 1-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 0 0-1.091-.852H4.5A2.25 2.25 0 0 0 2.25 4.5v2.25Z"/></svg>
+                    <span>Engagement Calls</span>
+                  </div>
+                </div>
+                <div style="padding: 12px 16px; border-top: 1px solid var(--border-default); font-size: 11px; color: var(--text-tertiary);">Metrics Hub v1.0</div>
+              </div>
+              <!-- Collapsed sidebar + flyout popover -->
+              <div style="display: flex; gap: 0; position: relative;">
+                <div style="width: 56px; border: 1px solid var(--border-default); border-radius: 8px; display: flex; flex-direction: column; align-items: center; background: var(--surface-chrome);">
+                  <div style="padding: 12px 0; border-bottom: 1px solid var(--border-default); width: 100%; text-align: center;">
+                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" style="color: var(--text-secondary); margin: auto;"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/></svg>
+                  </div>
+                  <div style="flex: 1; padding: 8px 0; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                    <div style="width: 40px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; background: var(--color-main-700); color: #ffffff;">
+                      <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z"/></svg>
+                    </div>
+                    <div style="width: 40px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); background: var(--surface-raised);">
+                      <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="m21 7.5-9-5.25L3 7.5m18 0-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9"/></svg>
+                    </div>
+                    <div style="width: 40px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: var(--text-secondary);">
+                      <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 0 0 2.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 0 1-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 0 0-1.091-.852H4.5A2.25 2.25 0 0 0 2.25 4.5v2.25Z"/></svg>
+                    </div>
+                  </div>
+                </div>
+                <!-- Flyout popover (appears on hover over Features icon) -->
+                <div style="min-width: 160px; border: 1px solid var(--border-default); border-radius: 8px; background: var(--surface-chrome); box-shadow: 0 4px 12px rgba(0,0,0,0.15); margin-left: 8px; padding: 6px; align-self: flex-start; margin-top: 44px;">
+                  <div style="padding: 4px 8px; font-size: 11px; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em;">Features</div>
+                  <div style="padding: 6px 10px; font-size: 13px; border-radius: 6px; background: var(--color-main-700); color: #ffffff; font-weight: 500; margin-top: 2px;">8020REI</div>
+                  <div style="padding: 6px 10px; font-size: 13px; border-radius: 6px; color: var(--text-secondary); margin-top: 2px;">8020Roofing</div>
+                </div>
+              </div>
+            </div>
+            <div class="component-info">
+              <div class="component-name">AxisSidebar</div>
+              <div class="component-desc">Vertical collapsible navigation sidebar. Replaces horizontal Level 1 + Level 2 tabs. Supports expanded (240px) and collapsed (56px) states with smooth CSS transition. Uses chrome-bg background, and persists collapse state to localStorage.</div>
+              <div class="component-props">
+                <span class="prop-tag">collapsed</span>
+                <span class="prop-tag">onToggleCollapse</span>
+                <span class="prop-tag">activeSection</span>
+                <span class="prop-tag">activeSubsection</span>
+                <span class="prop-tag">onSectionChange</span>
+                <span class="prop-tag">onSubsectionChange</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- AxisSidebarItem -->
+          <div class="component-card">
+            <div class="component-preview" style="display: flex; flex-direction: column; gap: 4px; max-width: 240px;">
+              <!-- Default state -->
+              <div style="display: flex; align-items: center; gap: 12px; height: 32px; padding: 0 12px; border-radius: 6px; color: var(--text-secondary); cursor: pointer;">
+                <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z"/></svg>
+                <span style="font-size: 14px;">Customer Success</span>
+              </div>
+              <!-- Active state -->
+              <div style="display: flex; align-items: center; gap: 12px; height: 32px; padding: 0 12px; border-radius: 6px; background: var(--color-main-700); color: #ffffff; font-weight: 500; cursor: pointer;">
+                <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z"/></svg>
+                <span style="font-size: 14px;">Analytics</span>
+              </div>
+              <!-- Disabled state -->
+              <div style="display: flex; align-items: center; gap: 12px; height: 32px; padding: 0 12px; border-radius: 6px; color: var(--text-disabled); opacity: 0.4; cursor: not-allowed;">
+                <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z"/></svg>
+                <span style="font-size: 14px;">QA (disabled)</span>
+              </div>
+            </div>
+            <div class="component-info">
+              <div class="component-name">AxisSidebarItem</div>
+              <div class="component-desc">Individual sidebar navigation item. Height: 32px for Slack-like tight spacing. Active state uses left border accent (main-500) with tinted background. Supports collapsed mode (icon-only with tooltip), indented subsection variant, and optional badge.</div>
+              <div class="component-props">
+                <span class="prop-tag">label</span>
+                <span class="prop-tag">icon</span>
+                <span class="prop-tag">active</span>
+                <span class="prop-tag">disabled</span>
+                <span class="prop-tag">collapsed</span>
+                <span class="prop-tag">indent</span>
+                <span class="prop-tag">badge</span>
+                <span class="prop-tag">onClick</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- AxisSidebarSection -->
+          <div class="component-card">
+            <div class="component-preview" style="display: flex; flex-direction: column; gap: 2px; max-width: 240px;">
+              <!-- Section header -->
+              <div style="display: flex; align-items: center; gap: 12px; height: 32px; padding: 0 12px; border-radius: 6px; color: var(--text-primary); font-weight: 500; cursor: pointer;">
+                <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="m21 7.5-9-5.25L3 7.5m18 0-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9"/></svg>
+                <span style="font-size: 14px;">Features</span>
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" style="margin-left: auto; transform: rotate(90deg); transition: transform 200ms;"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/></svg>
+              </div>
+              <!-- Subsection children (expanded) -->
+              <div style="padding-left: 40px;">
+                <div style="height: 32px; display: flex; align-items: center; padding: 0 12px; border-radius: 6px; background: var(--color-main-700); color: #ffffff; font-size: 13px; font-weight: 500; cursor: pointer;">8020REI</div>
+                <div style="height: 32px; display: flex; align-items: center; padding: 0 12px; border-radius: 6px; color: var(--text-secondary); font-size: 13px; cursor: pointer; margin-top: 2px;">8020Roofing</div>
+              </div>
+              <!-- Collapsed section header -->
+              <div style="display: flex; align-items: center; gap: 12px; height: 32px; padding: 0 12px; border-radius: 6px; color: var(--text-secondary); cursor: pointer; margin-top: 8px;">
+                <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5.25 14.25h13.5m-13.5 0a3 3 0 0 1-3-3m3 3a3 3 0 1 0 0 6h13.5a3 3 0 1 0 0-6m-16.5-3a3 3 0 0 1 3-3h13.5a3 3 0 0 1 3 3m-19.5 0a4.5 4.5 0 0 1 .9-2.7L5.737 5.1a3.375 3.375 0 0 1 2.7-1.35h7.126c1.062 0 2.062.5 2.7 1.35l2.587 3.45a4.5 4.5 0 0 1 .9 2.7m0 0a3 3 0 0 1-3 3m0 3h.008v.008h-.008v-.008Zm0-6h.008v.008h-.008v-.008Zm-3 6h.008v.008h-.008v-.008Zm0-6h.008v.008h-.008v-.008Z"/></svg>
+                <span style="font-size: 14px;">Pipelines</span>
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" style="margin-left: auto;"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/></svg>
+              </div>
+            </div>
+            <div class="component-info">
+              <div class="component-name">AxisSidebarSection</div>
+              <div class="component-desc">Collapsible group for sidebar sections with subsections. <strong>Expanded sidebar:</strong> Shows header row with section name + chevron toggle. Auto-expands when the section is active. <strong>Collapsed sidebar:</strong> On hover, a flyout popover appears to the right of the icon showing the section name as a header and all subsections as clickable items (portal-rendered, chrome-bg background). Clicking a subsection navigates and closes the flyout.</div>
+              <div class="component-props">
+                <span class="prop-tag">section</span>
+                <span class="prop-tag">subsections</span>
+                <span class="prop-tag">icon</span>
+                <span class="prop-tag">activeSection</span>
+                <span class="prop-tag">activeSubsection</span>
+                <span class="prop-tag">collapsed</span>
+                <span class="prop-tag">onSubsectionClick</span>
+              </div>
+            </div>
+          </div>
+
           <!-- AxisTable -->
           <div class="component-card">
             <div class="component-preview" style="padding: 0; overflow: hidden;">
@@ -2111,6 +2464,76 @@
               </div>
             </div>
           </div>
+          <!-- AxisDateRangePicker -->
+          <div class="component-card">
+            <div class="component-preview" style="flex-direction: column; gap: 12px; align-items: flex-start;">
+              <!-- Trigger buttons at different sizes -->
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <button class="date-picker-trigger date-picker-sm">
+                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                  <span>Last 30 days</span>
+                  <svg class="chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                </button>
+                <button class="date-picker-trigger date-picker-md">
+                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                  <span>Last 30 days</span>
+                  <svg class="chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                </button>
+              </div>
+              <!-- Dropdown preview -->
+              <div class="date-picker-dropdown">
+                <div class="date-picker-section-label">Presets</div>
+                <button class="date-picker-preset">Last 7 days</button>
+                <button class="date-picker-preset">Last 14 days</button>
+                <button class="date-picker-preset active">Last 30 days</button>
+                <button class="date-picker-preset">Last 90 days</button>
+                <div class="date-picker-custom">
+                  <input type="date" value="2026-03-02">
+                  <input type="date" value="2026-04-01">
+                </div>
+              </div>
+            </div>
+            <div class="component-info">
+              <div class="component-name">AxisDateRangePicker</div>
+              <div class="component-desc">Date range picker with preset ranges (7d, 14d, 30d, 90d) and custom date selection. Trigger matches AxisSelect styling (4px radius, same border/bg tokens). 3 sizes: sm (28px), md (36px), lg (44px).</div>
+              <div class="component-props">
+                <span class="prop-tag">value: DateRangeValue</span>
+                <span class="prop-tag">onChange</span>
+                <span class="prop-tag">size: sm | md | lg</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- AxisModal -->
+          <div class="component-card">
+            <div class="component-preview" style="padding: 12px;">
+              <div style="background: var(--surface-base); border: 1px solid var(--border-default); border-radius: 12px; width: 100%; box-shadow: var(--shadow-md); overflow: hidden;">
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px; border-bottom: 1px solid var(--border-default);">
+                  <span style="font-size: 14px; font-weight: 600;">Modal Title</span>
+                  <span style="font-size: 16px; color: var(--text-tertiary); cursor: pointer;">×</span>
+                </div>
+                <div style="padding: 16px; font-size: 12px; color: var(--text-secondary);">
+                  Scrollable body content goes here.
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--border-default);">
+                  <button class="btn btn-ghost btn-sm">Cancel</button>
+                  <button class="btn btn-filled btn-sm">Confirm</button>
+                </div>
+              </div>
+            </div>
+            <div class="component-info">
+              <div class="component-name">AxisModal</div>
+              <div class="component-desc">Dialog with header (title + close), scrollable body, and optional footer. 3 sizes: sm (480px), md (600px), lg (780px). Features backdrop blur, focus trap, ESC to close, and body scroll lock.</div>
+              <div class="component-props">
+                <span class="prop-tag">isOpen</span>
+                <span class="prop-tag">onClose</span>
+                <span class="prop-tag">title</span>
+                <span class="prop-tag">size: sm | md | lg</span>
+                <span class="prop-tag">footer</span>
+              </div>
+            </div>
+          </div>
+
           <!-- AxisTooltip -->
           <div class="component-card" style="grid-column: span 2;">
             <div class="component-preview" style="flex-direction: column; align-items: flex-start; gap: 0; padding: 20px 24px;">
@@ -3530,17 +3953,17 @@
           <!-- Scorecard -->
           <div class="component-card">
             <div class="component-preview" style="padding: 12px;">
-              <div style="background: var(--surface-raised); border: 1px solid var(--border-default); border-radius: 16px; padding: 14px; display: flex; flex-direction: column; justify-content: space-between; min-height: 80px; min-width: 0;">
+              <div style="background: var(--surface-raised); border: 1px solid var(--border-default); padding: 12px; display: flex; flex-direction: column; gap: 8px; min-width: 0; flex: 1;">
                 <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
                   <div style="font-size: 10px; font-weight: 500; color: var(--text-secondary);">Active Domains</div>
                   <div style="font-size: 8px; font-weight: 500; color: var(--success-500); cursor: default;" title="vs. previous period">↑ 13.1%</div>
                 </div>
-                <div style="font-size: 36px; font-weight: 700; letter-spacing: -0.02em; line-height: 1;">29.5K</div>
+                <div style="font-size: 32px; font-weight: 700; letter-spacing: -0.02em; line-height: 40px;">29.5K</div>
               </div>
             </div>
             <div class="component-info">
               <div class="component-name">MetricCard</div>
-              <div class="component-desc">Simplified stat card. Label + trend% header (subtitle as tooltip), hero abbreviated value (max 3 digits: K/M/B). No sparkline, no icon. Number fills the card.</div>
+              <div class="component-desc">Flush stat card — no rounded corners, compact p-3/gap-2 padding. Label + trend% header, hero value (2.25rem/leading-40px). Cards sit edge-to-edge inside widgets via flex layout with flush-cards CSS class. No individual shadows. <strong>MANDATORY:</strong> Any widget using MetricCard or AxisPill grids must set <code>flushBody: true</code> on the widget definition in defaultLayouts.ts so the Widget wrapper removes body padding. Without this, cards will be clipped and squeezed. Works with any card count (2-6).</div>
               <div class="component-props">
                 <span class="prop-tag">label</span>
                 <span class="prop-tag">value</span>

@@ -34,7 +34,7 @@ const UsersIcon = () => (
 
 export function SessionSummaryWidget({ data }: SessionSummaryWidgetProps) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full h-full">
+    <div className="flex w-full h-full flush-cards">
       {/* Total Sessions */}
       <MetricCard
         label="Total Sessions"

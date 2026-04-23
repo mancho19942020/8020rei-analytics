@@ -24,6 +24,7 @@ import {
   DEFAULT_PRODUCT_PROJECTS_LAYOUT,
   PRODUCT_PROJECTS_LAYOUT_STORAGE_KEY,
   PRODUCT_PROJECTS_WIDGET_CATALOG,
+  loadLayout,
 } from '@/lib/workspace/defaultLayouts';
 import { Widget, TabHandle } from '@/types/widget';
 import type { ProductProjectsData } from '@/types/product';
@@ -36,6 +37,7 @@ import {
   formatDeliveryTimelineForExport,
 } from '@/lib/export';
 import { buildDateQueryString } from '@/lib/date-utils';
+import { authFetch } from '@/lib/auth-fetch';
 
 interface ProductProjectsTabProps {
   days: number;
@@ -55,19 +57,9 @@ export const ProductProjectsTab = forwardRef<TabHandle, ProductProjectsTabProps>
   const [showWidgetCatalog, setShowWidgetCatalog] = useState(false);
   const [selectedWidgetForSettings, setSelectedWidgetForSettings] = useState<Widget | null>(null);
 
-  const [layout, setLayout] = useState<Widget[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem(PRODUCT_PROJECTS_LAYOUT_STORAGE_KEY);
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch (e) {
-          console.error('Failed to parse saved product projects layout:', e);
-        }
-      }
-    }
-    return DEFAULT_PRODUCT_PROJECTS_LAYOUT;
-  });
+  const [layout, setLayout] = useState<Widget[]>(() =>
+    loadLayout(PRODUCT_PROJECTS_LAYOUT_STORAGE_KEY, DEFAULT_PRODUCT_PROJECTS_LAYOUT)
+  );
 
   useImperativeHandle(ref, () => ({
     resetLayout: handleResetLayout,
@@ -83,7 +75,7 @@ export const ProductProjectsTab = forwardRef<TabHandle, ProductProjectsTabProps>
     setError(null);
 
     try {
-      const res = await fetch(`/api/metrics/product-projects?${buildDateQueryString(days, startDate, endDate)}`);
+      const res = await authFetch(`/api/metrics/product-projects?${buildDateQueryString(days, startDate, endDate)}`);
       const json = await res.json();
 
       if (json.success) {
@@ -243,7 +235,7 @@ export const ProductProjectsTab = forwardRef<TabHandle, ProductProjectsTabProps>
     <div className="space-y-4">
       {editMode && (
         <div className="mb-4">
-          <AxisCallout type="info" title="Edit Mode Active">
+          <AxisCallout type="info" title="Edit layout mode active">
             <p className="text-body-regular">
               Drag widgets by their handle icon to reposition them. Resize widgets by dragging their edges.
               Your layout will be saved automatically.

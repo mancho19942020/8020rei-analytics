@@ -7,6 +7,7 @@
 
 import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { z } from 'zod';
+import { type SqlParameter } from '@aws-sdk/client-rds-data';
 import { AuroraService } from '../services/aurora.service.js';
 import { CacheService } from '../services/cache.service.js';
 
@@ -310,10 +311,18 @@ export async function propertiesApiRoutes(
 
       const offset = (page - 1) * pageSize;
 
-      // Build WHERE clause
+      // Build WHERE clause with parameterized values to prevent SQL injection
       const conditions: string[] = [`created_at >= NOW() - INTERVAL '${days} days'`];
-      if (clientId) conditions.push(`client_id = ${clientId}`);
-      if (endpoint) conditions.push(`endpoint = '${endpoint}'`);
+      const sqlParams: SqlParameter[] = [];
+
+      if (clientId) {
+        conditions.push(`client_id = :clientId`);
+        sqlParams.push({ name: 'clientId', value: { longValue: clientId } });
+      }
+      if (endpoint) {
+        conditions.push(`endpoint = :endpoint`);
+        sqlParams.push({ name: 'endpoint', value: { stringValue: endpoint } });
+      }
       if (status === 'error') conditions.push('response_status >= 400');
       if (status === 'success') conditions.push('response_status < 400');
       const whereClause = conditions.join(' AND ');
@@ -324,7 +333,7 @@ export async function propertiesApiRoutes(
         return { success: true, ...cached, cached: true };
       }
 
-      // Parallel: fetch rows + count
+      // Parallel: fetch rows + count (using parameterized queries)
       const [rows, countRows] = await Promise.all([
         auroraService!.executeQuery(`
           SELECT id, api_token_id, client_id, endpoint, http_method,
@@ -334,12 +343,12 @@ export async function propertiesApiRoutes(
           WHERE ${whereClause}
           ORDER BY created_at DESC
           LIMIT ${pageSize} OFFSET ${offset}
-        `),
+        `, sqlParams),
         auroraService!.executeQuery(`
           SELECT COUNT(*) as total
           FROM api_token_usage_logs
           WHERE ${whereClause}
-        `),
+        `, sqlParams),
       ]);
 
       const total = Number(countRows[0]?.total || 0);

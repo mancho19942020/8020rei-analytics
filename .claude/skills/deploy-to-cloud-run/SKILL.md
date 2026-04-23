@@ -8,7 +8,7 @@ This skill is **automatically triggered** whenever the user asks to:
 - Update the live/production/remote app
 - Any variation of "push this", "push everything", "update remote"
 
-**CRITICAL**: After every `git push`, you MUST also deploy to Cloud Run. Pushing to GitHub does NOT auto-deploy. There is no CI/CD pipeline — deployment is manual via `gcloud`.
+**NOTE**: As of April 2026, pushing to `main` triggers auto-deploy via GitHub Actions (`.github/workflows/deploy.yml`). The manual steps below are a **fallback** in case the GitHub Actions workflow fails. You do NOT need to run these after every push — only when auto-deploy is broken.
 
 ---
 
@@ -93,6 +93,16 @@ if len(aurora_vars) == len(aurora_keys):
 else:
     print(f'WARNING: Only {len(aurora_vars)}/{len(aurora_keys)} Aurora vars found — Properties API will not work')
 
+# --- Read additional env vars from .env.local ---
+extra_keys = ['SLACK_DM_ALERTS_WEBHOOK_URL', 'RESEND_API_KEY', 'CRON_SECRET']
+extra_vars = {}
+with open('.env.local') as f:
+    for line in f:
+        for key in extra_keys:
+            if line.startswith(key + '='):
+                extra_vars[key] = line.split('=', 1)[1].strip()
+print(f'Extra vars loaded: {len(extra_vars)} ({", ".join(extra_vars.keys())})')
+
 # --- Build env vars ---
 env_vars = {
     'GOOGLE_CLOUD_PROJECT': 'web-app-production-451214',
@@ -103,6 +113,7 @@ env_vars = {
     'GOOGLE_DRIVE_CREDENTIALS_JSON': drive_creds,
     'GOOGLE_APPLICATION_CREDENTIALS_PRODUCT_JSON': bq_creds,
     **aurora_vars,
+    **extra_vars,
 }
 with open('/tmp/env-vars.yaml', 'w') as f:
     for k, v in env_vars.items():
@@ -159,6 +170,8 @@ When a new feature requires new environment variables:
 | GA4 Analytics | BigQuery | `web-app-production-451214` / `analytics_489035450` | Uses default service account |
 | Product/opsHub | BigQuery | `bigquery-467404` / `domain` | `GOOGLE_APPLICATION_CREDENTIALS_PRODUCT_JSON` |
 | Properties API Metrics | AWS Aurora | `aurora-services-8020rei` / `grafana8020db` | `DB_AURORA_*` (6 vars) |
+| API auth (token verify) | Firebase Admin | `rei-analytics-b4b8b` | `FIREBASE_ADMIN_CREDENTIALS_JSON` (optional — uses ADC on Cloud Run) |
+| Cron alert auth | Shared secret | N/A | `CRON_SECRET` (must match GitHub Actions secret) |
 
 ---
 
@@ -184,5 +197,6 @@ When a new feature requires new environment variables:
 - Never pass JSON credentials directly via `--set-env-vars` (gcloud can't parse it)
 
 ### Changes not appearing after push
-- **This is the #1 issue**: `git push` does NOT trigger deployment
-- You must run the `gcloud run deploy` command after every push
+- Check the GitHub Actions tab — the auto-deploy workflow should have triggered
+- If the workflow failed, use the manual fallback steps above
+- If the workflow succeeded but changes aren't visible, check Cloud Run logs for runtime errors

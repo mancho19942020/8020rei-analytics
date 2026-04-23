@@ -1,16 +1,16 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { IBM_Plex_Sans } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/firebase/AuthContext";
 
-const inter = Inter({
+const ibmPlexSans = IBM_Plex_Sans({
   subsets: ["latin"],
-  variable: "--font-inter",
+  variable: "--font-ibm-plex",
   weight: ["400", "500", "600"],
 });
 
 export const metadata: Metadata = {
-  title: "8020LENS",
+  title: "Metrics Hub",
   description: "Analytics dashboard for 8020REI platform",
 };
 
@@ -46,7 +46,7 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body className={`${inter.variable} antialiased`}>
+      <body className={`${ibmPlexSans.variable} antialiased`}>
         <AuthProvider>{children}</AuthProvider>
       </body>
     </html>

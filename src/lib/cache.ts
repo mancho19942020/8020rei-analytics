@@ -22,10 +22,11 @@
 interface CacheEntry<T> {
   data: T;
   timestamp: number;
+  ttl: number;
 }
 
 const cache = new Map<string, CacheEntry<unknown>>();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds
+const DEFAULT_CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds
 const MAX_CACHE_SIZE = 500; // Maximum number of entries before eviction
 
 /**
@@ -38,7 +39,7 @@ export function getCached<T>(key: string): T | null {
   if (!entry) return null;
 
   const age = Date.now() - entry.timestamp;
-  if (age > CACHE_TTL) {
+  if (age > entry.ttl) {
     // Cache expired, remove it
     cache.delete(key);
     return null;
@@ -53,8 +54,9 @@ export function getCached<T>(key: string): T | null {
  * Evicts the oldest entry if the cache exceeds MAX_CACHE_SIZE.
  * @param key - Unique cache key
  * @param data - Data to cache
+ * @param ttlMs - Optional TTL override in milliseconds (default: 5 min)
  */
-export function setCache<T>(key: string, data: T): void {
+export function setCache<T>(key: string, data: T, ttlMs: number = DEFAULT_CACHE_TTL): void {
   // Evict expired entries first if we're at capacity
   if (cache.size >= MAX_CACHE_SIZE) {
     evictExpired();
@@ -71,6 +73,7 @@ export function setCache<T>(key: string, data: T): void {
   cache.set(key, {
     data,
     timestamp: Date.now(),
+    ttl: ttlMs,
   });
 }
 
@@ -100,7 +103,7 @@ export function clearCache(): void {
 function evictExpired(): void {
   const now = Date.now();
   for (const [key, entry] of cache.entries()) {
-    if (now - entry.timestamp > CACHE_TTL) {
+    if (now - entry.timestamp > entry.ttl) {
       cache.delete(key);
     }
   }

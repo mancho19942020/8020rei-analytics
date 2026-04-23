@@ -1,0 +1,21 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "pcm_alignment_runs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "widget_key", "order": "ASCENDING" },
+        { "fieldPath": "server_computed_at", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "pcm_alignment_runs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "severity", "order": "ASCENDING" },
+        { "fieldPath": "server_computed_at", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

@@ -1,4 +1,5 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth-guard';
 import { listDocuments, getDocumentContent, DriveDocument } from '@/lib/google-drive';
 import { parseDocumentInsights, getDriveViewUrl } from '@/lib/document-parser';
 import { getCached, setCache, clearCacheByPrefix } from '@/lib/cache';
@@ -22,7 +23,10 @@ interface EngagementCallsResponse {
  * Query params:
  *   - includePreview: boolean (default: true) - include text preview for each doc
  */
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
+  const authError = await requireAuth(request);
+  if (authError) return authError;
+
   try {
     const url = new URL(request.url);
     const includePreview = url.searchParams.get('includePreview') !== 'false';

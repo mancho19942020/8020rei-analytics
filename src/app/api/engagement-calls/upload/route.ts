@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth-guard';
 import { uploadDocumentWithFolder } from '@/lib/google-drive';
 import { clearCacheByPrefix } from '@/lib/cache';
 
@@ -19,6 +20,9 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
  * - Returns the new document info
  */
 export async function POST(request: NextRequest) {
+  const authError = await requireAuth(request);
+  if (authError) return authError;
+
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File | null;

@@ -1,9 +1,8 @@
 /**
- * ClientDomainsTab Component
+ * ClientDomainsTab Component (Feedback Loop > Import)
  *
- * Product > Client Domains tab.
- * Tracks domain uploads, leads, appointments, deals, revenue,
- * and flags inactive/problematic domains.
+ * Tracks client data imports: properties, leads, appointments, deals, revenue,
+ * and flags inactive/problematic clients.
  *
  * Data source: BigQuery project bigquery-467404, table feedback_clients_unique
  */
@@ -23,6 +22,7 @@ import {
   DEFAULT_PRODUCT_DOMAINS_LAYOUT,
   PRODUCT_DOMAINS_LAYOUT_STORAGE_KEY,
   PRODUCT_DOMAINS_WIDGET_CATALOG,
+  loadLayout,
 } from '@/lib/workspace/defaultLayouts';
 import { Widget, TabHandle } from '@/types/widget';
 import type { ClientDomainsData } from '@/types/product';
@@ -34,6 +34,7 @@ import {
   formatRevenueByDomainForExport,
 } from '@/lib/export';
 import { buildDateQueryString } from '@/lib/date-utils';
+import { authFetch } from '@/lib/auth-fetch';
 
 interface ClientDomainsTabProps {
   days: number;
@@ -54,19 +55,9 @@ export const ClientDomainsTab = forwardRef<TabHandle, ClientDomainsTabProps>(fun
   const [selectedWidgetForSettings, setSelectedWidgetForSettings] = useState<Widget | null>(null);
 
   // Load layout from localStorage or use default
-  const [layout, setLayout] = useState<Widget[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem(PRODUCT_DOMAINS_LAYOUT_STORAGE_KEY);
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch (e) {
-          console.error('Failed to parse saved product domains layout:', e);
-        }
-      }
-    }
-    return DEFAULT_PRODUCT_DOMAINS_LAYOUT;
-  });
+  const [layout, setLayout] = useState<Widget[]>(() =>
+    loadLayout(PRODUCT_DOMAINS_LAYOUT_STORAGE_KEY, DEFAULT_PRODUCT_DOMAINS_LAYOUT)
+  );
 
   // Expose methods to parent via ref
   useImperativeHandle(ref, () => ({
@@ -83,7 +74,7 @@ export const ClientDomainsTab = forwardRef<TabHandle, ClientDomainsTabProps>(fun
     setError(null);
 
     try {
-      const res = await fetch(`/api/metrics/product-domains?${buildDateQueryString(days, startDate, endDate)}`);
+      const res = await authFetch(`/api/metrics/product-domains?${buildDateQueryString(days, startDate, endDate)}`);
       const json = await res.json();
 
       if (json.success) {
@@ -236,7 +227,7 @@ export const ClientDomainsTab = forwardRef<TabHandle, ClientDomainsTabProps>(fun
     <div className="space-y-4">
       {editMode && (
         <div className="mb-4">
-          <AxisCallout type="info" title="Edit Mode Active">
+          <AxisCallout type="info" title="Edit layout mode active">
             <p className="text-body-regular">
               Drag widgets by their handle icon to reposition them. Resize widgets by dragging their edges.
               Your layout will be saved automatically.

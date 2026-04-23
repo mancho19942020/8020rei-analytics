@@ -21,13 +21,13 @@ export function Logo({ className = 'h-6 w-auto' }: LogoProps) {
       {/* Light mode logo (dark text) - visible in light mode, hidden in dark mode */}
       <img
         src="/logo/logo-light.svg"
-        alt="8020 Lens"
+        alt="Metrics Hub"
         className={`${className} block dark:hidden`}
       />
       {/* Dark mode logo (white text) - hidden in light mode, visible in dark mode */}
       <img
         src="/logo/logo-dark.svg"
-        alt="8020 Lens"
+        alt="Metrics Hub"
         className={`${className} hidden dark:block`}
       />
     </>

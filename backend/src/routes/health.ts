@@ -46,7 +46,7 @@ export async function healthRoutes(
         },
         {
           name: 'aws-aurora',
-          status: process.env.DB_AURORA_RESOURCE_ARN ? 'connected' : 'not_configured',
+          status: (process.env.AURORA_PG_HOST || process.env.DB_AURORA_RESOURCE_ARN) ? 'connected' : 'not_configured',
         },
       ],
     };
@@ -107,15 +107,15 @@ export async function healthRoutes(
     }
 
     // Future services (marked as not configured)
-    // Check Aurora connectivity
-    if (process.env.DB_AURORA_RESOURCE_ARN) {
+    // Check Aurora connectivity (prefers direct PG, falls back to RDS Data API)
+    if (process.env.AURORA_PG_HOST || process.env.DB_AURORA_RESOURCE_ARN) {
       const start = Date.now();
       try {
         const { AuroraService } = await import('../services/aurora.service.js');
         const aurora = new AuroraService();
         const ok = await aurora.isConnected();
         services.push({
-          name: 'aws-aurora',
+          name: `aws-aurora (${aurora.getConnectionMode()})`,
           status: ok ? 'connected' : 'disconnected',
           latency: Date.now() - start,
         });

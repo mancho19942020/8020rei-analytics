@@ -24,7 +24,7 @@ import {
   EngagementMetricsWidget,
   SessionSummaryWidget,
 } from '@/components/workspace/widgets';
-import { DEFAULT_USERS_LAYOUT, USERS_LAYOUT_STORAGE_KEY, USERS_WIDGET_CATALOG } from '@/lib/workspace/defaultLayouts';
+import { DEFAULT_USERS_LAYOUT, USERS_LAYOUT_STORAGE_KEY, USERS_WIDGET_CATALOG, loadLayout } from '@/lib/workspace/defaultLayouts';
 import { Widget, TabHandle } from '@/types/widget';
 import {
   exportToCSV,
@@ -34,6 +34,7 @@ import {
   formatSessionSummaryForExport,
 } from '@/lib/export';
 import { buildDateQueryString } from '@/lib/date-utils';
+import { authFetch } from '@/lib/auth-fetch';
 
 interface TrendData {
   value: number;
@@ -102,19 +103,9 @@ export const UsersTab = forwardRef<TabHandle, UsersTabProps>(function UsersTab(
   const [selectedWidgetForSettings, setSelectedWidgetForSettings] = useState<Widget | null>(null);
 
   // Load layout from localStorage or use default
-  const [layout, setLayout] = useState<Widget[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem(USERS_LAYOUT_STORAGE_KEY);
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch (e) {
-          console.error('Failed to parse saved users layout:', e);
-        }
-      }
-    }
-    return DEFAULT_USERS_LAYOUT;
-  });
+  const [layout, setLayout] = useState<Widget[]>(() =>
+    loadLayout(USERS_LAYOUT_STORAGE_KEY, DEFAULT_USERS_LAYOUT)
+  );
 
   // Expose methods to parent via ref
   useImperativeHandle(ref, () => ({
@@ -131,7 +122,7 @@ export const UsersTab = forwardRef<TabHandle, UsersTabProps>(function UsersTab(
     setError(null);
 
     try {
-      const res = await fetch(`/api/metrics/users?${buildDateQueryString(days, startDate, endDate)}&userType=${userType}`);
+      const res = await authFetch(`/api/metrics/users?${buildDateQueryString(days, startDate, endDate)}&userType=${userType}`);
       const json = await res.json();
 
       if (json.success) {
@@ -317,7 +308,7 @@ export const UsersTab = forwardRef<TabHandle, UsersTabProps>(function UsersTab(
       {/* Edit Mode Info */}
       {editMode && (
         <div className="mb-4">
-          <AxisCallout type="info" title="Edit Mode Active">
+          <AxisCallout type="info" title="Edit layout mode active">
             <p className="text-body-regular">
               Drag widgets by their handle icon to reposition them. Resize widgets by dragging their edges.
               Your layout will be saved automatically.

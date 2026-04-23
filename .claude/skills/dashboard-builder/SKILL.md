@@ -43,8 +43,8 @@ Many Tailwind color classes don't apply correctly in this project. **Always use 
 - Widget cards: White (`bg-surface-base`)
 
 **Dark Mode:**
-- Header + nav tabs: Slightly darker than base (`chrome-bg` = `#0d1321`)
-- Main content area: `var(--surface-base)` = `#111827`
+- Header + nav tabs: Darker gray-navy (`chrome-bg` = `#0a101c`)
+- Main content area: `var(--surface-base)` = `#0e1421`
 - Widget cards: `bg-surface-base`
 - NO pure black backgrounds ever
 
@@ -323,7 +323,7 @@ Always define sensible constraints for widgets:
 
 | Widget Type | Min Size | Max Size | Notes |
 |-------------|----------|----------|-------|
-| Metrics/Scorecards | 6×3 | 12×4 | Height limited for card layout |
+| Metrics/Scorecards | 6×2 | 12×2 | Flush layout — compact h=2 cells (136px), cards fill cell tightly |
 | Line/Bar charts | 4×4 | 12×8 | Charts auto-resize via ResponsiveContainer |
 | Donut charts | 4×4 | 8×8 | Keep aspect ratio close to square |
 | Tables | 6×4 | 12×12 | Shows more rows when taller |
@@ -332,7 +332,7 @@ Always define sensible constraints for widgets:
 All widgets automatically adapt to size changes because:
 - Charts use `<ResponsiveContainer width="100%" height="100%">` from recharts
 - Tables use `overflow-auto` with flex layout
-- Scorecards use CSS Grid with flexible units
+- Scorecards use `flex flush-cards` — content-height, no vertical stretch
 
 #### CSS Classes for Resize Handles
 Defined in `globals.css`:
@@ -356,29 +356,89 @@ export const DEFAULT_USERS_LAYOUT: Widget[] = [...];
 ```
 
 ### Loading Layout in Tab Component
+
+**IMPORTANT:** Always use the `loadLayout` helper — never read localStorage directly.
+This ensures that when `LAYOUT_SCHEMA_VERSION` is bumped, all users automatically
+get fresh default layouts without needing to manually "Reset Layout".
+
 ```typescript
-const [layout, setLayout] = useState<Widget[]>(() => {
-  if (typeof window !== 'undefined') {
-    const saved = localStorage.getItem(TAB_LAYOUT_STORAGE_KEY);
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error('Failed to parse saved layout:', e);
-      }
-    }
-  }
-  return DEFAULT_TAB_LAYOUT;
-});
+import { loadLayout, TAB_LAYOUT_STORAGE_KEY, DEFAULT_TAB_LAYOUT } from '@/lib/workspace/defaultLayouts';
+
+const [layout, setLayout] = useState<Widget[]>(() =>
+  loadLayout(TAB_LAYOUT_STORAGE_KEY, DEFAULT_TAB_LAYOUT)
+);
 ```
 
-### Metric Cards (inside widgets)
+### When Changing Default Layouts (widget sizes, titles, new widgets, etc.)
 
-Use the pattern from `MetricsOverviewWidget`:
+**CRITICAL:** After modifying any default layout in `defaultLayouts.ts`, bump
+`LAYOUT_SCHEMA_VERSION` by 1. This single number controls cache invalidation
+for ALL tabs. Without bumping it, existing users will keep seeing their old
+cached layouts and won't see your changes until they manually reset.
+
+```typescript
+// In defaultLayouts.ts — bump this after every layout change
+export const LAYOUT_SCHEMA_VERSION = 2;  // was 1 → now 2
+```
+
+### Metric Cards (inside widgets) — Flush Layout
+
+Cards sit **edge-to-edge** inside widgets with no gaps and no body padding.
+
+**Card component (`MetricCard`):**
 - Background: `bg-surface-raised`
 - Border: `border border-stroke`
-- Hover: `hover:border-stroke-strong hover:shadow-sm`
-- Icon container: `bg-main-600 dark:bg-main-700` with `text-white`
+- Hover: `hover:border-stroke-strong`
+- Layout: `flex flex-col gap-2 p-3 flex-1 min-w-0 h-full` (compact padding, fills cell)
+- Value: `text-[2.25rem] leading-[40px]` (compact hero)
+- NO `rounded-*` — corners are handled by the parent container
+- NO `hover:shadow-sm` — cards are flush, shadows would break the cohesive block
+
+**Card container (inside each widget):**
+- Use `flex w-full h-full flush-cards` (NOT `grid gap-*`)
+- `flush-cards` CSS class applies `border-bottom-left-radius: 0.5rem` on first child and `border-bottom-right-radius: 0.5rem` on last child
+- For vertical card stacks use `flush-cards-vertical` instead
+
+**Widget wrapper — `flushBody` (CRITICAL):**
+- Set `flushBody: true` on the widget definition in `defaultLayouts.ts` — this is the **only** place to set it
+- `flushBody` removes body padding so content goes edge-to-edge
+- The Widget type (`src/types/widget.ts`) has a `flushBody?: boolean` field — set it right next to `h`, `w`, `title`
+- A legacy `FLUSH_BODY_WIDGETS_LEGACY` Set exists in `GridWorkspace.tsx` for older widgets, but **never add to it** — always use the config field
+
+**Which widgets need `flushBody: true`?**
+- MetricCard rows (horizontal card strips)
+- AxisPill grids (`grid grid-cols-2` with `AxisPill` components)
+- Any widget where content should touch the widget edges without internal padding
+
+**Grid cell sizing:**
+- MetricCard flush widgets: `h: 2` (136px cell = 2 × 60px rows + 16px margin), locked `minH: 2`, `maxH: 2`
+- Pill-grid flush widgets: `h: 3` for up to 4 rows of pills (8 pills), `h: 2` for 2 rows (4 pills)
+- Widget header uses `py-2` (not `py-3`) for flush body widgets — saves 8px for card breathing room
+- Adjust `y` positions of widgets below accordingly
+- Bump layout storage key version when changing heights (forces fresh layout for users)
+
+### Widget Content Hugging Rule (MANDATORY)
+
+Widgets MUST hug their content — no dead space between the last content element and the widget border. This is a recurring issue that has been corrected multiple times.
+
+**How `flushBody` is enforced:**
+The `flushBody` field lives on the Widget type definition and is set in `defaultLayouts.ts` right next to `h`, `w`, and `title`. When defining a new widget, you MUST decide whether it needs flush body in the same place you decide its height. `GridWorkspace.tsx` reads `widgetConfig.flushBody` and passes it to the Widget wrapper. This eliminates the old pattern of maintaining a separate registry file.
+
+**Reference implementations:**
+- `DmDataQualityWidget` — pill grid, `h: 3`, `flushBody: true`, 8 pills
+- `PcmReconciliationOverviewWidget` — pill grid, `h: 3`, `flushBody: true`, 8 pills
+- `PcmMarginSummaryWidget` — MetricCard row, `h: 2`, `flushBody: true`, 4 cards
+
+**How to verify:** After building any widget, visually check in the browser that:
+1. Content fills the widget body with no large blank area at the bottom
+2. The gap between this widget and the next matches the 16px grid margin
+3. Compare against Data Quality or MetricCard widgets for reference
+
+**Common mistakes that cause dead space:**
+- Missing `flushBody: true` → body padding steals ~20px, pills overflow or widget needs to be taller
+- `h` value too large for content → grid cell taller than content, dead space appears
+- Compensating for clipping by increasing `h` instead of adding `flushBody: true`
+- Adding to the legacy `FLUSH_BODY_WIDGETS_LEGACY` Set instead of using the config field
 
 ---
 
@@ -440,8 +500,9 @@ Always use this exact pattern for non-widget tabs:
 - Field labels: "Display name", "Title / role" — NOT "Display Name", "Title / Role"
 - Exception: proper nouns and abbreviations keep their casing (e.g. "Grafana URL", "Firebase")
 
-### Standard Card Grid
+### Standard Card Grid (non-widget contexts)
 
+For non-widget contexts (e.g. page-level card galleries), grids with gaps are still fine:
 ```tsx
 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
   {items.map(item => (
@@ -455,6 +516,8 @@ For auto-fit grids with a min card width:
 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 16 }}>
 ```
 Use `gap: 16` (not 20 or 24) to keep cards dense.
+
+> **Inside widgets**: NEVER use `grid gap-*`. Use `flex flush-cards` instead (see "Metric Cards" section above).
 
 ### Standard Empty State
 
@@ -1002,15 +1065,9 @@ export const NewTab = forwardRef<TabHandle, TabProps>(function NewTab(
   const [showWidgetCatalog, setShowWidgetCatalog] = useState(false);
   const [selectedWidgetForSettings, setSelectedWidgetForSettings] = useState<Widget | null>(null);
 
-  const [layout, setLayout] = useState<Widget[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem(TAB_LAYOUT_STORAGE_KEY);
-      if (saved) {
-        try { return JSON.parse(saved); } catch (e) { /* ignore */ }
-      }
-    }
-    return DEFAULT_TAB_LAYOUT;
-  });
+  const [layout, setLayout] = useState<Widget[]>(() =>
+    loadLayout(TAB_LAYOUT_STORAGE_KEY, DEFAULT_TAB_LAYOUT)
+  );
 
   // CRITICAL: Expose methods to parent via ref for unified toolbar
   useImperativeHandle(ref, () => ({
