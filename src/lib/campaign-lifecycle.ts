@@ -15,14 +15,29 @@
 import { runAuroraQuery } from './aurora';
 import { EXCLUDE_TEST_DOMAINS_SQL as EXCLUDE_SEED } from './domain-filter';
 
+/** Provenance of `stoppedAt`. Drives the tooltip so readers can judge the date.
+ *  - `observed`   — we saw the exact active→non-active transition in snapshot history.
+ *                    Most accurate; matches the hour of the status flip.
+ *  - `last-sent`  — transition predates our snapshot history, so we surface the
+ *                    campaign's last_sent_date as the most business-meaningful
+ *                    "effectively stopped" proxy ("last mailed on this day").
+ *
+ *  Draft / eliminated campaigns that NEVER sent mail return `null` — we have no
+ *  meaningful "stopped" date for a campaign that never ran.
+ */
+export type StoppedAtSource = 'observed' | 'last-sent';
+
 export interface CampaignLifecycle {
   campaignId: string;
   campaignName: string;
   domain: string;
   currentStatus: string;
-  /** ISO timestamp or null. Null when campaign is currently active, or when the
-   *  snapshot history never contains an active→non-active transition. */
+  /** ISO timestamp or null. Null when the campaign is currently active, or when
+   *  we have no data at all (e.g. draft campaign never captured in a non-active
+   *  snapshot and never sent mail). */
   stoppedAt: string | null;
+  /** Provenance of stoppedAt. Null iff stoppedAt is null. */
+  stoppedAtSource: StoppedAtSource | null;
   lastSentDate: string | null;
 }
 
@@ -51,7 +66,7 @@ export async function queryCampaignLifecycles(domain?: string): Promise<Campaign
         ${domainClause}
     ),
     stops AS (
-      SELECT campaign_id, MAX(snapshot_at) AS stopped_at
+      SELECT campaign_id, MAX(snapshot_at) AS observed_stopped_at
       FROM transitions
       WHERE prev_status = 'active' AND status <> 'active'
       GROUP BY campaign_id
@@ -70,7 +85,7 @@ export async function queryCampaignLifecycles(domain?: string): Promise<Campaign
       l.domain,
       l.status AS current_status,
       l.last_sent_date,
-      s.stopped_at
+      s.observed_stopped_at
     FROM latest l
     LEFT JOIN stops s ON s.campaign_id = l.campaign_id
     ORDER BY l.domain, l.campaign_id
@@ -78,37 +93,64 @@ export async function queryCampaignLifecycles(domain?: string): Promise<Campaign
 
   return rows.map((r: Record<string, unknown>) => {
     const currentStatus = String(r.current_status || '');
-    const rawStopped = r.stopped_at ? String(r.stopped_at) : null;
-    // Currently-active campaigns never show a stoppedAt — even if they were
-    // stopped in the past and later re-activated.
-    const stoppedAt = currentStatus === 'active' ? null : rawStopped;
+    const observed = r.observed_stopped_at ? String(r.observed_stopped_at) : null;
+    const lastSent = r.last_sent_date ? String(r.last_sent_date) : null;
+
+    // Only "stopped" states (disabled / eliminated / paused) carry a stoppedAt.
+    // Active campaigns are still running. Draft campaigns were never running.
+    // For stopped states we prefer the observed transition timestamp (the
+    // hourly cron captures every status flip within ~60min going forward).
+    // When the flip predates snapshot history, last_sent_date is the best
+    // business-meaningful proxy ("last day this campaign effectively ran").
+    const isStopped =
+      currentStatus === 'disabled' ||
+      currentStatus === 'eliminated' ||
+      currentStatus === 'paused';
+    let stoppedAt: string | null = null;
+    let stoppedAtSource: StoppedAtSource | null = null;
+    if (isStopped) {
+      if (observed) {
+        stoppedAt = observed;
+        stoppedAtSource = 'observed';
+      } else if (lastSent) {
+        stoppedAt = lastSent;
+        stoppedAtSource = 'last-sent';
+      }
+    }
+
     return {
       campaignId: String(r.campaign_id || ''),
       campaignName: String(r.campaign_name || ''),
       domain: String(r.domain || ''),
       currentStatus,
       stoppedAt,
-      lastSentDate: r.last_sent_date ? String(r.last_sent_date) : null,
+      stoppedAtSource,
+      lastSentDate: lastSent,
     };
   });
 }
 
 /**
- * Given a client's campaigns, return the client-level stoppedAt date.
- * Returns null if ANY campaign is active (client still has work running).
- * Otherwise returns the most recent stoppedAt across the client's campaigns.
+ * Given a client's campaigns, return the client-level stoppedAt date + its source.
+ * Returns { stoppedAt: null, stoppedAtSource: null } if any campaign is active
+ * (client still has work running). Otherwise returns the most recent stoppedAt
+ * across the client's campaigns, carrying over the winning campaign's source.
  */
-export function deriveClientStoppedAt(lifecycles: CampaignLifecycle[]): string | null {
-  if (lifecycles.length === 0) return null;
+export function deriveClientStoppedAt(
+  lifecycles: CampaignLifecycle[]
+): { stoppedAt: string | null; stoppedAtSource: StoppedAtSource | null } {
+  if (lifecycles.length === 0) return { stoppedAt: null, stoppedAtSource: null };
   const anyActive = lifecycles.some(c => c.currentStatus === 'active');
-  if (anyActive) return null;
-  const stops = lifecycles
-    .map(c => c.stoppedAt)
-    .filter((v): v is string => typeof v === 'string' && v.length > 0);
-  if (stops.length === 0) return null;
+  if (anyActive) return { stoppedAt: null, stoppedAtSource: null };
+  const withDates = lifecycles.filter(
+    (c): c is CampaignLifecycle & { stoppedAt: string; stoppedAtSource: StoppedAtSource } =>
+      typeof c.stoppedAt === 'string' && c.stoppedAt.length > 0 && c.stoppedAtSource !== null
+  );
+  if (withDates.length === 0) return { stoppedAt: null, stoppedAtSource: null };
   // Lexicographic sort works for ISO timestamps — most recent last.
-  stops.sort();
-  return stops[stops.length - 1];
+  withDates.sort((a, b) => a.stoppedAt.localeCompare(b.stoppedAt));
+  const winner = withDates[withDates.length - 1];
+  return { stoppedAt: winner.stoppedAt, stoppedAtSource: winner.stoppedAtSource };
 }
 
 /**

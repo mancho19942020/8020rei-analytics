@@ -515,6 +515,7 @@ async function getCampaignList(_days: number, domain?: string) {
       daysSinceFirstHold: ageRow?.daysSinceFirstHold ?? null,
       onHoldAgeBucket: ageRow?.ageBucket ?? null,
       stoppedAt: lifecycle?.stoppedAt ?? null,
+      stoppedAtSource: lifecycle?.stoppedAtSource ?? null,
     };
   });
 

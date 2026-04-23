@@ -130,22 +130,37 @@ export function RrCampaignTableWidget({ data, onDomainClick }: RrCampaignTableWi
     {
       field: 'stoppedAt',
       header: 'Stopped on',
-      headerTooltip: 'Date this campaign transitioned out of "active" (disabled or eliminated). Computed from Aurora rr_campaign_snapshots — the most recent hourly snapshot where status changed from active → non-active. Active and draft campaigns show "—" because they have not stopped. Dates here match the client-level "Stopped on" in Business Results → Client Performance.',
+      headerTooltip: 'When this campaign stopped running. Three possible sources (shown in each cell\'s tooltip): "observed" = we saw the exact active→non-active flip in snapshot history (most accurate); "last mailed" = the flip predates our snapshot history, so we surface the campaign\'s last send date as the best proxy; "floor" = campaign never sent mail and has been inactive since at least this date. Active / draft campaigns show "—". Dates match the client-level "Stopped on" in Business Results → Client Performance.',
       width: 130,
       minWidth: 110,
       align: 'center',
       type: 'date',
-      render: (value: CellValue) => {
+      render: (value: CellValue, row: RowData) => {
         const iso = value ? String(value) : null;
         const label = formatStoppedDate(iso);
         if (!label) {
           return <span style={{ color: 'var(--text-tertiary)' }}>&mdash;</span>;
         }
         const days = daysSince(iso);
+        const source = row?.stoppedAtSource as ('observed' | 'last-sent' | null);
+        const sourceLabel = source === 'observed'
+          ? 'Status change observed in snapshot history'
+          : source === 'last-sent'
+            ? 'Last mail sent on this day (status flip predates our snapshot history)'
+            : '';
+        const relative = days !== null ? `${days} day${days === 1 ? '' : 's'} ago` : '';
+        const exact = `exact: ${iso}`;
+        const tooltip = [sourceLabel, relative, exact].filter(Boolean).join(' · ');
         return (
           <span
-            title={days !== null ? `${days} day${days === 1 ? '' : 's'} ago · exact: ${iso}` : iso ?? ''}
-            style={{ color: 'var(--text-primary)' }}
+            title={tooltip}
+            style={{
+              color: 'var(--text-primary)',
+              // Render fallback dates slightly dimmer so the observed vs fallback distinction
+              // is visible at a glance without adding a second column.
+              opacity: source === 'observed' ? 1 : 0.75,
+              fontStyle: source === 'observed' ? 'normal' : 'italic',
+            }}
           >
             {label}
           </span>
@@ -268,6 +283,7 @@ export function RrCampaignTableWidget({ data, onDomainClick }: RrCampaignTableWi
       daysSinceFirstHold: c.daysSinceFirstHold,
       onHoldAgeBucket: c.onHoldAgeBucket,
       stoppedAt: c.stoppedAt,
+      stoppedAtSource: c.stoppedAtSource,
     })),
   [data]);
 

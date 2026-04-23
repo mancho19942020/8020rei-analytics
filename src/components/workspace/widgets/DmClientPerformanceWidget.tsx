@@ -263,22 +263,35 @@ export function DmClientPerformanceWidget({ data, onDomainClick }: DmClientPerfo
     {
       field: 'stoppedAt',
       header: 'Stopped on',
-      headerTooltip: 'Date this client stopped running DM campaigns. Computed from Aurora rr_campaign_snapshots as the most recent active→non-active transition across all the client\'s campaigns. Clients with at least one active campaign show "—" — they haven\'t stopped. Dates here match the per-campaign "Stopped on" in Operational Health → Campaign table (both derive from the shared campaign-lifecycle helper). Sort descending to see recently-stopped clients first.',
+      headerTooltip: 'When this client stopped running DM campaigns. Shown only when ALL of the client\'s campaigns are non-active. Three sources (revealed in each cell\'s tooltip): "observed" = exact transition seen in snapshot history; "last mailed" = flip predates snapshots, so we use the client\'s last send date as best proxy; "floor" = lower-bound from earliest non-active snapshot. Clients with any active campaign show "—". Sort descending to surface most-recently-stopped clients first. Dates match the per-campaign "Stopped on" in Operational Health → Campaign table.',
       width: 130,
       minWidth: 110,
       align: 'center',
       type: 'date',
-      render: (value: CellValue) => {
+      render: (value: CellValue, row: RowData) => {
         const iso = value ? String(value) : null;
         const label = formatStoppedDate(iso);
         if (!label) {
           return <span style={{ color: 'var(--text-tertiary)' }}>&mdash;</span>;
         }
         const days = daysSince(iso);
+        const source = row?.stoppedAtSource as ('observed' | 'last-sent' | null);
+        const sourceLabel = source === 'observed'
+          ? 'Status change observed in snapshot history'
+          : source === 'last-sent'
+            ? 'Last mail sent on this day (status flip predates our snapshot history)'
+            : '';
+        const relative = days !== null ? `${days} day${days === 1 ? '' : 's'} ago` : '';
+        const exact = `exact: ${iso}`;
+        const tooltip = [sourceLabel, relative, exact].filter(Boolean).join(' · ');
         return (
           <span
-            title={days !== null ? `${days} day${days === 1 ? '' : 's'} ago · exact: ${iso}` : iso ?? ''}
-            style={{ color: 'var(--text-primary)' }}
+            title={tooltip}
+            style={{
+              color: 'var(--text-primary)',
+              opacity: source === 'observed' ? 1 : 0.75,
+              fontStyle: source === 'observed' ? 'normal' : 'italic',
+            }}
           >
             {label}
           </span>
@@ -354,6 +367,7 @@ export function DmClientPerformanceWidget({ data, onDomainClick }: DmClientPerfo
       costPerLead: c.costPerLead,
       syncWarning: c.syncWarning || null,
       stoppedAt: c.stoppedAt ?? null,
+      stoppedAtSource: c.stoppedAtSource ?? null,
     })),
   [data]);
 

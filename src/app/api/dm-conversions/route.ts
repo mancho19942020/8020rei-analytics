@@ -555,6 +555,7 @@ async function getClientPerformance(dateCtx: DateContext, domain?: string) {
   const data: DmClientPerformanceRow[] = mergedRows.map((row) => {
     const confidence = getRoasConfidence(row.deals, row.totalRevenue);
     const clientLifecycles = perDomainLifecycles.get(row.domain) || [];
+    const clientStop = deriveClientStoppedAt(clientLifecycles);
     return {
       domain: row.domain,
       campaignType: row.campaignType,
@@ -576,7 +577,8 @@ async function getClientPerformance(dateCtx: DateContext, domain?: string) {
       roasConfidence: confidence,
       unattributedConversions: row.unattributedConversions,
       syncWarning: row.syncWarning || null,
-      stoppedAt: deriveClientStoppedAt(clientLifecycles),
+      stoppedAt: clientStop.stoppedAt,
+      stoppedAtSource: clientStop.stoppedAtSource,
     };
   });
 

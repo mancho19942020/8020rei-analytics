@@ -45,13 +45,18 @@ export interface RrCampaignSnapshot {
   /** 'stale' if daysSinceFirstHold ≥ 7 (overdue for monolith auto-delivery timer),
    *  'fresh' if < 7, null if no on-hold. */
   onHoldAgeBucket: 'stale' | 'fresh' | null;
-  /** ISO timestamp of the most recent snapshot at which this campaign
-   *  transitioned from 'active' → non-active. Null when the campaign is
-   *  currently active (even if it was previously stopped and re-activated),
-   *  or when snapshot history contains no such transition. Computed by the
-   *  shared `campaign-lifecycle` helper so this field and the client-level
-   *  stoppedAt on `DmClientPerformanceRow` always agree. */
+  /** Best-available "stopped on" date for non-active campaigns. Null when
+   *  the campaign is currently active (even if it was previously stopped and
+   *  re-activated), or when we have zero usable data (e.g. draft campaign that
+   *  never sent). Computed by the shared `campaign-lifecycle` helper so this
+   *  field and the client-level stoppedAt on `DmClientPerformanceRow` always
+   *  agree. */
   stoppedAt: string | null;
+  /** Provenance of stoppedAt. 'observed' = we saw the exact transition;
+   *  'last-sent' = transition predates snapshot history, we surface the
+   *  campaign's last send date as the best proxy. Null iff stoppedAt is null.
+   *  Drives the tooltip so readers can judge the date's precision. */
+  stoppedAtSource: 'observed' | 'last-sent' | null;
 }
 
 export interface RrOperationalPulse {
