@@ -173,6 +173,13 @@ export interface DmClientPerformanceRow {
   unattributedConversions: number;
   /** Sync warning — shown when property data is still loading for this domain */
   syncWarning?: string | null;
+  /** Best-available "stopped on" date for fully-inactive clients (zero active
+   *  campaigns). Matches the per-campaign stoppedAt in Operational Health →
+   *  Campaign table — both derive from the shared `campaign-lifecycle` helper.
+   *  Null when any campaign is active (client still running work). */
+  stoppedAt?: string | null;
+  /** Provenance of stoppedAt — same semantics as `RrCampaignSnapshot.stoppedAtSource`. */
+  stoppedAtSource?: 'observed' | 'last-sent' | null;
 }
 
 export interface DmGeoRow {

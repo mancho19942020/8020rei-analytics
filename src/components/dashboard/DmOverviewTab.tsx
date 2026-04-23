@@ -26,7 +26,6 @@ import {
   DmOverviewBalanceFlowWidget,
 } from '@/components/workspace/widgets';
 import { Widget } from '@/components/workspace/Widget';
-import { DataReliabilityHint } from '@/components/workspace/DataReliabilityHint';
 import type {
   DmOverviewHeadline,
   DmOverviewSendTrend,
@@ -105,10 +104,6 @@ export function DmOverviewTab() {
 
   return (
     <div className="space-y-4">
-      {/* Reliability hint — one hover away from "how trustworthy is each number?" */}
-      <div className="flex justify-end -mb-2">
-        <DataReliabilityHint tab="overview" />
-      </div>
       {/* Headline row */}
       <div style={{ height: 150 }}>
         <Widget

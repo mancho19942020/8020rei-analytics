@@ -12,6 +12,7 @@ import { ResponsiveGridLayout, Layout, LayoutItem } from 'react-grid-layout';
 import { Widget } from './Widget';
 import { Widget as WidgetConfig, WidgetType } from '@/types/widget';
 import { GRID_CONFIG } from '@/lib/workspace/defaultLayouts';
+import { RECONCILED_WIDGET_KEYS } from '@/lib/pcm-alignment/contracts';
 
 // Import react-grid-layout CSS
 import 'react-grid-layout/css/styles.css';
@@ -44,6 +45,7 @@ const FLUSH_BODY_WIDGETS_LEGACY = new Set<WidgetType>([
   'pcm-margin-period',
   'pcm-reconciliation-overview',
   'rr-operational-pulse',
+  'rr-ops-status-strip',
   'rr-quality-metrics',
   'rr-pcm-health',
 ]);
@@ -210,7 +212,11 @@ export function GridWorkspace({
             <Widget
               title={widgetConfig.title}
               tooltip={widgetConfig.tooltip}
-              widgetKey={widgetConfig.type}
+              // Only DM Campaign widgets (those with a reconciliation contract)
+              // get the "Reconciled Xm ago" tag. Analytics tabs, Users, Features,
+              // Engagement, Geography, etc. are not reconciled and must not
+              // render the tag or trigger the /api/pcm-alignment fetch.
+              widgetKey={RECONCILED_WIDGET_KEYS.has(widgetConfig.type) ? widgetConfig.type : undefined}
               headerExtra={headerExtras?.[widgetConfig.type]}
               editMode={editMode}
               flushBody={widgetConfig.flushBody ?? FLUSH_BODY_WIDGETS_LEGACY.has(widgetConfig.type)}

@@ -18,6 +18,13 @@ import { getAlertsData } from './get-alerts-data';
 import { groupByMSA } from '@/lib/msa-lookup';
 // Test-domain exclusion — canonical source. Any change applies everywhere simultaneously.
 import { TEST_DOMAINS_SQL as SEED_DOMAINS, EXCLUDE_TEST_DOMAINS_SQL as EXCLUDE_SEED } from '@/lib/domain-filter';
+// Campaign lifecycle helper — shared with Operational Health → Campaign table
+// so both widgets derive "stopped on" from the same source.
+import {
+  queryCampaignLifecycles,
+  indexLifecyclesByDomain,
+  deriveClientStoppedAt,
+} from '@/lib/campaign-lifecycle';
 import type {
   DmFunnelOverview,
   DmClientPerformanceRow,
@@ -533,10 +540,22 @@ async function getClientPerformance(dateCtx: DateContext, domain?: string) {
   const cached = getCached(cacheKey);
   if (cached) return NextResponse.json({ success: true, data: cached, cached: true });
 
-  const mergedRows = await getMergedClientData(domain, dateCtx);
+  // Fetch merged funnel/conversion data and per-campaign lifecycle in parallel.
+  // The lifecycle helper gives us a per-campaign stoppedAt; we aggregate per
+  // domain — a client shows a stoppedAt ONLY when ALL their campaigns are
+  // non-active (see deriveClientStoppedAt). Same helper feeds the Operational
+  // Health → Campaign table widget, so the two tables never disagree.
+  const [mergedRows, lifecycles] = await Promise.all([
+    getMergedClientData(domain, dateCtx),
+    queryCampaignLifecycles(domain),
+  ]);
+
+  const perDomainLifecycles = indexLifecyclesByDomain(lifecycles);
 
   const data: DmClientPerformanceRow[] = mergedRows.map((row) => {
     const confidence = getRoasConfidence(row.deals, row.totalRevenue);
+    const clientLifecycles = perDomainLifecycles.get(row.domain) || [];
+    const clientStop = deriveClientStoppedAt(clientLifecycles);
     return {
       domain: row.domain,
       campaignType: row.campaignType,
@@ -558,6 +577,8 @@ async function getClientPerformance(dateCtx: DateContext, domain?: string) {
       roasConfidence: confidence,
       unattributedConversions: row.unattributedConversions,
       syncWarning: row.syncWarning || null,
+      stoppedAt: clientStop.stoppedAt,
+      stoppedAtSource: clientStop.stoppedAtSource,
     };
   });
 

@@ -427,7 +427,7 @@ export async function computeHeadline(orders: PcmOrderSlim[]) {
       pcmVsAuroraCostDelta: Number(pcmVsAuroraCostDelta.toFixed(2)),
       coverage: auroraSummary.coverage,
       sourceNote:
-        'PCM cost is computed from PCM /order × invoice-verified era rates (the vendor\'s own data). Revenue comes from dm_client_funnel.total_cost. Gross margin = revenue − PCM-invoice cost. Aurora\'s stored total_pcm_cost is shown for reconciliation; it differs from the invoice-verified value because the monolith uses $0.625/$0.875 rates instead of $0.63/$0.87 and leaves some pieces un-tagged.',
+        'PCM cost (what PCM charges 8020REI) is computed from PCM /order × invoice-verified Era 3 rates $0.63 std / $0.87 FC. Revenue comes from dm_client_funnel.total_cost (what 8020REI charges clients — Johansy set this to $0.66 std / $0.90 FC on 2026-04-16). Gross margin = revenue − PCM-invoice cost. Aurora\'s stored total_pcm_cost is shown for reconciliation; the delta you see in the warning is because the monolith\'s PCM-cost column (parameters.pcm_cost, not the customer-rate column) still uses $0.625/$0.875 instead of the invoice-verified $0.63/$0.87 and leaves ~8% of pieces un-tagged.',
     },
     activeCampaigns: {
       active: campaignCounts.activeCampaigns,
@@ -468,24 +468,61 @@ export async function computeHeadline(orders: PcmOrderSlim[]) {
 }
 
 export async function computeSendTrend(orders: PcmOrderSlim[]) {
+  // Monthly volume trend (2026-04-22 rework, v2):
+  // - Past months show FULL-MONTH totals (complete Jan, Feb, Mar, …).
+  // - Current month shows month-to-date through today only.
+  // The current-month bar grows each day; when the month ends it freezes at
+  // the full total and a new bar starts on the 1st of the next month. All of
+  // this happens automatically — the /api/dm-overview/refresh cron runs every
+  // 30 min and calls `new Date()` on each invocation, so "today" advances
+  // naturally without any manual intervention.
+  const todayIso = new Date().toISOString().substring(0, 10);
+  const todayMonth = todayIso.substring(0, 7); // YYYY-MM
+  const todayDay = parseInt(todayIso.substring(8, 10), 10);
+
+  let lifetimeTotal = 0;
   const monthly = new Map<string, { fc: number; std: number; total: number }>();
+
   for (const o of orders) {
     if (o.canceled || o.isTestDomain || !o.date) continue;
-    const month = o.date.substring(0, 7);
-    const entry = monthly.get(month) || { fc: 0, std: 0, total: 0 };
+    lifetimeTotal++;
+    const orderMonth = o.date.substring(0, 7);
+    // Only the current month is capped. Prior months include every day.
+    if (orderMonth === todayMonth) {
+      const day = parseInt(o.date.substring(8, 10), 10);
+      if (day > todayDay) continue;
+    }
+    const entry = monthly.get(orderMonth) ?? { fc: 0, std: 0, total: 0 };
     entry.total++;
     if (o.mailClass === 'fc') entry.fc++;
     else entry.std++;
-    monthly.set(month, entry);
+    monthly.set(orderMonth, entry);
   }
+
   const series = [...monthly.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([month, v]) => ({ month, total: v.total, firstClass: v.fc, standard: v.std }));
+    .map(([month, v]) => {
+      const isCurrent = month === todayMonth;
+      const [y, m] = month.split('-').map(Number);
+      const monthLastDay = new Date(Date.UTC(y, m, 0)).getUTCDate();
+      const cutoffDay = isCurrent ? todayDay : monthLastDay;
+      return {
+        month,
+        total: v.total,
+        firstClass: v.fc,
+        standard: v.std,
+        cutoffDate: `${month}-${String(cutoffDay).padStart(2, '0')}`,
+        cutoffDay,
+        isCurrentMonth: isCurrent,
+      };
+    });
 
   return {
     series,
-    sourceNote:
-      'PCM /order grouped by orderDate month. Excludes canceled and test domains. Full history since first PCM order.',
+    todayDay,
+    alignedAt: todayIso,
+    lifetimeTotal,
+    sourceNote: `PCM /order grouped by month. Past months show full-month totals (end-of-month). The current month (${todayMonth}) shows pieces sent from day 1 through day ${todayDay} (month-to-date). Updates automatically each day via the /api/dm-overview/refresh cron. Excludes canceled and test domains.`,
     fetchedAt: new Date().toISOString(),
   };
 }

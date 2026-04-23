@@ -12,6 +12,8 @@ import { SuggestionsModal } from '@/components/SuggestionsModal';
 import { WelcomeModal } from '@/components/WelcomeModal';
 import { AxisSelect, AxisSelectOption, AxisSkeleton, AxisCallout, AxisButton, AxisNavigationTab, AxisToggle, AxisDateRangePicker, DateRangeValue, AxisSidebar } from '@/components/axis';
 import { GridWorkspace, MetricsOverviewWidget, TimeSeriesWidget, BarChartWidget, DataTableWidget, WidgetCatalog, WidgetSettings } from '@/components/workspace';
+import { DataReliabilityHint } from '@/components/workspace/DataReliabilityHint';
+import type { DmCampaignTab } from '@/lib/data-reliability';
 import { DEFAULT_LAYOUT, LAYOUT_STORAGE_KEY, OVERVIEW_WIDGET_CATALOG, loadLayout } from '@/lib/workspace/defaultLayouts';
 import {
   MAIN_SECTION_TABS,
@@ -561,16 +563,31 @@ function Dashboard({ slug }: { slug: string[] }) {
           </nav>
         )}
 
-        {/* Detail Tabs for Features > DM Campaign (Operational health, Business results, PCM) */}
+        {/* Detail Tabs for Features > DM Campaign (Operational health, Business results, PCM).
+            The "Data sources" reliability hint lives here, right-aligned on the same
+            row, so it's a single global surface across all DM Campaign sub-tabs
+            (moved 2026-04-22 from per-tab right-floating positions). Hidden on
+            Reports / Data sources sub-tabs since the hint covers the four data tabs. */}
         {activeMainSection === 'features' && activeSubsection === 'dm-campaign' && (
           <nav className="flex-shrink-0 px-6 border-b border-stroke chrome-bg">
-            <AxisNavigationTab
-              activeTab={activeDetailTab}
-              onTabChange={setActiveDetailTab}
-              tabs={DM_CAMPAIGN_SUB_TABS}
-              variant="line"
-              size="sm"
-            />
+            <div className="flex items-center justify-between gap-4">
+              <AxisNavigationTab
+                activeTab={activeDetailTab}
+                onTabChange={setActiveDetailTab}
+                tabs={DM_CAMPAIGN_SUB_TABS}
+                variant="line"
+                size="sm"
+              />
+              {(() => {
+                const hintTab: DmCampaignTab | null =
+                  dmCampaignSubTab === 'overview' ? 'overview'
+                  : dmCampaignSubTab === 'operational-health' ? 'operational-health'
+                  : dmCampaignSubTab === 'business-results' ? 'business-results'
+                  : dmCampaignSubTab === 'pcm-validation' ? 'profitability'
+                  : null;
+                return hintTab ? <DataReliabilityHint tab={hintTab} /> : null;
+              })()}
+            </div>
           </nav>
         )}
 

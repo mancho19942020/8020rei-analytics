@@ -42,6 +42,22 @@ function formatDomain(domain: string): string {
     .trim() || domain;
 }
 
+/** Format an ISO timestamp as "Apr 23, 2026" (short date, en-US). */
+function formatStoppedDate(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return null;
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+/** Days between now and an ISO timestamp — rounded down to whole days. */
+function daysSince(iso: string | null | undefined): number | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return null;
+  return Math.max(0, Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24)));
+}
+
 export function RrCampaignTableWidget({ data, onDomainClick }: RrCampaignTableWidgetProps) {
   const [drilldown, setDrilldown] = useState<{
     open: boolean;
@@ -108,6 +124,37 @@ export function RrCampaignTableWidget({ data, onDomainClick }: RrCampaignTableWi
           <AxisTag color={statusColorMap[v] || 'neutral'} size="sm" dot>
             {v}
           </AxisTag>
+        );
+      },
+    },
+    {
+      field: 'stoppedAt',
+      header: 'Stopped on',
+      headerTooltip: 'When this campaign stopped running. Three possible sources (shown in each cell\'s tooltip): "observed" = we saw the exact active→non-active flip in snapshot history (most accurate); "last mailed" = the flip predates our snapshot history, so we surface the campaign\'s last send date as the best proxy; "floor" = campaign never sent mail and has been inactive since at least this date. Active / draft campaigns show "—". Dates match the client-level "Stopped on" in Business Results → Client Performance.',
+      width: 130,
+      minWidth: 110,
+      align: 'center',
+      type: 'date',
+      render: (value: CellValue, row: RowData) => {
+        const iso = value ? String(value) : null;
+        const label = formatStoppedDate(iso);
+        if (!label) {
+          return <span style={{ color: 'var(--text-tertiary)' }}>&mdash;</span>;
+        }
+        const days = daysSince(iso);
+        const source = row?.stoppedAtSource as ('observed' | 'last-sent' | null);
+        const sourceLabel = source === 'observed'
+          ? 'Status change observed in snapshot history'
+          : source === 'last-sent'
+            ? 'Last mail sent on this day (status flip predates our snapshot history)'
+            : '';
+        const relative = days !== null ? `${days} day${days === 1 ? '' : 's'} ago` : '';
+        const exact = `exact: ${iso}`;
+        const tooltip = [sourceLabel, relative, exact].filter(Boolean).join(' · ');
+        return (
+          <span title={tooltip} style={{ color: 'var(--text-primary)' }}>
+            {label}
+          </span>
         );
       },
     },
@@ -226,6 +273,8 @@ export function RrCampaignTableWidget({ data, onDomainClick }: RrCampaignTableWi
       onHoldCount: c.onHoldCount,
       daysSinceFirstHold: c.daysSinceFirstHold,
       onHoldAgeBucket: c.onHoldAgeBucket,
+      stoppedAt: c.stoppedAt,
+      stoppedAtSource: c.stoppedAtSource,
     })),
   [data]);
 

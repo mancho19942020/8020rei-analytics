@@ -97,10 +97,22 @@ export interface DmOverviewSendTrendPoint {
   total: number;
   firstClass: number;
   standard: number;
+  /** YYYY-MM-DD — last day included in this bar: today for the current month; end-of-month for past months. */
+  cutoffDate: string;
+  /** Day number at `cutoffDate`. Useful for labelling. */
+  cutoffDay: number;
+  /** true only for the month matching today's YYYY-MM — drives the "so far" partial-bar UX. */
+  isCurrentMonth: boolean;
 }
 
 export interface DmOverviewSendTrend {
   series: DmOverviewSendTrendPoint[];
+  /** Today's day-of-month at compute time (the alignment anchor for every bar). */
+  todayDay: number;
+  /** YYYY-MM-DD — today at compute time. Drives per-visit recomputation. */
+  alignedAt: string;
+  /** Lifetime client-order count (unfiltered by day) — matches headline.lifetimePieces.pcm. Used by the reconciler. */
+  lifetimeTotal: number;
   sourceNote: string;
   fetchedAt: string;
 }

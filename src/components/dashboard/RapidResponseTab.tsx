@@ -15,11 +15,11 @@
 import { useState, useEffect, useMemo, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { buildDateQueryString } from '@/lib/date-utils';
 import { AxisSkeleton, AxisCallout, AxisButton, AxisTag, AxisDomainSearch } from '@/components/axis';
-import { GridWorkspace, WidgetCatalog, WidgetSettings } from '@/components/workspace';
-import { DataReliabilityHint } from '@/components/workspace/DataReliabilityHint';
+import { GridWorkspace, WidgetCatalog, WidgetSettings, Widget as WidgetShell } from '@/components/workspace';
 import { DmAlertsModal, getAlertCount } from '@/components/dashboard/DmAlertsModal';
 import {
   RrOperationalPulseWidget,
+  RrOpsStatusStripWidget,
   RrQualityMetricsWidget,
   RrPcmHealthWidget,
   RrPostalPerformanceWidget,
@@ -535,6 +535,8 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
         'rr-operational-pulse': data.operationalPulse
           ? <RrOperationalPulseWidget data={data.operationalPulse} />
           : null,
+        // rr-ops-status-strip is rendered outside the grid — see the JSX
+        // below for the fixed 150px mount.
         'rr-quality-metrics': data.qualityMetrics
           ? <RrQualityMetricsWidget data={data.qualityMetrics} />
           : null,
@@ -774,10 +776,27 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
               </AxisCallout>
             )}
 
-            {/* Reliability hint — answers "how trustworthy is each number?" in one hover. */}
-            <div className="flex justify-end mb-1">
-              <DataReliabilityHint tab="operational-health" />
-            </div>
+            {/* Ops status strip — rendered OUTSIDE the grid with a fixed 150px
+                height so its HeadlineCards render at the same proportions as
+                DM Campaign → Overview → Headline metrics (which also uses a
+                fixed 150px shell). The GridWorkspace's rowHeight math can't
+                produce 150px cleanly, so we bypass it. */}
+            {data?.operationalPulse && (
+              <div style={{ height: 150 }} className="mb-4">
+                <WidgetShell
+                  title="Ops status"
+                  tooltip="At-a-glance: how many campaigns are active, how many letters we've sent (lifetime · this month · today), and how many sendings are on hold. Not affected by the date filter."
+                  widgetKey="rr-ops-status-strip"
+                  timeScope="all-time"
+                  flushBody
+                >
+                  <RrOpsStatusStripWidget
+                    pulse={data.operationalPulse}
+                    quality={data.qualityMetrics ?? null}
+                  />
+                </WidgetShell>
+              </div>
+            )}
 
             {/* Grid Workspace */}
             <GridWorkspace
@@ -832,9 +851,6 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
                   </AxisCallout>
                 )}
 
-                <div className="flex justify-end mb-1">
-                  <DataReliabilityHint tab="business-results" />
-                </div>
                 <GridWorkspace
                   layout={brLayout}
                   onLayoutChange={handleBrLayoutChange}
@@ -892,9 +908,6 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
                   </AxisCallout>
                 )}
 
-                <div className="flex justify-end mb-1">
-                  <DataReliabilityHint tab="profitability" />
-                </div>
                 <GridWorkspace
                   layout={pcmLayout}
                   onLayoutChange={handlePcmLayoutChange}

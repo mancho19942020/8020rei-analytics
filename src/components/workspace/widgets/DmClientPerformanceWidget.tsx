@@ -37,6 +37,20 @@ function formatCurrency(value: number): string {
   return `$${value.toFixed(0)}`;
 }
 
+function formatStoppedDate(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return null;
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+function daysSince(iso: string | null | undefined): number | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return null;
+  return Math.max(0, Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24)));
+}
+
 function ClickableNumber({
   value,
   domain,
@@ -197,7 +211,7 @@ export function DmClientPerformanceWidget({ data, onDomainClick }: DmClientPerfo
     {
       field: 'deals',
       header: 'Deals',
-      headerTooltip: 'Properties in this client\'s cohort (first mailed in window) that reached Deal after the first send. Click to see which properties.',
+      headerTooltip: 'Properties in this client\'s cohort (first mailed in window) that ever reached "Deal" status in the monolith, via any channel. Sourced from log_status_properties. Always ≥ the count on the app\'s /dm-campaign/sending-status page, which filters to deals tied to a specific Rapid Response campaign (via rapid_response_id) — a tighter scope. Click to see which properties.',
       type: 'number',
       width: 70,
       minWidth: 60,
@@ -225,7 +239,7 @@ export function DmClientPerformanceWidget({ data, onDomainClick }: DmClientPerfo
     {
       field: 'totalCost',
       header: 'Mail spend',
-      headerTooltip: 'What this client paid 8020REI for mailings in the selected window (cohort view). Lifetime sum across all clients matches Profitability → Margin summary → Revenue.',
+      headerTooltip: 'What this client paid 8020REI for mailings in the selected window (cohort view) — i.e. 8020REI revenue, NOT what PCM charged us. PCM\'s own dashboard shows "Amount Spent" (vendor invoice) which will differ from this number by canceled/credited orders and era-rate drift — tracked by the Reconciled tag. Lifetime sum across clients matches Profitability → Margin summary → Revenue.',
       width: 90,
       minWidth: 80,
       align: 'center',
@@ -245,6 +259,37 @@ export function DmClientPerformanceWidget({ data, onDomainClick }: DmClientPerfo
           {formatCurrency(Number(value || 0))}
         </span>
       ),
+    },
+    {
+      field: 'stoppedAt',
+      header: 'Stopped on',
+      headerTooltip: 'When this client stopped running DM campaigns. Shown only when ALL of the client\'s campaigns are non-active. Three sources (revealed in each cell\'s tooltip): "observed" = exact transition seen in snapshot history; "last mailed" = flip predates snapshots, so we use the client\'s last send date as best proxy; "floor" = lower-bound from earliest non-active snapshot. Clients with any active campaign show "—". Sort descending to surface most-recently-stopped clients first. Dates match the per-campaign "Stopped on" in Operational Health → Campaign table.',
+      width: 130,
+      minWidth: 110,
+      align: 'center',
+      type: 'date',
+      render: (value: CellValue, row: RowData) => {
+        const iso = value ? String(value) : null;
+        const label = formatStoppedDate(iso);
+        if (!label) {
+          return <span style={{ color: 'var(--text-tertiary)' }}>&mdash;</span>;
+        }
+        const days = daysSince(iso);
+        const source = row?.stoppedAtSource as ('observed' | 'last-sent' | null);
+        const sourceLabel = source === 'observed'
+          ? 'Status change observed in snapshot history'
+          : source === 'last-sent'
+            ? 'Last mail sent on this day (status flip predates our snapshot history)'
+            : '';
+        const relative = days !== null ? `${days} day${days === 1 ? '' : 's'} ago` : '';
+        const exact = `exact: ${iso}`;
+        const tooltip = [sourceLabel, relative, exact].filter(Boolean).join(' · ');
+        return (
+          <span title={tooltip} style={{ color: 'var(--text-primary)' }}>
+            {label}
+          </span>
+        );
+      },
     },
     {
       field: 'costPerLead',
@@ -314,6 +359,8 @@ export function DmClientPerformanceWidget({ data, onDomainClick }: DmClientPerfo
       totalRevenue: c.totalRevenue,
       costPerLead: c.costPerLead,
       syncWarning: c.syncWarning || null,
+      stoppedAt: c.stoppedAt ?? null,
+      stoppedAtSource: c.stoppedAtSource ?? null,
     })),
   [data]);
 
@@ -380,15 +427,15 @@ export function DmClientPerformanceWidget({ data, onDomainClick }: DmClientPerfo
             <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>deals</span>
           </div>
           <AxisTooltip
-            content="What clients paid 8020REI for mailings in this window. Same column as Profitability → Margin summary → Revenue."
+            content="What clients paid 8020REI for mailings (billed revenue) — NOT what PCM charged us. PCM's dashboard shows a different number labelled 'Amount Spent' (vendor invoice) — the gap is reconciled by the Reconciled tag in this widget's header. Same column as Profitability → Margin summary → Revenue."
             placement="top"
-            maxWidth={280}
+            maxWidth={320}
           >
             <div className="flex items-baseline gap-1.5" style={{ cursor: 'help' }}>
               <span className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
                 {formatCurrency(totals.totalCost)}
               </span>
-              <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>mail spend</span>
+              <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>mail spend <span style={{ color: 'var(--text-tertiary)', opacity: 0.7 }}>(billed to client)</span></span>
             </div>
           </AxisTooltip>
           <AxisTooltip

@@ -9,6 +9,9 @@ import { runAuroraQuery } from '@/lib/aurora';
 import { getCached, setCache } from '@/lib/cache';
 // Test-domain exclusion — canonical source. Any change applies everywhere simultaneously.
 import { TEST_DOMAINS_SQL as SEED_DOMAINS, EXCLUDE_TEST_DOMAINS_SQL as EXCLUDE_SEED } from '@/lib/domain-filter';
+// Campaign / client lifecycle alerts — shared with the operational digest so
+// both Slack channels surface the same events with matching IDs.
+import { queryRecentCampaignStops, queryRecentClientDeactivations } from '@/lib/campaign-lifecycle';
 import type { DmAlert } from '@/types/dm-conversions';
 
 function domainFilter(domain?: string | null): string {
@@ -263,6 +266,52 @@ export async function getAlertsData(domain?: string, days?: number): Promise<Ale
         action: `Review deal values and campaign costs with the client. If deal sizes are consistently small, consider targeting higher-value properties or reducing mailing frequency to improve cost efficiency.`,
       });
     }
+  }
+
+  // BR-8: Campaign / client lifecycle alerts.
+  // Same detection the ops digest uses — shared IDs so the two channels stay
+  // in sync when a campaign/client flips. 7-day window keeps recent events
+  // fresh; older inactives drop out of the digest.
+  try {
+    const LIFECYCLE_WINDOW_DAYS = 7;
+    const [stops, deactivations] = await Promise.all([
+      queryRecentCampaignStops(LIFECYCLE_WINDOW_DAYS, domain),
+      queryRecentClientDeactivations(LIFECYCLE_WINDOW_DAYS, domain),
+    ]);
+
+    for (const evt of stops) {
+      const stoppedDate = evt.stoppedAt.slice(0, 10);
+      const lastSentLine = evt.lastSentDate
+        ? ` Last mail sent: ${evt.lastSentDate.slice(0, 10)}.`
+        : '';
+      alerts.push({
+        id: `rr-campaign-stopped:${evt.domain}:${evt.campaignId}`,
+        name: 'Campaign went inactive',
+        severity: 'warning',
+        category: 'dm-business-results',
+        description: `Campaign *${evt.campaignName}* (${evt.domain}) transitioned from active → ${evt.finalStatus} on ${stoppedDate}.${lastSentLine}`,
+        entity: `${evt.domain} / ${evt.campaignName}`,
+        detected_at: evt.stoppedAt || now,
+        action: 'Confirm with the client if this was intentional; if not, re-enable in the platform. Reach out to understand why.',
+      });
+    }
+
+    for (const evt of deactivations) {
+      const deactivatedDate = evt.deactivatedAt.slice(0, 10);
+      alerts.push({
+        id: `rr-client-inactive:${evt.domain}`,
+        name: 'Client went inactive',
+        severity: 'critical',
+        category: 'dm-business-results',
+        description: `${evt.domain} now has zero active campaigns (${evt.totalCampaigns} total, all non-active). Most recent flip: *${evt.lastCampaign.campaignName}* → ${evt.lastCampaign.finalStatus} on ${deactivatedDate}.`,
+        entity: evt.domain,
+        metrics: { current: 0, baseline: evt.totalCampaigns },
+        detected_at: evt.deactivatedAt || now,
+        action: 'Contact the client to understand why they stopped. Candidate for CS outreach / churn risk review.',
+      });
+    }
+  } catch (err) {
+    console.error('[get-alerts-data] Lifecycle alerts probe failed:', err);
   }
 
   // Sort: critical first, then warning, then info

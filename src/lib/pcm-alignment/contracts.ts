@@ -137,6 +137,7 @@ export const WIDGET_CONTRACTS: readonly WidgetContract[] = [
   // Reconciler emits `info` severity + a freshness stamp; Phase 3b/c adds real reconcilers.
   // Listed here so the widget chrome in Phase 4 can still read a "Reconciled: N min ago" footer.
   { widget_key: 'rr-operational-pulse',   sub_key: null, tab: 'operational-health', thresholds: DEFAULT_THRESHOLDS, autocorrect_action: 'flag-monolith', label: 'Is it working?',           splits_by_campaign_type: false },
+  { widget_key: 'rr-ops-status-strip',    sub_key: null, tab: 'operational-health', thresholds: DEFAULT_THRESHOLDS, autocorrect_action: 'flag-monolith', label: 'Ops status',              splits_by_campaign_type: false },
   { widget_key: 'rr-quality-metrics',     sub_key: null, tab: 'operational-health', thresholds: DEFAULT_THRESHOLDS, autocorrect_action: 'flag-monolith', label: 'Quality metrics',         splits_by_campaign_type: false },
   { widget_key: 'rr-pcm-health',          sub_key: null, tab: 'operational-health', thresholds: DEFAULT_THRESHOLDS, autocorrect_action: 'refresh-cache', label: 'Is it aligned?',          splits_by_campaign_type: false },
   { widget_key: 'rr-postal-performance',  sub_key: null, tab: 'operational-health', thresholds: DEFAULT_THRESHOLDS, autocorrect_action: 'flag-monolith', label: 'Postal performance',      splits_by_campaign_type: false },
@@ -187,3 +188,14 @@ export const IMPLEMENTED_RECONCILERS = new Set<string>([
 export function contractId(c: { widget_key: string; sub_key: string | null }): string {
   return c.sub_key ? `${c.widget_key}.${c.sub_key}` : c.widget_key;
 }
+
+/**
+ * The set of widget `type` values that have a reconciliation contract.
+ * Used by the Widget wrapper to decide whether to render the alignment tag —
+ * non-DM-Campaign widgets (Users, Features, Engagement, Geography, etc.) do
+ * NOT reconcile against PCM and must NOT show a "Reconciled Xm ago" tag.
+ */
+export const RECONCILED_WIDGET_KEYS: ReadonlySet<string> = new Set(
+  WIDGET_CONTRACTS.map((c) => c.widget_key),
+);
+

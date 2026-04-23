@@ -32,6 +32,9 @@ import path from 'path';
 import { TEST_DOMAINS_SQL as SEED_DOMAINS, EXCLUDE_TEST_DOMAINS_SQL as EXCLUDE_SEED } from '@/lib/domain-filter';
 import { getCachedPcmOrdersSlim, type PcmOrderSlim } from '@/app/api/dm-overview/compute';
 import { pcmRate, currentPcmRates } from '@/lib/pcm-pricing-eras';
+// Campaign / client lifecycle alerts — shared with the CS (business) digest
+// so both channels surface the same events with the same IDs.
+import { queryRecentCampaignStops, queryRecentClientDeactivations } from '@/lib/campaign-lifecycle';
 
 export async function POST(request: NextRequest) {
   const authError = await requireAuth(request);
@@ -767,7 +770,71 @@ async function fetchCurrentAlerts(): Promise<RrAlert[]> {
     console.error('[slack-alerts] PCM vendor-rate drift probe failed:', err);
   }
 
+  // Campaign / client lifecycle alerts — "went inactive in the last N days".
+  // Identical detection is also used by the CS (business) digest so both
+  // channels see the same events with the same IDs (→ same new/persistent
+  // classification in both digests).
+  try {
+    const lifecycleAlerts = await buildLifecycleAlerts(now);
+    alerts.push(...lifecycleAlerts);
+  } catch (err) {
+    console.error('[slack-alerts] Lifecycle alerts probe failed:', err);
+  }
+
   return alerts;
+}
+
+/**
+ * Build "campaign went inactive" + "client went inactive" alerts from the
+ * shared campaign-lifecycle helper. Window of 7 days so events stay in the
+ * digest as `new` → `persistent` long enough to cover weekends + be actionable.
+ * Alert IDs are stable across the window so the digest's new-vs-persistent
+ * logic handles day-over-day classification.
+ */
+async function buildLifecycleAlerts(now: string): Promise<RrAlert[]> {
+  const LIFECYCLE_WINDOW_DAYS = 7;
+  const [stops, deactivations] = await Promise.all([
+    queryRecentCampaignStops(LIFECYCLE_WINDOW_DAYS),
+    queryRecentClientDeactivations(LIFECYCLE_WINDOW_DAYS),
+  ]);
+
+  const out: RrAlert[] = [];
+
+  for (const evt of stops) {
+    const stoppedDate = evt.stoppedAt.slice(0, 10);
+    const lastSentLine = evt.lastSentDate
+      ? ` Last mail sent: ${evt.lastSentDate.slice(0, 10)}.`
+      : '';
+    out.push({
+      id: `rr-campaign-stopped:${evt.domain}:${evt.campaignId}`,
+      name: 'Campaign went inactive',
+      severity: 'warning',
+      category: 'rapid-response',
+      description: `Campaign *${evt.campaignName}* (${evt.domain}) transitioned from active → ${evt.finalStatus} on ${stoppedDate}.${lastSentLine}`,
+      entity: `${evt.domain} / ${evt.campaignName}`,
+      detected_at: evt.stoppedAt || now,
+      action: 'Confirm with the client if this was intentional; if not, re-enable in the platform. Reach out to understand why.',
+      link: '/features/features-rei/dm-campaign/operational-health',
+    });
+  }
+
+  for (const evt of deactivations) {
+    const deactivatedDate = evt.deactivatedAt.slice(0, 10);
+    out.push({
+      id: `rr-client-inactive:${evt.domain}`,
+      name: 'Client went inactive',
+      severity: 'critical',
+      category: 'rapid-response',
+      description: `${evt.domain} now has zero active campaigns (${evt.totalCampaigns} total, all non-active). Most recent flip: *${evt.lastCampaign.campaignName}* → ${evt.lastCampaign.finalStatus} on ${deactivatedDate}.`,
+      entity: evt.domain,
+      metrics: { current: 0, baseline: evt.totalCampaigns },
+      detected_at: evt.deactivatedAt || now,
+      action: 'Contact the client to understand why they stopped. Candidate for CS outreach / churn risk review.',
+      link: '/features/features-rei/dm-campaign/business-results',
+    });
+  }
+
+  return out;
 }
 
 /**
