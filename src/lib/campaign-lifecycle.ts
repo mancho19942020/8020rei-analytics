@@ -192,6 +192,166 @@ export function indexLifecyclesByCampaignKey(lifecycles: CampaignLifecycle[]): M
 }
 
 /**
+ * A campaign that transitioned from `active` → non-active in snapshot history.
+ * Used by the Slack digest alerts to surface "campaign stopped" notifications.
+ */
+export interface CampaignStopEvent {
+  campaignId: string;
+  campaignName: string;
+  domain: string;
+  /** Current (latest-snapshot) status — typically 'disabled' | 'eliminated' | 'paused'. */
+  finalStatus: string;
+  /** ISO timestamp of the observed active→non-active transition. */
+  stoppedAt: string;
+  /** Last time this campaign sent mail (from dm_property_conversions). */
+  lastSentDate: string | null;
+}
+
+/**
+ * Return all observed campaign stop events within the last `withinDays` days.
+ * Only returns campaigns whose CURRENT status is still non-active — if a
+ * campaign was re-activated after the transition we don't fire an alert.
+ *
+ * Filter is on the TRANSITION TIMESTAMP, not the current time — so a campaign
+ * that stopped on day 0 will keep appearing for `withinDays` days, letting the
+ * existing "new vs persistent" digest logic handle day-over-day classification.
+ */
+export async function queryRecentCampaignStops(
+  withinDays: number,
+  domain?: string
+): Promise<CampaignStopEvent[]> {
+  const safeDomain = sanitizeDomain(domain);
+  const domainClause = safeDomain ? `AND domain = '${safeDomain}'` : '';
+  const safeDays = Math.max(1, Math.min(365, Math.floor(withinDays)));
+
+  const rows = await runAuroraQuery(`
+    WITH transitions AS (
+      SELECT
+        domain,
+        campaign_id,
+        status,
+        snapshot_at,
+        LAG(status) OVER (PARTITION BY domain, campaign_id ORDER BY snapshot_at) AS prev_status
+      FROM rr_campaign_snapshots
+      WHERE ${EXCLUDE_SEED}
+        ${domainClause}
+    ),
+    recent_stops AS (
+      SELECT domain, campaign_id, MAX(snapshot_at) AS stopped_at
+      FROM transitions
+      WHERE prev_status = 'active' AND status <> 'active'
+        AND snapshot_at >= NOW() - INTERVAL '${safeDays} days'
+      GROUP BY domain, campaign_id
+    ),
+    latest AS (
+      SELECT DISTINCT ON (domain, campaign_id)
+        domain, campaign_id, campaign_name, status
+      FROM rr_campaign_snapshots
+      WHERE ${EXCLUDE_SEED}
+        ${domainClause}
+      ORDER BY domain, campaign_id, snapshot_at DESC
+    ),
+    real_last_send AS (
+      SELECT domain, campaign_id, MAX(last_sent_date) AS last_sent
+      FROM dm_property_conversions
+      WHERE ${EXCLUDE_SEED}
+        ${domainClause}
+        AND last_sent_date IS NOT NULL
+      GROUP BY domain, campaign_id
+    )
+    SELECT
+      s.domain,
+      s.campaign_id,
+      s.stopped_at,
+      l.campaign_name,
+      l.status AS final_status,
+      rls.last_sent
+    FROM recent_stops s
+    JOIN latest l ON l.domain = s.domain AND l.campaign_id = s.campaign_id
+    LEFT JOIN real_last_send rls ON rls.domain = s.domain AND rls.campaign_id = s.campaign_id
+    WHERE l.status <> 'active'
+    ORDER BY s.stopped_at DESC
+  `);
+
+  return rows.map((r: Record<string, unknown>) => ({
+    campaignId: String(r.campaign_id || ''),
+    campaignName: String(r.campaign_name || ''),
+    domain: String(r.domain || ''),
+    finalStatus: String(r.final_status || ''),
+    stoppedAt: String(r.stopped_at || ''),
+    lastSentDate: r.last_sent ? String(r.last_sent) : null,
+  }));
+}
+
+/**
+ * A client that just became fully inactive — had ≥1 active campaign before,
+ * now has zero active campaigns, and at least one of the transitions was
+ * observed in the last `withinDays` days (so it's a recent, fresh event).
+ */
+export interface ClientDeactivationEvent {
+  domain: string;
+  /** When the client's most recent campaign flipped (the one that pushed them to zero active). */
+  deactivatedAt: string;
+  /** The campaign that triggered the client's deactivation. */
+  lastCampaign: {
+    campaignId: string;
+    campaignName: string;
+    finalStatus: string;
+  };
+  /** Total campaigns this client has (all currently non-active). */
+  totalCampaigns: number;
+}
+
+/**
+ * Return all clients that just became fully inactive within the last
+ * `withinDays` days. Built on top of the shared lifecycle helper so the
+ * detection uses the same rows that power the "Stopped on" columns.
+ */
+export async function queryRecentClientDeactivations(
+  withinDays: number,
+  domain?: string
+): Promise<ClientDeactivationEvent[]> {
+  const lifecycles = await queryCampaignLifecycles(domain);
+  const byDomain = indexLifecyclesByDomain(lifecycles);
+  const thresholdMs = Date.now() - withinDays * 24 * 60 * 60 * 1000;
+
+  const events: ClientDeactivationEvent[] = [];
+  for (const [dom, campaigns] of byDomain.entries()) {
+    if (campaigns.length === 0) continue;
+    const anyActive = campaigns.some(c => c.currentStatus === 'active');
+    if (anyActive) continue;
+
+    // Only fire when at least one transition was OBSERVED (not just a stale
+    // last-sent date) inside the alert window. This avoids alerting on clients
+    // who have been inactive for months — only fresh deactivations surface.
+    const recentObserved = campaigns.filter(c =>
+      c.stoppedAtSource === 'observed' &&
+      c.stoppedAt !== null &&
+      new Date(c.stoppedAt).getTime() >= thresholdMs
+    );
+    if (recentObserved.length === 0) continue;
+
+    recentObserved.sort((a, b) =>
+      (b.stoppedAt ?? '').localeCompare(a.stoppedAt ?? '')
+    );
+    const latest = recentObserved[0];
+    events.push({
+      domain: dom,
+      deactivatedAt: latest.stoppedAt as string,
+      lastCampaign: {
+        campaignId: latest.campaignId,
+        campaignName: latest.campaignName,
+        finalStatus: latest.currentStatus,
+      },
+      totalCampaigns: campaigns.length,
+    });
+  }
+  // Most-recent deactivations first
+  events.sort((a, b) => b.deactivatedAt.localeCompare(a.deactivatedAt));
+  return events;
+}
+
+/**
  * Build an in-memory index: domain -> CampaignLifecycle[].
  * Convenience for client-level aggregation.
  */
