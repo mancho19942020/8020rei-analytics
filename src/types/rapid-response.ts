@@ -45,6 +45,13 @@ export interface RrCampaignSnapshot {
   /** 'stale' if daysSinceFirstHold ≥ 7 (overdue for monolith auto-delivery timer),
    *  'fresh' if < 7, null if no on-hold. */
   onHoldAgeBucket: 'stale' | 'fresh' | null;
+  /** ISO timestamp of the most recent snapshot at which this campaign
+   *  transitioned from 'active' → non-active. Null when the campaign is
+   *  currently active (even if it was previously stopped and re-activated),
+   *  or when snapshot history contains no such transition. Computed by the
+   *  shared `campaign-lifecycle` helper so this field and the client-level
+   *  stoppedAt on `DmClientPerformanceRow` always agree. */
+  stoppedAt: string | null;
 }
 
 export interface RrOperationalPulse {

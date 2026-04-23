@@ -37,6 +37,20 @@ function formatCurrency(value: number): string {
   return `$${value.toFixed(0)}`;
 }
 
+function formatStoppedDate(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return null;
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+function daysSince(iso: string | null | undefined): number | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return null;
+  return Math.max(0, Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24)));
+}
+
 function ClickableNumber({
   value,
   domain,
@@ -247,6 +261,31 @@ export function DmClientPerformanceWidget({ data, onDomainClick }: DmClientPerfo
       ),
     },
     {
+      field: 'stoppedAt',
+      header: 'Stopped on',
+      headerTooltip: 'Date this client stopped running DM campaigns. Computed from Aurora rr_campaign_snapshots as the most recent active→non-active transition across all the client\'s campaigns. Clients with at least one active campaign show "—" — they haven\'t stopped. Dates here match the per-campaign "Stopped on" in Operational Health → Campaign table (both derive from the shared campaign-lifecycle helper). Sort descending to see recently-stopped clients first.',
+      width: 130,
+      minWidth: 110,
+      align: 'center',
+      type: 'date',
+      render: (value: CellValue) => {
+        const iso = value ? String(value) : null;
+        const label = formatStoppedDate(iso);
+        if (!label) {
+          return <span style={{ color: 'var(--text-tertiary)' }}>&mdash;</span>;
+        }
+        const days = daysSince(iso);
+        return (
+          <span
+            title={days !== null ? `${days} day${days === 1 ? '' : 's'} ago · exact: ${iso}` : iso ?? ''}
+            style={{ color: 'var(--text-primary)' }}
+          >
+            {label}
+          </span>
+        );
+      },
+    },
+    {
       field: 'costPerLead',
       header: 'CPL',
       headerTooltip: 'Cost per lead: total mailing cost ÷ leads. Lower is better.',
@@ -314,6 +353,7 @@ export function DmClientPerformanceWidget({ data, onDomainClick }: DmClientPerfo
       totalRevenue: c.totalRevenue,
       costPerLead: c.costPerLead,
       syncWarning: c.syncWarning || null,
+      stoppedAt: c.stoppedAt ?? null,
     })),
   [data]);
 

@@ -20,6 +20,12 @@ import {
   ON_HOLD_STALE_THRESHOLD_DAYS,
   type OnHoldCampaignRow,
 } from '@/lib/on-hold-ages';
+// Campaign lifecycle (currentStatus + stoppedAt) — shared with Business Results
+// → Client Performance so both widgets agree on "who stopped and when".
+import {
+  queryCampaignLifecycles,
+  indexLifecyclesByCampaignId,
+} from '@/lib/campaign-lifecycle';
 import type {
   RrSystemStatus,
   RrOperationalPulse,
@@ -457,11 +463,12 @@ async function getCampaignList(_days: number, domain?: string) {
   const cached = getCached(cacheKey);
   if (cached) return NextResponse.json({ success: true, data: cached, cached: true });
 
-  // Run the two queries in parallel: per-campaign latest snapshot + age-bucket
-  // via the shared queryOnHoldAges helper. Then merge so every row carries
-  // daysSinceFirstHold + ageBucket, powering the "fresh" / "stale Nd" badge
-  // without a second API call.
-  const [rows, ages] = await Promise.all([
+  // Run three queries in parallel:
+  //   1. per-campaign latest snapshot (the rows themselves)
+  //   2. on-hold age-bucket via queryOnHoldAges (fresh / stale Nd badge)
+  //   3. lifecycle (currentStatus + stoppedAt) via queryCampaignLifecycles —
+  //      shared helper so the client-performance widget shows the same dates.
+  const [rows, ages, lifecycles] = await Promise.all([
     runAuroraQuery(`
       SELECT DISTINCT ON (domain, campaign_id)
         campaign_id, campaign_name, domain, campaign_type, status,
@@ -474,6 +481,7 @@ async function getCampaignList(_days: number, domain?: string) {
       ORDER BY domain, campaign_id, snapshot_at DESC
     `),
     queryOnHoldAges(domain),
+    queryCampaignLifecycles(domain),
   ]);
 
   const ageIndex = new Map<string, OnHoldCampaignRow>();
@@ -481,11 +489,14 @@ async function getCampaignList(_days: number, domain?: string) {
     ageIndex.set(`${c.domain}::${String(c.campaignId)}`, c);
   }
 
+  const lifecycleIndex = indexLifecyclesByCampaignId(lifecycles);
+
   const data: RrCampaignSnapshot[] = rows.map((r: Record<string, unknown>) => {
     const onHold = Number(r.on_hold_count || 0);
     const ageRow = onHold > 0
       ? ageIndex.get(`${String(r.domain || '')}::${String(r.campaign_id || '')}`)
       : undefined;
+    const lifecycle = lifecycleIndex.get(String(r.campaign_id || ''));
     return {
       campaignId: String(r.campaign_id || ''),
       campaignName: String(r.campaign_name || ''),
@@ -503,6 +514,7 @@ async function getCampaignList(_days: number, domain?: string) {
       snapshotAt: String(r.snapshot_at || ''),
       daysSinceFirstHold: ageRow?.daysSinceFirstHold ?? null,
       onHoldAgeBucket: ageRow?.ageBucket ?? null,
+      stoppedAt: lifecycle?.stoppedAt ?? null,
     };
   });
 
