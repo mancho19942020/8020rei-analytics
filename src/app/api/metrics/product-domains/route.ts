@@ -47,8 +47,8 @@ export async function GET(request: NextRequest) {
   const dateRange: DateRangeParams = startDate && endDate ? { startDate, endDate } : { days };
 
   const cacheKey = startDate && endDate
-    ? `product-domains-v2:${startDate}_${endDate}`
-    : `product-domains-v2:${days}`;
+    ? `product-domains-v3:${startDate}_${endDate}`
+    : `product-domains-v3:${days}`;
   const cached = getCached<ClientDomainsData>(cacheKey);
 
   if (cached) {

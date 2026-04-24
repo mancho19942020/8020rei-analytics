@@ -12,7 +12,9 @@
     "pcm-align:reconcile:dry": "curl -X POST -H 'x-cron-secret: dev' 'http://localhost:4000/api/pcm-alignment/reconcile?dry=1'"
   },
   "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.1031.0",
     "@aws-sdk/client-rds-data": "^3.1001.0",
+    "@aws-sdk/lib-dynamodb": "^3.1031.0",
     "@google-cloud/bigquery": "^8.1.1",
     "firebase": "^12.9.0",
     "firebase-admin": "^13.7.0",

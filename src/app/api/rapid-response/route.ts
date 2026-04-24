@@ -98,6 +98,8 @@ export async function GET(request: NextRequest) {
         return await getDomainList();
       case 'q2-goal':
         return await getQ2Goal(domain);
+      case 'integration-summary':
+        return await getIntegrationSummary();
       case 'on-hold-breakdown':
         return await getOnHoldBreakdown(domain);
       default:
@@ -1252,6 +1254,51 @@ function computeSystemStatus(
     lastSyncAt,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Integration Summary — lightweight KPIs for the Integration Status tab
+// Same source as DM Campaign tab:
+//   - active clients: rr_campaign_snapshots (latest status per campaign)
+//   - letters last 7 days: dm_volume_summary (preferred) → rr_daily_metrics (fallback)
+// ---------------------------------------------------------------------------
+
+async function getIntegrationSummary() {
+  const cacheKey = 'rapid-response:integration-summary:7d';
+  const cached = getCached(cacheKey);
+  if (cached) return NextResponse.json({ success: true, data: cached, cached: true });
+
+  // Same query as operational-health overview: latest snapshot per (domain, campaign_id)
+  // then filter active in JS — mirrors exact logic in getOverview()
+  const [pulseRows, lettersRows] = await Promise.all([
+    runAuroraQuery(`
+      SELECT DISTINCT ON (domain, campaign_id)
+        domain, campaign_id, status
+      FROM rr_campaign_snapshots
+      WHERE ${EXCLUDE_SEED}
+      ORDER BY domain, campaign_id, snapshot_at DESC
+    `),
+    runAuroraQuery(`
+      SELECT COALESCE(SUM(sends_total), 0) AS letters_last_week
+      FROM rr_daily_metrics
+      WHERE ${EXCLUDE_SEED}
+        AND date >= CURRENT_DATE - INTERVAL '7 days'
+    `),
+  ]);
+
+  const activeCampaigns = pulseRows.filter((r: Record<string, unknown>) => r.status === 'active').length;
+
+  const data = {
+    active_clients: activeCampaigns,
+    letters_last_week: Number(lettersRows[0]?.letters_last_week || 0),
+  };
+
+  setCache(cacheKey, data);
+  return NextResponse.json({ success: true, data, cached: false });
+}
+
+// ---------------------------------------------------------------------------
+// On-hold age-bucket breakdown
+// ---------------------------------------------------------------------------
 
 /**
  * On-hold age-bucket breakdown — exposes the gap between "on-hold pieces that

@@ -62,8 +62,11 @@ const ClientDomainsTab = dynamic(() => import('@/components/dashboard/ClientDoma
 const AiTaskBoardTab = dynamic(() => import('@/components/dashboard/AiTaskBoardTab').then(m => m.AiTaskBoardTab), { loading: TabSkeleton, ssr: false });
 const BugsDiBoardTab = dynamic(() => import('@/components/dashboard/BugsDiBoardTab').then(m => m.BugsDiBoardTab), { loading: TabSkeleton, ssr: false });
 const PlatformAnalyticsTab = dynamic(() => import('@/components/dashboard/PlatformAnalyticsTab').then(m => m.PlatformAnalyticsTab), { loading: TabSkeleton, ssr: false });
+const WeeklyReportTab = dynamic(() => import('@/components/dashboard/WeeklyReportTab').then(m => m.WeeklyReportTab), { loading: TabSkeleton, ssr: false });
+const IntegrationStatusTab = dynamic(() => import('@/components/dashboard/IntegrationStatusTab').then(m => m.IntegrationStatusTab), { loading: TabSkeleton, ssr: false });
 const DmReportsTab = dynamic(() => import('@/components/dashboard/DmReportsTab').then(m => m.DmReportsTab), { loading: TabSkeleton, ssr: false });
 const DmDataSourcesTab = dynamic(() => import('@/components/dashboard/DmDataSourcesTab').then(m => m.DmDataSourcesTab), { loading: TabSkeleton, ssr: false });
+const SkiptraceTab = dynamic(() => import('@/components/dashboard/SkiptraceTab').then(m => m.SkiptraceTab), { loading: TabSkeleton, ssr: false });
 const DmOverviewTab = dynamic(() => import('@/components/dashboard/DmOverviewTab').then(m => m.DmOverviewTab), { loading: TabSkeleton, ssr: false });
 
 interface MetricValues {
@@ -790,6 +793,11 @@ function Dashboard({ slug }: { slug: string[] }) {
           )}
 
 
+          {/* Skip Trace Tab (Features > Skip Trace) */}
+          {activeMainSection === 'features' && activeSubsection === 'skiptrace' && (
+            <SkiptraceTab />
+          )}
+
           {/* Properties API Tab (Features > Properties API) */}
           {activeMainSection === 'features' && activeSubsection === 'properties-api' && (
             <PropertiesApiTab
@@ -866,6 +874,20 @@ function Dashboard({ slug }: { slug: string[] }) {
             />
           )}
 
+          {/* Weekly Report Tab */}
+          {activeMainSection === 'product-tasks' && activeSubsection === 'weekly-report' && (
+            <WeeklyReportTab
+              days={days}
+              startDate={startDate}
+              endDate={endDate}
+            />
+          )}
+
+          {/* Features Adoption / Integration Status Tab */}
+          {activeMainSection === 'product-tasks' && activeSubsection === 'features-adoption' && (
+            <IntegrationStatusTab days={days} startDate={startDate} endDate={endDate} />
+          )}
+
           {/* Platform Analytics Tab (German only) */}
           {activeMainSection === 'platform-analytics' && canAccessPlatformAnalytics(user?.email) && (
             <PlatformAnalyticsTab
@@ -885,6 +907,7 @@ function Dashboard({ slug }: { slug: string[] }) {
            !(activeMainSection === 'features' && activeSubsection === 'properties-api') &&
            !(activeMainSection === 'features' && activeSubsection === 'auto-export') &&
            !(activeMainSection === 'features' && activeSubsection === 'dm-campaign') &&
+           !(activeMainSection === 'features' && activeSubsection === 'skiptrace') &&
            !(activeMainSection === 'feedback-loop' && activeSubsection === 'import') &&
            !(activeMainSection === 'product-tasks') && (
             <div className="flex items-center justify-center min-h-full">

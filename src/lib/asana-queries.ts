@@ -382,3 +382,100 @@ export function getBugsByOriginQuery(): string {
     ORDER BY count DESC
   `;
 }
+
+// ============================================================================
+// WEEKLY REPORT QUERIES
+// ============================================================================
+
+const SUGGESTIONS_TABLE = `\`${PRODUCT_PROJECT}.asana.tasks_unique\``;
+
+function weeklyRangeFilter(col: string, days: number, startDate?: string, endDate?: string): string {
+  if (startDate && endDate) {
+    return `${col} >= TIMESTAMP('${startDate}') AND ${col} <= TIMESTAMP('${endDate} 23:59:59')`;
+  }
+  return `${col} >= TIMESTAMP(DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))`;
+}
+
+/** Deliverables completed in the selected period from the AI Task Board */
+export function getWeeklyDeliverablesQuery(days: number = 7, startDate?: string, endDate?: string): string {
+  return `
+    SELECT
+      gid,
+      name,
+      COALESCE(assignee_name, 'Unassigned') as assignee_name,
+      business_impact,
+      FORMAT_TIMESTAMP('%Y-%m-%d', completed_at) as completed_at,
+      feature_type
+    FROM ${AI_TABLE}
+    WHERE ${weeklyRangeFilter('completed_at', days, startDate, endDate)}
+      AND section = 'Done'
+    ORDER BY COALESCE(business_impact, 0) DESC, completed_at DESC
+  `;
+}
+
+/** Bug status summary for the weekly report */
+export function getWeeklyBugStatusQuery(days: number = 7, startDate?: string, endDate?: string): string {
+  const rangeFilter = weeklyRangeFilter('created_at', days, startDate, endDate);
+  const closedFilter = weeklyRangeFilter('completed_at', days, startDate, endDate);
+  return `
+    SELECT
+      COUNTIF(${rangeFilter}) as reported_this_week,
+      COUNTIF(${closedFilter} AND section = 'Done') as closed_this_week,
+      COUNTIF(section != 'Done') as open,
+      COUNTIF((${rangeFilter}) AND origin = 'Clients') as customer_reported,
+      COUNTIF((${rangeFilter}) AND origin = 'Internal User') as internal_product
+    FROM ${BUGS_TABLE}
+    WHERE type = 'Bug'
+      AND (resolution IS NULL OR resolution = '')
+      AND origin IN ('Clients', 'Internal User')
+  `;
+}
+
+/** Critical bugs (High + Highest priority) summary */
+export function getWeeklyCriticalBugsQuery(days: number = 7, startDate?: string, endDate?: string): string {
+  const rangeFilter = weeklyRangeFilter('created_at', days, startDate, endDate);
+  const closedFilter = weeklyRangeFilter('completed_at', days, startDate, endDate);
+  return `
+    SELECT
+      COUNTIF(${rangeFilter}) as reported_this_week,
+      COUNTIF(${closedFilter} AND section = 'Done') as closed_this_week,
+      COUNTIF(section != 'Done') as open
+    FROM ${BUGS_TABLE}
+    WHERE type = 'Bug'
+      AND bug_priority IN ('High', 'Highest')
+      AND (resolution IS NULL OR resolution = '')
+      AND origin IN ('Clients', 'Internal User')
+  `;
+}
+
+/** Data inquiries summary */
+export function getWeeklyDataInquiriesQuery(days: number = 7, startDate?: string, endDate?: string): string {
+  return `
+    SELECT
+      COUNTIF(${weeklyRangeFilter('created_at', days, startDate, endDate)}) as reported_this_week,
+      COUNTIF(section != 'Done') as open
+    FROM ${BUGS_TABLE}
+    WHERE type = 'Data inquiry'
+  `;
+}
+
+/** Suggestions board summary — deduplicates by gid since tasks appear once per project membership */
+export function getWeeklySuggestionsQuery(days: number = 7, startDate?: string, endDate?: string): string {
+  const SUGGESTIONS_TASKS = `\`${PRODUCT_PROJECT}.asana.tasks\``;
+  const createdFilter = weeklyRangeFilter('created_at', days, startDate, endDate);
+  const completedFilter = weeklyRangeFilter('completed_at', days, startDate, endDate);
+  return `
+    WITH suggestions AS (
+      SELECT DISTINCT gid, section, created_at, completed, completed_at
+      FROM ${SUGGESTIONS_TASKS}
+      WHERE project_name LIKE '%Suggestions Board%'
+    )
+    SELECT
+      COUNTIF((completed IS NULL OR completed = false) AND (${createdFilter})) as new_this_week,
+      COUNTIF((completed IS NULL OR completed = false) AND TRIM(section) LIKE '%Under Review%') as under_review,
+      COUNTIF((completed IS NULL OR completed = false) AND TRIM(section) LIKE '%In Progress%') as in_execution,
+      COUNTIF((completed IS NULL OR completed = false) AND TRIM(section) LIKE '%In Backlog%') as in_backlog,
+      COUNTIF(TRIM(section) LIKE '%Implemented%' AND completed = true AND (${completedFilter})) as delivered
+    FROM suggestions
+  `;
+}

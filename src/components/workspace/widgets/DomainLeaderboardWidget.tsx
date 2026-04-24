@@ -39,8 +39,12 @@ const RISK_TOOLTIPS: Record<DomainLeaderboardEntry['risk_level'], { title: strin
   },
 };
 
+const CRM_INTEGRATED_VALUES = new Set(['Integrated 2-way', 'CRM → 8020REI']);
+
 interface DomainLeaderboardWidgetProps {
   data: DomainLeaderboardEntry[];
+  crmOnly?: boolean;
+  onCrmToggle?: () => void;
 }
 
 /**
@@ -48,22 +52,22 @@ interface DomainLeaderboardWidgetProps {
  */
 const RISK_CONFIG = {
   healthy: {
-    bg: 'bg-green-100 dark:bg-green-900/30',
-    text: 'text-green-700 dark:text-green-400',
-    border: 'border-green-200 dark:border-green-800',
-    dot: 'bg-green-500',
+    bg: 'bg-success-100 dark:bg-success-900/30',
+    text: 'text-success-700 dark:text-success-300',
+    border: 'border-success-100 dark:border-success-700',
+    dot: 'bg-success-500',
   },
   'at-risk': {
-    bg: 'bg-amber-100 dark:bg-amber-900/30',
-    text: 'text-amber-700 dark:text-amber-400',
-    border: 'border-amber-200 dark:border-amber-800',
-    dot: 'bg-amber-500',
+    bg: 'bg-alert-100 dark:bg-alert-900/30',
+    text: 'text-alert-700 dark:text-alert-300',
+    border: 'border-alert-100 dark:border-alert-700',
+    dot: 'bg-alert-500',
   },
   inactive: {
-    bg: 'bg-red-100 dark:bg-red-900/30',
-    text: 'text-red-700 dark:text-red-400',
-    border: 'border-red-200 dark:border-red-800',
-    dot: 'bg-red-500',
+    bg: 'bg-error-100 dark:bg-error-900/30',
+    text: 'text-error-700 dark:text-error-300',
+    border: 'border-error-100 dark:border-error-700',
+    dot: 'bg-error-500',
   },
 };
 
@@ -95,7 +99,7 @@ function RiskBadge({
   );
 }
 
-export function DomainLeaderboardWidget({ data }: DomainLeaderboardWidgetProps) {
+export function DomainLeaderboardWidget({ data, crmOnly = false, onCrmToggle }: DomainLeaderboardWidgetProps) {
   const [riskFilter, setRiskFilter] = useState<RiskFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -104,9 +108,12 @@ export function DomainLeaderboardWidget({ data }: DomainLeaderboardWidgetProps) 
     setRiskFilter((prev) => (prev === level ? 'all' : level));
   };
 
-  // Filtered data based on search query and risk level (both applied)
+  // Filtered data based on search query, risk level, and CRM toggle (all applied)
   const filteredData = useMemo(() => {
     let result = data;
+    if (crmOnly) {
+      result = result.filter((d) => CRM_INTEGRATED_VALUES.has(d.crm_integration ?? ''));
+    }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter((d) => d.domain_name.toLowerCase().includes(q));
@@ -115,7 +122,7 @@ export function DomainLeaderboardWidget({ data }: DomainLeaderboardWidgetProps) 
       result = result.filter((d) => d.risk_level === riskFilter);
     }
     return result;
-  }, [data, riskFilter, searchQuery]);
+  }, [data, crmOnly, riskFilter, searchQuery]);
 
   // Define table columns
   const columns: Column[] = useMemo(
@@ -208,8 +215,21 @@ export function DomainLeaderboardWidget({ data }: DomainLeaderboardWidgetProps) 
         fullWidth
       />
 
-      {/* Risk filter legend + result count */}
+      {/* CRM toggle + Risk filter legend + result count */}
       <div className="flex items-center gap-3 px-1">
+        {onCrmToggle && (
+          <button
+            onClick={onCrmToggle}
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+              crmOnly
+                ? 'bg-main-100 dark:bg-main-900/30 text-main-700 dark:text-main-300 border-main-300 dark:border-main-700'
+                : 'bg-surface-base text-content-secondary border-border-subtle hover:border-border-default'
+            }`}
+          >
+            <span className={`w-1.5 h-1.5 rounded-full ${crmOnly ? 'bg-main-500' : 'bg-content-tertiary'}`} />
+            CRM integrated
+          </button>
+        )}
         <span className="text-xs text-content-tertiary">Risk:</span>
         {(['healthy', 'at-risk', 'inactive'] as const).map((level) => (
           <AxisTooltip

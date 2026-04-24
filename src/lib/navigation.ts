@@ -47,7 +47,7 @@ const FEATURES_SUBSECTION_TABS: AxisNavigationTabItem[] = [
   { id: 'dm-campaign', name: 'DM Campaign' },
   { id: 'properties-api', name: 'Properties API' },
   { id: 'auto-export', name: 'Auto Export' },
-  { id: 'skiptrace', name: 'Skip Trace', disabled: true },
+  { id: 'skiptrace', name: 'Skip Trace' },
   { id: 'zillow', name: 'Zillow', disabled: true },
   { id: 'buyers-list', name: 'Buyers List', disabled: true },
 ];
@@ -73,6 +73,8 @@ const ML_MODELS_SUBSECTION_TABS: AxisNavigationTabItem[] = [
 const PRODUCT_TASKS_SUBSECTION_TABS: AxisNavigationTabItem[] = [
   { id: 'ai-task-board', name: 'AI task board' },
   { id: 'bugs-di-board', name: 'Bugs & DI board' },
+  { id: 'weekly-report', name: '🔔 Critical Bugs & Delays' },
+  { id: 'features-adoption', name: '🔗 Features Adoption / Critical Bugs & Delays' },
 ];
 
 export const SUBSECTION_TABS_MAP: Record<string, AxisNavigationTabItem[]> = {

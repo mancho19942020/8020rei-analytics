@@ -46,6 +46,7 @@ export interface DomainLeaderboardEntry {
   last_activity_date: string;
   days_since_activity: number;
   risk_level: 'healthy' | 'at-risk' | 'inactive';
+  crm_integration?: string | null;
 }
 
 export interface DomainActivityTrendEntry {
