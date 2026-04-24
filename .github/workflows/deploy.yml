@@ -45,6 +45,8 @@ jobs:
           FIREBASE_ADMIN_CREDS: ${{ secrets.FIREBASE_ADMIN_CREDENTIALS_JSON }}
           PCM_KEY: ${{ secrets.PCM_API_KEY }}
           PCM_SECRET: ${{ secrets.PCM_API_SECRET }}
+          DYNAMODB_ACCESS_KEY_ID: ${{ secrets.DYNAMODB_ACCESS_KEY_ID }}
+          DYNAMODB_SECRET_ACCESS_KEY: ${{ secrets.DYNAMODB_SECRET_ACCESS_KEY }}
         run: |
           python3 << 'PYEOF'
           import os, json
@@ -63,6 +65,8 @@ jobs:
               'DB_AURORA_SECRET_ACCESS_KEY': os.environ['AURORA_SECRET_KEY'],
               'DB_AURORA_DEFAULT_REGION': os.environ['AURORA_REGION'],
               'AWS_AURORA_GRAFANA_DB': os.environ['AURORA_DB'],
+              'DYNAMODB_ACCESS_KEY_ID': os.environ['DYNAMODB_ACCESS_KEY_ID'],
+              'DYNAMODB_SECRET_ACCESS_KEY': os.environ['DYNAMODB_SECRET_ACCESS_KEY'],
           }
 
           # Add auth secrets for API protection

@@ -73,8 +73,8 @@ const ML_MODELS_SUBSECTION_TABS: AxisNavigationTabItem[] = [
 const PRODUCT_TASKS_SUBSECTION_TABS: AxisNavigationTabItem[] = [
   { id: 'ai-task-board', name: 'AI task board' },
   { id: 'bugs-di-board', name: 'Bugs & DI board' },
-  { id: 'weekly-report', name: '🔔 Critical Bugs & Delays' },
-  { id: 'features-adoption', name: '🔗 Features Adoption / Critical Bugs & Delays' },
+  { id: 'weekly-report', name: 'Critical Bugs & Delays' },
+  { id: 'features-adoption', name: 'Features Adoption' },
 ];
 
 export const SUBSECTION_TABS_MAP: Record<string, AxisNavigationTabItem[]> = {
