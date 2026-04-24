@@ -91,6 +91,17 @@ export type WidgetType =
   | 'api-top-clients'
   | 'api-error-tracker'
   | 'api-recent-logs'
+  // Features > 8020REI > Auto Export tab widgets
+  | 'auto-export-overview'
+  | 'auto-export-adoption-trend'
+  | 'auto-export-frequency-breakdown'
+  | 'auto-export-reliability'
+  | 'auto-export-failure-reasons'
+  | 'auto-export-runtime-trend'
+  | 'auto-export-volume-trend'
+  | 'auto-export-top-clients'
+  | 'auto-export-config-health'
+  | 'auto-export-run-log'
   // Features > 8020REI > Rapid Response tab widgets
   | 'rr-system-status'
   | 'rr-operational-pulse'

@@ -114,6 +114,18 @@ export { ApiTopClientsWidget } from './ApiTopClientsWidget';
 export { ApiErrorTrackerWidget } from './ApiErrorTrackerWidget';
 export { ApiRecentLogsWidget } from './ApiRecentLogsWidget';
 
+// Features > 8020REI > Auto Export tab widgets
+export { AutoExportOverviewWidget } from './AutoExportOverviewWidget';
+export { AutoExportAdoptionTrendWidget } from './AutoExportAdoptionTrendWidget';
+export { AutoExportFrequencyBreakdownWidget } from './AutoExportFrequencyBreakdownWidget';
+export { AutoExportReliabilityWidget } from './AutoExportReliabilityWidget';
+export { AutoExportFailureReasonsWidget } from './AutoExportFailureReasonsWidget';
+export { AutoExportRuntimeTrendWidget } from './AutoExportRuntimeTrendWidget';
+export { AutoExportVolumeTrendWidget } from './AutoExportVolumeTrendWidget';
+export { AutoExportTopClientsWidget } from './AutoExportTopClientsWidget';
+export { AutoExportConfigHealthWidget } from './AutoExportConfigHealthWidget';
+export { AutoExportRunLogWidget } from './AutoExportRunLogWidget';
+
 // Features > 8020REI > DM Campaign PCM & Profitability tab widgets
 export { PcmReconciliationOverviewWidget } from './PcmReconciliationOverviewWidget';
 export { PcmVolumeComparisonWidget } from './PcmVolumeComparisonWidget';

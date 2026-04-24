@@ -56,6 +56,7 @@ const InsightsTab = dynamic(() => import('@/components/dashboard/InsightsTab').t
 const EngagementCallsTab = dynamic(() => import('@/components/dashboard/EngagementCallsTab').then(m => m.EngagementCallsTab), { loading: TabSkeleton, ssr: false });
 const GrafanaTab = dynamic(() => import('@/components/dashboard/GrafanaTab').then(m => m.GrafanaTab), { loading: TabSkeleton, ssr: false });
 const PropertiesApiTab = dynamic(() => import('@/components/dashboard/PropertiesApiTab').then(m => m.PropertiesApiTab), { loading: TabSkeleton, ssr: false });
+const AutoExportTab = dynamic(() => import('@/components/dashboard/AutoExportTab').then(m => m.AutoExportTab), { loading: TabSkeleton, ssr: false });
 const RapidResponseTab = dynamic(() => import('@/components/dashboard/RapidResponseTab').then(m => m.RapidResponseTab), { loading: TabSkeleton, ssr: false });
 const ClientDomainsTab = dynamic(() => import('@/components/dashboard/ClientDomainsTab').then(m => m.ClientDomainsTab), { loading: TabSkeleton, ssr: false });
 const AiTaskBoardTab = dynamic(() => import('@/components/dashboard/AiTaskBoardTab').then(m => m.AiTaskBoardTab), { loading: TabSkeleton, ssr: false });
@@ -137,6 +138,7 @@ function Dashboard({ slug }: { slug: string[] }) {
     users: usersRef, features: featuresRef, clients: clientsRef, engagement: engagementRef,
     technology: technologyRef, geography: geographyRef, events: eventsRef,
     insights: insightsRef, import: importRef, 'properties-api': propertiesApiRef,
+    'auto-export': autoExportRef,
     'dm-campaign': dmCampaignRef,
     'ai-task-board': aiTaskBoardRef,
     'bugs-di-board': bugsDiBoardRef,
@@ -800,6 +802,18 @@ function Dashboard({ slug }: { slug: string[] }) {
             />
           )}
 
+          {/* Auto Export Tab (Features > Auto Export) */}
+          {activeMainSection === 'features' && activeSubsection === 'auto-export' && (
+            <AutoExportTab
+              ref={autoExportRef}
+              days={days}
+              startDate={startDate}
+              endDate={endDate}
+              editMode={editMode}
+              onEditModeChange={setEditMode}
+            />
+          )}
+
           {/* DM Campaign > Overview — executive headline metrics */}
           {activeMainSection === 'features' && activeSubsection === 'dm-campaign' && dmCampaignSubTab === 'overview' && (
             <DmOverviewTab />
@@ -869,6 +883,7 @@ function Dashboard({ slug }: { slug: string[] }) {
            activeMainSection !== 'platform-analytics' &&
            !(activeMainSection === 'analytics' && activeSubsection === '8020rei-ga4') &&
            !(activeMainSection === 'features' && activeSubsection === 'properties-api') &&
+           !(activeMainSection === 'features' && activeSubsection === 'auto-export') &&
            !(activeMainSection === 'features' && activeSubsection === 'dm-campaign') &&
            !(activeMainSection === 'feedback-loop' && activeSubsection === 'import') &&
            !(activeMainSection === 'product-tasks') && (

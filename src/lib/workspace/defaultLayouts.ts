@@ -1587,6 +1587,167 @@ export const PROPERTIES_API_WIDGET_CATALOG: WidgetCatalogItem[] = [
   },
 ];
 
+// ---------------------------------------------------------------------------
+// Features > 8020REI > Auto Export Tab
+// ---------------------------------------------------------------------------
+
+export const AUTO_EXPORT_LAYOUT_STORAGE_KEY = 'axis-auto-export-layout-v1';
+
+export const DEFAULT_AUTO_EXPORT_LAYOUT: Widget[] = [
+  {
+    id: 'auto-export-overview',
+    type: 'auto-export-overview',
+    title: 'Overview',
+    x: 0, y: 0, w: 12, h: 2,
+    minW: 12, minH: 2, maxH: 2,
+    flushBody: true,
+  },
+  {
+    id: 'auto-export-adoption-trend',
+    type: 'auto-export-adoption-trend',
+    title: 'Adoption trend',
+    tooltip: 'Active clients per day over the last 90 days. Goal line at 50 clients (2026 target).',
+    x: 0, y: 2, w: 6, h: 4,
+    minW: 4, minH: 3, maxW: 12, maxH: 6,
+  },
+  {
+    id: 'auto-export-frequency-breakdown',
+    type: 'auto-export-frequency-breakdown',
+    title: 'Frequency breakdown',
+    tooltip: 'Composition of active configurations by schedule, across the latest snapshot per domain.',
+    x: 6, y: 2, w: 6, h: 4,
+    minW: 4, minH: 3, maxW: 12, maxH: 6,
+  },
+  {
+    id: 'auto-export-reliability',
+    type: 'auto-export-reliability',
+    title: 'Reliability',
+    tooltip: 'Daily run outcomes: sent / failed / no_results / pending.',
+    x: 0, y: 6, w: 12, h: 5,
+    minW: 6, minH: 3, maxH: 8,
+  },
+  {
+    id: 'auto-export-failure-reasons',
+    type: 'auto-export-failure-reasons',
+    title: 'Failure reasons',
+    tooltip: 'Top 10 error messages from failed runs in the selected window.',
+    x: 0, y: 11, w: 6, h: 4,
+    minW: 4, minH: 3, maxH: 8,
+  },
+  {
+    id: 'auto-export-runtime-trend',
+    type: 'auto-export-runtime-trend',
+    title: 'Runtime trend',
+    tooltip: 'Daily avg and P95 run duration (seconds) for successful runs.',
+    x: 6, y: 11, w: 6, h: 4,
+    minW: 4, minH: 3, maxH: 8,
+  },
+  {
+    id: 'auto-export-volume-trend',
+    type: 'auto-export-volume-trend',
+    title: 'Volume trend',
+    tooltip: 'Daily total properties exported across non-test tenants, last 60 days.',
+    x: 0, y: 15, w: 12, h: 4,
+    minW: 6, minH: 3, maxH: 6,
+  },
+  {
+    id: 'auto-export-top-clients',
+    type: 'auto-export-top-clients',
+    title: 'Top clients',
+    tooltip: 'Top 10 tenants by runs in the selected window.',
+    x: 0, y: 19, w: 6, h: 4,
+    minW: 4, minH: 3, maxH: 8,
+  },
+  {
+    id: 'auto-export-config-health',
+    type: 'auto-export-config-health',
+    title: 'Config health',
+    tooltip: 'Data-quality counters from the latest snapshot: orphaned, never run, stale.',
+    x: 6, y: 19, w: 6, h: 4,
+    minW: 4, minH: 3, maxH: 8,
+  },
+  {
+    id: 'auto-export-run-log',
+    type: 'auto-export-run-log',
+    title: 'Recent runs',
+    x: 0, y: 23, w: 12, h: 6,
+    minW: 8, minH: 4, maxH: 12,
+  },
+];
+
+export const AUTO_EXPORT_WIDGET_CATALOG: WidgetCatalogItem[] = [
+  {
+    type: 'auto-export-overview',
+    title: 'Overview',
+    description: 'KPI cards for active clients, runs, success rate, properties exported',
+    iconKey: 'grid',
+    defaultSize: { w: 12, h: 2 },
+  },
+  {
+    type: 'auto-export-adoption-trend',
+    title: 'Adoption trend',
+    description: 'Active clients per day with the 50-client goal line',
+    iconKey: 'lineChart',
+    defaultSize: { w: 6, h: 4 },
+  },
+  {
+    type: 'auto-export-frequency-breakdown',
+    title: 'Frequency breakdown',
+    description: 'Donut of daily / weekly / monthly / quarterly configs',
+    iconKey: 'donutChart',
+    defaultSize: { w: 6, h: 4 },
+  },
+  {
+    type: 'auto-export-reliability',
+    title: 'Reliability',
+    description: 'Stacked daily bars of sent, failed, no_results, pending',
+    iconKey: 'barChart',
+    defaultSize: { w: 12, h: 5 },
+  },
+  {
+    type: 'auto-export-failure-reasons',
+    title: 'Failure reasons',
+    description: 'Top failure messages with counts and affected domains',
+    iconKey: 'alert',
+    defaultSize: { w: 6, h: 4 },
+  },
+  {
+    type: 'auto-export-runtime-trend',
+    title: 'Runtime trend',
+    description: 'Avg and P95 run duration per day',
+    iconKey: 'lineChart',
+    defaultSize: { w: 6, h: 4 },
+  },
+  {
+    type: 'auto-export-volume-trend',
+    title: 'Volume trend',
+    description: 'Daily properties exported across all tenants',
+    iconKey: 'barChart',
+    defaultSize: { w: 12, h: 4 },
+  },
+  {
+    type: 'auto-export-top-clients',
+    title: 'Top clients',
+    description: 'Leaderboard of top tenants by runs',
+    iconKey: 'table',
+    defaultSize: { w: 6, h: 4 },
+  },
+  {
+    type: 'auto-export-config-health',
+    title: 'Config health',
+    description: 'Orphaned, never-run, and stale config counters',
+    iconKey: 'alert',
+    defaultSize: { w: 6, h: 4 },
+  },
+  {
+    type: 'auto-export-run-log',
+    title: 'Recent runs',
+    description: 'Paginated drill-down table of individual auto-export runs',
+    iconKey: 'table',
+    defaultSize: { w: 12, h: 6 },
+  },
+];
+
 // ============================================================================
 // PRODUCT TASKS > AI TASK BOARD
 // ============================================================================
@@ -2011,6 +2172,7 @@ export const TAB_WIDGET_CATALOGS: Record<string, WidgetCatalogItem[]> = {
   'import': PRODUCT_DOMAINS_WIDGET_CATALOG,
   'product-projects': PRODUCT_PROJECTS_WIDGET_CATALOG,
   'properties-api': PROPERTIES_API_WIDGET_CATALOG,
+  'auto-export': AUTO_EXPORT_WIDGET_CATALOG,
   'dm-overview': DM_OVERVIEW_WIDGET_CATALOG,
   'rapid-response': RAPID_RESPONSE_WIDGET_CATALOG,
   'ai-task-board': AI_TASK_BOARD_WIDGET_CATALOG,

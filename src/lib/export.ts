@@ -4,6 +4,19 @@
  * Functions for exporting widget data to various formats.
  */
 
+import type {
+  AutoExportOverview,
+  AutoExportAdoption,
+  AutoExportReliabilityPoint,
+  AutoExportFailureReason,
+  AutoExportRuntimePoint,
+  AutoExportVolumePoint,
+  AutoExportFrequencyBreakdown,
+  AutoExportTopClient,
+  AutoExportConfigHealth,
+  AutoExportRunLogEntry,
+} from '@/types/auto-export';
+
 /**
  * Convert data to CSV format and trigger download
  */
@@ -1174,5 +1187,111 @@ export function formatApiRecentLogsForExport(
     response_ms: item.responseTimeMs,
     ip: item.ipAddress,
     timestamp: item.createdAt,
+  }));
+}
+
+// ============================================
+// AUTO EXPORT EXPORT FORMATTERS
+// ============================================
+
+export function formatAutoExportOverviewForExport(data: AutoExportOverview): Record<string, any>[] {
+  return [
+    { metric: 'Active clients', value: data.activeClients },
+    { metric: 'Total runs', value: data.totalRuns },
+    { metric: 'Success rate (%)', value: (data.successRate * 100).toFixed(2) },
+    { metric: 'Properties exported', value: data.propertiesExported },
+  ];
+}
+
+export function formatAutoExportAdoptionForExport(data: AutoExportAdoption): Record<string, any>[] {
+  return data.series.map((p) => ({
+    date: p.date,
+    active_clients: p.activeClients,
+    goal: data.goal,
+  }));
+}
+
+export function formatAutoExportReliabilityForExport(data: AutoExportReliabilityPoint[]): Record<string, any>[] {
+  return data.map((p) => ({
+    date: p.date,
+    sent: p.sent,
+    failed: p.failed,
+    no_results: p.noResults,
+    pending: p.pending,
+  }));
+}
+
+export function formatAutoExportFailureReasonsForExport(data: AutoExportFailureReason[]): Record<string, any>[] {
+  return data.map((r) => ({
+    error_message: r.errorMessage,
+    occurrences: r.occurrences,
+    affected_domains: r.affectedDomains,
+    affected_configs: r.affectedConfigs,
+    first_seen: r.firstSeen,
+    last_seen: r.lastSeen,
+  }));
+}
+
+export function formatAutoExportRuntimeForExport(data: AutoExportRuntimePoint[]): Record<string, any>[] {
+  return data.map((p) => ({
+    date: p.date,
+    avg_seconds: p.avgRuntimeSeconds,
+    p95_seconds: p.p95RuntimeSeconds,
+  }));
+}
+
+export function formatAutoExportVolumeForExport(data: AutoExportVolumePoint[]): Record<string, any>[] {
+  return data.map((p) => ({
+    date: p.date,
+    properties_exported: p.propertiesExported,
+  }));
+}
+
+export function formatAutoExportFrequencyForExport(data: AutoExportFrequencyBreakdown): Record<string, any>[] {
+  return [
+    { frequency: 'daily', active_configs: data.daily },
+    { frequency: 'weekly', active_configs: data.weekly },
+    { frequency: 'monthly', active_configs: data.monthly },
+    { frequency: 'quarterly', active_configs: data.quarterly },
+  ];
+}
+
+export function formatAutoExportTopClientsForExport(data: AutoExportTopClient[]): Record<string, any>[] {
+  return data.map((c) => ({
+    domain: c.domain,
+    active_configs: c.activeConfigs,
+    runs: c.runs,
+    success_rate_pct: (c.successRate * 100).toFixed(2),
+    properties_exported: c.propertiesExported,
+    last_activity: c.lastActivity,
+  }));
+}
+
+export function formatAutoExportConfigHealthForExport(data: AutoExportConfigHealth): Record<string, any>[] {
+  return [
+    { metric: 'Orphaned configs', value: data.orphaned },
+    { metric: 'Never-run configs', value: data.neverRun },
+    { metric: 'Stale configs (60d)', value: data.stale },
+  ];
+}
+
+export function formatAutoExportRunLogForExport(data: AutoExportRunLogEntry[]): Record<string, any>[] {
+  return data.map((r) => ({
+    id: r.id,
+    domain: r.domain,
+    configuration_id: r.configurationId,
+    filter_name: r.configuredFilterName ?? '',
+    frequency: r.frequency,
+    filter_by: r.filterPropertiesBy,
+    status: r.status,
+    retry_count: r.retryCount,
+    properties: r.propertiesCount ?? '',
+    recipients: r.recipientsCount,
+    duration_s: r.durationSeconds ?? '',
+    created_by: r.createdBy ?? '',
+    started_at: r.startedAt ?? '',
+    finished_at: r.finishedAt ?? '',
+    created_at: r.createdAt,
+    error_message: r.errorMessage ?? '',
   }));
 }

@@ -13,7 +13,7 @@ type TabRefKey =
   | 'users' | 'features' | 'clients' | 'engagement' | 'technology'
   | 'geography' | 'events' | 'insights'
   | 'import' | 'product-jira-projects'
-  | 'properties-api' | 'dm-campaign'
+  | 'properties-api' | 'auto-export' | 'dm-campaign'
   | 'ai-task-board' | 'bugs-di-board'
   | 'platform-analytics';
 
@@ -30,6 +30,7 @@ export function useTabRefs() {
     'import': useRef<TabHandle>(null),
     'product-jira-projects': useRef<TabHandle>(null),
     'properties-api': useRef<TabHandle>(null),
+    'auto-export': useRef<TabHandle>(null),
     'dm-campaign': useRef<TabHandle>(null),
     'ai-task-board': useRef<TabHandle>(null),
     'bugs-di-board': useRef<TabHandle>(null),
@@ -51,6 +52,7 @@ export function useTabRefs() {
     // Features > 8020REI detail tabs (subsection is the tab itself after nav restructure)
     if (mainSection === 'features') {
       if (subsection === 'properties-api') return 'properties-api';
+      if (subsection === 'auto-export') return 'auto-export';
       if (subsection === 'dm-campaign') return 'dm-campaign';
     }
     // Product Tasks subsections
