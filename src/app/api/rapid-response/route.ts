@@ -148,7 +148,12 @@ async function getOverview(days: number, domain?: string) {
       ORDER BY domain, campaign_id, snapshot_at DESC
     `),
 
-    // Quality Metrics: aggregated daily metrics for the selected period
+    // Quality Metrics: aggregated daily metrics for the selected period.
+    // Filtered to campaign_type='rr' so the Operational Health "Is it working?"
+    // pill represents Rapid Response health only. SmartDrop health, once
+    // live tenants exist, will get its own dedicated surface (tracked as a
+    // future DM-wide or per-type visualization) rather than silently blending
+    // into this RR-labelled widget.
     runAuroraQuery(`
       SELECT
         COALESCE(SUM(sends_total), 0) as sends_total,
@@ -157,6 +162,7 @@ async function getOverview(days: number, domain?: string) {
         COALESCE(SUM(delivered_count), 0) as delivered_count
       FROM rr_daily_metrics
       WHERE date >= CURRENT_DATE - INTERVAL '${days} days'
+      AND campaign_type = 'rr'
       AND ${domainFilter(domain)}
     `),
 
@@ -577,6 +583,10 @@ async function getStatusBreakdown(days: number, domain?: string) {
   const cached = getCached(cacheKey);
   if (cached) return NextResponse.json({ success: true, data: cached, cached: true });
 
+  // Filtered to campaign_type='rr' so the Operational Health status breakdown
+  // donut (delivered/on-hold/protected/undeliverable/error) represents Rapid
+  // Response only — preserves pre-SmartDrop meaning. SmartDrop status
+  // distribution, once live, will get its own surface.
   const rows = await runAuroraQuery(`
     SELECT
       COALESCE(SUM(sends_success), 0) as sent,
@@ -587,6 +597,7 @@ async function getStatusBreakdown(days: number, domain?: string) {
       COALESCE(SUM(sends_error), 0) as error
     FROM rr_daily_metrics
     WHERE date >= CURRENT_DATE - INTERVAL '${days} days'
+      AND campaign_type = 'rr'
       AND ${domainFilter(domain)}
   `);
 
@@ -622,6 +633,10 @@ async function getAlerts(days: number, domain?: string) {
       WHERE ${domainFilter(domain)}
       ORDER BY domain, campaign_id, snapshot_at DESC
     `),
+    // Filtered to campaign_type='rr' so alert thresholds (delivery rate,
+    // error rate, PCM submission rate) fire on Rapid Response degradation
+    // only — we don't want a SmartDrop quality dip to raise an alert labeled
+    // against RR. SmartDrop-specific alerting will be added separately.
     runAuroraQuery(`
       SELECT
         COALESCE(SUM(sends_total), 0) as sends_total,
@@ -630,6 +645,7 @@ async function getAlerts(days: number, domain?: string) {
         COALESCE(AVG(pcm_submission_rate), 0) as avg_pcm_rate
       FROM rr_daily_metrics
       WHERE date >= CURRENT_DATE - INTERVAL '${days} days'
+      AND campaign_type = 'rr'
       AND ${domainFilter(domain)}
     `),
     runAuroraQuery(`
@@ -640,10 +656,15 @@ async function getAlerts(days: number, domain?: string) {
       WHERE ${domainFilter(domain)}
       ORDER BY domain, checked_at DESC
     `),
+    // Filtered to campaign_type='rr' — the in-app "No sends today" alert mirrors
+    // the Slack digest version; both must agree. SmartDrop volume must not
+    // mask an RR dispatch failure.
     runAuroraQuery(`
       SELECT COALESCE(SUM(sends_total), 0) as sends_today
       FROM rr_daily_metrics
-      WHERE date = CURRENT_DATE AND ${domainFilter(domain)}
+      WHERE date = CURRENT_DATE
+        AND campaign_type = 'rr'
+        AND ${domainFilter(domain)}
     `),
   ]);
 

@@ -475,6 +475,11 @@ async function fetchCurrentAlerts(): Promise<RrAlert[]> {
       WHERE ${EXCLUDE_SEED}
       ORDER BY domain, campaign_id, snapshot_at DESC
     `),
+    // Filtered to campaign_type='rr' so the daily Slack digest's quality
+    // thresholds fire on Rapid Response degradation only. Mirror of the
+    // filter in /api/rapid-response/route.ts getAlerts() — keeps the in-app
+    // Alerts feed and the Slack digest consistent when SmartDrop volume
+    // arrives.
     runAuroraQuery(`
       SELECT
         COALESCE(SUM(sends_total), 0) as sends_total,
@@ -483,6 +488,7 @@ async function fetchCurrentAlerts(): Promise<RrAlert[]> {
         COALESCE(AVG(pcm_submission_rate), 0) as avg_pcm_rate
       FROM rr_daily_metrics
       WHERE date >= CURRENT_DATE - INTERVAL '${days} days'
+      AND campaign_type = 'rr'
       AND ${EXCLUDE_SEED}
     `),
     runAuroraQuery(`
@@ -493,10 +499,15 @@ async function fetchCurrentAlerts(): Promise<RrAlert[]> {
       WHERE ${EXCLUDE_SEED}
       ORDER BY domain, checked_at DESC
     `),
+    // Filtered to campaign_type='rr' — the "No sends detected today" alert
+    // must fire on Rapid Response specifically; we don't want SmartDrop volume
+    // to mask an RR dispatch failure.
     runAuroraQuery(`
       SELECT COALESCE(SUM(sends_total), 0) as sends_today
       FROM rr_daily_metrics
-      WHERE date = CURRENT_DATE AND ${EXCLUDE_SEED}
+      WHERE date = CURRENT_DATE
+        AND campaign_type = 'rr'
+        AND ${EXCLUDE_SEED}
     `),
     // On-hold 9-day comparison: get the total on-hold from ~9 days ago to detect timer effect
     // Uses 9 days (not 7) to give a 2-day buffer after the monolith's 7-day auto-conversion window
