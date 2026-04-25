@@ -16,6 +16,7 @@ export interface IntegrationStatusSummary {
 export interface Ga4AffiliationViews {
   page_views: number;
   total_users: number;
+  unique_client_domains: number;
   avg_session_min: number;
   views_change_pct: number;    // % change vs previous period
   session_change_pct: number;  // % change in avg session duration vs previous period

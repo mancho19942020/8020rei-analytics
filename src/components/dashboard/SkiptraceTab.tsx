@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { AxisSkeleton, AxisCallout, AxisInput } from '@/components/axis';
 import { AxisTable } from '@/components/axis';
+import { AxisNavigationTab } from '@/components/axis/AxisNavigationTab';
 import { BaseStackedBarChart } from '@/components/charts';
 import type { StackedBarDataPoint, StackedBarSeries } from '@/components/charts';
 import { authFetch } from '@/lib/auth-fetch';
@@ -12,6 +13,13 @@ import type { Column } from '@/types/table';
 const PRICE_PER_HIT   = 0.08;
 const COST_DS         = 0.03;
 const COMMITMENT_TOTAL = 500_000;
+
+// ─── Inner tabs ───────────────────────────────────────────────────────────────
+const SKIPTRACE_TABS = [
+  { id: 'overview', name: 'Overview' },
+  { id: 'batch',    name: 'Batch' },
+  { id: 'clients',  name: 'Clients' },
+];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -55,20 +63,6 @@ function SectionCard({
 }: {
   title: string; accent: 'main' | 'success' | 'info' | 'alert' | 'error'; children: React.ReactNode;
 }) {
-  const borders: Record<string, string> = {
-    main:    'border-l-main-500',
-    success: 'border-l-success-500',
-    info:    'border-l-info-500',
-    alert:   'border-l-alert-500',
-    error:   'border-l-error-500',
-  };
-  const titles: Record<string, string> = {
-    main:    'text-main-700 dark:text-main-300',
-    success: 'text-success-700 dark:text-success-300',
-    info:    'text-info-700 dark:text-info-300',
-    alert:   'text-alert-700 dark:text-alert-300',
-    error:   'text-error-700 dark:text-error-300',
-  };
   return (
     <section className="bg-surface-base shadow-xs rounded-lg p-5">
       <h2 className="text-xs font-semibold uppercase tracking-wide mb-4 text-content-secondary">
@@ -144,7 +138,7 @@ interface SkiptraceData {
   as_of: string;
 }
 
-// ─── Client leaderboard columns ───────────────────────────────────────────────
+// ─── Table columns ────────────────────────────────────────────────────────────
 
 const CLIENT_COLUMNS: Column[] = [
   { field: 'domain',           header: 'Client',        type: 'text',     width: 200, sortable: true },
@@ -178,6 +172,10 @@ const FINANCIAL_SERIES: StackedBarSeries[] = [
   { dataKey: 'cost',    name: 'Cost',    color: '#f59e0b' },
 ];
 
+const ADOPTION_SERIES: StackedBarSeries[] = [
+  { dataKey: 'active_clients', name: 'Active clients', color: '#06b6d4' },
+];
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function SkiptraceTab() {
@@ -186,6 +184,7 @@ export function SkiptraceTab() {
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState<string | null>(null);
   const [search, setSearch]         = useState('');
+  const [activeTab, setActiveTab]   = useState('overview');
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -213,15 +212,18 @@ export function SkiptraceTab() {
 
   if (loading) {
     return (
-      <div className="p-6 flex flex-col gap-6">
-        {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="bg-surface-base shadow-xs rounded-lg p-5">
-            <div className="mb-4"><AxisSkeleton width="40%" height="16px" /></div>
-            <div className="grid grid-cols-4 gap-3">
-              {[1,2,3,4].map((j) => <AxisSkeleton key={j} height="72px" />)}
+      <div className="flex flex-col">
+        <div className="flex-shrink-0 px-6 border-b border-stroke chrome-bg h-9" />
+        <div className="p-6 flex flex-col gap-6">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-surface-base shadow-xs rounded-lg p-5">
+              <div className="mb-4"><AxisSkeleton width="40%" height="16px" /></div>
+              <div className="grid grid-cols-4 gap-3">
+                {[1,2,3,4].map((j) => <AxisSkeleton key={j} height="72px" />)}
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     );
   }
@@ -255,10 +257,6 @@ export function SkiptraceTab() {
     active_clients: m.active_clients,
   }));
 
-  const ADOPTION_SERIES: StackedBarSeries[] = [
-    { dataKey: 'active_clients', name: 'Active clients', color: '#06b6d4' },
-  ];
-
   const filteredClients = search.trim()
     ? by_client.filter((c) => c.domain.toLowerCase().includes(search.toLowerCase()))
     : by_client;
@@ -274,275 +272,254 @@ export function SkiptraceTab() {
   const nonAdopters = totalDomains ? Math.max(0, totalDomains - skiptraceClientCount) : null;
 
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <div className="flex flex-col">
 
-      {/* ── Section 1: DirectSkip commitment ─────────────────────────────── */}
-      <SectionCard title="DirectSkip commitment — March – July 2026" accent="main">
-        <div className="flex flex-col gap-6">
-          <CommitmentBar used={commitment.used_hits} total={COMMITMENT_TOTAL} />
+      {/* ── Tab bar ───────────────────────────────────────────────────────── */}
+      <nav className="flex-shrink-0 px-6 border-b border-stroke chrome-bg">
+        <AxisNavigationTab
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          tabs={SKIPTRACE_TABS}
+          variant="line"
+          size="sm"
+        />
+      </nav>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <KpiCard
-              label="Hits used"
-              value={fmtN(commitment.used_hits)}
-              sub={`of ${fmtN(COMMITMENT_TOTAL)}`}
-            />
-            <KpiCard
-              label="Avg monthly hits"
-              value={fmtN(Math.round(commitment.used_hits / Math.max(1, Math.ceil(commitment.days_elapsed / 30))))}
-              sub={`target: ${fmtN(commitment.monthly_target)}`}
-              accent={commitment.on_track ? 'success' : 'alert'}
-            />
-            <KpiCard
-              label="Projected total"
-              value={fmtN(commitment.projected_total)}
-              sub={commitment.on_track ? 'On track' : 'Below pace'}
-              accent={commitment.projected_total >= COMMITMENT_TOTAL ? 'success' : 'error'}
-            />
-            <KpiCard
-              label="Days remaining"
-              value={commitment.days_remaining}
-              sub="in commitment period"
-              accent="neutral"
-            />
-          </div>
+      {/* ── Overview ──────────────────────────────────────────────────────── */}
+      {activeTab === 'overview' && (
+        <div className="flex flex-col gap-6 p-6">
 
-          <div>
-            <p className="text-xs text-content-tertiary mb-3">DirectSkip hits by month</p>
-            <div className="h-[200px]">
-              <BaseStackedBarChart
-                data={hitsChartData}
-                series={HITS_SERIES}
-                showLegend
+          {/* Commitment */}
+          <SectionCard title="DirectSkip commitment — February – July 2026" accent="main">
+            <div className="flex flex-col gap-6">
+              <CommitmentBar used={commitment.used_hits} total={COMMITMENT_TOTAL} />
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <KpiCard
+                  label="Hits used"
+                  value={fmtN(commitment.used_hits)}
+                  sub={`of ${fmtN(COMMITMENT_TOTAL)}`}
+                />
+                <KpiCard
+                  label="Avg monthly hits"
+                  value={fmtN(Math.round(commitment.used_hits / Math.max(1, Math.ceil(commitment.days_elapsed / 30))))}
+                  sub={`target: ${fmtN(commitment.monthly_target)}`}
+                  accent={commitment.on_track ? 'success' : 'alert'}
+                />
+                <KpiCard
+                  label="Projected total"
+                  value={fmtN(commitment.projected_total)}
+                  sub={commitment.on_track ? 'On track' : 'Below pace'}
+                  accent={commitment.projected_total >= COMMITMENT_TOTAL ? 'success' : 'error'}
+                />
+                <KpiCard
+                  label="Days remaining"
+                  value={commitment.days_remaining}
+                  sub="in commitment period"
+                  accent="neutral"
+                />
+              </div>
+              <div>
+                <p className="text-xs text-content-tertiary mb-3">DirectSkip hits by month</p>
+                <div className="h-[200px]">
+                  <BaseStackedBarChart data={hitsChartData} series={HITS_SERIES} showLegend />
+                </div>
+              </div>
+            </div>
+          </SectionCard>
+
+          {/* Revenue & margin */}
+          <SectionCard title="Revenue & margin" accent="success">
+            <div className="flex flex-col gap-6">
+              <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3">
+                <KpiCard
+                  label="Total revenue"
+                  value={fmt$(financials.total_revenue)}
+                  sub={`${fmtN(financials.directskip_hits + financials.batchleads_hits)} hits × $${PRICE_PER_HIT}`}
+                  accent="success"
+                />
+                <KpiCard
+                  label="DirectSkip cost"
+                  value={fmt$(financials.cost_directskip)}
+                  sub={`${fmtN(financials.directskip_hits)} DS hits × $${COST_DS}`}
+                  accent="neutral"
+                />
+                <KpiCard
+                  label="Total batch consumption"
+                  value={fmtN(financials.batchleads_hits)}
+                  sub="BatchLeads hits (all time)"
+                  accent="neutral"
+                />
+                <KpiCard
+                  label="Gross margin"
+                  value={fmt$(financials.gross_margin)}
+                  accent={financials.gross_margin >= 0 ? 'success' : 'error'}
+                />
+                <KpiCard
+                  label="Margin %"
+                  value={fmtPct(financials.margin_pct)}
+                  accent={financials.margin_pct >= 50 ? 'success' : 'alert'}
+                />
+              </div>
+              <div>
+                <p className="text-xs text-content-tertiary mb-3">Revenue vs cost by month</p>
+                <div className="h-[200px]">
+                  <BaseStackedBarChart data={financialChartData} series={FINANCIAL_SERIES} showLegend />
+                </div>
+              </div>
+            </div>
+          </SectionCard>
+
+          {/* Client adoption */}
+          <SectionCard title="Client adoption" accent="info">
+            <div className="flex flex-col gap-6">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <KpiCard
+                  label="Clients using skiptrace"
+                  value={skiptraceClientCount}
+                  sub="since February 1, 2026"
+                  accent="neutral"
+                />
+                <KpiCard
+                  label="Total active clients"
+                  value={totalDomains ?? '—'}
+                  sub="domains with activity (last 12 mo)"
+                  accent="neutral"
+                />
+                <KpiCard
+                  label="Adoption rate"
+                  value={adoptionRate !== null ? fmtPct(adoptionRate) : '—'}
+                  sub="of active clients using skiptrace"
+                  accent={adoptionRate !== null ? (adoptionRate >= 50 ? 'success' : adoptionRate >= 25 ? 'alert' : 'error') : 'neutral'}
+                />
+                <KpiCard
+                  label="Active clients this month"
+                  value={active_clients_this_month}
+                  sub="≥ 1 request in current month"
+                  accent="neutral"
+                />
+              </div>
+              {adoptionRate !== null && (
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between text-xs text-content-tertiary">
+                    <span>{skiptraceClientCount} using skiptrace</span>
+                    <span>{nonAdopters} not adopted</span>
+                  </div>
+                  <div className="h-2 w-full bg-surface-raised rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-info-500"
+                      style={{ width: `${Math.min(adoptionRate, 100)}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+              <div>
+                <p className="text-xs text-content-tertiary mb-3">Active clients by month</p>
+                <div className="h-[180px]">
+                  <BaseStackedBarChart data={adoptionChartData} series={ADOPTION_SERIES} showLegend={false} />
+                </div>
+              </div>
+            </div>
+          </SectionCard>
+
+        </div>
+      )}
+
+      {/* ── Batch ─────────────────────────────────────────────────────────── */}
+      {activeTab === 'batch' && (
+        <div className="flex flex-col gap-6 p-6">
+          <SectionCard title="BatchLeads reconciliation — invoice vs DB" accent="alert">
+            <div className="flex flex-col gap-6">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <KpiCard
+                  label="Total invoiced (all time)"
+                  value={fmtN(recon_summary.total_inv_requests)}
+                  sub="Skip Tracing requests billed"
+                  accent="neutral"
+                />
+                <KpiCard
+                  label="Total DB hits (all time)"
+                  value={fmtN(recon_summary.total_db_hits)}
+                  sub="BatchLeads hits in DynamoDB"
+                  accent="neutral"
+                />
+                <KpiCard
+                  label="Overall match"
+                  value={recon_summary.overall_match_pct !== null ? fmtPct(recon_summary.overall_match_pct) : '—'}
+                  sub="DB hits / invoice requests"
+                  accent={
+                    recon_summary.overall_match_pct === null ? 'neutral'
+                    : recon_summary.overall_match_pct >= 90 ? 'success'
+                    : recon_summary.overall_match_pct >= 70 ? 'alert'
+                    : 'error'
+                  }
+                />
+                <KpiCard
+                  label="Total invoice cost"
+                  value={fmt$(recon_summary.total_inv_cost)}
+                  sub="sum of all BatchData bills"
+                  accent="neutral"
+                />
+              </div>
+              <div>
+                <p className="text-xs text-content-tertiary mb-1 px-1">
+                  Delta = DB hits minus invoice requests. Negative means we paid for more than we logged.
+                </p>
+                <div className="h-[380px]">
+                  <AxisTable
+                    columns={RECON_COLUMNS}
+                    data={reconciliation.map((r) => ({
+                      ...r,
+                      inv_requests: r.inv_requests ?? 0,
+                      inv_amount:   r.inv_amount ?? 0,
+                      delta:        r.delta ?? 0,
+                      match_pct:    r.match_pct ?? 0,
+                    })) as unknown as Record<string, unknown>[]}
+                    rowKey="month"
+                    sortable
+                    paginated
+                    defaultPageSize={15}
+                    rowLabel="months"
+                  />
+                </div>
+              </div>
+            </div>
+          </SectionCard>
+        </div>
+      )}
+
+      {/* ── Clients ───────────────────────────────────────────────────────── */}
+      {activeTab === 'clients' && (
+        <div className="flex flex-col gap-6 p-6">
+          <SectionCard title="Usage by client" accent="main">
+            <div className="flex flex-col gap-3">
+              <AxisInput
+                type="search"
+                placeholder="Search clients..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                size="sm"
+                fullWidth
               />
+              {search.trim() && (
+                <p className="text-xs text-content-tertiary px-1">
+                  {filteredClients.length} of {by_client.length} clients
+                </p>
+              )}
+              <div className="h-[420px]">
+                <AxisTable
+                  columns={CLIENT_COLUMNS}
+                  data={filteredClients as unknown as Record<string, unknown>[]}
+                  rowKey="domain"
+                  sortable
+                  paginated
+                  defaultPageSize={10}
+                  rowLabel="clients"
+                />
+              </div>
             </div>
-          </div>
+          </SectionCard>
         </div>
-      </SectionCard>
-
-      {/* ── Section 2: Revenue & margin ──────────────────────────────────── */}
-      <SectionCard title="Revenue & margin" accent="success">
-        <div className="flex flex-col gap-6">
-          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3">
-            <KpiCard
-              label="Total revenue"
-              value={fmt$(financials.total_revenue)}
-              sub={`${fmtN(financials.directskip_hits + financials.batchleads_hits)} hits × $${PRICE_PER_HIT}`}
-              accent="success"
-            />
-            <KpiCard
-              label="DirectSkip cost"
-              value={fmt$(financials.cost_directskip)}
-              sub={`${fmtN(financials.directskip_hits)} DS hits × $${COST_DS}`}
-              accent="neutral"
-            />
-            <KpiCard
-              label="Total batch consumption"
-              value={fmtN(financials.batchleads_hits)}
-              sub="BatchLeads hits (all time)"
-              accent="neutral"
-            />
-            <KpiCard
-              label="Gross margin"
-              value={fmt$(financials.gross_margin)}
-              accent={financials.gross_margin >= 0 ? 'success' : 'error'}
-            />
-            <KpiCard
-              label="Margin %"
-              value={fmtPct(financials.margin_pct)}
-              accent={financials.margin_pct >= 50 ? 'success' : 'alert'}
-            />
-          </div>
-
-          <div>
-            <p className="text-xs text-content-tertiary mb-3">Revenue vs cost by month</p>
-            <div className="h-[200px]">
-              <BaseStackedBarChart
-                data={financialChartData}
-                series={FINANCIAL_SERIES}
-                showLegend
-              />
-            </div>
-          </div>
-        </div>
-      </SectionCard>
-
-      {/* ── Section 3: Client adoption ───────────────────────────────────── */}
-      <SectionCard title="Client adoption" accent="info">
-        <div className="flex flex-col gap-6">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <KpiCard
-              label="Active clients this month"
-              value={active_clients_this_month}
-              sub="≥ 1 request in current month"
-              accent="neutral"
-            />
-            <KpiCard
-              label="Total clients (period)"
-              value={by_client.length}
-              sub="with any usage since Mar 1"
-              accent="neutral"
-            />
-            <KpiCard
-              label="Cache hit rate"
-              value={fmtPct(cache_rate)}
-              sub="properties served from cache"
-              accent={cache_rate >= 50 ? 'success' : 'neutral'}
-            />
-            <KpiCard
-              label="Total properties"
-              value={fmtN(financials.total_properties)}
-              sub="processed this period"
-              accent="neutral"
-            />
-          </div>
-
-          <div>
-            <p className="text-xs text-content-tertiary mb-3">Active clients by month</p>
-            <div className="h-[180px]">
-              <BaseStackedBarChart
-                data={adoptionChartData}
-                series={ADOPTION_SERIES}
-                showLegend={false}
-              />
-            </div>
-          </div>
-        </div>
-      </SectionCard>
-
-      {/* ── Section 4: Adoption overview ─────────────────────────────────── */}
-      <SectionCard title="Adoption overview" accent="info">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <KpiCard
-            label="Clients using skiptrace"
-            value={skiptraceClientCount}
-            sub="since March 1, 2026"
-            accent="neutral"
-          />
-          <KpiCard
-            label="Total active clients"
-            value={totalDomains ?? '—'}
-            sub="domains with activity (last 12 mo)"
-            accent="neutral"
-          />
-          <KpiCard
-            label="Adoption rate"
-            value={adoptionRate !== null ? fmtPct(adoptionRate) : '—'}
-            sub="of active clients using skiptrace"
-            accent={adoptionRate !== null ? (adoptionRate >= 50 ? 'success' : adoptionRate >= 25 ? 'alert' : 'error') : 'neutral'}
-          />
-          <KpiCard
-            label="Not yet adopted"
-            value={nonAdopters !== null ? fmtN(nonAdopters) : '—'}
-            sub="clients with no skiptrace usage"
-            accent="neutral"
-          />
-        </div>
-        {adoptionRate !== null && (
-          <div className="mt-4 flex flex-col gap-2">
-            <div className="flex items-center justify-between text-xs text-content-tertiary">
-              <span>{skiptraceClientCount} using skiptrace</span>
-              <span>{nonAdopters} not adopted</span>
-            </div>
-            <div className="h-2 w-full bg-surface-raised rounded-full overflow-hidden">
-              <div
-                className="h-full rounded-full bg-info-500"
-                style={{ width: `${Math.min(adoptionRate, 100)}%` }}
-              />
-            </div>
-          </div>
-        )}
-      </SectionCard>
-
-      {/* ── Section 5: BatchLeads reconciliation ─────────────────────────── */}
-      <SectionCard title="BatchLeads reconciliation — invoice vs DB" accent="alert">
-        <div className="flex flex-col gap-6">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <KpiCard
-              label="Total invoiced (all time)"
-              value={fmtN(recon_summary.total_inv_requests)}
-              sub="Skip Tracing requests billed"
-              accent="neutral"
-            />
-            <KpiCard
-              label="Total DB hits (all time)"
-              value={fmtN(recon_summary.total_db_hits)}
-              sub="BatchLeads hits in DynamoDB"
-              accent="neutral"
-            />
-            <KpiCard
-              label="Overall match"
-              value={recon_summary.overall_match_pct !== null ? fmtPct(recon_summary.overall_match_pct) : '—'}
-              sub="DB hits / invoice requests"
-              accent={
-                recon_summary.overall_match_pct === null ? 'neutral'
-                : recon_summary.overall_match_pct >= 90 ? 'success'
-                : recon_summary.overall_match_pct >= 70 ? 'alert'
-                : 'error'
-              }
-            />
-            <KpiCard
-              label="Total invoice cost"
-              value={fmt$(recon_summary.total_inv_cost)}
-              sub="sum of all BatchData bills"
-              accent="neutral"
-            />
-          </div>
-
-          <div>
-            <p className="text-xs text-content-tertiary mb-1 px-1">
-              Delta = DB hits minus invoice requests. Negative means we paid for more than we logged.
-            </p>
-            <div className="h-[380px]">
-              <AxisTable
-                columns={RECON_COLUMNS}
-                data={reconciliation.map((r) => ({
-                  ...r,
-                  inv_requests: r.inv_requests ?? 0,
-                  inv_amount:   r.inv_amount ?? 0,
-                  delta:        r.delta ?? 0,
-                  match_pct:    r.match_pct ?? 0,
-                })) as unknown as Record<string, unknown>[]}
-                rowKey="month"
-                sortable
-                paginated
-                defaultPageSize={15}
-                rowLabel="months"
-              />
-            </div>
-          </div>
-        </div>
-      </SectionCard>
-
-      {/* ── Section 7: Usage by client ───────────────────────────────────── */}
-      <SectionCard title="Usage by client" accent="main">
-        <div className="flex flex-col gap-3">
-          <AxisInput
-            type="search"
-            placeholder="Search clients..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            size="sm"
-            fullWidth
-          />
-          {search.trim() && (
-            <p className="text-xs text-content-tertiary px-1">
-              {filteredClients.length} of {by_client.length} clients
-            </p>
-          )}
-          <div className="h-[420px]">
-            <AxisTable
-              columns={CLIENT_COLUMNS}
-              data={filteredClients as unknown as Record<string, unknown>[]}
-              rowKey="domain"
-              sortable
-              paginated
-              defaultPageSize={10}
-              rowLabel="clients"
-            />
-          </div>
-        </div>
-      </SectionCard>
+      )}
 
     </div>
   );

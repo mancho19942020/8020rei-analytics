@@ -18,6 +18,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { AxisSkeleton, AxisCallout, AxisButton } from '@/components/axis';
+import { AxisTooltip } from '@/components/axis/AxisTooltip';
 import { DomainLeaderboardWidget } from '@/components/workspace/widgets';
 import { authFetch } from '@/lib/auth-fetch';
 import { buildDateQueryString } from '@/lib/date-utils';
@@ -59,10 +60,12 @@ function KpiCard({
 function SectionCard({
   title,
   accent,
+  tooltip,
   children,
 }: {
   title: string;
   accent: 'main' | 'error' | 'alert' | 'info' | 'success';
+  tooltip?: string;
   children: React.ReactNode;
 }) {
   const borderColors: Record<string, string> = {
@@ -82,8 +85,15 @@ function SectionCard({
 
   return (
     <section className={`bg-surface-base shadow-xs rounded-lg border-l-4 ${borderColors[accent]} p-5`}>
-      <h2 className={`text-xs font-semibold uppercase tracking-wide mb-4 ${titleColors[accent]}`}>
+      <h2 className={`text-xs font-semibold uppercase tracking-wide mb-4 ${titleColors[accent]} flex items-center gap-1.5`}>
         {title}
+        {tooltip && (
+          <AxisTooltip content={tooltip} placement="top">
+            <svg className="w-3.5 h-3.5 opacity-50 cursor-default" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </AxisTooltip>
+        )}
       </h2>
       {children}
     </section>
@@ -152,14 +162,20 @@ interface RrSummary {
   letters_last_week: number;
 }
 
+interface SkiptraceSummary {
+  commitment: { used_hits: number; total: number; pct: number };
+  financials: { directskip_hits: number; cache_hits: number; cost_directskip: number };
+  by_client: { domain: string }[];
+}
+
 // ─── Static constants ─────────────────────────────────────────────────────────
 
-const ICEBERG_PURCHASED  = 977845;
-const ICEBERG_SPENT      = 269423;
-const ICEBERG_REMAINING  = 708422;
+const ICEBERG_PURCHASED  = 977_845.2;
+const ICEBERG_SPENT      = 755_874;
+const ICEBERG_REMAINING  = 221_971.2;
 
 const RR_ACTIVE_CLIENTS    = 12;
-const RR_LETTERS_LAST_WEEK = 245;
+const RR_LETTERS_LAST_WEEK = 1_966;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -171,6 +187,14 @@ function changeAccent(n: number): 'success' | 'neutral' | 'error' {
   if (n > 0) return 'success';
   if (n < 0) return 'error';
   return 'neutral';
+}
+
+function formatCurrency(n: number): string {
+  return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+
+function adoptionStr(part: number, total: number): string {
+  return total > 0 ? `${Math.round((part / total) * 100)}% of integrated` : '—';
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -185,19 +209,20 @@ export function IntegrationStatusTab({ days, startDate, endDate }: IntegrationSt
   const [data, setData]                   = useState<IntegrationStatusData | null>(null);
   const [rrData, setRrData]               = useState<RrSummary | null>(null);
   const [leaderboardData, setLeaderboardData] = useState<DomainLeaderboardEntry[]>([]);
+  const [skiptraceData, setSkiptraceData] = useState<SkiptraceSummary | null>(null);
   const [loading, setLoading]             = useState(true);
   const [error, setError]                 = useState<string | null>(null);
-  const [crmOnly, setCrmOnly]             = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     const dateQs = buildDateQueryString(days, startDate, endDate);
     try {
-      const [sfRes, rrRes, domainsRes] = await Promise.all([
+      const [sfRes, rrRes, domainsRes, stRes] = await Promise.all([
         authFetch(`/api/metrics/integration-status?${dateQs}`),
         authFetch('/api/rapid-response?type=integration-summary'),
         authFetch(`/api/metrics/product-domains?${dateQs}`),
+        authFetch('/api/metrics/skiptrace').catch(() => null),
       ]);
 
       const sfJson      = await sfRes.json();
@@ -207,10 +232,20 @@ export function IntegrationStatusTab({ days, startDate, endDate }: IntegrationSt
       if (!sfJson.success) throw new Error(sfJson.error || 'Failed to load data');
       setData(sfJson.data);
 
-      if (rrJson.success && rrJson.data?.active_clients > 0) setRrData(rrJson.data);
-      else setRrData({ active_clients: RR_ACTIVE_CLIENTS, letters_last_week: RR_LETTERS_LAST_WEEK });
+      if (rrJson.success && rrJson.data?.active_clients > 0) {
+        setRrData({ active_clients: rrJson.data.active_clients, letters_last_week: RR_LETTERS_LAST_WEEK });
+      } else {
+        setRrData({ active_clients: RR_ACTIVE_CLIENTS, letters_last_week: RR_LETTERS_LAST_WEEK });
+      }
 
       if (domainsJson.success) setLeaderboardData(domainsJson.data.leaderboard ?? []);
+
+      if (stRes) {
+        try {
+          const stJson = await stRes.json();
+          if (stJson.success) setSkiptraceData(stJson.data);
+        } catch {}
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load report');
     } finally {
@@ -276,6 +311,19 @@ export function IntegrationStatusTab({ days, startDate, endDate }: IntegrationSt
 
   const { salesforce, ga4, as_of } = data;
 
+  const totalIntegrated = salesforce.total_integrated;
+  const visiting        = ga4?.external.unique_client_domains ?? 0;
+
+  // Skiptrace financials
+  const st = skiptraceData;
+  const stHits    = st?.commitment.used_hits ?? 0;
+  const stGoalPct = st?.commitment.pct ?? 0;
+  const stGoal    = st?.commitment.total ?? 500_000;
+  const stCharge  = st ? (st.financials.directskip_hits + st.financials.cache_hits) * 0.08 : 0;
+  const stCost    = st?.financials.cost_directskip ?? 0;
+  const stProfit  = stCharge - stCost;
+  const stClients = st?.by_client.length ?? 0;
+
   return (
     <div className="p-6 max-w-3xl mx-auto flex flex-col gap-4">
 
@@ -292,10 +340,16 @@ export function IntegrationStatusTab({ days, startDate, endDate }: IntegrationSt
 
       {/* Salesforce integration health */}
       <SectionCard title="Salesforce" accent="error">
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-4 gap-3">
           <KpiCard
             label="Clients integrated"
-            value={salesforce.total_integrated}
+            value={totalIntegrated}
+            accent="neutral"
+          />
+          <KpiCard
+            label="Salesforce adoption"
+            value={`${totalIntegrated}/141`}
+            sub={adoptionStr(totalIntegrated, 141)}
             accent="neutral"
           />
           <KpiCard
@@ -314,7 +368,7 @@ export function IntegrationStatusTab({ days, startDate, endDate }: IntegrationSt
       </SectionCard>
 
       {/* Sticker Price — Iceberg usage (static until Iceberg API is connected) */}
-      <SectionCard title="Sticker Price" accent="success">
+      <SectionCard title="Sticker Price" accent="success" tooltip="Credits renew on April 30">
         <UsageBar
           used={ICEBERG_SPENT}
           total={ICEBERG_PURCHASED}
@@ -377,7 +431,13 @@ export function IntegrationStatusTab({ days, startDate, endDate }: IntegrationSt
             <p className="text-xs font-medium text-content-tertiary uppercase tracking-wide mb-2">
               Client · {ga4?.external.share_of_total_pct ?? 0}% of total views
             </p>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-4 gap-3">
+              <KpiCard
+                label="Clients visiting"
+                value={`${visiting}/141`}
+                sub={adoptionStr(visiting, 141)}
+                accent="neutral"
+              />
               <KpiCard
                 label="Views vs last period"
                 value={formatPct(ga4?.external.views_change_pct ?? 0)}
@@ -399,13 +459,50 @@ export function IntegrationStatusTab({ days, startDate, endDate }: IntegrationSt
         </div>
       </SectionCard>
 
-      {/* Client import leaderboard */}
-      <SectionCard title="Client import leaderboard" accent="info">
+      {/* Skiptrace summary */}
+      {st && (
+        <SectionCard title="Skiptrace · Feb – Jul 2026" accent="alert">
+          <div className="flex flex-col gap-3">
+            <UsageBar
+              used={stHits}
+              total={stGoal}
+              label={`${stHits.toLocaleString()} hits processed · ${stGoalPct.toFixed(1)}% of ${stGoal.toLocaleString()} goal`}
+            />
+            <div className="grid grid-cols-4 gap-3">
+              <KpiCard
+                label="Client charge"
+                value={formatCurrency(stCharge)}
+                sub="(DS + cache) × $0.08"
+                accent="neutral"
+              />
+              <KpiCard
+                label="Total cost"
+                value={formatCurrency(stCost)}
+                sub="DS hits × $0.03"
+                accent="neutral"
+              />
+              <KpiCard
+                label="Gross profit"
+                value={formatCurrency(stProfit)}
+                accent={stProfit >= 0 ? 'success' : 'error'}
+              />
+              <KpiCard
+                label="Usage"
+                value={`${stClients}/141`}
+                sub={adoptionStr(stClients, 141)}
+                accent="neutral"
+              />
+            </div>
+          </div>
+        </SectionCard>
+      )}
+
+      {/* Clients integrated */}
+      <SectionCard title="Clients integrated" accent="info">
         <div className="h-[500px]">
           <DomainLeaderboardWidget
             data={leaderboardData}
-            crmOnly={crmOnly}
-            onCrmToggle={() => setCrmOnly((v) => !v)}
+            crmOnly={true}
           />
         </div>
       </SectionCard>
