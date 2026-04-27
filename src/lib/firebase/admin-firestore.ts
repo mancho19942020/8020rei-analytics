@@ -28,7 +28,17 @@ export function getAdminFirestore(): Firestore {
   // historically that sank docs_written to 0 across every cron run, leaving
   // widget chrome stuck on "Awaiting reconcile". Treat undefined as "skip
   // this field" — matches the Firestore client-SDK default semantics.
-  _db.settings({ ignoreUndefinedProperties: true });
+  //
+  // settings() can only be called once per Firestore instance. Under Next.js
+  // dev HMR our `_db` cache resets while the underlying Admin SDK keeps the
+  // same Firestore instance — guard so the second call doesn't throw.
+  try {
+    _db.settings({ ignoreUndefinedProperties: true });
+  } catch (err) {
+    if (!(err instanceof Error) || !err.message.includes('already been initialized')) {
+      throw err;
+    }
+  }
   return _db;
 }
 

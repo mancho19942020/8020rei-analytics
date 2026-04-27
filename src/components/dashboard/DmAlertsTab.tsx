@@ -168,9 +168,10 @@ export function DmAlertsTab() {
   if (loading && total === 0 && !error) {
     return (
       <div className="space-y-4">
-        <AxisSkeleton variant="widget" height="80px" fullWidth />
-        <AxisSkeleton variant="chart" height="200px" fullWidth />
-        <AxisSkeleton variant="chart" height="200px" fullWidth />
+        <AxisSkeleton variant="widget" height="120px" fullWidth />
+        <AxisSkeleton variant="widget" height="160px" fullWidth />
+        <AxisSkeleton variant="widget" height="160px" fullWidth />
+        <AxisSkeleton variant="widget" height="160px" fullWidth />
       </div>
     );
   }

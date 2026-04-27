@@ -53,6 +53,8 @@ export interface AxisModalProps {
   disableBackdropClose?: boolean;
   /** When true, the body does not scroll — children manage their own scroll (e.g. a full-height AxisTable) */
   fitContent?: boolean;
+  /** Override the dialog max height (default: 70vh). Use a CSS length such as '92vh' for taller forms. */
+  maxHeight?: string;
 }
 
 const SIZE_WIDTHS: Record<ModalSize, number> = {
@@ -71,6 +73,7 @@ export function AxisModal({
   size = 'md',
   disableBackdropClose = false,
   fitContent = false,
+  maxHeight = '70vh',
 }: AxisModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
@@ -172,8 +175,8 @@ export function AxisModal({
           position: 'relative',
           width: '100%',
           maxWidth,
-          height: fitContent ? '70vh' : undefined,
-          maxHeight: '70vh',
+          height: fitContent ? maxHeight : undefined,
+          maxHeight,
           display: 'flex',
           flexDirection: 'column',
           borderRadius: 16,

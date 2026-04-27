@@ -20,11 +20,11 @@ export const MAIN_SECTION_TABS: AxisNavigationTabItem[] = [
   { id: 'feedback-loop', name: 'Feedback Loop' },
   { id: 'engagement-calls', name: 'Engagement Calls' },
   { id: 'product-tasks', name: 'Product Tasks' },
-  { id: 'customer-success', name: 'Customer Success', disabled: true },
+  { id: 'customer-success', name: 'Customer Success', disabled: true, hidden: true },
   { id: 'qa', name: 'QA', disabled: true },
-  { id: 'pipelines', name: 'Pipelines', disabled: true },
-  { id: 'ml-models', name: 'ML Models', disabled: true },
-  { id: 'grafana', name: 'Grafana (beta)' },
+  { id: 'pipelines', name: 'Pipelines', disabled: true, hidden: true },
+  { id: 'ml-models', name: 'ML Models', disabled: true, hidden: true },
+  { id: 'grafana', name: 'Grafana (beta)', hidden: true },
   { id: 'platform-analytics', name: 'Platform analytics' },
 ];
 

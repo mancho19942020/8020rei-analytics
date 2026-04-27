@@ -1,14 +1,26 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, Suspense, use } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { useAuth } from '@/lib/firebase/AuthContext';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { DesignKitButton } from '@/components/DesignKitButton';
-import { canAccessDesignKit, canAccessDmAlerts, canAccessPlatformAnalytics } from '@/lib/access';
+import {
+  canAccessDesignKit,
+  canAccessDmAlerts,
+  canAccessPlatformAnalytics,
+  canAccessFeedbackBoard,
+} from '@/lib/access';
 import { SuggestionsButton } from '@/components/SuggestionsButton';
 import { SuggestionsModal } from '@/components/SuggestionsModal';
+import { FeedbackOverlay } from '@/components/feedback/FeedbackOverlay';
+import { FeedbackModeBanner } from '@/components/feedback/FeedbackModeBanner';
+import { FeedbackSubmitModal } from '@/components/feedback/FeedbackSubmitModal';
+import { FeedbackInlineToast } from '@/components/feedback/FeedbackInlineToast';
+import { initConsoleCapture } from '@/lib/feedback/console-capture';
+import { recordNavigation } from '@/lib/feedback/navigation-breadcrumb';
+import { registerFeedbackClickCallback } from '@/lib/feedback/feedback-mode';
 import { WelcomeModal } from '@/components/WelcomeModal';
 import { AxisSelect, AxisSelectOption, AxisSkeleton, AxisCallout, AxisButton, AxisNavigationTab, AxisToggle, AxisDateRangePicker, DateRangeValue, AxisSidebar } from '@/components/axis';
 import { GridWorkspace, MetricsOverviewWidget, TimeSeriesWidget, BarChartWidget, DataTableWidget, WidgetCatalog, WidgetSettings } from '@/components/workspace';
@@ -121,6 +133,13 @@ function Dashboard({ slug }: { slug: string[] }) {
   const [editMode, setEditMode] = useState(false);
   const [showEditCallout, setShowEditCallout] = useState(false);
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
+  const [feedbackToast, setFeedbackToast] = useState<{
+    open: boolean;
+    variant: 'success' | 'error';
+    message: string;
+  }>({ open: false, variant: 'success', message: '' });
+  const pathname = usePathname();
   const [showWidgetCatalog, setShowWidgetCatalog] = useState(false);
   const [selectedWidgetForSettings, setSelectedWidgetForSettings] = useState<Widget | null>(null);
   const [layout, setLayout] = useState<Widget[]>(() =>
@@ -226,6 +245,21 @@ function Dashboard({ slug }: { slug: string[] }) {
   useEffect(() => {
     if (editMode) setShowEditCallout(true);
   }, [editMode]);
+
+  // ── Feedback tool wiring ──────────────────────────────────────────────
+  useEffect(() => {
+    initConsoleCapture();
+  }, []);
+
+  useEffect(() => {
+    if (pathname) recordNavigation(pathname);
+  }, [pathname]);
+
+  useEffect(() => {
+    registerFeedbackClickCallback(() => setFeedbackModalOpen(true));
+    return () => registerFeedbackClickCallback(null);
+  }, []);
+  // ──────────────────────────────────────────────────────────────────────
 
   // Auto-disable edit mode on non-grid pages
   const isNonGridPage = activeMainSection === 'engagement-calls' ||
@@ -452,6 +486,8 @@ function Dashboard({ slug }: { slug: string[] }) {
         onSectionChange={handleSectionChange}
         onSubsectionChange={handleSubsectionChange}
         hiddenSections={canAccessPlatformAnalytics(user?.email) ? undefined : new Set(['platform-analytics'])}
+        showFeedbackInboxLink={canAccessFeedbackBoard(user?.email)}
+        onOpenFeedbackInbox={() => router.push('/feedback-board')}
       />
 
       {/* Content Column */}
@@ -975,6 +1011,26 @@ function Dashboard({ slug }: { slug: string[] }) {
         isOpen={suggestionsOpen}
         onClose={() => setSuggestionsOpen(false)}
         user={user}
+      />
+
+      {/* Feedback tool — mounted once, runs everywhere in the dashboard */}
+      <FeedbackOverlay />
+      <FeedbackModeBanner />
+      <FeedbackSubmitModal
+        open={feedbackModalOpen}
+        onClose={() => setFeedbackModalOpen(false)}
+        onSubmitted={() =>
+          setFeedbackToast({ open: true, variant: 'success', message: 'Feedback submitted' })
+        }
+        onSubmitError={(message) =>
+          setFeedbackToast({ open: true, variant: 'error', message })
+        }
+      />
+      <FeedbackInlineToast
+        open={feedbackToast.open}
+        variant={feedbackToast.variant}
+        message={feedbackToast.message}
+        onDismiss={() => setFeedbackToast((t) => ({ ...t, open: false }))}
       />
     </div>
   );

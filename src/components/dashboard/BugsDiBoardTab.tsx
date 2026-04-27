@@ -162,11 +162,16 @@ export const BugsDiBoardTab = forwardRef<TabHandle, BugsDiBoardTabProps>(functio
     return (
       <div className="space-y-4">
         <AxisSkeleton variant="widget" height="140px" fullWidth />
-        <AxisSkeleton variant="chart" height="360px" />
+        <AxisSkeleton variant="widget" height="360px" fullWidth />
         <div className="grid grid-cols-2 gap-4">
           <AxisSkeleton variant="chart" height="300px" />
           <AxisSkeleton variant="chart" height="300px" />
         </div>
+        <div className="grid grid-cols-2 gap-4">
+          <AxisSkeleton variant="chart" height="300px" />
+          <AxisSkeleton variant="chart" height="300px" />
+        </div>
+        <AxisSkeleton variant="widget" height="240px" fullWidth />
       </div>
     );
   }

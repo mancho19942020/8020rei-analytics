@@ -29,6 +29,8 @@ import { SIDEBAR_ICONS } from '@/lib/sidebarIcons';
 import { AxisSidebarItem } from './AxisSidebarItem';
 import { AxisSidebarSection } from './AxisSidebarSection';
 import { AxisTooltip } from './AxisTooltip';
+import { FeedbackTriggerButton } from '@/components/feedback/FeedbackTriggerButton';
+import { InboxIcon } from '@/components/feedback/feedback-icons';
 
 export interface AxisSidebarProps {
   collapsed: boolean;
@@ -39,6 +41,10 @@ export interface AxisSidebarProps {
   onSubsectionChange: (section: string, subsection: string) => void;
   /** Section IDs to hide from the sidebar (e.g., access-controlled sections) */
   hiddenSections?: Set<string>;
+  /** Whether the current user can see the Feedback Inbox link (admins only). */
+  showFeedbackInboxLink?: boolean;
+  /** Click handler for the Feedback Inbox link (parent decides routing). */
+  onOpenFeedbackInbox?: () => void;
 }
 
 const CollapseIcon = () => (
@@ -61,10 +67,14 @@ export function AxisSidebar({
   onSectionChange,
   onSubsectionChange,
   hiddenSections,
+  showFeedbackInboxLink = false,
+  onOpenFeedbackInbox,
 }: AxisSidebarProps) {
-  const visibleSections = hiddenSections
-    ? MAIN_SECTION_TABS.filter(s => !hiddenSections.has(s.id))
-    : MAIN_SECTION_TABS;
+  const visibleSections = MAIN_SECTION_TABS.filter(s => {
+    if (s.hidden) return false;
+    if (hiddenSections?.has(s.id)) return false;
+    return true;
+  });
   return (
     <aside
       role="navigation"
@@ -141,10 +151,42 @@ export function AxisSidebar({
         </div>
       </nav>
 
-      {/* Bottom zone: Company switcher + version */}
+      {/* Bottom zone: Feedback button + (admin) Inbox link + Company switcher + version */}
       <div className={`flex-shrink-0 border-t border-stroke ${
         collapsed ? 'px-2 py-2' : 'px-3 py-2'
       }`}>
+        {/* Feedback trigger — visible to all signed-in users */}
+        <div className={collapsed ? 'mb-2' : 'mb-2'}>
+          <FeedbackTriggerButton collapsed={collapsed} />
+        </div>
+
+        {/* Feedback Inbox — admin-only, navigates to /feedback-board */}
+        {showFeedbackInboxLink && onOpenFeedbackInbox && (
+          <div className="mb-2">
+            {collapsed ? (
+              <AxisTooltip content="Feedback Inbox" placement="right">
+                <button
+                  type="button"
+                  onClick={onOpenFeedbackInbox}
+                  className="inline-flex items-center justify-center w-9 h-9 mx-auto rounded-md text-content-secondary hover:bg-surface-raised hover:text-content-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-main-500 focus-visible:ring-offset-1"
+                  aria-label="Feedback Inbox"
+                >
+                  <InboxIcon className="w-4 h-4" />
+                </button>
+              </AxisTooltip>
+            ) : (
+              <button
+                type="button"
+                onClick={onOpenFeedbackInbox}
+                className="w-full inline-flex items-center gap-2 px-3 py-2 rounded-md text-button-regular text-content-secondary hover:bg-surface-raised hover:text-content-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-main-500 focus-visible:ring-offset-1"
+              >
+                <InboxIcon className="w-4 h-4 shrink-0" />
+                <span className="font-medium">Feedback Inbox</span>
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Company switcher — disabled until 8020Roofing has data */}
         {collapsed ? (
           <AxisTooltip content="8020REI (switch disabled)" placement="right">

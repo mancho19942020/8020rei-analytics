@@ -189,7 +189,7 @@ export function WeeklyReportTab({ days, startDate, endDate }: WeeklyReportTabPro
       <div className="p-6 flex flex-col gap-4 max-w-3xl mx-auto">
         <AxisSkeleton variant="custom" width="260px" height="24px" />
         <AxisSkeleton variant="custom" width="100%" height="100px" />
-        <AxisSkeleton variant="custom" width="100%" height="180px" />
+        <AxisSkeleton variant="custom" width="100%" height="240px" />
         <AxisSkeleton variant="custom" width="100%" height="100px" />
         <AxisSkeleton variant="custom" width="100%" height="100px" />
       </div>

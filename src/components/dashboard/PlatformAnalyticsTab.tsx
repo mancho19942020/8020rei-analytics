@@ -198,13 +198,15 @@ export const PlatformAnalyticsTab = forwardRef<TabHandle, PlatformAnalyticsTabPr
     if (loading) {
       return (
         <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            {[...Array(5)].map((_, i) => <AxisSkeleton key={i} variant="widget" height="100px" />)}
-          </div>
-          <AxisSkeleton variant="widget" height="360px" fullWidth />
+          <AxisSkeleton variant="widget" height="140px" fullWidth />
+          <AxisSkeleton variant="widget" height="420px" fullWidth />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <AxisSkeleton variant="chart" height="320px" />
-            <AxisSkeleton variant="chart" height="320px" />
+            <AxisSkeleton variant="chart" height="300px" />
+            <AxisSkeleton variant="chart" height="300px" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <AxisSkeleton variant="chart" height="300px" />
+            <AxisSkeleton variant="chart" height="300px" />
           </div>
         </div>
       );

@@ -292,10 +292,10 @@ export function IntegrationStatusTab({ days, startDate, endDate }: IntegrationSt
     return (
       <div className="p-6 flex flex-col gap-4 max-w-3xl mx-auto">
         <AxisSkeleton variant="custom" width="280px" height="24px" />
+        <AxisSkeleton variant="custom" width="100%" height="140px" />
+        <AxisSkeleton variant="custom" width="100%" height="160px" />
         <AxisSkeleton variant="custom" width="100%" height="120px" />
-        <AxisSkeleton variant="custom" width="100%" height="120px" />
-        <AxisSkeleton variant="custom" width="100%" height="120px" />
-        <AxisSkeleton variant="custom" width="100%" height="120px" />
+        <AxisSkeleton variant="custom" width="100%" height="280px" />
       </div>
     );
   }

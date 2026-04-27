@@ -34,7 +34,12 @@ export function getAdminApp(): App {
   } else {
     // Local dev: uses Application Default Credentials (gcloud CLI).
     // Firestore emulator auto-detected via FIRESTORE_EMULATOR_HOST env var.
-    app = initializeApp();
+    // Pin the project so ADC doesn't fall back to whatever `gcloud config`
+    // points at (which is often a different GCP project) — that mismatch
+    // was producing misleading "Firestore API has not been used in project
+    // <gcloud-default>" errors during local feedback testing.
+    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+    app = initializeApp(projectId ? { projectId } : undefined);
   }
 
   return app;

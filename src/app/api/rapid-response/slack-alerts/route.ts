@@ -17,7 +17,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth-guard';
 import { runAuroraQuery, isAuroraConfigured } from '@/lib/aurora';
-import { queryOnHoldAges, ON_HOLD_STALE_THRESHOLD_DAYS } from '@/lib/on-hold-ages';
+import { queryOnHoldAges } from '@/lib/on-hold-ages';
 import {
   sendSlackMessage,
   sendSlackThreadReply,
@@ -29,9 +29,9 @@ import type { RrAlert } from '@/types/rapid-response';
 import fs from 'fs';
 import path from 'path';
 // Test-domain exclusion — canonical source. Any change applies everywhere simultaneously.
-import { TEST_DOMAINS_SQL as SEED_DOMAINS, EXCLUDE_TEST_DOMAINS_SQL as EXCLUDE_SEED } from '@/lib/domain-filter';
+import { EXCLUDE_TEST_DOMAINS_SQL as EXCLUDE_SEED } from '@/lib/domain-filter';
 import { getCachedPcmOrdersSlim, type PcmOrderSlim } from '@/app/api/dm-overview/compute';
-import { pcmRate, currentPcmRates } from '@/lib/pcm-pricing-eras';
+import { currentPcmRates } from '@/lib/pcm-pricing-eras';
 // Campaign / client lifecycle alerts — shared with the CS (business) digest
 // so both channels surface the same events with the same IDs.
 import { queryRecentCampaignStops, queryRecentClientDeactivations } from '@/lib/campaign-lifecycle';
@@ -466,30 +466,13 @@ function saveAlertState(alerts: RrAlert[]): void {
 // ---------------------------------------------------------------------------
 
 async function fetchCurrentAlerts(): Promise<RrAlert[]> {
-  const days = 30;
-  const [pulseRows, qualityRows, pcmRows, todayRows, onHold7dAgoRows] = await Promise.all([
+  const [pulseRows, pcmRows, recentSendsRows, onHold7dAgoRows] = await Promise.all([
     runAuroraQuery(`
       SELECT DISTINCT ON (domain, campaign_id)
         campaign_id, campaign_name, domain, status, on_hold_count, snapshot_at
       FROM rr_campaign_snapshots
       WHERE ${EXCLUDE_SEED}
       ORDER BY domain, campaign_id, snapshot_at DESC
-    `),
-    // Filtered to campaign_type='rr' so the daily Slack digest's quality
-    // thresholds fire on Rapid Response degradation only. Mirror of the
-    // filter in /api/rapid-response/route.ts getAlerts() — keeps the in-app
-    // Alerts feed and the Slack digest consistent when SmartDrop volume
-    // arrives.
-    runAuroraQuery(`
-      SELECT
-        COALESCE(SUM(sends_total), 0) as sends_total,
-        COALESCE(SUM(sends_error), 0) as sends_error,
-        COALESCE(AVG(delivery_rate_30d), 0) as avg_delivery_rate,
-        COALESCE(AVG(pcm_submission_rate), 0) as avg_pcm_rate
-      FROM rr_daily_metrics
-      WHERE date >= CURRENT_DATE - INTERVAL '${days} days'
-      AND campaign_type = 'rr'
-      AND ${EXCLUDE_SEED}
     `),
     runAuroraQuery(`
       SELECT DISTINCT ON (domain)
@@ -499,13 +482,12 @@ async function fetchCurrentAlerts(): Promise<RrAlert[]> {
       WHERE ${EXCLUDE_SEED}
       ORDER BY domain, checked_at DESC
     `),
-    // Filtered to campaign_type='rr' — the "No sends detected today" alert
-    // must fire on Rapid Response specifically; we don't want SmartDrop volume
-    // to mask an RR dispatch failure.
+    // 7-day rolling window — RR-only. We only fire "no sends" if the entire
+    // last week is silent; a single quiet day is normal weekend noise.
     runAuroraQuery(`
-      SELECT COALESCE(SUM(sends_total), 0) as sends_today
+      SELECT COALESCE(SUM(sends_total), 0) as sends_7d
       FROM rr_daily_metrics
-      WHERE date = CURRENT_DATE
+      WHERE date >= CURRENT_DATE - INTERVAL '7 days'
         AND campaign_type = 'rr'
         AND ${EXCLUDE_SEED}
     `),
@@ -532,94 +514,64 @@ async function fetchCurrentAlerts(): Promise<RrAlert[]> {
   const now = new Date().toISOString();
 
   const activeCampaigns = pulseRows.filter((r: Record<string, unknown>) => r.status === 'active');
-  const sendsToday = Number(todayRows[0]?.sends_today || 0);
-  const q = qualityRows[0] || {};
+  const sends7d = Number(recentSendsRows[0]?.sends_7d || 0);
 
   const totalStale = pcmRows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.stale_sent_count || 0), 0);
-  const totalOrphaned = pcmRows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.orphaned_orders_count || 0), 0);
 
-  // No sends
-  if (activeCampaigns.length > 0 && sendsToday === 0) {
+  // No sends — only fires when the entire 7-day rolling window is silent.
+  // Rationale: dispatch cadence varies by client; a single quiet day or
+  // weekend isn't a problem. Seven consecutive zero-send days is.
+  if (activeCampaigns.length > 0 && sends7d === 0) {
     const details = activeCampaigns
       .map((r: Record<string, unknown>) => `${String(r.campaign_name || 'Unnamed')} (${String(r.domain || 'unknown')})`)
       .join(', ');
     alerts.push({
       id: 'rr-no-sends',
-      name: 'No sends detected',
+      name: 'No sends detected (7-day window)',
       severity: 'critical',
       category: 'rapid-response',
-      description: `${activeCampaigns.length} campaigns are active but zero sends today. Affected: ${details}.`,
+      description: `${activeCampaigns.length} campaigns are active but zero RR sends in the last 7 days. Affected: ${details}.`,
       entity: details,
-      metrics: { current: sendsToday, baseline: activeCampaigns.length },
+      metrics: { current: sends7d, baseline: activeCampaigns.length },
       detected_at: now,
-      action: 'Check the dispatch job logs and verify the cron is running.',
+      action: 'Check the dispatch job logs and verify the cron is running on the backoffice server.',
       link: '/features/features-rei/dm-campaign/operational-health',
     });
   }
 
-  // PCM stale
+  // PCM pipeline stale — warning by default, critical only at 1,000+ stuck
+  // pieces. Some drift is normal between PCM and the bridge; only treat it as
+  // urgent when the backlog is large enough to indicate a broken pipeline.
   if (totalStale > 0) {
     const breakdown = pcmRows
       .filter((r: Record<string, unknown>) => Number(r.stale_sent_count || 0) > 0)
       .map((r: Record<string, unknown>) => `${String(r.domain || 'unknown')}: ${r.stale_sent_count} stale (oldest: ${r.oldest_stale_days}d)`)
       .join('; ');
+    const isCritical = totalStale >= 1000;
     alerts.push({
       id: 'rr-pcm-stale',
       name: 'PCM pipeline stale',
-      severity: 'critical',
+      severity: isCritical ? 'critical' : 'warning',
       category: 'rapid-response',
-      description: `${totalStale} mailings stuck in "sent" for 14+ days. ${breakdown}.`,
-      metrics: { current: totalStale },
+      description: `${totalStale} mailings stuck in "sent" for 14+ days${isCritical ? ' — backlog exceeds 1,000, likely broken pipeline' : ''}. ${breakdown}.`,
+      metrics: { current: totalStale, baseline: 1000 },
       detected_at: now,
-      action: 'Investigate the back-office PCM bridge for affected clients.',
+      action: isCritical
+        ? 'Escalate to the back-office team. PCM bridge is likely not forwarding status updates.'
+        : 'Some drift is normal. Monitor; only act if the backlog approaches 1,000.',
       link: '/features/features-rei/dm-campaign/operational-health',
     });
   }
 
-  // Orphaned orders
-  if (totalOrphaned > 0) {
-    const breakdown = pcmRows
-      .filter((r: Record<string, unknown>) => Number(r.orphaned_orders_count || 0) > 0)
-      .map((r: Record<string, unknown>) => `${String(r.domain || 'unknown')}: ${r.orphaned_orders_count} orphaned`)
-      .join('; ');
-    alerts.push({
-      id: 'rr-orphaned-orders',
-      name: 'Orphaned orders',
-      severity: 'critical',
-      category: 'rapid-response',
-      description: `${totalOrphaned} mailings without PCM order ID. ${breakdown}.`,
-      metrics: { current: totalOrphaned },
-      detected_at: now,
-      action: 'Check PCM API responses for affected clients.',
-      link: '/features/features-rei/dm-campaign/operational-health',
-    });
-  }
-
-  // Delivery rate
-  const deliveryRate = Number(q.avg_delivery_rate || 0);
-  if (deliveryRate > 0 && deliveryRate < 70) {
-    alerts.push({
-      id: 'rr-delivery-rate',
-      name: 'Delivery rate below threshold',
-      severity: 'warning',
-      category: 'rapid-response',
-      description: `30-day delivery rate is ${deliveryRate.toFixed(1)}%, below the 70% threshold.`,
-      metrics: { current: Math.round(deliveryRate * 10) / 10, baseline: 70 },
-      detected_at: now,
-      action: 'Review undeliverable addresses and PCM rejection reasons.',
-      link: '/features/features-rei/dm-campaign/operational-health',
-    });
-  }
-
-  // On-hold — use the shared queryOnHoldAges helper so this alert tells the SAME
-  // stale/fresh story as the Is-it-running pulse + Campaigns table badges. Zero
-  // drift risk: one query, one threshold, one vocabulary.
-  const ON_HOLD_WARNING = 50;
-  const ON_HOLD_CRITICAL = 500;
-  const onHoldAges = await queryOnHoldAges();
+  // Mailings on hold — info while there's any backlog, warning only when
+  // pieces have been on hold ≥10 days (i.e. past the platform's 7-day
+  // auto-delivery window plus a 3-day buffer). Drops the legacy bare-count
+  // gates (≥50, ≥500) which were too noisy.
+  const ON_HOLD_ALERT_THRESHOLD_DAYS = 10;
+  const onHoldAges = await queryOnHoldAges(null, ON_HOLD_ALERT_THRESHOLD_DAYS);
   const totalOnHold = onHoldAges.totalOnHold;
-  if (totalOnHold >= ON_HOLD_WARNING) {
-    const hasCritical = totalOnHold >= ON_HOLD_CRITICAL || onHoldAges.staleOnHold > 0;
+  if (totalOnHold > 0) {
+    const hasStale = onHoldAges.staleOnHold > 0;
     const staleCampaigns = onHoldAges.perCampaign.filter(c => c.ageBucket === 'stale');
     const freshCampaigns = onHoldAges.perCampaign.filter(c => c.ageBucket === 'fresh');
     const staleLines = staleCampaigns
@@ -633,24 +585,25 @@ async function fetchCurrentAlerts(): Promise<RrAlert[]> {
     const entity = [...new Set(onHoldAges.perCampaign.map(c => c.domain))].join(', ');
     alerts.push({
       id: 'rr-on-hold',
-      name: onHoldAges.staleOnHold > 0
-        ? 'Mailings on hold — stale pieces overdue for auto-delivery'
+      name: hasStale
+        ? 'Mailings on hold — pieces overdue (≥10d)'
         : 'Mailings on hold',
-      severity: hasCritical ? 'critical' : 'warning',
+      severity: hasStale ? 'warning' : 'info',
       category: 'rapid-response',
       description:
         `${totalOnHold.toLocaleString('en-US')} mailings on hold across ${onHoldAges.campaignsWithHold} campaign${onHoldAges.campaignsWithHold > 1 ? 's' : ''}. ` +
-        `${onHoldAges.staleOnHold.toLocaleString('en-US')} are stale (≥ ${ON_HOLD_STALE_THRESHOLD_DAYS}d — overdue for the monolith's auto-delivery timer to convert to 'undelivered') across ${onHoldAges.staleCampaigns} campaigns. ` +
-        `${onHoldAges.freshOnHold.toLocaleString('en-US')} are fresh (< ${ON_HOLD_STALE_THRESHOLD_DAYS}d — within normal window). ` +
+        (hasStale
+          ? `${onHoldAges.staleOnHold.toLocaleString('en-US')} have been on hold ≥${ON_HOLD_ALERT_THRESHOLD_DAYS}d across ${onHoldAges.staleCampaigns} campaigns. `
+          : `All within the normal window (<${ON_HOLD_ALERT_THRESHOLD_DAYS}d). `) +
         `Oldest piece: ${onHoldAges.oldestAgeDays}d.` +
-        (staleLines ? ` Stale campaigns: ${staleLines}.` : '') +
-        (freshLines ? ` Fresh campaigns: ${freshLines}.` : ''),
+        (staleLines ? ` Overdue campaigns: ${staleLines}.` : '') +
+        (freshLines ? ` Recent campaigns: ${freshLines}.` : ''),
       entity,
-      metrics: { current: totalOnHold, baseline: ON_HOLD_WARNING, change_pct: onHoldAges.staleOnHold },
+      metrics: { current: totalOnHold, baseline: ON_HOLD_ALERT_THRESHOLD_DAYS, change_pct: onHoldAges.staleOnHold },
       detected_at: now,
-      action: onHoldAges.staleOnHold > 0
-        ? 'Two actions: (1) for STALE pieces — escalate to monolith team to confirm handleOnHoldRapidResponses is being dispatched (no Kernel.php schedule entry; runs only on client payment). (2) for FRESH pieces — contact affected clients to recharge their ChargeOver balance so the timer moves pieces forward.'
-        : 'Contact affected clients: their campaigns are active but mailings are paused due to insufficient balance. They need to recharge to resume sending.',
+      action: hasStale
+        ? `Pieces have been on hold past the ${ON_HOLD_ALERT_THRESHOLD_DAYS}-day cutoff. Contact affected clients to recharge their ChargeOver balance so the auto-delivery timer can move pieces forward; if balance is fine, escalate to the monolith team.`
+        : 'Informational. Clients have campaigns active but pieces are paused pending recharge — within the normal window.',
       link: '/features/features-rei/dm-campaign/operational-health',
     });
   }
@@ -699,22 +652,6 @@ async function fetchCurrentAlerts(): Promise<RrAlert[]> {
         link: '/features/features-rei/dm-campaign/operational-health',
       });
     }
-  }
-
-  // PCM submission rate
-  const pcmRate = Number(q.avg_pcm_rate || 0);
-  if (pcmRate > 0 && pcmRate < 95) {
-    alerts.push({
-      id: 'rr-pcm-rate',
-      name: 'PCM submission rate low',
-      severity: 'warning',
-      category: 'rapid-response',
-      description: `PCM submission rate is ${pcmRate.toFixed(1)}%, below the 95% threshold.`,
-      metrics: { current: Math.round(pcmRate * 10) / 10, baseline: 95 },
-      detected_at: now,
-      action: 'Review PCM API error logs for systematic rejection patterns.',
-      link: '/features/features-rei/dm-campaign/operational-health',
-    });
   }
 
   // ─── Price change detection ─────────────────────────────────

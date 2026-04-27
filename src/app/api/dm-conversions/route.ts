@@ -1017,8 +1017,10 @@ async function getRoasTrend(dateCtx: DateContext, domain?: string) {
 // Business Results Alerts — uses shared getAlertsData() from get-alerts-data.ts
 // ---------------------------------------------------------------------------
 
-async function getAlerts(dateCtx: DateContext, domain?: string) {
-  const data = await getAlertsData(domain, dateCtx.days);
+async function getAlerts(_dateCtx: DateContext, domain?: string) {
+  // Alerts are computed against a fixed 30-day activity window — dateCtx is
+  // ignored. Kept in the signature so the route handler shape stays uniform.
+  const data = await getAlertsData(domain);
   return NextResponse.json({ success: true, data, cached: false });
 }
 

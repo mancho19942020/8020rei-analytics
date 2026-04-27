@@ -21,5 +21,14 @@ service cloud.firestore {
                   && request.auth.token.email.matches('.*@8020rei[.]com$');
       allow write: if request.auth != null && request.auth.uid == uid;
     }
+
+    // feedback_items: in-app feedback tool. The admin board reads through
+    // the server-side /api/feedback (Admin SDK), so direct client SDK access
+    // is denied here as a defense-in-depth measure. To grant a teammate
+    // admin access, edit FEEDBACK_BOARD_AUTHORIZED_EMAILS in
+    // src/lib/access.ts — these rules don't need to change.
+    match /feedback_items/{itemId} {
+      allow read, write: if false;
+    }
   }
 }

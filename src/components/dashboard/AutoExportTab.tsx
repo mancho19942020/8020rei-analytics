@@ -282,11 +282,20 @@ export const AutoExportTab = forwardRef<TabHandle, AutoExportTabProps>(
         <div className="space-y-4">
           <AxisSkeleton variant="widget" height="140px" fullWidth />
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <AxisSkeleton variant="chart" height="300px" />
-            <AxisSkeleton variant="chart" height="300px" />
+            <AxisSkeleton variant="chart" height="240px" />
+            <AxisSkeleton variant="chart" height="240px" />
           </div>
-          <AxisSkeleton variant="widget" height="280px" fullWidth />
-          <AxisSkeleton variant="widget" height="280px" fullWidth />
+          <AxisSkeleton variant="chart" height="300px" />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <AxisSkeleton variant="chart" height="240px" />
+            <AxisSkeleton variant="chart" height="240px" />
+          </div>
+          <AxisSkeleton variant="chart" height="240px" />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <AxisSkeleton variant="widget" height="240px" />
+            <AxisSkeleton variant="widget" height="240px" />
+          </div>
+          <AxisSkeleton variant="widget" height="360px" fullWidth />
         </div>
       );
     }

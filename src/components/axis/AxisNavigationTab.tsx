@@ -36,6 +36,8 @@ export interface AxisNavigationTabItem {
   icon?: ReactNode;
   /** Disable this tab */
   disabled?: boolean;
+  /** Hide this tab from the sidebar entirely (not rendered) */
+  hidden?: boolean;
   /** Badge count (optional) */
   badge?: number | string;
   /** Navigation href (optional, for Next.js Link) */

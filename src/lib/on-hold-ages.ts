@@ -22,7 +22,9 @@ import { runAuroraQuery } from '@/lib/aurora';
 import { EXCLUDE_TEST_DOMAINS_SQL as EXCLUDE_SEED } from '@/lib/domain-filter';
 
 /** Campaigns held this many days or more are "stale" — overdue for the monolith's
- *  handleOnHoldRapidResponses auto-delivery timer to convert them to undelivered. */
+ *  handleOnHoldRapidResponses auto-delivery timer to convert them to undelivered.
+ *  This describes the platform's behavior; alert callers may use a stricter
+ *  cutoff via queryOnHoldAges(domain, thresholdDays). */
 export const ON_HOLD_STALE_THRESHOLD_DAYS = 7;
 
 export interface OnHoldCampaignRow {
@@ -45,10 +47,14 @@ export interface OnHoldAgeResult {
   perCampaign: OnHoldCampaignRow[];
 }
 
-export async function queryOnHoldAges(domain?: string | null): Promise<OnHoldAgeResult> {
+export async function queryOnHoldAges(
+  domain?: string | null,
+  thresholdDays: number = ON_HOLD_STALE_THRESHOLD_DAYS,
+): Promise<OnHoldAgeResult> {
   const domainClause = domain
     ? `AND domain = '${String(domain).replace(/[^a-zA-Z0-9_.]/g, '')}'`
     : '';
+  const safeThreshold = Number.isFinite(thresholdDays) && thresholdDays > 0 ? Math.floor(thresholdDays) : ON_HOLD_STALE_THRESHOLD_DAYS;
   const rows = await runAuroraQuery<Record<string, unknown>>(`
     WITH per_campaign AS (
       SELECT
@@ -77,7 +83,7 @@ export async function queryOnHoldAges(domain?: string | null): Promise<OnHoldAge
       l.current_hold,
       EXTRACT(DAY FROM (CURRENT_TIMESTAMP - p.first_on_hold_seen))::int AS days_since_first_hold,
       CASE
-        WHEN p.first_on_hold_seen <= CURRENT_TIMESTAMP - INTERVAL '${ON_HOLD_STALE_THRESHOLD_DAYS} days'
+        WHEN p.first_on_hold_seen <= CURRENT_TIMESTAMP - INTERVAL '${safeThreshold} days'
         THEN 'stale'
         ELSE 'fresh'
       END AS age_bucket

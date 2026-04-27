@@ -882,3 +882,31 @@ body {
   background: radial-gradient(ellipse at center, transparent 0%, rgba(0, 0, 0, 0.4) 100%);
   pointer-events: none;
 }
+
+/* ── Feedback Tool ───────────────────────────────────────────────
+   Crosshair cursor while feedback mode is active, plus the 2-second
+   highlight ring that pulses on the element the user picked. */
+
+body.feedback-mode-active,
+body.feedback-mode-active * {
+  cursor: crosshair !important;
+}
+
+.feedback-highlight-ring {
+  outline: 2px solid var(--color-main-500, #3b82f6) !important;
+  outline-offset: 2px !important;
+  border-radius: 4px;
+  animation: feedback-ring-fade 2s ease-out forwards;
+}
+
+@keyframes feedback-ring-fade {
+  0%   { outline-color: var(--color-main-500, #3b82f6); }
+  70%  { outline-color: var(--color-main-500, #3b82f6); }
+  100% { outline-color: transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .feedback-highlight-ring {
+    animation: none;
+  }
+}

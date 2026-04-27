@@ -40,3 +40,18 @@ export function canAccessDmAlerts(email: string | null | undefined): boolean {
   if (!email) return false;
   return DM_ALERTS_AUTHORIZED_EMAILS.includes(email.toLowerCase());
 }
+
+/**
+ * Feedback Inbox (admin board for the in-app feedback tool).
+ * Germán is the product owner; Juliana helps triage.
+ * To grant another teammate access, add their email here.
+ */
+const FEEDBACK_BOARD_AUTHORIZED_EMAILS: string[] = [
+  'german@8020rei.com',
+  'juliana@8020rei.com',
+];
+
+export function canAccessFeedbackBoard(email: string | null | undefined): boolean {
+  if (!email) return false;
+  return FEEDBACK_BOARD_AUTHORIZED_EMAILS.includes(email.toLowerCase());
+}

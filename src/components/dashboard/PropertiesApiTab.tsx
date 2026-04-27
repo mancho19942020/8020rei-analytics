@@ -316,8 +316,12 @@ export const PropertiesApiTab = forwardRef<TabHandle, PropertiesApiTabProps>(
             <AxisSkeleton variant="chart" height="300px" />
             <AxisSkeleton variant="chart" height="300px" />
           </div>
-          <AxisSkeleton variant="widget" height="280px" fullWidth />
-          <AxisSkeleton variant="widget" height="280px" fullWidth />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <AxisSkeleton variant="widget" height="420px" />
+            <AxisSkeleton variant="widget" height="420px" />
+          </div>
+          <AxisSkeleton variant="widget" height="300px" fullWidth />
+          <AxisSkeleton variant="widget" height="420px" fullWidth />
         </div>
       );
     }
