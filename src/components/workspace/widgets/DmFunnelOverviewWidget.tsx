@@ -188,9 +188,9 @@ export function DmFunnelOverviewWidget({ data, selectedDomain }: DmFunnelOvervie
             </span>
           </AxisTooltip>
           <AxisTooltip
-            content="Revenue clients earned from real-estate deals attributed to DM campaigns. Client ROI — NOT 8020REI's company revenue (that's on Profitability → Margin summary)."
+            content="Revenue from deals whose log_status_properties Deal row carries the DM campaign's rapid_response_id (strict attribution — same definition as the platform per-campaign view). Excludes deals that closed through other channels even if the property was on the mailing list. Client ROI — NOT 8020REI's company revenue (that's on Profitability → Margin summary)."
             placement="top"
-            maxWidth={280}
+            maxWidth={320}
           >
             <span style={{ color: 'var(--text-secondary)', cursor: 'help' }}>
               Deal revenue: <span className="font-semibold" style={{ color: (data.totalRevenue || 0) > 0 ? 'var(--color-success-500)' : 'var(--text-primary)' }}>

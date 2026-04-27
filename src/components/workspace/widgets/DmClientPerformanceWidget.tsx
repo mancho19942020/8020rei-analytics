@@ -194,7 +194,7 @@ export function DmClientPerformanceWidget({ data, onDomainClick }: DmClientPerfo
     {
       field: 'leads',
       header: 'Leads',
-      headerTooltip: 'Properties in this client\'s cohort (first mailed in window) that became Lead after the first send. Click to see which properties.',
+      headerTooltip: 'Properties from this client\'s mailed cohort whose Lead status row in log_status_properties carries this campaign\'s rapid_response_id (the platform tagged the conversion to the DM campaign). Status changes done outside the DM workflow — manual edits, inbound calls, bulk imports — land in the unattributed bucket and are not counted here. Matches the platform\'s per-campaign detail page. Click to see which properties.',
       type: 'number',
       width: 70,
       minWidth: 60,
@@ -211,7 +211,7 @@ export function DmClientPerformanceWidget({ data, onDomainClick }: DmClientPerfo
     {
       field: 'deals',
       header: 'Deals',
-      headerTooltip: 'Properties in this client\'s cohort (first mailed in window) that ever reached "Deal" status in the monolith, via any channel. Sourced from log_status_properties. Always ≥ the count on the app\'s /dm-campaign/sending-status page, which filters to deals tied to a specific Rapid Response campaign (via rapid_response_id) — a tighter scope. Click to see which properties.',
+      headerTooltip: 'Properties from this client\'s mailed cohort whose Deal status row in log_status_properties carries this campaign\'s rapid_response_id. Deals closed via channels that did not stamp the campaign FK (manual updates, inbound, etc.) land in the unattributed bucket and are excluded. Matches the platform\'s per-campaign detail page. Click to see which properties.',
       type: 'number',
       width: 70,
       minWidth: 60,
@@ -250,7 +250,7 @@ export function DmClientPerformanceWidget({ data, onDomainClick }: DmClientPerfo
     {
       field: 'totalRevenue',
       header: 'Deal rev',
-      headerTooltip: 'Revenue this client earned from deals attributed to mailings in the selected window (cohort view). Client ROI — NOT 8020REI company revenue.',
+      headerTooltip: 'Revenue from deals whose log_status_properties Deal row carries this campaign\'s rapid_response_id (strict attribution — same definition as the platform per-campaign view). Excludes revenue from deals that closed through other channels even if the property was on the mailing list. Client ROI — NOT 8020REI company revenue.',
       width: 90,
       minWidth: 70,
       align: 'center',

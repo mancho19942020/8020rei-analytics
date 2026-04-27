@@ -76,6 +76,12 @@ interface DateContext {
  * Build a SQL date filter clause for a given date column.
  * Handles both preset days (days=30) and custom ranges (startDate/endDate).
  * Returns empty string if no filter should be applied (all-time view).
+ *
+ * Note: a previous version short-circuited for ranges >= 365 days, silently
+ * dropping the date filter on long custom ranges. That made the displayed
+ * date-range label cosmetic. Filter now applies at any positive range; volume
+ * vs. conversion source-table selection is still controlled by isDateFiltered
+ * downstream so all-time volume keeps coming from dm_client_funnel.
  */
 function buildSqlDateFilter(
   column: string,
@@ -83,7 +89,7 @@ function buildSqlDateFilter(
   startDate?: string,
   endDate?: string,
 ): string {
-  if (!days || days <= 0 || days >= 365) return '';
+  if (!days || days <= 0) return '';
   if (startDate && endDate) {
     const safeStart = startDate.replace(/[^0-9-]/g, '');
     const safeEnd = endDate.replace(/[^0-9-]/g, '');
@@ -330,11 +336,14 @@ async function getMergedClientData(domain?: string, dateCtx?: DateContext): Prom
         COALESCE(SUM(total_sends), 0) as sends,
         COALESCE(SUM(total_delivered), 0) as delivered,
         COALESCE(SUM(total_cost), 0) as cost,
-        COUNT(DISTINCT CASE WHEN became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as leads,
-        COUNT(DISTINCT CASE WHEN became_appointment_at IS NOT NULL AND became_appointment_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as appointments,
-        COUNT(DISTINCT CASE WHEN became_contract_at IS NOT NULL AND became_contract_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as contracts,
-        COUNT(DISTINCT CASE WHEN became_deal_at IS NOT NULL AND became_deal_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as deals,
-        COALESCE(SUM(CASE WHEN deal_revenue > 0 AND became_deal_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN deal_revenue ELSE 0 END), 0) as total_revenue,
+        -- Strict attribution: only count conversions whose log_status_properties row
+        -- carries this campaign's rapid_response_id. Mirrors the platform's per-campaign
+        -- detail page (StatisticsRepository::getStatusCounts in the monolith).
+        COUNT(DISTINCT CASE WHEN attribution_status = 'attributed' AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as leads,
+        COUNT(DISTINCT CASE WHEN attribution_status = 'attributed' AND became_appointment_at IS NOT NULL AND became_appointment_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as appointments,
+        COUNT(DISTINCT CASE WHEN attribution_status = 'attributed' AND became_contract_at IS NOT NULL AND became_contract_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as contracts,
+        COUNT(DISTINCT CASE WHEN attribution_status = 'attributed' AND became_deal_at IS NOT NULL AND became_deal_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as deals,
+        COALESCE(SUM(CASE WHEN attribution_status = 'attributed' AND deal_revenue > 0 AND became_deal_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN deal_revenue ELSE 0 END), 0) as total_revenue,
         COUNT(DISTINCT CASE WHEN attribution_status = 'unattributed' AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as unattributed,
         COUNT(DISTINCT CASE WHEN (became_lead_at IS NOT NULL AND became_lead_at <= first_sent_date) OR (became_deal_at IS NOT NULL AND became_deal_at <= first_sent_date) THEN property_id END) as pre_send_excluded
       FROM dm_property_conversions
@@ -609,9 +618,10 @@ async function getGeoBreakdown(dateCtx: DateContext, domain?: string) {
         COALESCE(state, 'Unknown') as state,
         COALESCE(county, 'Unknown') as county,
         COUNT(DISTINCT property_id) as total_mailed,
-        COUNT(DISTINCT CASE WHEN became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as leads,
-        COUNT(DISTINCT CASE WHEN became_deal_at IS NOT NULL AND became_deal_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as deals,
-        COALESCE(SUM(CASE WHEN deal_revenue > 0 AND became_deal_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN deal_revenue ELSE 0 END), 0) as total_revenue
+        -- Strict attribution: see getMergedClientData comment.
+        COUNT(DISTINCT CASE WHEN attribution_status = 'attributed' AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as leads,
+        COUNT(DISTINCT CASE WHEN attribution_status = 'attributed' AND became_deal_at IS NOT NULL AND became_deal_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN property_id END) as deals,
+        COALESCE(SUM(CASE WHEN attribution_status = 'attributed' AND deal_revenue > 0 AND became_deal_at > first_sent_date AND became_lead_at IS NOT NULL AND became_lead_at > first_sent_date THEN deal_revenue ELSE 0 END), 0) as total_revenue
       FROM dm_property_conversions
       WHERE ${domainFilter(domain)}
         AND ${verifiedDomainsFilter(domain)}
@@ -863,7 +873,8 @@ async function getConversionTrend(dateCtx: DateContext, domain?: string) {
       SELECT DATE(became_lead_at)::TEXT as date,
         COUNT(DISTINCT property_id) as leads
       FROM dm_property_conversions
-      WHERE became_lead_at IS NOT NULL
+      WHERE attribution_status = 'attributed'
+        AND became_lead_at IS NOT NULL
         AND became_lead_at > first_sent_date
         AND ${domainFilter(domain)}
         AND ${verifiedDomainsFilter(domain)}
@@ -874,7 +885,8 @@ async function getConversionTrend(dateCtx: DateContext, domain?: string) {
       SELECT DATE(became_appointment_at)::TEXT as date,
         COUNT(DISTINCT property_id) as appointments
       FROM dm_property_conversions
-      WHERE became_appointment_at IS NOT NULL
+      WHERE attribution_status = 'attributed'
+        AND became_appointment_at IS NOT NULL
         AND became_appointment_at > first_sent_date
         AND became_lead_at IS NOT NULL
         AND became_lead_at > first_sent_date
@@ -887,7 +899,8 @@ async function getConversionTrend(dateCtx: DateContext, domain?: string) {
       SELECT DATE(became_deal_at)::TEXT as date,
         COUNT(DISTINCT property_id) as deals
       FROM dm_property_conversions
-      WHERE became_deal_at IS NOT NULL
+      WHERE attribution_status = 'attributed'
+        AND became_deal_at IS NOT NULL
         AND became_deal_at > first_sent_date
         AND became_lead_at IS NOT NULL
         AND became_lead_at > first_sent_date
@@ -952,7 +965,8 @@ async function getRoasTrend(dateCtx: DateContext, domain?: string) {
         COALESCE(SUM(deal_revenue), 0) as total_revenue,
         COUNT(DISTINCT property_id) as deals
       FROM dm_property_conversions
-      WHERE became_deal_at IS NOT NULL
+      WHERE attribution_status = 'attributed'
+        AND became_deal_at IS NOT NULL
         AND became_deal_at > first_sent_date
         AND became_lead_at IS NOT NULL
         AND became_lead_at > first_sent_date
