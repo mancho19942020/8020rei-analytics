@@ -697,8 +697,8 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
             <FreshnessTag
               label={
                 activeSubTab === 'pcm-validation'
-                  ? 'Updated every 30 min (PCM cache) · hourly (Aurora)'
-                  : 'Updated hourly · monolith → Aurora'
+                  ? 'PCM cache: ~30 min cron · Aurora: ~hourly · best-effort'
+                  : 'Aurora: ~hourly (best-effort cron)'
               }
             />
           </div>

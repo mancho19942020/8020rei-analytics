@@ -111,7 +111,7 @@ export function DmOverviewTab() {
               <circle cx="12" cy="12" r="9" />
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 7v5l3 2" />
             </svg>
-            Updated every 30 min (PCM cache) · hourly (Aurora)
+            PCM cache: ~30 min cron · Aurora: ~hourly · best-effort
           </span>
         </AxisTag>
       </div>
@@ -170,7 +170,7 @@ export function DmOverviewTab() {
         <p className="text-xs text-content-tertiary px-2">
           Fetched at {new Date(data.headline.fetchedAt).toLocaleTimeString()}
           {cacheAge !== null && ` · Aurora cache age: ${cacheAge} min`}
-          {' · Cron refreshes every 30 min · Aurora + PCM dual-sourced'}
+          {' · Cron scheduled every 30 min (best-effort) · Aurora + PCM dual-sourced'}
         </p>
       )}
     </div>

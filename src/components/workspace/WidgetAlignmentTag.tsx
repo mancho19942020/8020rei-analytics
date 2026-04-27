@@ -50,7 +50,7 @@ export function WidgetAlignmentTag({ widgetKey }: Props) {
 
   const tooltipContent = hasData
     ? <TagTooltip payload={payload!} worstSeverity={worstSeverity} severityCounts={severityCounts} />
-    : <span>This widget has not been reconciled against PCM yet. First reconcile will run within 30 minutes of the reconciler being deployed.</span>;
+    : <span>This widget has not been reconciled against PCM yet. The reconciler is scheduled every 30 min (best-effort) and will pick up this widget on its next pass.</span>;
 
   const tooltipTitle = hasData && worstSeverity === 'red'
     ? `${severityCounts.red} metric${severityCounts.red > 1 ? 's' : ''} out of alignment`
@@ -104,7 +104,7 @@ function TagTooltip({ payload, worstSeverity }: TagTooltipProps) {
       <div className="space-y-1">
         <div>All metrics on this widget are within tolerance of PCM.</div>
         <div className="text-[11px] opacity-70">
-          Last checked {relativeTime(payload.last_computed_at)}. Auto-refreshes every 30 minutes.
+          Last checked {relativeTime(payload.last_computed_at)}. Reconciler is scheduled every 30 min (best-effort cron — actual cadence may lag).
         </div>
       </div>
     );

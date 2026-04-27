@@ -134,7 +134,7 @@ export function DmOverviewSendTrendWidget({ data }: Props) {
       <div
         className="text-xs px-2 pb-1"
         style={{ color: 'var(--text-tertiary)' }}
-        title="Past months show their full totals. The current-month bar grows each day; when the month ends it freezes at full total and the next month starts. Updates automatically every 30 minutes via the overview-refresh cron — no manual step."
+        title="Past months show their full totals. The current-month bar grows each day; when the month ends it freezes at full total and the next month starts. Refreshed by the overview-refresh cron, scheduled every 30 min (best-effort — actual cadence may lag)."
       >
         Past months = full totals. Current month = pieces sent so far (day 1 → {alignDay}). Updates daily.
       </div>

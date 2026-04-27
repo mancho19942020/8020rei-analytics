@@ -133,7 +133,7 @@ export async function fireDailyDigest(currentlyAlerting: AlignmentDoc[]): Promis
       text: '✅ PCM alignment daily digest — all green',
       blocks: [
         { type: 'header', text: { type: 'plain_text', text: '✅ Metrics Hub ↔ PCM — all aligned', emoji: true } },
-        { type: 'section', text: { type: 'mrkdwn', text: 'Every widget on the DM Campaign tabs is within tolerance of PCM. Reconciler will continue every 30 min.' } },
+        { type: 'section', text: { type: 'mrkdwn', text: 'Every widget on the DM Campaign tabs is within tolerance of PCM. Reconciler runs on a ~30-min schedule (best-effort).' } },
       ],
     });
     return true;
@@ -164,7 +164,7 @@ export async function fireDailyDigest(currentlyAlerting: AlignmentDoc[]): Promis
     blocks: [
       { type: 'header', text: { type: 'plain_text', text: `⚠ Metrics Hub ↔ PCM — daily digest`, emoji: true } },
       { type: 'section', text: { type: 'mrkdwn', text: lines.join('\n') } },
-      { type: 'context', elements: [{ type: 'mrkdwn', text: 'Reconciler runs every 30 min. Hub-owned caches self-heal; monolith-owned tables require backend action.' }] },
+      { type: 'context', elements: [{ type: 'mrkdwn', text: 'Reconciler runs on a ~30-min schedule (best-effort). Hub-owned caches self-heal; monolith-owned tables require backend action.' }] },
     ],
   });
   return true;

@@ -58,7 +58,7 @@ function generateDataSourcesMarkdown(): string {
   lines.push('');
   lines.push('> **Read-only policy:** The PCM API integration is strictly read-only. Only GET requests (plus `POST /auth/login` for token exchange) are allowed. No data is ever written back to PostcardMania. Verified in `src/lib/pcm-client.ts`.');
   lines.push('');
-  lines.push('> **Known limitation:** `/order` does not support server-side `filterStatus` or per-domain filtering. To compute active piece counts or per-domain breakdowns, the full order list is paginated client-side (~25K orders, ~90s cold). Results are cached in Aurora via `dm_overview_cache` and refreshed every 30 minutes by a cron.');
+  lines.push('> **Known limitation:** `/order` does not support server-side `filterStatus` or per-domain filtering. To compute active piece counts or per-domain breakdowns, the full order list is paginated client-side (~25K orders, ~90s cold). Results are cached in Aurora via `dm_overview_cache` and refreshed by a cron scheduled every 30 minutes (GitHub Actions; best-effort — actual delivery can lag during peak hours).');
   lines.push('');
 
   // Source 2: Aurora
@@ -227,8 +227,8 @@ function generateDataSourcesMarkdown(): string {
   lines.push('');
   lines.push('| Source | Sync frequency | Cache TTL | Latency |');
   lines.push('|--------|----------------|-----------|---------|');
-  lines.push('| Aurora (`dm_client_funnel`, `rr_daily_metrics`, `dm_volume_summary`) | Hourly from monolith | 5 min in-memory per API route | ~1 hour |');
-  lines.push('| Aurora (`dm_overview_cache`) | Refreshed every 30 min by GitHub Actions cron | Read-through | ~30 min |');
+  lines.push('| Aurora (`dm_client_funnel`, `rr_daily_metrics`, `dm_volume_summary`) | Hourly from monolith (best-effort) | 5 min in-memory per API route | ~1 hour target |');
+  lines.push('| Aurora (`dm_overview_cache`) | Cron scheduled every 30 min by GitHub Actions (best-effort — can lag) | Read-through | ~30 min target |');
   lines.push('| PCM `/order` paginated pull | On-demand (~90s cold) + 20-min in-memory TTL | Reused by OH, Overview, Reports | Real-time when warm |');
   lines.push('| PCM `/integration/balance` + `/design` | On-demand per request | 5 min | Real-time |');
   lines.push('| Invoice-verified data (static) | Manual update after invoice analysis | N/A | Point-in-time snapshot |');
@@ -505,7 +505,7 @@ export const DmDataSourcesTab = forwardRef<TabHandle>(function DmDataSourcesTab(
                       <AxisCallout type="alert" hideIcon>
                         <strong>Known limitation:</strong> <Code>/order</Code> does not support server-side <Code>filterStatus</Code> or per-domain filtering.
                         Active-piece counts and per-domain breakdowns require full pagination (~25K orders, ~90s cold).
-                        Results are cached in Aurora via <Code>dm_overview_cache</Code> and refreshed every 30 minutes by a cron.
+                        Results are cached in Aurora via <Code>dm_overview_cache</Code> and refreshed by a cron scheduled every 30 minutes (GitHub Actions; best-effort — actual delivery can lag during peak hours).
                       </AxisCallout>
                     </div>
                   </div>
@@ -799,8 +799,8 @@ export const DmDataSourcesTab = forwardRef<TabHandle>(function DmDataSourcesTab(
             <MiniTable
               headers={['Source', 'Sync frequency', 'Cache', 'Latency']}
               rows={[
-                [<><Code>dm_client_funnel</Code>, <Code>rr_daily_metrics</Code>, <Code>dm_volume_summary</Code></>, 'Hourly from monolith', '5 min in-memory per API route', '~1 hour behind real-time'],
-                [<Code key="t">dm_overview_cache</Code>, 'Refreshed every 30 min by cron', 'Read-through', '~30 min'],
+                [<><Code>dm_client_funnel</Code>, <Code>rr_daily_metrics</Code>, <Code>dm_volume_summary</Code></>, 'Hourly from monolith (best-effort)', '5 min in-memory per API route', '~1 hour target'],
+                [<Code key="t">dm_overview_cache</Code>, 'Cron scheduled every 30 min (best-effort — can lag)', 'Read-through', '~30 min target'],
                 ['PCM /order paginated pull', 'On-demand (~90s cold) + 20-min TTL', 'Reused by OH, Overview, Reports', 'Real-time when warm'],
                 ['PCM /integration/balance + /design', 'On-demand per request', '5 min', 'Real-time'],
                 ['Invoice-verified data', 'Manual update after invoice analysis', 'N/A', 'Point-in-time snapshot'],
