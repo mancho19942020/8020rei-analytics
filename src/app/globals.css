@@ -910,3 +910,17 @@ body.feedback-mode-active * {
     animation: none;
   }
 }
+
+/* ── Update Available pill ────────────────────────────────────────
+   Slide-down + fade entrance for the "New version available" pill. */
+
+@keyframes updatePillIn {
+  0%   { opacity: 0; transform: translate(-50%, -16px); }
+  100% { opacity: 1; transform: translate(-50%, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [class*="updatePillIn"] {
+    animation: none !important;
+  }
+}

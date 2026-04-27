@@ -128,6 +128,27 @@ jobs:
           print(f'✓ Generated {len(env_vars)} env vars to /tmp/env-vars.yaml')
           PYEOF
 
+      - name: Bake build ID into source
+        # The "New version available" pill compares the SHA baked into the
+        # client bundle against the one returned by /api/version. Both read
+        # `BUILD_ID` from src/lib/build-id.ts at compile time, so we
+        # overwrite the file here — the value committed on main is
+        # `'dev'` so local development always matches itself.
+        run: |
+          SHA="${GITHUB_SHA}"
+          BUILT_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          cat > src/lib/build-id.ts <<EOF
+          /**
+           * Auto-overwritten by .github/workflows/deploy.yml at production
+           * build time. The value committed on main is 'dev' — see the
+           * source file for context.
+           */
+
+          export const BUILD_ID = '${SHA}';
+          export const BUILT_AT = '${BUILT_AT}';
+          EOF
+          echo "✓ Baked BUILD_ID=${SHA:0:7} BUILT_AT=${BUILT_AT}"
+
       - name: Deploy to Cloud Run
         run: |
           gcloud run deploy analytics8020 \
