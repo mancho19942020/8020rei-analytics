@@ -17,7 +17,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { AxisCallout, AxisSkeleton, AxisButton } from '@/components/axis';
+import { AxisCallout, AxisSkeleton, AxisButton, AxisTag } from '@/components/axis';
 import { authFetch } from '@/lib/auth-fetch';
 import {
   DmOverviewHeadlineWidget,
@@ -104,9 +104,17 @@ export function DmOverviewTab() {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-content-secondary leading-relaxed">
-        Executive lens — daily journal of how DM Campaign is operating and whether 8020REI is making money. Aggregates PCM + Aurora; refreshed every 30 min.
-      </p>
+      <div className="flex justify-end">
+        <AxisTag color="neutral" size="sm" variant="outlined">
+          <span className="inline-flex items-center gap-1">
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <circle cx="12" cy="12" r="9" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 7v5l3 2" />
+            </svg>
+            Updated every 30 min (PCM cache) · hourly (Aurora)
+          </span>
+        </AxisTag>
+      </div>
       {/* Headline row */}
       <div style={{ height: 150 }}>
         <Widget

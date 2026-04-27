@@ -694,13 +694,19 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
                 PCM API {pcmData.summary.pcmConnected ? 'connected' : 'disconnected'}
               </AxisTag>
             )}
+            <FreshnessTag
+              label={
+                activeSubTab === 'pcm-validation'
+                  ? 'Updated every 30 min (PCM cache) · hourly (Aurora)'
+                  : 'Updated hourly · monolith → Aurora'
+              }
+            />
           </div>
         </div>
 
         {/* Operational Health sub-tab (current view) */}
         {activeSubTab === 'operational-health' && (
           <>
-            <FreshnessTag label="Updated hourly · monolith → Aurora" />
             {/* Domain with no data — clean empty state */}
             {selectedDomain && !loading && data && data.campaigns.length === 0 && data.dailyTrend.length === 0 && data.alerts.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -789,7 +795,6 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
         {/* Business Results sub-tab */}
         {activeSubTab === 'business-results' && (
           <>
-            <FreshnessTag label="Updated hourly · monolith → Aurora" />
             {(brLoading || !brData) ? (
               <div className="space-y-4">
                 <AxisSkeleton variant="widget" height="80px" fullWidth />
@@ -847,7 +852,6 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
         {/* PCM Validation sub-tab */}
         {activeSubTab === 'pcm-validation' && (
           <>
-            <FreshnessTag label="Updated every 30 min (PCM cache) · hourly (Aurora)" />
             {(pcmLoading || !pcmData) ? (
               <div className="space-y-4">
                 <AxisSkeleton variant="widget" height="80px" fullWidth />
