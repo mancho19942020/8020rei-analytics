@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Fragment } from 'react';
 import { AxisSkeleton, AxisCallout, AxisInput } from '@/components/axis';
 import { AxisTable } from '@/components/axis';
 import { AxisNavigationTab } from '@/components/axis/AxisNavigationTab';
@@ -91,31 +91,25 @@ function CommitmentStatusBadge({
         <p className="text-xs font-semibold uppercase tracking-wide text-content-secondary mb-2">
           Monthly delta vs target
         </p>
-        <table className="w-full text-xs">
-          <thead>
-            <tr className="text-content-tertiary">
-              <th className="text-left pb-1.5 font-medium">Month</th>
-              <th className="text-right pb-1.5 font-medium">Target</th>
-              <th className="text-right pb-1.5 font-medium">Actual</th>
-              <th className="text-right pb-1.5 font-medium">Delta</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visibleMonths.map((m) => {
-              const delta = m.directskip_hits - monthlyTarget;
-              return (
-                <tr key={m.month} className="border-t border-stroke">
-                  <td className="py-1.5 text-content-primary">{m.label}</td>
-                  <td className="py-1.5 text-right text-content-tertiary">{fmtN(monthlyTarget)}</td>
-                  <td className="py-1.5 text-right text-content-primary font-medium">{fmtN(m.directskip_hits)}</td>
-                  <td className={`py-1.5 text-right font-semibold ${delta >= 0 ? 'text-success-600 dark:text-success-400' : 'text-error-600 dark:text-error-400'}`}>
-                    {delta >= 0 ? '+' : ''}{fmtN(delta)}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        <div className="grid grid-cols-4 gap-x-2 text-xs">
+          <span className="text-content-tertiary font-medium pb-1.5">Month</span>
+          <span className="text-content-tertiary font-medium pb-1.5 text-right">Target</span>
+          <span className="text-content-tertiary font-medium pb-1.5 text-right">Actual</span>
+          <span className="text-content-tertiary font-medium pb-1.5 text-right">Delta</span>
+          {visibleMonths.map((m) => {
+            const delta = m.directskip_hits - monthlyTarget;
+            return (
+              <Fragment key={m.month}>
+                <span className="py-1.5 border-t border-stroke text-content-primary">{m.label}</span>
+                <span className="py-1.5 border-t border-stroke text-right text-content-tertiary">{fmtN(monthlyTarget)}</span>
+                <span className="py-1.5 border-t border-stroke text-right text-content-primary font-medium">{fmtN(m.directskip_hits)}</span>
+                <span className={`py-1.5 border-t border-stroke text-right font-semibold ${delta >= 0 ? 'text-success-700 dark:text-success-300' : 'text-error-700 dark:text-error-300'}`}>
+                  {delta >= 0 ? '+' : ''}{fmtN(delta)}
+                </span>
+              </Fragment>
+            );
+          })}
+        </div>
         <p className="text-xs text-content-tertiary mt-2 pt-2 border-t border-stroke">
           Target: {fmtN(monthlyTarget)} hits/mo · {fmtN(COMMITMENT_TOTAL)} total
         </p>
