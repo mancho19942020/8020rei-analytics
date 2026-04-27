@@ -363,7 +363,11 @@ async function getProfitabilitySummary(domain?: string) {
     const headlineCache = !domain ? await readOverviewCache<DmOverviewHeadline>('headline') : null;
     if (headlineCache?.data?.companyMargin) {
       const cm = headlineCache.data.companyMargin;
-      const totalSends = headlineCache.data.lifetimePieces?.aurora ?? 0;
+      // Per-piece math uses dispatched volume (`auroraSent` = total_sends),
+      // NOT delivered (`aurora` = total_delivered). Revenue is billed per
+      // dispatched piece, regardless of USPS delivery outcome.
+      const totalSends = headlineCache.data.lifetimePieces?.auroraSent
+        ?? headlineCache.data.lifetimePieces?.aurora ?? 0;
       const pcmPieces = headlineCache.data.lifetimePieces?.pcm ?? 0;
       const testCost = cm.pcmCostTest ?? 0;
       const netCompanyMargin = cm.margin;                   // test-cost-deducted, matches Overview

@@ -417,6 +417,7 @@ export async function computeHeadline(orders: PcmOrderSlim[]) {
     lifetimePieces: {
       pcm: pcmActivePieces,
       aurora: auroraLifetimeSent,
+      auroraSent: auroraSummary.totalSends,
       delta: deltaPieces,
       deltaPct: Number(deltaPiecesPct.toFixed(2)),
       auroraDomainCount,

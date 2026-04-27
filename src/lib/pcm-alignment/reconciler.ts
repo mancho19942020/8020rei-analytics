@@ -300,15 +300,18 @@ function extractValues(
       };
 
     // Core reconciliation — Aurora vs PCM pieces count.
+    // Aurora side reads delivered (USPS-confirmed) since that's what the
+    // "Total delivered" hero card displays. Delta is expected and reflects
+    // pieces still in transit, returned, or undeliverable.
     case 'dm-overview-headline.lifetime-pieces':
       if (!headline) return missing('headline');
       return {
         hub: headline.lifetimePieces.aurora,
         pcm: headline.lifetimePieces.pcm,
         notes: {
-          aurora_source: 'dm_client_funnel.total_sends',
+          aurora_source: 'dm_client_funnel.total_delivered',
           pcm_source: 'PCM /order count (excl test + canceled)',
-          note: 'Aurora may trail PCM by in-pipeline pieces',
+          note: 'Aurora delivered ≤ PCM shipped — gap is in-transit / undeliverable',
         },
       };
 

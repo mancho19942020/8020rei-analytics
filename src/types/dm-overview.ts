@@ -20,7 +20,18 @@ export interface DmOverviewAdoption {
 
 export interface DmOverviewLifetimePieces {
   pcm: number;
+  /**
+   * Delivered count (USPS-confirmed). This is what the "Total delivered" hero
+   * card reads. Source: dm_client_funnel.total_delivered. Same column the OH
+   * "Total delivered" tile reads — single number across both tabs.
+   */
   aurora: number;
+  /**
+   * Dispatched count (every piece sent, regardless of delivery outcome).
+   * Source: dm_client_funnel.total_sends. Used for per-piece revenue/cost
+   * math (revenue is billed per dispatched piece, not per delivered piece).
+   */
+  auroraSent: number;
   delta: number;
   deltaPct: number;
   auroraDomainCount: number;
