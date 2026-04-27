@@ -144,8 +144,8 @@ jobs:
            * source file for context.
            */
 
-          export const BUILD_ID = '${SHA}';
-          export const BUILT_AT = '${BUILT_AT}';
+          export const BUILD_ID: string = '${SHA}';
+          export const BUILT_AT: string = '${BUILT_AT}';
           EOF
           echo "✓ Baked BUILD_ID=${SHA:0:7} BUILT_AT=${BUILT_AT}"
 
