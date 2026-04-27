@@ -386,7 +386,7 @@ export function SkiptraceTab() {
 
           {/* Commitment */}
           <SectionCard
-            title="DirectSkip commitment — February – July 2026"
+            title="DirectSkip commitment — March – July 2026"
             accent="main"
             action={<CommitmentStatusBadge usedHits={commitment.used_hits} byMonth={by_month} />}
           >

@@ -4,14 +4,12 @@ import { dynamoScanAll, isDynamoConfigured, SKIPTRACE_LOGS_TABLE } from '@/lib/d
 const PRICE_PER_HIT      = 0.08;
 const COST_DS_PER_HIT    = 0.03;
 const COMMITMENT_TOTAL   = 500_000;
-const COMMITMENT_START   = new Date('2026-02-01T00:00:00Z').getTime();
-const COMMITMENT_MONTHS  = ['2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07'];
-const COMMITMENT_DAYS    = 181; // Feb 1 – Jul 31 inclusive
-// Feb DS hits not logged to DynamoDB — sourced from DirectSkip provider portal
-const FEB_DS_HITS_ADJUSTMENT = 28_381;
+const COMMITMENT_START   = new Date('2026-03-01T00:00:00Z').getTime();
+const COMMITMENT_MONTHS  = ['2026-03', '2026-04', '2026-05', '2026-06', '2026-07'];
+const COMMITMENT_DAYS    = 153; // Mar 1 – Jul 31 inclusive
 
 const MONTH_LABELS: Record<string, string> = {
-  '2026-02': 'Feb', '2026-03': 'Mar', '2026-04': 'Apr', '2026-05': 'May',
+  '2026-03': 'Mar', '2026-04': 'Apr', '2026-05': 'May',
   '2026-06': 'Jun', '2026-07': 'Jul',
 };
 
@@ -52,7 +50,6 @@ interface SkiptraceLog {
   TotalProperties?: number;
   TotalPropertiesFoundDB?: number;
   TotalHitsBatchLeads?: number;
-  hitsBatch?: number;
   ProviderStats?: Record<string, ProviderStat>;
 }
 
@@ -66,7 +63,7 @@ export async function GET() {
     const items = await dynamoScanAll<SkiptraceLog>({
       TableName: SKIPTRACE_LOGS_TABLE,
       ProjectionExpression:
-        'DomainDate, CreatedAt, TotalProperties, TotalPropertiesFoundDB, TotalHitsBatchLeads, hitsBatch, ProviderStats',
+        'DomainDate, CreatedAt, TotalProperties, TotalPropertiesFoundDB, TotalHitsBatchLeads, ProviderStats',
     });
 
     // Monthly accumulators keyed by 'YYYY-MM'
@@ -89,13 +86,13 @@ export async function GET() {
     // BL hits grouped by month for reconciliation (all historical data)
     const blMonthMap: Record<string, number> = {};
 
-for (const item of items) {
+    for (const item of items) {
       const domain = item.DomainDate?.split('#')[0] ?? 'unknown';
       // Normalize: some older records store CreatedAt in seconds instead of ms
       const createdAtMs = item.CreatedAt < 1e12 ? item.CreatedAt * 1000 : item.CreatedAt;
       const month  = new Date(createdAtMs).toISOString().slice(0, 7);
 
-      const ds_hits = item.ProviderStats?.directskip?.hits ?? item.hitsBatch ?? 0;
+      const ds_hits = item.ProviderStats?.directskip?.hits ?? 0;
       const bl_hits = item.ProviderStats?.batchleads?.hits ?? item.TotalHitsBatchLeads ?? 0;
       const cache   = item.TotalPropertiesFoundDB ?? 0;
       const props   = item.TotalProperties ?? 0;
@@ -129,10 +126,6 @@ for (const item of items) {
         if (COMMITMENT_MONTHS.includes(month)) clientMap[domain].months.add(month);
       }
     }
-
-    // Apply February DS hits adjustment (not logged to DynamoDB, sourced from DirectSkip portal)
-    total_ds_hits += FEB_DS_HITS_ADJUSTMENT;
-    if (monthMap['2026-02']) monthMap['2026-02'].ds_hits += FEB_DS_HITS_ADJUSTMENT;
 
     // Commitment math
     const now          = Date.now();

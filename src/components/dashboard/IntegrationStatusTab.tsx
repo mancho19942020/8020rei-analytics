@@ -175,7 +175,11 @@ const ICEBERG_SPENT      = 755_874;
 const ICEBERG_REMAINING  = 221_971.2;
 
 const RR_ACTIVE_CLIENTS    = 12;
+// TODO(#8): remove once Aurora rr_daily_metrics stale-count bug is fixed — restore rrJson.data.letters_last_week
 const RR_LETTERS_LAST_WEEK = 1_966;
+
+// Manual client base count as of Apr 2026 — replace with a query once available
+const CLIENT_BASE = 141;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -348,8 +352,8 @@ export function IntegrationStatusTab({ days, startDate, endDate }: IntegrationSt
           />
           <KpiCard
             label="Salesforce adoption"
-            value={`${totalIntegrated}/141`}
-            sub={adoptionStr(totalIntegrated, 141)}
+            value={`${totalIntegrated}/${CLIENT_BASE}`}
+            sub={adoptionStr(Math.min(totalIntegrated, CLIENT_BASE), CLIENT_BASE)}
             accent="neutral"
           />
           <KpiCard
@@ -434,8 +438,8 @@ export function IntegrationStatusTab({ days, startDate, endDate }: IntegrationSt
             <div className="grid grid-cols-4 gap-3">
               <KpiCard
                 label="Clients visiting"
-                value={`${visiting}/141`}
-                sub={adoptionStr(visiting, 141)}
+                value={`${visiting}/${CLIENT_BASE}`}
+                sub={adoptionStr(Math.min(visiting, CLIENT_BASE), CLIENT_BASE)}
                 accent="neutral"
               />
               <KpiCard
@@ -488,8 +492,8 @@ export function IntegrationStatusTab({ days, startDate, endDate }: IntegrationSt
               />
               <KpiCard
                 label="Usage"
-                value={`${stClients}/141`}
-                sub={adoptionStr(stClients, 141)}
+                value={`${stClients}/${CLIENT_BASE}`}
+                sub={adoptionStr(Math.min(stClients, CLIENT_BASE), CLIENT_BASE)}
                 accent="neutral"
               />
             </div>
