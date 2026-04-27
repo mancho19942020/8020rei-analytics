@@ -14,6 +14,10 @@ const PRICE_PER_HIT   = 0.08;
 const COST_DS         = 0.03;
 const COMMITMENT_TOTAL = 500_000;
 
+// Mar 1 – Jul 31, 2026 (153 days) — contract period used for pace calculation
+const COMMITMENT_PACE_START = new Date('2026-03-01T00:00:00Z').getTime();
+const COMMITMENT_PACE_DAYS  = 153;
+
 // ─── Inner tabs ───────────────────────────────────────────────────────────────
 const SKIPTRACE_TABS = [
   { id: 'overview', name: 'Overview' },
@@ -31,6 +35,41 @@ function fmtN(n: number): string {
 }
 function fmtPct(n: number): string {
   return `${n.toFixed(1)}%`;
+}
+
+// ─── Commitment pace helpers ──────────────────────────────────────────────────
+
+type PaceAccent = 'success' | 'alert' | 'error';
+
+function getCommitmentPace(usedHits: number): {
+  label: string; sub: string; accent: PaceAccent;
+} {
+  const now          = Date.now();
+  const daysElapsed  = Math.max(0, Math.floor((now - COMMITMENT_PACE_START) / 86_400_000));
+  const timelinePct  = Math.min(daysElapsed / COMMITMENT_PACE_DAYS, 1) * 100;
+  const hitsPct      = (usedHits / COMMITMENT_TOTAL) * 100;
+  const delta        = hitsPct - timelinePct;
+
+  if (delta >= 5)   return { label: 'Optimal pace',     sub: 'Ahead of target',    accent: 'success' };
+  if (delta >= -5)  return { label: 'On track',         sub: 'Meeting target',     accent: 'success' };
+  if (delta >= -15) return { label: 'Slightly behind',  sub: 'Keep up the pace',   accent: 'alert'   };
+  return              { label: 'Behind pace',       sub: 'Catch up needed',    accent: 'error'   };
+}
+
+function CommitmentStatusBadge({ usedHits }: { usedHits: number }) {
+  const pace = getCommitmentPace(usedHits);
+  const styles: Record<PaceAccent, string> = {
+    success: 'bg-success-50 dark:bg-success-950/40 border-success-300 dark:border-success-700 text-success-700 dark:text-success-300',
+    alert:   'bg-alert-50 dark:bg-alert-950/40 border-alert-300 dark:border-alert-700 text-alert-700 dark:text-alert-300',
+    error:   'bg-error-50 dark:bg-error-950/40 border-error-300 dark:border-error-700 text-error-700 dark:text-error-300',
+  };
+  const icons: Record<PaceAccent, string> = { success: '✓', alert: '!', error: '✕' };
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-medium ${styles[pace.accent]}`}>
+      <span>{icons[pace.accent]}</span>
+      {pace.label} — {pace.sub}
+    </span>
+  );
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -59,15 +98,19 @@ function KpiCard({
 }
 
 function SectionCard({
-  title, accent, children,
+  title, accent, children, action,
 }: {
-  title: string; accent: 'main' | 'success' | 'info' | 'alert' | 'error'; children: React.ReactNode;
+  title: string; accent: 'main' | 'success' | 'info' | 'alert' | 'error';
+  children: React.ReactNode; action?: React.ReactNode;
 }) {
   return (
     <section className="bg-surface-base shadow-xs rounded-lg p-5">
-      <h2 className="text-xs font-semibold uppercase tracking-wide mb-4 text-content-secondary">
-        {title}
-      </h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-content-secondary">
+          {title}
+        </h2>
+        {action}
+      </div>
       {children}
     </section>
   );
@@ -290,7 +333,11 @@ export function SkiptraceTab() {
         <div className="flex flex-col gap-6 p-6">
 
           {/* Commitment */}
-          <SectionCard title="DirectSkip commitment — February – July 2026" accent="main">
+          <SectionCard
+            title="DirectSkip commitment — February – July 2026"
+            accent="main"
+            action={<CommitmentStatusBadge usedHits={commitment.used_hits} />}
+          >
             <div className="flex flex-col gap-6">
               <CommitmentBar used={commitment.used_hits} total={COMMITMENT_TOTAL} />
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
