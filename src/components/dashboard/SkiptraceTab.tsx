@@ -56,7 +56,13 @@ function getCommitmentPace(usedHits: number): {
   return              { label: 'Behind pace',      accent: 'error',   hitsPct, timelinePct };
 }
 
-function CommitmentStatusBadge({ usedHits }: { usedHits: number }) {
+function CommitmentStatusBadge({
+  usedHits,
+  byMonth,
+}: {
+  usedHits: number;
+  byMonth: { label: string; month: string; directskip_hits: number }[];
+}) {
   const pace = getCommitmentPace(usedHits);
   const styles: Record<PaceAccent, string> = {
     success: 'bg-success-50 dark:bg-success-950/40 border-success-300 dark:border-success-700 text-success-700 dark:text-success-300',
@@ -64,14 +70,56 @@ function CommitmentStatusBadge({ usedHits }: { usedHits: number }) {
     error:   'bg-error-50 dark:bg-error-950/40 border-error-300 dark:border-error-700 text-error-700 dark:text-error-300',
   };
   const icons: Record<PaceAccent, string> = { success: '✓', alert: '!', error: '✕' };
+
+  const today = new Date().toISOString().slice(0, 7);
+  const monthlyTarget = Math.round(COMMITMENT_TOTAL / byMonth.length);
+  const visibleMonths = byMonth.filter((m) => m.month <= today);
+
   return (
-    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-medium ${styles[pace.accent]}`}>
-      <span>{icons[pace.accent]}</span>
-      {pace.label}
-      <span className="opacity-60">·</span>
-      <span>{pace.hitsPct.toFixed(1)}% complete</span>
-      <span className="opacity-40">vs</span>
-      <span>{pace.timelinePct.toFixed(1)}% expected</span>
+    <span className="relative group">
+      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-medium cursor-default ${styles[pace.accent]}`}>
+        <span>{icons[pace.accent]}</span>
+        {pace.label}
+        <span className="opacity-60">·</span>
+        <span>{pace.hitsPct.toFixed(1)}% complete</span>
+        <span className="opacity-40">vs</span>
+        <span>{pace.timelinePct.toFixed(1)}% expected</span>
+      </span>
+
+      {/* Delta tooltip */}
+      <div className="absolute right-0 top-full mt-2 z-50 hidden group-hover:block w-72 bg-surface-raised border border-stroke rounded-lg shadow-sm p-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-content-secondary mb-2">
+          Monthly delta vs target
+        </p>
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="text-content-tertiary">
+              <th className="text-left pb-1.5 font-medium">Month</th>
+              <th className="text-right pb-1.5 font-medium">Target</th>
+              <th className="text-right pb-1.5 font-medium">Actual</th>
+              <th className="text-right pb-1.5 font-medium">Delta</th>
+            </tr>
+          </thead>
+          <tbody>
+            {visibleMonths.map((m) => {
+              const delta = m.directskip_hits - monthlyTarget;
+              return (
+                <tr key={m.month} className="border-t border-stroke">
+                  <td className="py-1.5 text-content-primary">{m.label}</td>
+                  <td className="py-1.5 text-right text-content-tertiary">{fmtN(monthlyTarget)}</td>
+                  <td className="py-1.5 text-right text-content-primary font-medium">{fmtN(m.directskip_hits)}</td>
+                  <td className={`py-1.5 text-right font-semibold ${delta >= 0 ? 'text-success-600 dark:text-success-400' : 'text-error-600 dark:text-error-400'}`}>
+                    {delta >= 0 ? '+' : ''}{fmtN(delta)}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        <p className="text-xs text-content-tertiary mt-2 pt-2 border-t border-stroke">
+          Target: {fmtN(monthlyTarget)} hits/mo · {fmtN(COMMITMENT_TOTAL)} total
+        </p>
+      </div>
     </span>
   );
 }
@@ -340,7 +388,7 @@ export function SkiptraceTab() {
           <SectionCard
             title="DirectSkip commitment — February – July 2026"
             accent="main"
-            action={<CommitmentStatusBadge usedHits={commitment.used_hits} />}
+            action={<CommitmentStatusBadge usedHits={commitment.used_hits} byMonth={by_month} />}
           >
             <div className="flex flex-col gap-6">
               <CommitmentBar used={commitment.used_hits} total={COMMITMENT_TOTAL} />
