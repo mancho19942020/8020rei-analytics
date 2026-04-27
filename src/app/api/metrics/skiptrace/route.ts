@@ -101,7 +101,7 @@ export async function GET() {
       total_bl_hits += bl_hits;
       if (bl_hits > 0) blMonthMap[month] = (blMonthMap[month] ?? 0) + bl_hits;
 
-      // DS metrics, cache, and properties within commitment period (Feb–Jul)
+      // DS metrics, cache, and properties within commitment period (Mar–Jul)
       if (createdAtMs >= COMMITMENT_START) {
         total_ds_hits += ds_hits;
         total_cache   += cache;

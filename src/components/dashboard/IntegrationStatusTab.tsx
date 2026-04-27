@@ -343,7 +343,7 @@ export function IntegrationStatusTab({ days, startDate, endDate }: IntegrationSt
       </div>
 
       {/* Salesforce integration health */}
-      <SectionCard title="Salesforce" accent="error">
+      <SectionCard title="Salesforce" accent="error" tooltip="Client base (141) is a manual count as of Apr 2026 — capped to prevent >100%">
         <div className="grid grid-cols-4 gap-3">
           <KpiCard
             label="Clients integrated"
@@ -403,7 +403,7 @@ export function IntegrationStatusTab({ days, startDate, endDate }: IntegrationSt
       </SectionCard>
 
       {/* Engagement Metrics — GA4 views by affiliation with period-over-period comparison */}
-      <SectionCard title="Engagement metrics" accent="main">
+      <SectionCard title="Engagement metrics" accent="main" tooltip="Client base (141) is a manual count as of Apr 2026 — capped to prevent >100%">
         <div className="flex flex-col gap-4">
 
           {/* Internal */}
@@ -465,7 +465,7 @@ export function IntegrationStatusTab({ days, startDate, endDate }: IntegrationSt
 
       {/* Skiptrace summary */}
       {st && (
-        <SectionCard title="Skiptrace · Feb – Jul 2026" accent="alert">
+        <SectionCard title="Skiptrace · Mar – Jul 2026" accent="alert">
           <div className="flex flex-col gap-3">
             <UsageBar
               used={stHits}
