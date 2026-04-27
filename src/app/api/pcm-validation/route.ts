@@ -31,6 +31,7 @@ import type { DmOverviewHeadline } from '@/types/dm-overview';
 import {
   pcmRate,
   computePcmInvoiceCost,
+  isPcmBilled,
   getPcmEra as getSharedPcmEra,
   currentPcmRates,
 } from '@/lib/pcm-pricing-eras';
@@ -362,7 +363,11 @@ async function getProfitabilitySummary(domain?: string) {
     const headlineCache = !domain ? await readOverviewCache<DmOverviewHeadline>('headline') : null;
     if (headlineCache?.data?.companyMargin) {
       const cm = headlineCache.data.companyMargin;
-      const totalSends = headlineCache.data.lifetimePieces?.aurora ?? 0;
+      // Per-piece math uses dispatched volume (`auroraSent` = total_sends),
+      // NOT delivered (`aurora` = total_delivered). Revenue is billed per
+      // dispatched piece, regardless of USPS delivery outcome.
+      const totalSends = headlineCache.data.lifetimePieces?.auroraSent
+        ?? headlineCache.data.lifetimePieces?.aurora ?? 0;
       const pcmPieces = headlineCache.data.lifetimePieces?.pcm ?? 0;
       const testCost = cm.pcmCostTest ?? 0;
       const netCompanyMargin = cm.margin;                   // test-cost-deducted, matches Overview
@@ -627,7 +632,9 @@ async function getClientMargins(domain?: string) {
         ${domainWhere}
     `);
 
-    // Non-blocking: use PCM cache if warm, fall back to Aurora stored otherwise
+    // Non-blocking: use PCM cache if warm, fall back to Aurora stored otherwise.
+    // Pieces tile counts dispatched volume (all statuses); cost only accrues
+    // once PCM bills the piece (Delivered / Undeliverable). See pcm-pricing-eras.ts.
     const orders = readPcmOrdersCacheOrWarm();
     const pcmCostByDomain = new Map<string, { cost: number; pieces: number }>();
     if (orders) {
@@ -635,7 +642,7 @@ async function getClientMargins(domain?: string) {
         if (o.canceled || o.isTestDomain) continue;
         if (domain && o.domain !== domain) continue;
         const entry = pcmCostByDomain.get(o.domain) || { cost: 0, pieces: 0 };
-        entry.cost += pcmRate(o.date, o.mailClass);
+        if (isPcmBilled(o.status)) entry.cost += pcmRate(o.date, o.mailClass);
         entry.pieces += 1;
         pcmCostByDomain.set(o.domain, entry);
       }

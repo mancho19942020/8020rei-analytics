@@ -75,7 +75,7 @@ function ClickableNumber({
         e.stopPropagation();
         onDrilldown(domain, status, value);
       }}
-      title={`View ${value} ${status === 'mailed' ? 'mailed properties' : status + 's'}`}
+      title={`View ${value} ${status === 'mailed' ? 'delivered properties' : status + 's'}`}
     >
       {formatted}
     </button>
@@ -176,8 +176,8 @@ export function DmClientPerformanceWidget({ data, onDomainClick }: DmClientPerfo
     },
     {
       field: 'totalMailed',
-      header: 'Mailed (window)',
-      headerTooltip: 'Unique properties this client first mailed in the selected window. A property mailed 3 times counts as 1.',
+      header: 'Total delivered',
+      headerTooltip: 'Unique properties for this client where at least one mail piece was confirmed delivered (USPS scanned in the recipient\'s mailbox). Filtered by the date range above. A property delivered 3 times still counts as 1.',
       type: 'number',
       width: 110,
       minWidth: 90,
@@ -186,7 +186,7 @@ export function DmClientPerformanceWidget({ data, onDomainClick }: DmClientPerfo
         <ClickableNumber
           value={Number(value || 0)}
           domain={String(row?.domain || '')}
-          status="mailed"
+          status="delivered"
           onDrilldown={openDrilldown}
         />
       ),
@@ -194,7 +194,7 @@ export function DmClientPerformanceWidget({ data, onDomainClick }: DmClientPerfo
     {
       field: 'leads',
       header: 'Leads',
-      headerTooltip: 'Properties in this client\'s cohort (first mailed in window) that became Lead after the first send. Click to see which properties.',
+      headerTooltip: 'Distinct properties whose Lead status row in log_status_properties carries this campaign\'s rapid_response_id. Mirrors the platform\'s per-campaign detail page exactly (same predicate, no date arithmetic). Status changes done outside the DM workflow — manual edits, inbound calls, bulk imports — are unattributed and not counted here. Click to see which properties.',
       type: 'number',
       width: 70,
       minWidth: 60,
@@ -211,7 +211,7 @@ export function DmClientPerformanceWidget({ data, onDomainClick }: DmClientPerfo
     {
       field: 'deals',
       header: 'Deals',
-      headerTooltip: 'Properties in this client\'s cohort (first mailed in window) that ever reached "Deal" status in the monolith, via any channel. Sourced from log_status_properties. Always ≥ the count on the app\'s /dm-campaign/sending-status page, which filters to deals tied to a specific Rapid Response campaign (via rapid_response_id) — a tighter scope. Click to see which properties.',
+      headerTooltip: 'Distinct properties whose Deal status row in log_status_properties carries this campaign\'s rapid_response_id. Mirrors the platform\'s per-campaign detail page exactly. Deals closed via channels that did not stamp the campaign FK are unattributed and excluded. Click to see which properties.',
       type: 'number',
       width: 70,
       minWidth: 60,
@@ -228,7 +228,7 @@ export function DmClientPerformanceWidget({ data, onDomainClick }: DmClientPerfo
     {
       field: 'leadConversionRate',
       header: 'Lead %',
-      headerTooltip: 'Lead conversion rate: leads / unique properties mailed',
+      headerTooltip: 'Lead conversion rate: leads / unique properties delivered',
       width: 70,
       minWidth: 60,
       align: 'center',
@@ -250,7 +250,7 @@ export function DmClientPerformanceWidget({ data, onDomainClick }: DmClientPerfo
     {
       field: 'totalRevenue',
       header: 'Deal rev',
-      headerTooltip: 'Revenue this client earned from deals attributed to mailings in the selected window (cohort view). Client ROI — NOT 8020REI company revenue.',
+      headerTooltip: 'Revenue from deals whose log_status_properties Deal row carries this campaign\'s rapid_response_id. Mirrors the platform\'s per-campaign detail page. Excludes revenue from deals that closed through other channels even if the property was on the mailing list. Client ROI — NOT 8020REI company revenue.',
       width: 90,
       minWidth: 70,
       align: 'center',
@@ -410,9 +410,9 @@ export function DmClientPerformanceWidget({ data, onDomainClick }: DmClientPerfo
         >
           <div className="flex items-baseline gap-1.5">
             <span className="text-lg font-bold" style={{ color: 'var(--color-main-500)' }}>
-              {totals.totalMailed.toLocaleString()}
+              {totals.totalMailed.toLocaleString()}{' '}
             </span>
-            <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>mailed</span>
+            <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>delivered</span>
           </div>
           <div className="flex items-baseline gap-1.5">
             <span className="text-lg font-bold" style={{ color: 'var(--color-accent-1-500)' }}>

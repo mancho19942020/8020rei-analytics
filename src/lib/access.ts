@@ -27,3 +27,16 @@ export function canAccessPlatformAnalytics(email: string | null | undefined): bo
   if (!email) return false;
   return PLATFORM_ANALYTICS_AUTHORIZED_EMAILS.includes(email.toLowerCase());
 }
+
+/**
+ * DM Campaign Alerts sub-tab is only visible to German while it's piloting.
+ * Restrict to product-owner email until the experience is validated.
+ */
+const DM_ALERTS_AUTHORIZED_EMAILS: string[] = [
+  'german@8020rei.com',
+];
+
+export function canAccessDmAlerts(email: string | null | undefined): boolean {
+  if (!email) return false;
+  return DM_ALERTS_AUTHORIZED_EMAILS.includes(email.toLowerCase());
+}

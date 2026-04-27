@@ -6,7 +6,7 @@ import dynamic from 'next/dynamic';
 import { useAuth } from '@/lib/firebase/AuthContext';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { DesignKitButton } from '@/components/DesignKitButton';
-import { canAccessDesignKit, canAccessPlatformAnalytics } from '@/lib/access';
+import { canAccessDesignKit, canAccessDmAlerts, canAccessPlatformAnalytics } from '@/lib/access';
 import { SuggestionsButton } from '@/components/SuggestionsButton';
 import { SuggestionsModal } from '@/components/SuggestionsModal';
 import { WelcomeModal } from '@/components/WelcomeModal';
@@ -68,6 +68,7 @@ const DmReportsTab = dynamic(() => import('@/components/dashboard/DmReportsTab')
 const DmDataSourcesTab = dynamic(() => import('@/components/dashboard/DmDataSourcesTab').then(m => m.DmDataSourcesTab), { loading: TabSkeleton, ssr: false });
 const SkiptraceTab = dynamic(() => import('@/components/dashboard/SkiptraceTab').then(m => m.SkiptraceTab), { loading: TabSkeleton, ssr: false });
 const DmOverviewTab = dynamic(() => import('@/components/dashboard/DmOverviewTab').then(m => m.DmOverviewTab), { loading: TabSkeleton, ssr: false });
+const DmAlertsTab = dynamic(() => import('@/components/dashboard/DmAlertsTab').then(m => m.DmAlertsTab), { loading: TabSkeleton, ssr: false });
 
 interface MetricValues {
   total_users: number;
@@ -229,7 +230,7 @@ function Dashboard({ slug }: { slug: string[] }) {
   // Auto-disable edit mode on non-grid pages
   const isNonGridPage = activeMainSection === 'engagement-calls' ||
     activeMainSection === 'grafana' ||
-    (activeMainSection === 'features' && activeSubsection === 'dm-campaign' && ['overview', 'reports', 'data-sources'].includes(dmCampaignSubTab));
+    (activeMainSection === 'features' && activeSubsection === 'dm-campaign' && ['overview', 'alerts', 'reports', 'data-sources'].includes(dmCampaignSubTab));
   useEffect(() => {
     if (isNonGridPage && editMode) setEditMode(false);
   }, [isNonGridPage, editMode]);
@@ -478,7 +479,7 @@ function Dashboard({ slug }: { slug: string[] }) {
               {/* Edit Layout Toggle — hidden on non-grid pages */}
               {activeMainSection !== 'engagement-calls' &&
                activeMainSection !== 'grafana' &&
-               !(activeMainSection === 'features' && activeSubsection === 'dm-campaign' && ['reports', 'data-sources'].includes(dmCampaignSubTab)) && (
+               !(activeMainSection === 'features' && activeSubsection === 'dm-campaign' && ['alerts', 'reports', 'data-sources'].includes(dmCampaignSubTab)) && (
                 <AxisToggle
                   checked={editMode}
                   onChange={setEditMode}
@@ -576,7 +577,9 @@ function Dashboard({ slug }: { slug: string[] }) {
               <AxisNavigationTab
                 activeTab={activeDetailTab}
                 onTabChange={setActiveDetailTab}
-                tabs={DM_CAMPAIGN_SUB_TABS}
+                tabs={canAccessDmAlerts(user?.email)
+                  ? DM_CAMPAIGN_SUB_TABS
+                  : DM_CAMPAIGN_SUB_TABS.filter(t => t.id !== 'alerts')}
                 variant="line"
                 size="sm"
               />
@@ -828,7 +831,7 @@ function Dashboard({ slug }: { slug: string[] }) {
           )}
 
           {/* DM Campaign Tab (Features > DM Campaign) — widget tabs */}
-          {activeMainSection === 'features' && activeSubsection === 'dm-campaign' && !['overview', 'reports', 'data-sources'].includes(dmCampaignSubTab) && (
+          {activeMainSection === 'features' && activeSubsection === 'dm-campaign' && !['overview', 'alerts', 'reports', 'data-sources'].includes(dmCampaignSubTab) && (
             <RapidResponseTab
               ref={dmCampaignRef}
               days={days}
@@ -838,6 +841,12 @@ function Dashboard({ slug }: { slug: string[] }) {
               onEditModeChange={setEditMode}
               activeSubTab={dmCampaignSubTab}
             />
+          )}
+
+          {/* DM Campaign > Alerts tab — triage queue across all DM Campaign tabs.
+              Restricted to authorized emails (see canAccessDmAlerts). */}
+          {activeMainSection === 'features' && activeSubsection === 'dm-campaign' && dmCampaignSubTab === 'alerts' && canAccessDmAlerts(user?.email) && (
+            <DmAlertsTab />
           )}
 
           {/* DM Campaign > Reports tab — document-style reports */}

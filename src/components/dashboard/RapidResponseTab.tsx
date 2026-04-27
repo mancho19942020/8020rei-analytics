@@ -16,7 +16,6 @@ import { useState, useEffect, useMemo, useCallback, forwardRef, useImperativeHan
 import { buildDateQueryString } from '@/lib/date-utils';
 import { AxisSkeleton, AxisCallout, AxisButton, AxisTag, AxisDomainSearch } from '@/components/axis';
 import { GridWorkspace, WidgetCatalog, WidgetSettings, Widget as WidgetShell } from '@/components/workspace';
-import { DmAlertsModal, getAlertCount } from '@/components/dashboard/DmAlertsModal';
 import {
   RrOperationalPulseWidget,
   RrOpsStatusStripWidget,
@@ -170,9 +169,6 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
     const [pcmData, setPcmData] = useState<any>(null);
     const [pcmLoading, setPcmLoading] = useState(true);
     const [pcmError, setPcmError] = useState<string | null>(null);
-
-    // Alerts modal state
-    const [alertsModalOpen, setAlertsModalOpen] = useState(false);
 
     // Load layout from localStorage or use default
     const [layout, setLayout] = useState<Widget[]>(() =>
@@ -698,49 +694,15 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
                 PCM API {pcmData.summary.pcmConnected ? 'connected' : 'disconnected'}
               </AxisTag>
             )}
-            {(() => {
-              const count = getAlertCount(activeSubTab, data?.alerts, brData?.alerts, pcmData?.priceAlert);
-              return (
-                <AxisButton
-                  variant={count > 0 ? 'outlined' : 'ghost'}
-                  size="sm"
-                  onClick={() => setAlertsModalOpen(true)}
-                  iconLeft={
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
-                    </svg>
-                  }
-                >
-                  Alerts{count > 0 && (
-                    <span
-                      className="inline-flex items-center justify-center rounded-full text-xs font-semibold"
-                      style={{
-                        marginLeft: 6,
-                        minWidth: 20,
-                        height: 20,
-                        padding: '0 6px',
-                        backgroundColor: 'var(--color-error-500, #ef4444)',
-                        color: '#fff',
-                      }}
-                    >
-                      {count}
-                    </span>
-                  )}
-                </AxisButton>
-              );
-            })()}
+            <FreshnessTag
+              label={
+                activeSubTab === 'pcm-validation'
+                  ? 'Updated every 30 min (PCM cache) · hourly (Aurora)'
+                  : 'Updated hourly · monolith → Aurora'
+              }
+            />
           </div>
         </div>
-
-        {/* Alerts Modal */}
-        <DmAlertsModal
-          open={alertsModalOpen}
-          onClose={() => setAlertsModalOpen(false)}
-          tab={activeSubTab as 'operational-health' | 'business-results' | 'pcm-validation'}
-          rrAlerts={data?.alerts}
-          dmAlerts={brData?.alerts}
-          priceAlert={pcmData?.priceAlert}
-        />
 
         {/* Operational Health sub-tab (current view) */}
         {activeSubTab === 'operational-health' && (
@@ -939,3 +901,20 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
     );
   }
 );
+
+/** Small inline freshness indicator — explains how often the tab's data refreshes. */
+function FreshnessTag({ label }: { label: string }) {
+  return (
+    <div className="flex">
+      <AxisTag color="neutral" size="sm" variant="outlined">
+        <span className="inline-flex items-center gap-1">
+          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <circle cx="12" cy="12" r="9" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 7v5l3 2" />
+          </svg>
+          {label}
+        </span>
+      </AxisTag>
+    </div>
+  );
+}

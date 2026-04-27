@@ -70,11 +70,19 @@ export function DmOverviewHeadlineWidget({ data }: DmOverviewHeadlineWidgetProps
   const margin = data.companyMargin;
   const campaigns = data.activeCampaigns;
 
-  const deltaLabel = pieces.delta === 0
-    ? 'Aurora matches PCM'
-    : `Aurora: ${abbreviate(pieces.aurora)} · Δ ${pieces.delta > 0 ? '+' : ''}${pieces.delta.toLocaleString()} (${pieces.deltaPct > 0 ? '+' : ''}${pieces.deltaPct}%)`;
+  // PCM's "Total Recipients" is shipped pieces (what they handed to USPS), not
+  // delivery confirmations. The hero shows our delivered number; the sub-line
+  // surfaces PCM shipped + the delta so users can see how many pieces PCM sent
+  // that haven't landed yet (carrier in-transit, returned, undeliverable).
+  const undelivered = Math.max(0, pieces.pcm - pieces.aurora);
+  const deltaLabel = pieces.pcm === 0
+    ? 'No PCM /order data'
+    : `PCM shipped: ${abbreviate(pieces.pcm)} · ${abbreviate(undelivered)} not yet delivered`;
 
-  const deltaTone: 'neutral' | 'warning' = Math.abs(pieces.deltaPct) > 0.5 ? 'warning' : 'neutral';
+  // Delta over 5% means many pieces PCM shipped haven't been confirmed delivered —
+  // could be normal in-flight or list-quality (undeliverable / protected). Surface but don't alarm.
+  const deliveredRatio = pieces.pcm > 0 ? pieces.aurora / pieces.pcm : 1;
+  const deltaTone: 'neutral' | 'warning' = deliveredRatio < 0.85 ? 'warning' : 'neutral';
 
   const marginIsNegative = margin.margin < 0;
   const marginBg = marginIsNegative
@@ -89,8 +97,8 @@ export function DmOverviewHeadlineWidget({ data }: DmOverviewHeadlineWidgetProps
     ? `Aurora's stored PCM cost is $${Math.abs(drift).toFixed(0)} ${drift > 0 ? 'LESS' : 'MORE'} than PCM's invoice-derived cost. The card above uses the invoice-authoritative value. Root cause: the monolith's parameters.pcm_cost column (what PCM charges 8020REI — NOT the customer-rate column Johansy updated on Apr 16) still uses $0.625/$0.875 rates instead of the invoice-verified $0.63/$0.87 and leaves ~8% of pieces un-tagged.`
     : undefined;
 
-  const piecesInconsistency = Math.abs(pieces.deltaPct) > 5
-    ? `Aurora trails PCM by ${Math.abs(pieces.delta).toLocaleString()} pieces (${pieces.deltaPct}%). Expected small delta from in-pipeline pieces; larger gaps suggest sync drift. See OH → "Is it aligned?" for per-domain breakdown.`
+  const piecesInconsistency = pieces.pcm > 0 && deliveredRatio < 0.85
+    ? `Only ${(deliveredRatio * 100).toFixed(1)}% of pieces PCM shipped are confirmed delivered. The rest are in transit, returned, or undeliverable. Larger gap can also mean sync lag — see OH → "Is it aligned?" for per-domain breakdown.`
     : undefined;
 
   return (
@@ -105,8 +113,8 @@ export function DmOverviewHeadlineWidget({ data }: DmOverviewHeadlineWidgetProps
         sourceNote={adoption.sourceNote}
       />
       <HeadlineCard
-        label="Lifetime pieces"
-        hero={abbreviate(pieces.pcm)}
+        label="Total delivered"
+        hero={abbreviate(pieces.aurora)}
         sub={deltaLabel}
         icon={<PiecesIcon />}
         iconBg="bg-accent-1-700"

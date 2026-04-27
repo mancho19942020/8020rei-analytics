@@ -14,6 +14,7 @@ import { getCached, setCache } from '@/lib/cache';
 import { readCache as readOverviewCache, getCachedPcmOrdersSlim } from '@/app/api/dm-overview/compute';
 // Test-domain exclusion — canonical source. Any change applies everywhere simultaneously.
 import { TEST_DOMAINS_SQL as SEED_DOMAINS, EXCLUDE_TEST_DOMAINS_SQL as EXCLUDE_SEED } from '@/lib/domain-filter';
+import { pcmRate, isPcmBilled } from '@/lib/pcm-pricing-eras';
 // On-hold stale/fresh helper — single source of truth shared with slack-alerts
 import {
   queryOnHoldAges,
@@ -328,27 +329,37 @@ async function getOverview(days: number, domain?: string) {
   const STALE_THRESHOLD = 10;
   const ORPHAN_THRESHOLD = 5;
 
-  // Set of domains with ≥1 status='active' campaign right now — used to mark
-  // flagged domains as active (priority) vs legacy (cleanup). Active domains
-  // matter more because active campaigns are currently sending mail.
+  // Set of domains with ≥1 status='active' campaign right now. The alignment
+  // widget restricts to ACTIVE-domain alignment because legacy / eliminated
+  // campaigns generate noise (e.g., a 58-day-old stale_sent_count from a
+  // campaign that was already eliminated months ago is not actionable). An
+  // unhealthy alignment number on a still-running domain is the only thing
+  // worth interrupting someone over.
   const activeDomainSet = new Set<string>();
   for (const r of pulseRows as Record<string, unknown>[]) {
     if (r.status === 'active') activeDomainSet.add(String(r.domain || ''));
   }
 
+  // Restrict alignment evaluation to domains with at least one active campaign.
+  // pcmRowsActive becomes the universe used by every count and tooltip below;
+  // the original pcmRows still exists for historical context if we ever expose
+  // a "show all (including legacy)" toggle.
+  const pcmRowsActive = (pcmRows as Record<string, unknown>[])
+    .filter(r => activeDomainSet.has(String(r.domain || '')));
+
   // Per-domain issue lists — sorted worst-first so the user can name-and-shame
   // the specific clients responsible. An aggregate "2 need attention" without
   // names isn't actionable; these arrays feed the widget tooltips.
-  const gapDomains = (pcmRows as Record<string, unknown>[])
+  const gapDomains = pcmRowsActive
     .filter(r => Number(r.back_office_sync_gap || 0) >= SYNC_GAP_THRESHOLD)
     .map(r => ({
       domain: String(r.domain || ''),
       value: Math.max(0, Number(r.back_office_sync_gap || 0)),
-      isActive: activeDomainSet.has(String(r.domain || '')),
+      isActive: true,
     }))
     .sort((a, b) => b.value - a.value);
 
-  const staleDomains = (pcmRows as Record<string, unknown>[])
+  const staleDomains = pcmRowsActive
     .filter(r => Number(r.stale_sent_count || 0) >= STALE_THRESHOLD)
     .map(r => ({
       domain: String(r.domain || ''),
@@ -356,16 +367,16 @@ async function getOverview(days: number, domain?: string) {
       detail: Number(r.oldest_stale_days || 0) > 0
         ? `oldest: ${Number(r.oldest_stale_days)}d`
         : undefined,
-      isActive: activeDomainSet.has(String(r.domain || '')),
+      isActive: true,
     }))
     .sort((a, b) => b.value - a.value);
 
-  const orphanedDomains = (pcmRows as Record<string, unknown>[])
+  const orphanedDomains = pcmRowsActive
     .filter(r => Number(r.orphaned_orders_count || 0) >= ORPHAN_THRESHOLD)
     .map(r => ({
       domain: String(r.domain || ''),
       value: Number(r.orphaned_orders_count || 0),
-      isActive: activeDomainSet.has(String(r.domain || '')),
+      isActive: true,
     }))
     .sort((a, b) => b.value - a.value);
 
@@ -374,18 +385,18 @@ async function getOverview(days: number, domain?: string) {
   const domainsWithOrphaned = orphanedDomains.length;
 
   const pcmHealth: RrPcmHealth = {
-    staleSentCount: pcmRows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.stale_sent_count || 0), 0),
-    orphanedOrdersCount: pcmRows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.orphaned_orders_count || 0), 0),
-    oldestStaleDays: pcmRows.reduce((m: number, r: Record<string, unknown>) => Math.max(m, Number(r.oldest_stale_days || 0)), 0),
-    deliveryLagMedianDays: pcmRows.length > 0
-      ? Number((pcmRows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.delivery_lag_median_days || 0), 0) / pcmRows.length).toFixed(1))
+    staleSentCount: pcmRowsActive.reduce((s: number, r) => s + Number(r.stale_sent_count || 0), 0),
+    orphanedOrdersCount: pcmRowsActive.reduce((s: number, r) => s + Number(r.orphaned_orders_count || 0), 0),
+    oldestStaleDays: pcmRowsActive.reduce((m: number, r) => Math.max(m, Number(r.oldest_stale_days || 0)), 0),
+    deliveryLagMedianDays: pcmRowsActive.length > 0
+      ? Number((pcmRowsActive.reduce((s: number, r) => s + Number(r.delivery_lag_median_days || 0), 0) / pcmRowsActive.length).toFixed(1))
       : 0,
-    backOfficeSyncGap: pcmRows.reduce((s: number, r: Record<string, unknown>) => s + Math.max(0, Number(r.back_office_sync_gap || 0)), 0),
-    undeliverableRate7d: pcmRows.length > 0
-      ? Number((pcmRows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.undeliverable_rate_7d || 0), 0) / pcmRows.length).toFixed(1))
+    backOfficeSyncGap: pcmRowsActive.reduce((s: number, r) => s + Math.max(0, Number(r.back_office_sync_gap || 0)), 0),
+    undeliverableRate7d: pcmRowsActive.length > 0
+      ? Number((pcmRowsActive.reduce((s: number, r) => s + Number(r.undeliverable_rate_7d || 0), 0) / pcmRowsActive.length).toFixed(1))
       : 0,
-    totalDomains: pcmRows.length,
-    syncedDomains: pcmRows.length - domainsWithGaps,
+    totalDomains: pcmRowsActive.length,
+    syncedDomains: pcmRowsActive.length - domainsWithGaps,
     domainsWithGaps,
     domainsWithStale,
     domainsWithOrphaned,
@@ -836,27 +847,9 @@ async function getAlerts(days: number, domain?: string) {
     });
   }
 
-  // RR8: Delivery lag high (average across domains)
-  const avgDeliveryLag = pcmRows.length > 0
-    ? pcmRows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.delivery_lag_median_days || 0), 0) / pcmRows.length
-    : 0;
-  if (avgDeliveryLag > 10) {
-    const lagDomains = pcmRows
-      .filter((r: Record<string, unknown>) => Number(r.delivery_lag_median_days || 0) > 10)
-      .map((r: Record<string, unknown>) => String(r.domain || ''));
-    alerts.push({
-      id: 'rr-delivery-lag',
-      name: 'Delivery lag above normal',
-      severity: 'info',
-      category: 'rapid-response',
-      description: `Median delivery time is ${avgDeliveryLag.toFixed(1)} days, above the 10-day threshold.${lagDomains.length > 0 ? ` Affected: ${lagDomains.join(', ')}.` : ''}`,
-      entity: lagDomains.join(', ') || undefined,
-      metrics: { current: avgDeliveryLag, baseline: 10 },
-      detected_at: now,
-      action: 'Monitor PCM vendor status distribution for processing bottlenecks.',
-      link: '/features/features-rei/dm-campaign/operational-health',
-    });
-  }
+  // RR8 (Delivery lag above normal) was retired 2026-04-27. The metric is mostly
+  // USPS + PCM transit reality and we don't act on it; surfaces as noise rather
+  // than triage. The underlying number is still visible on OH → Postal performance.
 
   // -------------------------------------------------------------------------
   // DM data-integrity alerts (moved from business results — product issues)
@@ -941,6 +934,8 @@ async function getAlerts(days: number, domain?: string) {
   }
 
   // RR11: High unattributed conversions (attribution system issue)
+  // Statistical floor: require >= 5 conversions before computing the rate, so
+  // we don't fire critical on a 1-of-2 noise split.
   for (const row of dmClientRows) {
     const clientLeads = Number(row.leads || 0);
     const clientDeals = Number(row.deals || 0);
@@ -948,7 +943,7 @@ async function getAlerts(days: number, domain?: string) {
     const clientDomain = String(row.domain || '');
     const totalConversions = clientLeads + clientDeals;
 
-    if (totalConversions > 0 && unattributed > 0) {
+    if (totalConversions >= 5 && unattributed > 0) {
       const rate = Number(((unattributed / totalConversions) * 100).toFixed(1));
       if (rate > 30) {
         alerts.push({
@@ -965,6 +960,72 @@ async function getAlerts(days: number, domain?: string) {
         });
       }
     }
+  }
+
+  // RR12: Aurora sync stale — the monolith→Aurora cron is hourly. If the
+  // newest snapshot is more than 3 hours old, every dashboard is reading
+  // stale data and the user can't tell. Critical because numerical accuracy
+  // depends on it; surfaces in operational-health (pipeline issue).
+  try {
+    const stalenessRows = await runAuroraQuery(`
+      SELECT
+        EXTRACT(EPOCH FROM (NOW() - MAX(snapshot_at))) / 3600.0 as rr_age_hours,
+        EXTRACT(EPOCH FROM (NOW() - (SELECT MAX(date)::timestamp FROM dm_client_funnel))) / 3600.0 as cf_age_hours
+      FROM rr_campaign_snapshots
+    `);
+    const rrAgeHours = Number(stalenessRows[0]?.rr_age_hours || 0);
+    const cfAgeHours = Number(stalenessRows[0]?.cf_age_hours || 0);
+    const maxAge = Math.max(rrAgeHours, cfAgeHours);
+    if (maxAge > 3) {
+      const tableNote = rrAgeHours > cfAgeHours
+        ? `rr_campaign_snapshots last write ${rrAgeHours.toFixed(1)}h ago`
+        : `dm_client_funnel last date ${cfAgeHours.toFixed(1)}h ago`;
+      alerts.push({
+        id: 'rr-aurora-stale',
+        name: 'Aurora sync stale',
+        severity: maxAge > 6 ? 'critical' : 'warning',
+        category: 'rapid-response',
+        description: `Hourly monolith→Aurora cron has not refreshed in ${maxAge.toFixed(1)}h (${tableNote}). All dashboards are reading data older than the documented hourly cadence.`,
+        metrics: { current: maxAge, baseline: 3 },
+        detected_at: now,
+        action: 'Check the monolith insights:to-aurora cron in the backoffice repo. Verify the Horizon worker is running and recent jobs have not failed.',
+        link: '/features/features-rei/dm-campaign/operational-health',
+      });
+    }
+  } catch (err) {
+    console.error('[rapid-response/alerts] Aurora staleness probe failed:', err);
+  }
+
+  // RR13: Negative revenue (data integrity) — a domain whose total_revenue is
+  // negative in dm_client_funnel signals a write-side bug in the monolith
+  // (CCS-style sign flip, see funnel-fixes/01-... §5). Always critical.
+  try {
+    const negRows = await runAuroraQuery(`
+      SELECT f.domain, f.total_revenue
+      FROM dm_client_funnel f
+      INNER JOIN (SELECT domain, MAX(date) as md FROM dm_client_funnel GROUP BY domain) l
+        ON f.domain = l.domain AND f.date = l.md
+      WHERE f.total_revenue < 0
+        AND ${EXCLUDE_SEED.replace(/^AND\s+/, '')}
+    `);
+    for (const r of negRows) {
+      const d = String(r.domain || 'unknown');
+      const rev = Number(r.total_revenue || 0);
+      alerts.push({
+        id: `rr-negative-revenue-${d}`,
+        name: 'Negative revenue (data integrity)',
+        severity: 'critical',
+        category: 'rapid-response',
+        description: `${d} shows total_revenue = $${rev.toLocaleString()} in dm_client_funnel. Revenue should never be negative; this points at a write-side sign flip in the monolith's getDealData() / upsert path.`,
+        entity: d,
+        metrics: { current: rev, baseline: 0 },
+        detected_at: now,
+        action: 'Investigate ConversionInsightsService::getDealData and the dm_client_funnel upsert. The displayed dashboard revenue (from dm_property_conversions) is unaffected, but Aurora-stored totals are wrong for this domain.',
+        link: '/features/features-rei/dm-campaign/profitability',
+      });
+    }
+  } catch (err) {
+    console.error('[rapid-response/alerts] Negative-revenue probe failed:', err);
   }
 
   // Sort: critical first, then warning, then info
@@ -1006,14 +1067,10 @@ const Q2_TARGET = 400_000;
 const Q2_START = '2026-04-01';
 const Q2_END = '2026-06-30';
 
-// PCM invoice-verified pricing eras — matches dm-overview/compute.ts. Sum of
-// era rates per piece gives us an accurate Q2 cost estimate without needing
-// PCM's invoice endpoint.
-function pcmEraRate(dateISO: string, mc: 'fc' | 'std'): number {
-  if (dateISO <= '2025-06-27') return mc === 'fc' ? 0.94 : 0.74;
-  if (dateISO <= '2025-10-31') return mc === 'fc' ? 1.14 : 0.93;
-  return mc === 'fc' ? 0.87 : 0.63;
-}
+// PCM pricing eras + billed-status filter come from the canonical helper in
+// `@/lib/pcm-pricing-eras`. Previous local copy here had Era 2 FC at $1.14
+// while the canonical module had $1.16 (Camilo-verified invoice rate);
+// consolidating prevents drift across Q2 goal vs Profitability.
 
 async function getQ2Goal(domain?: string): Promise<ReturnType<typeof NextResponse.json>> {
   const cacheKey = `rapid-response:q2-goal:${domain || 'all'}`;
@@ -1038,8 +1095,11 @@ async function getQ2Goal(domain?: string): Promise<ReturnType<typeof NextRespons
       if (o.canceled || o.isTestDomain) continue;
       if (!o.date || o.date < Q2_START || o.date > Q2_END) continue;
       if (safeDomain && o.domain !== safeDomain) continue;
+      // Hero counts dispatched volume (all statuses) — that's the Q2 send
+      // target. Cost accrues only when PCM bills the piece (Delivered /
+      // Undeliverable) so totals reconcile to PCM portal's "Amount Spent".
       currentSends++;
-      const rate = pcmEraRate(o.date, o.mailClass);
+      const rate = isPcmBilled(o.status) ? pcmRate(o.date, o.mailClass) : 0;
       totalCost += rate;
       const entry = perDomain.get(o.domain) || { sends: 0, cost: 0 };
       entry.sends++;
@@ -1085,6 +1145,21 @@ async function getQ2Goal(domain?: string): Promise<ReturnType<typeof NextRespons
       AND ${domainFilter(domain)}
   `);
   const deliveredCount = Number(deliveredRows[0]?.delivered || 0);
+
+  // Per-domain delivered count — drives the Top contributors "Pieces delivered" column.
+  // Independent of the PCM/Aurora branch decision below because PCM /order doesn't
+  // carry delivery state. rr_daily_metrics is the single source of truth here.
+  const deliveredByDomainRows = await runAuroraQuery(`
+    SELECT domain, COALESCE(SUM(delivered_count), 0) as delivered
+    FROM rr_daily_metrics
+    WHERE date >= '${Q2_START}' AND date <= '${Q2_END}'
+      AND ${domainFilter(domain)}
+    GROUP BY domain
+  `);
+  const deliveredByDomain = new Map<string, number>();
+  for (const r of deliveredByDomainRows as Record<string, unknown>[]) {
+    deliveredByDomain.set(String(r.domain || ''), Number(r.delivered || 0));
+  }
 
   // Fallback path: if PCM fetch returned nothing, use rr_daily_metrics for the
   // Q2 aggregate so the widget still renders with limited-history numbers.
@@ -1152,9 +1227,10 @@ async function getQ2Goal(domain?: string): Promise<ReturnType<typeof NextRespons
         // PCM path has no campaign-type split, so we look up lifetime from the
         // dm_client_funnel snapshot (authoritative pre-computed total).
         lifetimeSends: Number(r.lifetime_sends || lifetimeByDomain.get(d) || 0),
+        deliveredCount: deliveredByDomain.get(d) || 0,
       };
     })
-    .sort((a, b) => b.totalSends - a.totalSends);
+    .sort((a, b) => b.deliveredCount - a.deliveredCount);
 
   const data: RrQ2Goal = {
     target: Q2_TARGET,

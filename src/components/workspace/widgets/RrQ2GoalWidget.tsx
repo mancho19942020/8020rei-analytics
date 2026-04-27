@@ -2,12 +2,19 @@
  * Q2 Volume Goal Widget
  *
  * One question: "where do we stand vs the 400K Q2 target?"
- * Hero: a big progress bar with the current count and %.
- * 3 supporting pills: pace-vs-required, days remaining, Q2 spend.
+ * Goal definition (locked 2026-04-27): 400K letters DISPATCHED in Q2.
+ * Hero counts pieces PCM has accepted as orders — same all-status concept
+ * as the underlying goal. Delivery is tracked as a quality sub-metric.
  *
- * Data source (2026-04-17): PCM /order via shared in-memory cache (populated
- * by the 30-min /refresh cron). Falls back to rr_daily_metrics if the cache
- * is cold. Either way, numbers match Overview → Send volume trend for April.
+ * Hero: progress bar with "X of 400K" dispatched.
+ * 4 pills: Weekly pace, Days remaining, Delivered (Q2), In transit.
+ * (Q2 spend pill removed — cost lives on the Profitability tab; no need
+ * to duplicate here.)
+ *
+ * Data source: PCM /order via shared in-memory cache (populated by the
+ * 30-min /refresh cron). Falls back to rr_daily_metrics if the cache is
+ * cold. Delivered count comes from rr_daily_metrics.delivered_count
+ * summed over Q2 — independent of the dispatched source.
  */
 
 'use client';
@@ -56,7 +63,7 @@ export function RrQ2GoalWidget({ data }: RrQ2GoalWidgetProps) {
             {data.progressPercent}%
           </span>
         </div>
-        <AxisTooltip content="Total mail pieces sent across all clients in Q2 2026 (April 1 – June 30). Primary source: PCM /order — the same pagination the DM Campaign → Overview tab uses, filtered to the Q2 window. Aurora fallback (rr_daily_metrics, ~15 days) applies if the PCM cache is cold.">
+        <AxisTooltip content="Pieces dispatched in Q2 2026 (April 1 – June 30) across all clients. Goal: 400K dispatched by June 30. Source: PCM /order (orders PCM accepted) via shared cache, with rr_daily_metrics fallback. Counts dispatch volume — pieces handed off to PCM regardless of whether USPS has confirmed delivery yet. The Delivered (Q2) pill below shows how many of these have landed so far.">
           <div
             className="w-full rounded-full overflow-hidden cursor-help"
             style={{ height: 10, background: 'var(--surface-sunken)' }}
@@ -84,9 +91,19 @@ export function RrQ2GoalWidget({ data }: RrQ2GoalWidgetProps) {
           tooltip="Days left in Q2 2026 (ends June 30) vs days in the full quarter."
         />
         <AxisPill
-          label="Q2 spend"
-          value={`$${formatNumber(data.totalCost)}`}
-          tooltip="PCM cost for Q2 pieces sent so far (per-piece era rates × count)."
+          label="Delivered (Q2)"
+          value={formatNumber(data.deliveredCount)}
+          type={data.deliveredCount > 0 ? 'good' : 'default'}
+          tooltip={`Pieces from Q2 that USPS confirmed in a recipient's mailbox. ${
+            data.currentSends > 0
+              ? `That's ${((data.deliveredCount / data.currentSends) * 100).toFixed(1)}% of the ${formatNumber(data.currentSends)} dispatched so far.`
+              : 'Updates as deliveries get scanned.'
+          } Source: rr_daily_metrics.delivered_count summed across Q2. This is what the Top contributors widget breaks down per client.`}
+        />
+        <AxisPill
+          label="In transit"
+          value={formatNumber(Math.max(0, data.currentSends - data.deliveredCount))}
+          tooltip="Q2 pieces dispatched but not yet confirmed delivered. Includes pieces still in carrier transit, returned (retryable), undeliverable (bad address), or blocked (compliance). Expected to shrink as USPS scans land — large persistent gaps suggest list-quality issues."
         />
       </div>
     </div>
