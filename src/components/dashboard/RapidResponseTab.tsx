@@ -700,9 +700,7 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
         {/* Operational Health sub-tab (current view) */}
         {activeSubTab === 'operational-health' && (
           <>
-            <p className="text-sm text-content-secondary leading-relaxed">
-              Engine room — campaign status, letter dispatch / delivery / on-hold, and Q2 progress (400K target). Hourly snapshot from the monolith.
-            </p>
+            <FreshnessTag label="Updated hourly · monolith → Aurora" />
             {/* Domain with no data — clean empty state */}
             {selectedDomain && !loading && data && data.campaigns.length === 0 && data.dailyTrend.length === 0 && data.alerts.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -791,9 +789,7 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
         {/* Business Results sub-tab */}
         {activeSubTab === 'business-results' && (
           <>
-            <p className="text-sm text-content-secondary leading-relaxed">
-              Customer scoreboard — for each client cohort, the funnel mailed → leads → appointments → contracts → deals, with cost vs revenue. Hourly snapshot.
-            </p>
+            <FreshnessTag label="Updated hourly · monolith → Aurora" />
             {(brLoading || !brData) ? (
               <div className="space-y-4">
                 <AxisSkeleton variant="widget" height="80px" fullWidth />
@@ -851,9 +847,7 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
         {/* PCM Validation sub-tab */}
         {activeSubTab === 'pcm-validation' && (
           <>
-            <p className="text-sm text-content-secondary leading-relaxed">
-              P&L view — revenue, PCM cost, and margin per client and overall, plus current rates and data-trust signals. Headline cache 30 min, Aurora hourly.
-            </p>
+            <FreshnessTag label="Updated every 30 min (PCM cache) · hourly (Aurora)" />
             {(pcmLoading || !pcmData) ? (
               <div className="space-y-4">
                 <AxisSkeleton variant="widget" height="80px" fullWidth />
@@ -903,3 +897,20 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
     );
   }
 );
+
+/** Small inline freshness indicator — explains how often the tab's data refreshes. */
+function FreshnessTag({ label }: { label: string }) {
+  return (
+    <div className="flex">
+      <AxisTag color="neutral" size="sm" variant="outlined">
+        <span className="inline-flex items-center gap-1">
+          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <circle cx="12" cy="12" r="9" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 7v5l3 2" />
+          </svg>
+          {label}
+        </span>
+      </AxisTag>
+    </div>
+  );
+}
