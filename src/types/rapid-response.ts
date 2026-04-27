@@ -209,6 +209,10 @@ export interface RrQ2GoalClientRow {
   campaignType: string;
   totalSends: number;
   lifetimeSends: number;
+  /** Pieces with status='delivered' in Q2 window — sourced from rr_daily_metrics.delivered_count.
+   *  Used by the Top contributors widget to surface "letters that actually arrived" rather than
+   *  raw dispatched volume. */
+  deliveredCount: number;
 }
 
 export interface RrQ2Goal {

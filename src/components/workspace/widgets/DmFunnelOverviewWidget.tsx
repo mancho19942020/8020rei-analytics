@@ -65,8 +65,8 @@ export function DmFunnelOverviewWidget({ data, selectedDomain }: DmFunnelOvervie
   }, []);
 
   const stages: FunnelStage[] = useMemo(() => [
-    { label: 'Mailed', count: data.totalMailed, rate: null, rateLabel: null, color: STAGE_COLORS[0], drilldownStatus: 'mailed' },
-    { label: 'Leads', count: data.leads, rate: data.prospectToLeadRate, rateLabel: 'Mailed \u2192 Lead', color: STAGE_COLORS[1], drilldownStatus: 'lead' },
+    { label: 'Total delivered', count: data.totalMailed, rate: null, rateLabel: null, color: STAGE_COLORS[0], drilldownStatus: 'delivered' },
+    { label: 'Leads', count: data.leads, rate: data.prospectToLeadRate, rateLabel: 'Delivered \u2192 Lead', color: STAGE_COLORS[1], drilldownStatus: 'lead' },
     { label: 'Appointments', count: data.appointments, rate: data.leadToAppointmentRate, rateLabel: 'Lead \u2192 Appt', color: STAGE_COLORS[2], drilldownStatus: 'appointment' },
     { label: 'Contracts', count: data.contracts, rate: data.appointmentToContractRate, rateLabel: 'Appt \u2192 Contract', color: STAGE_COLORS[3], drilldownStatus: 'contract' },
     { label: 'Deals', count: data.deals, rate: data.contractToDealRate, rateLabel: 'Contract \u2192 Deal', color: STAGE_COLORS[4], drilldownStatus: 'deal' },
@@ -159,7 +159,7 @@ export function DmFunnelOverviewWidget({ data, selectedDomain }: DmFunnelOvervie
             <span className="text-2xl font-bold tracking-tight" style={{ color: 'var(--color-main-500)' }}>
               {data.totalMailed.toLocaleString()}
             </span>
-            <span className="text-xs font-medium uppercase" style={{ color: 'var(--text-tertiary)' }}>mailed</span>
+            <span className="text-xs font-medium uppercase" style={{ color: 'var(--text-tertiary)' }}>delivered</span>
           </div>
           <span className="text-base" style={{ color: 'var(--text-tertiary)' }}>→</span>
           <div className="flex items-baseline gap-1.5">
@@ -188,7 +188,7 @@ export function DmFunnelOverviewWidget({ data, selectedDomain }: DmFunnelOvervie
             </span>
           </AxisTooltip>
           <AxisTooltip
-            content="Revenue from deals whose log_status_properties Deal row carries the DM campaign's rapid_response_id (strict attribution — same definition as the platform per-campaign view). Excludes deals that closed through other channels even if the property was on the mailing list. Client ROI — NOT 8020REI's company revenue (that's on Profitability → Margin summary)."
+            content="Revenue from deals whose log_status_properties Deal row carries the DM campaign's rapid_response_id. Mirrors the platform's per-campaign detail page exactly. Excludes deals that closed through other channels even if the property was on the mailing list. Client ROI — NOT 8020REI's company revenue (that's on Profitability → Margin summary)."
             placement="top"
             maxWidth={320}
           >

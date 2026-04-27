@@ -1,15 +1,21 @@
 /**
  * Q2 Top Contributors Widget
  *
- * Per-client contribution to Q2 volume — answers "who's mailing?"
- * 3 columns: Client, Pieces sent (Q2), Share. Dropped "% of goal" column
- * (2026-04-17) — less actionable than "share of all Q2 volume" and added
- * cognitive load without a clear read.
+ * Per-client contribution to Q2 volume. 4 columns: Client, Pieces sent,
+ * Pieces delivered, Share. The Pieces sent column reconciles back to the
+ * Q2 volume goal hero (sum across all rows = 15.8K dispatched); Pieces
+ * delivered is the subset of those that USPS confirmed in mailboxes.
+ * Showing both side-by-side prevents the "why doesn't this match the
+ * hero?" confusion when a viewer scans the table.
  *
- * Data source (2026-04-17): PCM /order via the shared in-memory cache →
- * Aurora fallback. Matches the Overview send-trend numbers for April.
+ * Data sources:
+ * - Pieces sent: PCM /order grouped by domain over Q2 window (matches the
+ *   Q2 hero's source exactly).
+ * - Pieces delivered: rr_daily_metrics.delivered_count grouped by domain
+ *   over Q2 — independent of PCM since /order doesn't carry USPS state.
  *
- * Clickable: domain name filters the platform, pieces sent opens drilldown.
+ * Clickable: domain name filters the platform; counts open the property
+ * drilldown for that status.
  */
 
 'use client';
@@ -38,7 +44,7 @@ export function RrQ2TopContributorsWidget({ data, onDomainClick }: RrQ2TopContri
     domain: string;
     status: DrilldownStatus;
     count: number;
-  }>({ open: false, domain: '', status: 'sent', count: 0 });
+  }>({ open: false, domain: '', status: 'delivered', count: 0 });
 
   const openDrilldown = useCallback((domain: string, status: DrilldownStatus, count: number) => {
     setDrilldown({ open: true, domain, status, count });
@@ -48,7 +54,7 @@ export function RrQ2TopContributorsWidget({ data, onDomainClick }: RrQ2TopContri
     setDrilldown(prev => ({ ...prev, open: false }));
   }, []);
 
-  const totalSendsAll = data.reduce((sum, r) => sum + r.totalSends, 0);
+  const totalSentAll = data.reduce((sum, r) => sum + r.totalSends, 0);
 
   const columns: Column[] = [
     {
@@ -74,9 +80,9 @@ export function RrQ2TopContributorsWidget({ data, onDomainClick }: RrQ2TopContri
       header: 'Pieces sent',
       type: 'number',
       width: 120,
-      minWidth: 90,
+      minWidth: 100,
       align: 'center',
-      headerTooltip: 'Mail pieces dispatched by this client during Q2 (April 1 – June 30). Click to see individual properties.',
+      headerTooltip: 'Mail pieces dispatched to PCM in Q2 (April 1 – June 30). Source: PCM /order grouped by domain. Sum across all rows reconciles to the Q2 volume goal hero (left tile) — same source, same window.',
       render: (value: CellValue, row: RowData) => {
         const count = Number(value || 0);
         if (count === 0) return <span style={{ color: 'var(--text-tertiary)' }}>0</span>;
@@ -89,7 +95,34 @@ export function RrQ2TopContributorsWidget({ data, onDomainClick }: RrQ2TopContri
               e.stopPropagation();
               openDrilldown(String(row?.domain || ''), 'sent', count);
             }}
-            title={`View ${count} sent properties`}
+            title={`View ${count.toLocaleString()} dispatched pieces`}
+          >
+            {count.toLocaleString()}
+          </button>
+        );
+      },
+    },
+    {
+      field: 'deliveredCount',
+      header: 'Pieces delivered',
+      type: 'number',
+      width: 140,
+      minWidth: 110,
+      align: 'center',
+      headerTooltip: 'Of pieces this client dispatched in Q2, how many USPS confirmed in a mailbox. Source: rr_daily_metrics.delivered_count, summed by client. Always ≤ Pieces sent (the rest are in transit, returned, or undeliverable).',
+      render: (value: CellValue, row: RowData) => {
+        const count = Number(value || 0);
+        if (count === 0) return <span style={{ color: 'var(--text-tertiary)' }}>0</span>;
+        return (
+          <button
+            type="button"
+            className="cursor-pointer hover:underline font-medium bg-transparent border-0 p-0"
+            style={{ color: 'var(--color-success-600, #16a34a)' }}
+            onClick={(e) => {
+              e.stopPropagation();
+              openDrilldown(String(row?.domain || ''), 'delivered', count);
+            }}
+            title={`View ${count.toLocaleString()} delivered properties`}
           >
             {count.toLocaleString()}
           </button>
@@ -99,13 +132,13 @@ export function RrQ2TopContributorsWidget({ data, onDomainClick }: RrQ2TopContri
     {
       field: 'share',
       header: 'Share',
-      width: 100,
+      width: 90,
       minWidth: 70,
       align: 'center',
-      headerTooltip: 'This client\'s share of all Q2 volume across clients — who\'s pulling the weight right now.',
+      headerTooltip: 'This client\'s share of all Q2 dispatched pieces — sums to 100% across all rows, and the absolute counts in Pieces sent reconcile to the 15.8K Q2 hero on the left.',
       render: (_value: CellValue, row: RowData) => {
-        const sends = Number(row?.totalSends || 0);
-        const pct = totalSendsAll > 0 ? ((sends / totalSendsAll) * 100).toFixed(1) : '0.0';
+        const sent = Number(row?.totalSends || 0);
+        const pct = totalSentAll > 0 ? ((sent / totalSentAll) * 100).toFixed(1) : '0.0';
         return (
           <span style={{ color: 'var(--text-secondary)' }}>{pct}%</span>
         );
@@ -114,14 +147,19 @@ export function RrQ2TopContributorsWidget({ data, onDomainClick }: RrQ2TopContri
   ];
 
   // Aggregate by domain (may have multiple rows per domain if both rr + smartdrop)
-  const byDomain = new Map<string, { totalSends: number; lifetimeSends: number }>();
+  const byDomain = new Map<string, { totalSends: number; lifetimeSends: number; deliveredCount: number }>();
   for (const row of data) {
     const existing = byDomain.get(row.domain);
     if (existing) {
       existing.totalSends += row.totalSends;
+      existing.deliveredCount += row.deliveredCount;
       existing.lifetimeSends = Math.max(existing.lifetimeSends, row.lifetimeSends);
     } else {
-      byDomain.set(row.domain, { totalSends: row.totalSends, lifetimeSends: row.lifetimeSends });
+      byDomain.set(row.domain, {
+        totalSends: row.totalSends,
+        lifetimeSends: row.lifetimeSends,
+        deliveredCount: row.deliveredCount,
+      });
     }
   }
 
@@ -131,6 +169,7 @@ export function RrQ2TopContributorsWidget({ data, onDomainClick }: RrQ2TopContri
       domain,
       totalSends: vals.totalSends,
       lifetimeSends: vals.lifetimeSends,
+      deliveredCount: vals.deliveredCount,
     }))
     .sort((a, b) => b.totalSends - a.totalSends);
 

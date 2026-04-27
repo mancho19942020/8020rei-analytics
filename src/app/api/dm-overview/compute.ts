@@ -44,8 +44,9 @@ export const TOTAL_8020REI_CLIENTS = 140;
 import {
   pcmRate as _pcmRate,
   computePcmInvoiceCost as _computePcmInvoiceCost,
+  isPcmBilled as _isPcmBilled,
 } from '@/lib/pcm-pricing-eras';
-export { pcmRate, computePcmInvoiceCost } from '@/lib/pcm-pricing-eras';
+export { pcmRate, computePcmInvoiceCost, isPcmBilled } from '@/lib/pcm-pricing-eras';
 
 function isTestDomain(domain: string): boolean {
   return TEST_DOMAIN_SET.has(domain);
@@ -339,7 +340,13 @@ export async function computeHeadline(orders: PcmOrderSlim[]) {
   const pcmCanceled = orders.filter((o) => o.canceled).length;
   const pcmTotalOrders = orders.length;
 
-  const auroraLifetimeSent = auroraSummary.totalSends;
+  // The Hub's "Total delivered" headline tile reads `lifetimePieces.aurora`.
+  // We deliberately point it at `dm_client_funnel.total_delivered` (pieces USPS
+  // confirmed in mailboxes), NOT `total_sends` (every dispatched piece across
+  // all statuses). The lifetime-dispatched count remains available via PCM's
+  // /order count — exposed in `lifetimePieces.pcm` for the Aurora-vs-PCM
+  // reconciliation row beneath the hero.
+  const auroraLifetimeSent = auroraSummary.totalDelivered;
   // Revenue from Aurora `dm_client_funnel.total_cost` — this column is reliable
   // (populated for every piece that gets sent). It's what 8020REI actually
   // charged clients.
@@ -374,10 +381,15 @@ export async function computeHeadline(orders: PcmOrderSlim[]) {
   let testFirstDate = '';
   let testLastDate = '';
   for (const o of testPcm) {
-    const rate = _pcmRate(o.date, o.mailClass);
     testDomains.add(o.domain);
     if (!testFirstDate || o.date < testFirstDate) testFirstDate = o.date;
     if (!testLastDate || o.date > testLastDate) testLastDate = o.date;
+
+    // Pieces tile shows lifetime test volume (all statuses) — useful for
+    // operational visibility. Cost only accrues once PCM bills it (Delivered
+    // or Undeliverable) so the totals reconcile to the PCM portal.
+    const billed = _isPcmBilled(o.status);
+    const rate = billed ? _pcmRate(o.date, o.mailClass) : 0;
 
     const entry = perTestDomain.get(o.domain) || { pieces: 0, cost: 0, firstDate: o.date, lastDate: o.date };
     entry.pieces++;
@@ -409,7 +421,7 @@ export async function computeHeadline(orders: PcmOrderSlim[]) {
       deltaPct: Number(deltaPiecesPct.toFixed(2)),
       auroraDomainCount,
       sourceNote:
-        'PCM is authoritative. Aurora (dm_client_funnel) may trail PCM by in-pipeline pieces (processing + mailing) not yet counted. Delta is surfaced, not hidden.',
+        'Hero "Total delivered" = dm_client_funnel.total_delivered (pieces USPS confirmed in a mailbox). PCM /order is shipped pieces (PCM\'s "Total Recipients" — what they handed to USPS, not what USPS landed). Delta = pieces in transit, returned, or undeliverable. Negative delta is expected and informative, not an error.',
     },
     companyMargin: {
       margin: Number(companyMargin.toFixed(2)),
@@ -535,7 +547,10 @@ export async function computeBalanceFlow(orders: PcmOrderSlim[]) {
   const daily = new Map<string, { pieces: number; cost: number; testCost: number }>();
   for (const o of orders) {
     if (o.canceled || !o.date) continue;
-    const rate = _pcmRate(o.date, o.mailClass);
+    // Pieces tile counts dispatched volume (all statuses). Cost only accrues
+    // once PCM bills the piece (Delivered / Undeliverable) so the daily cost
+    // bars reconcile to PCM portal's "Amount Spent". See pcm-pricing-eras.ts.
+    const rate = _isPcmBilled(o.status) ? _pcmRate(o.date, o.mailClass) : 0;
     const entry = daily.get(o.date) || { pieces: 0, cost: 0, testCost: 0 };
     if (!o.isTestDomain) entry.pieces++;
     entry.cost += rate;

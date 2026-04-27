@@ -7,7 +7,11 @@
  * ("the pills look too small / low hierarchy — use the same component as
  * Headline Metrics").
  *
- * Cards: Active campaigns · Letters sent · On hold.
+ * Cards: Active campaigns · Total delivered · On hold.
+ * The middle card mirrors DM Campaign → Overview → Total delivered exactly:
+ * same label, same hero (dm_client_funnel.total_delivered), same PCM-shipped
+ * sub-line, same source note. Two widgets, one number — no cross-tab drift.
+ *
  * "Is it working?" (rr-quality-metrics) and "Is it aligned?" (rr-pcm-health)
  * remain as separate widgets below — Germán kept those as-is.
  */
@@ -49,7 +53,7 @@ const OnHoldIcon = () => (
 );
 
 export function RrOpsStatusStripWidget({ pulse, quality }: Props) {
-  const { activeCampaigns, totalCampaigns, sendsToday, sendsThisMonth, totalOnHold, staleOnHold, freshOnHold, oldestOnHoldDays } = pulse;
+  const { activeCampaigns, totalCampaigns, totalOnHold } = pulse;
 
   // Active campaigns — color follows health.
   const activeBg =
@@ -63,33 +67,37 @@ export function RrOpsStatusStripWidget({ pulse, quality }: Props) {
       ? `${totalCampaigns - activeCampaigns} inactive in portfolio`
       : 'No campaigns registered';
 
-  // Letters sent — lifetime from PCM (fallback Aurora) + monthly + today.
-  const lifetime = quality?.lifetimePiecesPcm ?? quality?.lifetimeSent ?? 0;
-  const lifetimeSource = quality?.lifetimePiecesPcm != null ? 'PCM' : 'Aurora';
-  const sentSub = `${abbreviate(sendsThisMonth)} this month · ${sendsToday.toLocaleString()} today`;
-  const sentSourceNote = `Lifetime: ${lifetimeSource}-authoritative count (matches Overview → Lifetime pieces). This month: SUM of rr_daily_metrics.sends_total since day 1 of the current month — auto-resets on the 1st. Today: same source, today's date.`;
+  // Total delivered — mirrors DM Campaign → Overview → Total delivered card.
+  // Hero reads dm_client_funnel.total_delivered (USPS-confirmed). Sub-line
+  // surfaces PCM shipped + the not-yet-delivered gap. Same numbers, same
+  // copy, same source-of-truth as the Overview tile — one card, two places.
+  const totalDelivered = quality?.lifetimeDelivered ?? 0;
+  const pcmShipped = quality?.lifetimePiecesPcm ?? 0;
+  const undelivered = Math.max(0, pcmShipped - totalDelivered);
+  const deliveredSub = pcmShipped === 0
+    ? 'No PCM /order data'
+    : `PCM shipped: ${abbreviate(pcmShipped)} · ${abbreviate(undelivered)} not yet delivered`;
+  const deliveredRatio = pcmShipped > 0 ? totalDelivered / pcmShipped : 1;
+  const deliveredTone: 'neutral' | 'warning' | 'info' = deliveredRatio < 0.85 ? 'warning' : 'info';
+  const deliveredSourceNote = 'Hero "Total delivered" = dm_client_funnel.total_delivered (pieces USPS confirmed in a mailbox). PCM /order is shipped pieces (PCM\'s "Total Recipients" — what they handed to USPS, not what USPS landed). Delta = pieces in transit, returned, or undeliverable. Negative delta is expected and informative, not an error. Same number you see on DM Campaign → Overview → Total delivered.';
+  const deliveredInconsistency = pcmShipped > 0 && deliveredRatio < 0.85
+    ? `Only ${(deliveredRatio * 100).toFixed(1)}% of pieces PCM shipped are confirmed delivered. The rest are in transit, returned, or undeliverable. Larger gap can also mean sync lag — see DM Campaign → Operational Health → "Is it aligned?" for per-domain breakdown.`
+    : undefined;
 
-  // On hold — red if stale > 0, alert if any on-hold but fresh, grey otherwise.
-  const onHoldBg =
-    staleOnHold > 0
-      ? 'bg-error-700'
-      : totalOnHold > 0
-        ? 'bg-alert-700'
-        : 'bg-content-tertiary';
+  // On hold — alert tone if there are pieces queued, neutral otherwise.
+  // The previous "stale Nd" badge was driven by snapshot-history continuity,
+  // not per-piece age, and over-stated the issue once the platform's auto-
+  // delivery timer was rotating the queue. Per-piece age (oldest_on_hold_at)
+  // arrives with monolith PR #2015; until then, just show the count and
+  // direct users to the Campaigns table for last-sent context.
+  const onHoldBg = totalOnHold > 0 ? 'bg-alert-700' : 'bg-content-tertiary';
   const onHoldSub =
     totalOnHold === 0
       ? 'None on hold'
-      : staleOnHold > 0
-        ? `${staleOnHold.toLocaleString()} stale · oldest ${oldestOnHoldDays}d`
-        : `All ${freshOnHold.toLocaleString()} fresh (< 7d)`;
+      : 'See Campaigns table for last-sent context';
   const onHoldSourceNote =
-    'Mailings currently paused (usually insufficient client balance). "Stale" = on hold ≥ 7 days — the monolith\'s auto-delivery timer should have converted them to undelivered but hasn\'t. See the Campaigns table for the offending rows.';
-  const onHoldInconsistency =
-    staleOnHold > 0
-      ? `${staleOnHold.toLocaleString()} mailings have been stuck in 'on hold' for 7+ days — overdue for the monolith's auto-delivery timer. Oldest piece: ${oldestOnHoldDays} days. Usually means the client's account balance ran out and no top-up happened, or the timer job isn't running.`
-      : undefined;
-  const onHoldTone: 'neutral' | 'warning' | 'info' =
-    staleOnHold > 0 ? 'warning' : totalOnHold > 0 ? 'info' : 'neutral';
+    'Mailings currently paused (usually insufficient client balance or compliance block). For per-campaign "last sent" context use the Campaigns table below — campaigns whose last_sent_date is far behind today are the ones that have stopped dispatching. Per-piece on-hold age will surface here once monolith PR #2015 ships oldest_on_hold_at.';
+  const onHoldTone: 'neutral' | 'warning' | 'info' = totalOnHold > 0 ? 'info' : 'neutral';
 
   return (
     <div className="flex w-full h-full flush-cards">
@@ -103,13 +111,14 @@ export function RrOpsStatusStripWidget({ pulse, quality }: Props) {
         sourceNote="Campaigns with status 'active' in the latest snapshot / total campaigns ever created. Source: rr_campaign_snapshots. Matches DM Campaign → Overview → Active campaigns card exactly."
       />
       <HeadlineCard
-        label="Letters sent"
-        hero={abbreviate(lifetime)}
-        sub={sentSub}
+        label="Total delivered"
+        hero={abbreviate(totalDelivered)}
+        sub={deliveredSub}
         icon={<PiecesIcon />}
         iconBg="bg-accent-1-700"
-        secondaryTone="info"
-        sourceNote={sentSourceNote}
+        secondaryTone={deliveredTone}
+        sourceNote={deliveredSourceNote}
+        inconsistency={deliveredInconsistency}
       />
       <HeadlineCard
         label="On hold"
@@ -119,7 +128,6 @@ export function RrOpsStatusStripWidget({ pulse, quality }: Props) {
         iconBg={onHoldBg}
         secondaryTone={onHoldTone}
         sourceNote={onHoldSourceNote}
-        inconsistency={onHoldInconsistency}
       />
     </div>
   );

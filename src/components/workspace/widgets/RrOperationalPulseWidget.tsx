@@ -48,7 +48,7 @@ export function RrOperationalPulseWidget({ data }: RrOperationalPulseWidgetProps
         label="Active campaigns"
         value={`${data.activeCampaigns} / ${data.totalCampaigns}`}
         type={data.activeCampaigns === 0 && data.totalCampaigns > 0 ? 'bad' : 'default'}
-        tooltip="Campaigns with status 'active' in the latest snapshot / total campaigns ever created. One client domain can have multiple campaigns. Source: rr_campaign_snapshots. Note: 'campaign' is an 8020REI abstraction — PCM tracks individual orders (mail pieces), not campaigns. Cross-tab equality is at the piece level (see 'Is it working?' → Lifetime pieces, which matches PCM). Same active/total appears in DM Campaign → Overview → Active campaigns card."
+        tooltip="Campaigns with status 'active' in the latest snapshot / total campaigns ever created. One client domain can have multiple campaigns. Source: rr_campaign_snapshots. Note: 'campaign' is an 8020REI abstraction — PCM tracks individual orders (mail pieces), not campaigns. Same active/total appears in DM Campaign → Overview → Active campaigns card. For piece-level reconciliation against PCM, see DM Campaign → Overview → Total delivered."
       />
       <AxisPill
         label="Sends today"
@@ -63,20 +63,12 @@ export function RrOperationalPulseWidget({ data }: RrOperationalPulseWidgetProps
       />
       <AxisPill
         label="On hold"
-        value={
-          data.totalOnHold === 0
-            ? '0'
-            : data.staleOnHold > 0
-              ? `${data.totalOnHold.toLocaleString('en-US')} (${data.staleOnHold.toLocaleString('en-US')} stale)`
-              : `${data.totalOnHold.toLocaleString('en-US')} (all fresh)`
-        }
-        type={data.staleOnHold > 0 ? 'bad' : data.totalOnHold > 0 ? 'default' : 'default'}
+        value={data.totalOnHold === 0 ? '0' : data.totalOnHold.toLocaleString('en-US')}
+        type={data.totalOnHold > 0 ? 'default' : 'default'}
         tooltip={
-          data.staleOnHold > 0
-            ? `${data.totalOnHold.toLocaleString('en-US')} mailings on hold. ${data.staleOnHold.toLocaleString('en-US')} have been on-hold ≥ 7 days (stale) — the monolith's auto-delivery timer should have converted them to 'undelivered' but hasn't. ${data.freshOnHold.toLocaleString('en-US')} are < 7 days old (fresh, within normal window). Oldest piece: ${data.oldestOnHoldDays} days. Stale count = 0 means the timer is keeping up; any stale count means pieces are overdue for conversion. See Campaigns table below for the offending campaigns.`
-            : data.totalOnHold > 0
-              ? `${data.totalOnHold.toLocaleString('en-US')} mailings on hold — all within the normal 7-day window (fresh). No pieces overdue for the monolith's auto-delivery timer.`
-              : 'No mailings on hold. All clients have sufficient balance.'
+          data.totalOnHold > 0
+            ? `${data.totalOnHold.toLocaleString('en-US')} mailings currently in 'on hold' status — queued but not yet dispatched. Usually means insufficient client balance or a compliance block. For per-campaign "last sent" context to identify campaigns that have stopped dispatching, see the Campaigns table below. Per-piece on-hold age (truthful "oldest piece N days") will surface here once monolith PR #2015 ships oldest_on_hold_at — until then we don't show an age claim because the only available metric (snapshot-history continuity) over-states it once the platform's auto-delivery timer is rotating the queue.`
+            : 'No mailings on hold. All clients have sufficient balance and no compliance blocks.'
         }
       />
       <AxisPill

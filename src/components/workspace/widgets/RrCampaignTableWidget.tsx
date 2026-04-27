@@ -159,15 +159,15 @@ export function RrCampaignTableWidget({ data, onDomainClick }: RrCampaignTableWi
       },
     },
     {
-      field: 'totalSent',
-      header: 'Sent',
-      headerTooltip: 'Total mail pieces sent (includes multiple sends to the same property). Not the same as "Mailed" in Business Results, which counts unique properties.',
+      field: 'totalDelivered',
+      header: 'Delivered',
+      headerTooltip: 'Mail pieces confirmed delivered to a property (USPS scanned in the recipient\'s mailbox). Cumulative — once delivered, a piece stays delivered. Matches the platform\'s status="Delivered" filter on the campaign\'s Properties tab.',
       type: 'number',
       width: 90,
       align: 'center',
       render: (value: CellValue, row: RowData) => {
-        const count = Number(value || 0);
-        if (count === 0) return <span style={{ color: 'var(--text-tertiary)' }}>0</span>;
+        const delivered = Number(value || 0);
+        if (delivered === 0) return <span style={{ color: 'var(--text-tertiary)' }}>0</span>;
         return (
           <button
             type="button"
@@ -175,42 +175,11 @@ export function RrCampaignTableWidget({ data, onDomainClick }: RrCampaignTableWi
             style={{ color: 'var(--color-main-500)' }}
             onClick={(e) => {
               e.stopPropagation();
-              openDrilldown(String(row?.domain || ''), 'sent', count, Number(row?.campaignId || 0), String(row?.campaignName || ''));
-            }}
-            title={`View ${count} sent properties`}
-          >
-            {count.toLocaleString()}
-          </button>
-        );
-      },
-    },
-    {
-      field: 'totalDelivered',
-      header: 'Delivered',
-      headerTooltip: 'Total mail pieces confirmed delivered. Should never exceed Sent.',
-      type: 'number',
-      width: 90,
-      align: 'center',
-      render: (value: CellValue, row: RowData) => {
-        const delivered = Number(value || 0);
-        const sent = Number(row?.totalSent || 0);
-        const impossible = delivered > sent && sent > 0;
-        if (delivered === 0) return <span style={{ color: 'var(--text-tertiary)' }}>0</span>;
-        return (
-          <button
-            type="button"
-            className="cursor-pointer hover:underline font-medium bg-transparent border-0 p-0"
-            style={{ color: impossible ? 'var(--color-error-500)' : 'var(--color-main-500)' }}
-            onClick={(e) => {
-              e.stopPropagation();
               openDrilldown(String(row?.domain || ''), 'delivered', delivered, Number(row?.campaignId || 0), String(row?.campaignName || ''));
             }}
-            title={impossible
-              ? `Data issue: delivered (${delivered}) exceeds sent (${sent}). Click to view properties.`
-              : `View ${delivered} delivered properties`}
+            title={`View ${delivered.toLocaleString()} delivered properties`}
           >
             {delivered.toLocaleString()}
-            {impossible && <span className="text-xs ml-0.5">⚠</span>}
           </button>
         );
       },
@@ -218,40 +187,42 @@ export function RrCampaignTableWidget({ data, onDomainClick }: RrCampaignTableWi
     {
       field: 'onHoldCount',
       header: 'On hold',
-      headerTooltip: 'Mail pieces waiting to be sent (queued but not yet dispatched). Badge shows whether the campaign has been in hold for ≥ 7 days (stale — overdue for the monolith\'s auto-delivery timer to flip them to undelivered) or < 7 days (fresh — within the normal window). Stale pieces indicate the timer is not running for that campaign.',
-      width: 140,
+      headerTooltip: 'Mail pieces currently in "On hold" status — queued but not yet dispatched (usually waiting on client balance or compliance clearance). The badge next to the count shows the days since the campaign last successfully dispatched a piece (last_sent_date). When that age grows large but the on-hold count stays high, the campaign has stopped sending — that\'s the actionable signal (typically client balance ran out). The age badge is NOT per-piece on-hold age; once monolith PR #2015 deploys, a separate "oldest piece" age will surface in this column.',
+      width: 160,
       align: 'center',
       render: (value: CellValue, row: RowData) => {
         const n = Number(value);
         if (n === 0) {
           return <span style={{ color: 'var(--text-tertiary)' }}>0</span>;
         }
-        const bucket = row.onHoldAgeBucket as 'stale' | 'fresh' | null;
-        const days = row.daysSinceFirstHold as number | null;
-        const isStale = bucket === 'stale';
+        const lastSentIso = row.lastSentDate as string | null;
+        const lastSentDays = daysSince(lastSentIso);
+        // 7+ days without dispatch while pieces sit in queue = something is
+        // blocking the pipeline (balance / compliance). Surface as a warning.
+        const isStuck = lastSentDays !== null && lastSentDays >= 7;
         return (
           <span className="inline-flex items-center gap-1.5">
             <span
               className="font-semibold"
-              style={{ color: isStale ? 'var(--color-error-600, #dc2626)' : 'var(--color-alert-700, #b45309)' }}
+              style={{ color: isStuck ? 'var(--color-error-600, #dc2626)' : 'var(--color-alert-700, #b45309)' }}
             >
               {n.toLocaleString('en-US')}
             </span>
-            {bucket && (
+            {lastSentDays !== null && (
               <span
-                className="text-[10px] font-medium px-1.5 py-0.5 rounded"
+                className="text-[10px] font-medium px-1.5 py-0.5 rounded whitespace-nowrap"
                 style={{
-                  backgroundColor: isStale ? 'var(--color-error-50, #fef2f2)' : 'var(--color-alert-50, #fffbeb)',
-                  color: isStale ? 'var(--color-error-700, #b91c1c)' : 'var(--color-alert-700, #b45309)',
-                  border: `1px solid ${isStale ? 'var(--color-error-300, #fca5a5)' : 'var(--color-alert-300, #fcd34d)'}`,
+                  backgroundColor: isStuck ? 'var(--color-error-50, #fef2f2)' : 'var(--color-alert-50, #fffbeb)',
+                  color: isStuck ? 'var(--color-error-700, #b91c1c)' : 'var(--color-alert-700, #b45309)',
+                  border: `1px solid ${isStuck ? 'var(--color-error-300, #fca5a5)' : 'var(--color-alert-300, #fcd34d)'}`,
                 }}
                 title={
-                  isStale
-                    ? `Stale: on-hold ≥ 7 days (currently ${days ?? '?'} days). Overdue for the monolith's auto-delivery timer.`
-                    : `Fresh: on-hold < 7 days (currently ${days ?? '?'} days). Within normal window.`
+                  isStuck
+                    ? `Campaign last dispatched a piece ${lastSentDays} days ago but still has ${n} on hold. Pieces are entering the queue but not getting sent — usually means the client's balance ran out or there's a compliance block. This is the per-campaign "stopped sending" signal; per-piece age is a separate (in-flight) metric.`
+                    : `Campaign last dispatched ${lastSentDays} days ago. Queue is rotating normally.`
                 }
               >
-                {isStale ? `stale ${days}d` : 'fresh'}
+                {`last sent ${lastSentDays}d ago`}
               </span>
             )}
           </span>
@@ -271,8 +242,7 @@ export function RrCampaignTableWidget({ data, onDomainClick }: RrCampaignTableWi
       totalSent: c.totalSent,
       totalDelivered: c.totalDelivered,
       onHoldCount: c.onHoldCount,
-      daysSinceFirstHold: c.daysSinceFirstHold,
-      onHoldAgeBucket: c.onHoldAgeBucket,
+      lastSentDate: c.lastSentDate,
       stoppedAt: c.stoppedAt,
       stoppedAtSource: c.stoppedAtSource,
     })),

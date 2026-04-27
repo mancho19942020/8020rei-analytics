@@ -44,6 +44,30 @@ export const PCM_ERAS: readonly PcmEra[] = [
 ];
 
 /**
+ * Statuses where PCM has billed 8020REI for the piece.
+ *
+ * Verified 2026-04-27 by paginating 29,373 PCM /order records and reconciling
+ * to the PCM portal "Amount Spent" $22,457.29:
+ *   - Delivered + Undeliverable = $22,490.68 (within $33 / 0.1% of portal)
+ *   - Delivered + Mailing + Processing + Undeliverable = $24,571.21 (overstates ~9.4%)
+ *
+ * Conclusion: PCM only invoices a piece once it reaches a terminal status
+ * (Delivered or Undeliverable). Pieces still in transit (Processing, Mailing)
+ * have not been billed yet, even though they will be at the same era rate.
+ *
+ * Use isPcmBilled(status) to gate cost-summing loops so the Hub's PCM cost
+ * matches the PCM portal's authoritative "Amount Spent" figure. Era rates
+ * are still per-piece-correct — only the FILTER changes.
+ *
+ * Lowercased to match how PcmOrderSlim.status is stored.
+ */
+const BILLED_STATUSES: ReadonlySet<string> = new Set(['delivered', 'undeliverable']);
+
+export function isPcmBilled(status: string | null | undefined): boolean {
+  return !!status && BILLED_STATUSES.has(status.toLowerCase());
+}
+
+/**
  * Find the PCM era covering a given date (YYYY-MM-DD).
  * Returns the latest era as a fallback if no match (should not happen with
  * the current era list since era 3 extends to 2099).
@@ -73,11 +97,28 @@ export function currentPcmRates(): { fc: number; std: number; era: PcmEra } {
 }
 
 /**
- * Sum era-rate PCM cost over a list of orders. Orders should already be
- * filtered (non-canceled, non-test-domain). Returns a rounded-to-cent value.
+ * Sum era-rate PCM cost over a list of orders.
+ *
+ * Callers should pre-filter for canceled / test domain etc. — this function
+ * is purely about the cost math.
+ *
+ * If an order has a `status` field, this function applies the billed-status
+ * filter automatically (only Delivered / Undeliverable pieces contribute to
+ * cost — pieces still in Processing / Mailing are billed by PCM later, not
+ * now). Orders without a status are summed unconditionally for backward
+ * compatibility with callers that don't carry status (e.g. monthly aggregate
+ * rollups). The PcmOrderSlim shape always has status, so the live Profitability
+ * + Headline numbers will reconcile with PCM portal's "Amount Spent".
+ *
+ * Returns a rounded-to-cent value.
  */
-export function computePcmInvoiceCost(orders: Array<{ date: string; mailClass: 'fc' | 'std' }>): number {
+export function computePcmInvoiceCost(
+  orders: Array<{ date: string; mailClass: 'fc' | 'std'; status?: string }>
+): number {
   let total = 0;
-  for (const o of orders) total += pcmRate(o.date, o.mailClass);
+  for (const o of orders) {
+    if (o.status !== undefined && !isPcmBilled(o.status)) continue;
+    total += pcmRate(o.date, o.mailClass);
+  }
   return Math.round(total * 100) / 100;
 }

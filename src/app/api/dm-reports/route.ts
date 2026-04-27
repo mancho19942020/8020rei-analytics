@@ -18,7 +18,7 @@ import {
 } from '@/app/api/dm-overview/compute';
 import type { PcmOrderSlim } from '@/app/api/dm-overview/compute';
 // Single source of truth for PCM invoice-verified era rates
-import { PCM_ERAS, pcmRate, computePcmInvoiceCost, getPcmEra } from '@/lib/pcm-pricing-eras';
+import { PCM_ERAS, pcmRate, computePcmInvoiceCost, getPcmEra, isPcmBilled } from '@/lib/pcm-pricing-eras';
 
 // Customer pricing eras are NOT hardcoded — they are derived live from
 // `dm_volume_summary` via fetchCustomerEras(). When 8020REI changes platform
@@ -344,6 +344,10 @@ async function fetchClientProfitability() {
   if (orders) {
     for (const o of orders) {
       if (o.canceled || o.isTestDomain) continue;
+      // Only count pieces PCM has billed (Delivered / Undeliverable). Pieces
+      // still in Processing / Mailing will be billed later — counting them
+      // now would overstate cost vs the PCM portal. See pcm-pricing-eras.ts.
+      if (!isPcmBilled(o.status)) continue;
       pcmCostByDomain.set(o.domain, (pcmCostByDomain.get(o.domain) || 0) + pcmRate(o.date, o.mailClass));
     }
   }

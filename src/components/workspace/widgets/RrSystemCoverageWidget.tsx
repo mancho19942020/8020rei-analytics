@@ -84,7 +84,7 @@ export function RrSystemCoverageWidget({ data }: RrSystemCoverageWidgetProps) {
         icon={<PropertiesIcon />}
         iconBgClass="bg-accent-2-700"
         format="number"
-        subtitle={hasPropertyData ? 'Distinct property records in the conversion tracking system. A single property that was mailed multiple times counts as 1 here; for total mail pieces, see "Is it working?" → Lifetime pieces.' : 'Property data pending monolith fix'}
+        subtitle={hasPropertyData ? 'Distinct property records in the conversion tracking system. A single property that received multiple pieces counts as 1 here; for total deliveries see DM Campaign → Overview → Total delivered.' : 'Property data pending monolith fix'}
       />
       <MetricCard
         label="Attribution rate"
