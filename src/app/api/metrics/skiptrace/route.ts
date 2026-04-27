@@ -88,7 +88,9 @@ export async function GET() {
 
     for (const item of items) {
       const domain = item.DomainDate?.split('#')[0] ?? 'unknown';
-      const month  = new Date(item.CreatedAt).toISOString().slice(0, 7);
+      // Normalize: some older records store CreatedAt in seconds instead of ms
+      const createdAtMs = item.CreatedAt < 1e12 ? item.CreatedAt * 1000 : item.CreatedAt;
+      const month  = new Date(createdAtMs).toISOString().slice(0, 7);
 
       const ds_hits = item.ProviderStats?.directskip?.hits ?? 0;
       const bl_hits = item.ProviderStats?.batchleads?.hits ?? item.TotalHitsBatchLeads ?? 0;
@@ -99,8 +101,8 @@ export async function GET() {
       total_bl_hits += bl_hits;
       if (bl_hits > 0) blMonthMap[month] = (blMonthMap[month] ?? 0) + bl_hits;
 
-      // DS metrics, cache, and properties only within commitment period
-      if (item.CreatedAt >= COMMITMENT_START) {
+      // DS metrics, cache, and properties within commitment period (Mar–Jul)
+      if (createdAtMs >= COMMITMENT_START) {
         total_ds_hits += ds_hits;
         total_cache   += cache;
         total_props   += props;
@@ -120,7 +122,7 @@ export async function GET() {
         clientMap[domain].bl_hits     += bl_hits;
         clientMap[domain].cache_hits  += cache;
         clientMap[domain].total_props += props;
-        clientMap[domain].last_active_ms = Math.max(clientMap[domain].last_active_ms, item.CreatedAt);
+        clientMap[domain].last_active_ms = Math.max(clientMap[domain].last_active_ms, createdAtMs);
         if (COMMITMENT_MONTHS.includes(month)) clientMap[domain].months.add(month);
       }
     }
@@ -210,7 +212,7 @@ export async function GET() {
           used_hits: total_ds_hits,
           total: COMMITMENT_TOTAL,
           pct: (total_ds_hits / COMMITMENT_TOTAL) * 100,
-          monthly_target: COMMITMENT_TOTAL / 5,
+          monthly_target: COMMITMENT_TOTAL / COMMITMENT_MONTHS.length,
           projected_total: projected,
           days_elapsed,
           days_remaining,

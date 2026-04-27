@@ -443,7 +443,6 @@ export function getWeeklyCriticalBugsQuery(days: number = 7, startDate?: string,
     FROM ${BUGS_TABLE}
     WHERE type = 'Bug'
       AND bug_priority IN ('High', 'Highest')
-      AND (resolution IS NULL OR resolution = '')
       AND origin IN ('Clients', 'Internal User')
   `;
 }

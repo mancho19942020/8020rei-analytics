@@ -4027,6 +4027,10 @@ function buildViewsByAffiliationQuery(dateFilter: string): string {
       SELECT
         user_pseudo_id,
         event_name,
+        REGEXP_EXTRACT(
+          (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'page_location'),
+          r'https://([^.]+)\\.8020rei\\.com'
+        ) as client_subdomain,
         LAST_VALUE(
           (SELECT value.string_value FROM UNNEST(user_properties) WHERE key = 'user_affiliation')
           IGNORE NULLS
@@ -4036,7 +4040,11 @@ function buildViewsByAffiliationQuery(dateFilter: string): string {
           ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
         ) as affiliation,
         IF(event_name = 'user_engagement',
-          COALESCE((SELECT value.int_value FROM UNNEST(event_params) WHERE key = 'engagement_time_msec'), 0),
+          COALESCE(
+            (SELECT value.int_value   FROM UNNEST(event_params) WHERE key = 'engagement_time_msec'),
+            CAST((SELECT value.float_value FROM UNNEST(event_params) WHERE key = 'engagement_time_msec') AS INT64),
+            0
+          ),
           0
         ) as engagement_time_msec
       FROM ${TABLE}
@@ -4045,8 +4053,9 @@ function buildViewsByAffiliationQuery(dateFilter: string): string {
     SELECT
       COALESCE(affiliation, 'unclassified')                                  as affiliation,
       COUNT(DISTINCT user_pseudo_id)                                         as total_users,
+      COUNT(DISTINCT CASE WHEN client_subdomain IS NOT NULL AND LOWER(client_subdomain) NOT LIKE '%8020rei%' THEN client_subdomain END) as unique_domains,
       COUNTIF(event_name = 'page_view')                                      as page_views,
-      SAFE_DIVIDE(SUM(engagement_time_msec), COUNT(DISTINCT user_pseudo_id)) as avg_engagement_time_msec
+      SAFE_DIVIDE(SUM(engagement_time_msec), COUNT(DISTINCT CASE WHEN engagement_time_msec > 0 THEN user_pseudo_id END)) as avg_engagement_time_msec
     FROM session_affiliation
     WHERE affiliation IN ('internal', 'external')
     GROUP BY affiliation

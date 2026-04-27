@@ -13,6 +13,7 @@ import type { IntegrationStatusSummary, IntegrationStatusData, Ga4AffiliationVie
 interface AffiliationRow {
   affiliation: string;
   total_users: number;
+  unique_domains: number;
   page_views: number;
   avg_engagement_time_msec: number;
 }
@@ -38,6 +39,7 @@ function buildAffiliationViews(
   return {
     page_views: views,
     total_users: row?.total_users ?? 0,
+    unique_client_domains: row?.unique_domains ?? 0,
     avg_session_min: avgSessionMin(msec),
     views_change_pct: pctChange(views, prevViews),
     session_change_pct: pctChange(msec, prevMsec),
