@@ -42,7 +42,7 @@ function fmtPct(n: number): string {
 type PaceAccent = 'success' | 'alert' | 'error';
 
 function getCommitmentPace(usedHits: number): {
-  label: string; sub: string; accent: PaceAccent;
+  label: string; accent: PaceAccent; hitsPct: number; timelinePct: number;
 } {
   const now          = Date.now();
   const daysElapsed  = Math.max(0, Math.floor((now - COMMITMENT_PACE_START) / 86_400_000));
@@ -50,10 +50,10 @@ function getCommitmentPace(usedHits: number): {
   const hitsPct      = (usedHits / COMMITMENT_TOTAL) * 100;
   const delta        = hitsPct - timelinePct;
 
-  if (delta >= 5)   return { label: 'Optimal pace',     sub: 'Ahead of target',    accent: 'success' };
-  if (delta >= -5)  return { label: 'On track',         sub: 'Meeting target',     accent: 'success' };
-  if (delta >= -15) return { label: 'Slightly behind',  sub: 'Keep up the pace',   accent: 'alert'   };
-  return              { label: 'Behind pace',       sub: 'Catch up needed',    accent: 'error'   };
+  if (delta >= 5)   return { label: 'Optimal pace',    accent: 'success', hitsPct, timelinePct };
+  if (delta >= -5)  return { label: 'On track',        accent: 'success', hitsPct, timelinePct };
+  if (delta >= -15) return { label: 'Slightly behind', accent: 'alert',   hitsPct, timelinePct };
+  return              { label: 'Behind pace',      accent: 'error',   hitsPct, timelinePct };
 }
 
 function CommitmentStatusBadge({ usedHits }: { usedHits: number }) {
@@ -67,7 +67,11 @@ function CommitmentStatusBadge({ usedHits }: { usedHits: number }) {
   return (
     <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-medium ${styles[pace.accent]}`}>
       <span>{icons[pace.accent]}</span>
-      {pace.label} — {pace.sub}
+      {pace.label}
+      <span className="opacity-60">·</span>
+      <span>{pace.hitsPct.toFixed(1)}% complete</span>
+      <span className="opacity-40">vs</span>
+      <span>{pace.timelinePct.toFixed(1)}% expected</span>
     </span>
   );
 }
