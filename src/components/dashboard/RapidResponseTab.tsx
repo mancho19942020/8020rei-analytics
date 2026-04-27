@@ -16,7 +16,6 @@ import { useState, useEffect, useMemo, useCallback, forwardRef, useImperativeHan
 import { buildDateQueryString } from '@/lib/date-utils';
 import { AxisSkeleton, AxisCallout, AxisButton, AxisTag, AxisDomainSearch } from '@/components/axis';
 import { GridWorkspace, WidgetCatalog, WidgetSettings, Widget as WidgetShell } from '@/components/workspace';
-import { DmAlertsModal, getAlertCount } from '@/components/dashboard/DmAlertsModal';
 import {
   RrOperationalPulseWidget,
   RrOpsStatusStripWidget,
@@ -170,9 +169,6 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
     const [pcmData, setPcmData] = useState<any>(null);
     const [pcmLoading, setPcmLoading] = useState(true);
     const [pcmError, setPcmError] = useState<string | null>(null);
-
-    // Alerts modal state
-    const [alertsModalOpen, setAlertsModalOpen] = useState(false);
 
     // Load layout from localStorage or use default
     const [layout, setLayout] = useState<Widget[]>(() =>
@@ -698,53 +694,15 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
                 PCM API {pcmData.summary.pcmConnected ? 'connected' : 'disconnected'}
               </AxisTag>
             )}
-            {(() => {
-              const count = getAlertCount(activeSubTab, data?.alerts, brData?.alerts, pcmData?.priceAlert);
-              return (
-                <AxisButton
-                  variant={count > 0 ? 'outlined' : 'ghost'}
-                  size="sm"
-                  onClick={() => setAlertsModalOpen(true)}
-                  iconLeft={
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
-                    </svg>
-                  }
-                >
-                  Alerts{count > 0 && (
-                    <span
-                      className="inline-flex items-center justify-center rounded-full text-xs font-semibold"
-                      style={{
-                        marginLeft: 6,
-                        minWidth: 20,
-                        height: 20,
-                        padding: '0 6px',
-                        backgroundColor: 'var(--color-error-500, #ef4444)',
-                        color: '#fff',
-                      }}
-                    >
-                      {count}
-                    </span>
-                  )}
-                </AxisButton>
-              );
-            })()}
           </div>
         </div>
-
-        {/* Alerts Modal */}
-        <DmAlertsModal
-          open={alertsModalOpen}
-          onClose={() => setAlertsModalOpen(false)}
-          tab={activeSubTab as 'operational-health' | 'business-results' | 'pcm-validation'}
-          rrAlerts={data?.alerts}
-          dmAlerts={brData?.alerts}
-          priceAlert={pcmData?.priceAlert}
-        />
 
         {/* Operational Health sub-tab (current view) */}
         {activeSubTab === 'operational-health' && (
           <>
+            <p className="text-sm text-content-secondary leading-relaxed">
+              Engine room — campaign status, letter dispatch / delivery / on-hold, and Q2 progress (400K target). Hourly snapshot from the monolith.
+            </p>
             {/* Domain with no data — clean empty state */}
             {selectedDomain && !loading && data && data.campaigns.length === 0 && data.dailyTrend.length === 0 && data.alerts.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -833,6 +791,9 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
         {/* Business Results sub-tab */}
         {activeSubTab === 'business-results' && (
           <>
+            <p className="text-sm text-content-secondary leading-relaxed">
+              Customer scoreboard — for each client cohort, the funnel mailed → leads → appointments → contracts → deals, with cost vs revenue. Hourly snapshot.
+            </p>
             {(brLoading || !brData) ? (
               <div className="space-y-4">
                 <AxisSkeleton variant="widget" height="80px" fullWidth />
@@ -890,6 +851,9 @@ export const RapidResponseTab = forwardRef<TabHandle, RapidResponseTabProps>(
         {/* PCM Validation sub-tab */}
         {activeSubTab === 'pcm-validation' && (
           <>
+            <p className="text-sm text-content-secondary leading-relaxed">
+              P&L view — revenue, PCM cost, and margin per client and overall, plus current rates and data-trust signals. Headline cache 30 min, Aurora hourly.
+            </p>
             {(pcmLoading || !pcmData) ? (
               <div className="space-y-4">
                 <AxisSkeleton variant="widget" height="80px" fullWidth />

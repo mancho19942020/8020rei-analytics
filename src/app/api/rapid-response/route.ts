@@ -847,27 +847,9 @@ async function getAlerts(days: number, domain?: string) {
     });
   }
 
-  // RR8: Delivery lag high (average across domains)
-  const avgDeliveryLag = pcmRows.length > 0
-    ? pcmRows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.delivery_lag_median_days || 0), 0) / pcmRows.length
-    : 0;
-  if (avgDeliveryLag > 10) {
-    const lagDomains = pcmRows
-      .filter((r: Record<string, unknown>) => Number(r.delivery_lag_median_days || 0) > 10)
-      .map((r: Record<string, unknown>) => String(r.domain || ''));
-    alerts.push({
-      id: 'rr-delivery-lag',
-      name: 'Delivery lag above normal',
-      severity: 'info',
-      category: 'rapid-response',
-      description: `Median delivery time is ${avgDeliveryLag.toFixed(1)} days, above the 10-day threshold.${lagDomains.length > 0 ? ` Affected: ${lagDomains.join(', ')}.` : ''}`,
-      entity: lagDomains.join(', ') || undefined,
-      metrics: { current: avgDeliveryLag, baseline: 10 },
-      detected_at: now,
-      action: 'Monitor PCM vendor status distribution for processing bottlenecks.',
-      link: '/features/features-rei/dm-campaign/operational-health',
-    });
-  }
+  // RR8 (Delivery lag above normal) was retired 2026-04-27. The metric is mostly
+  // USPS + PCM transit reality and we don't act on it; surfaces as noise rather
+  // than triage. The underlying number is still visible on OH → Postal performance.
 
   // -------------------------------------------------------------------------
   // DM data-integrity alerts (moved from business results — product issues)
@@ -952,6 +934,8 @@ async function getAlerts(days: number, domain?: string) {
   }
 
   // RR11: High unattributed conversions (attribution system issue)
+  // Statistical floor: require >= 5 conversions before computing the rate, so
+  // we don't fire critical on a 1-of-2 noise split.
   for (const row of dmClientRows) {
     const clientLeads = Number(row.leads || 0);
     const clientDeals = Number(row.deals || 0);
@@ -959,7 +943,7 @@ async function getAlerts(days: number, domain?: string) {
     const clientDomain = String(row.domain || '');
     const totalConversions = clientLeads + clientDeals;
 
-    if (totalConversions > 0 && unattributed > 0) {
+    if (totalConversions >= 5 && unattributed > 0) {
       const rate = Number(((unattributed / totalConversions) * 100).toFixed(1));
       if (rate > 30) {
         alerts.push({
@@ -976,6 +960,72 @@ async function getAlerts(days: number, domain?: string) {
         });
       }
     }
+  }
+
+  // RR12: Aurora sync stale — the monolith→Aurora cron is hourly. If the
+  // newest snapshot is more than 3 hours old, every dashboard is reading
+  // stale data and the user can't tell. Critical because numerical accuracy
+  // depends on it; surfaces in operational-health (pipeline issue).
+  try {
+    const stalenessRows = await runAuroraQuery(`
+      SELECT
+        EXTRACT(EPOCH FROM (NOW() - MAX(snapshot_at))) / 3600.0 as rr_age_hours,
+        EXTRACT(EPOCH FROM (NOW() - (SELECT MAX(date)::timestamp FROM dm_client_funnel))) / 3600.0 as cf_age_hours
+      FROM rr_campaign_snapshots
+    `);
+    const rrAgeHours = Number(stalenessRows[0]?.rr_age_hours || 0);
+    const cfAgeHours = Number(stalenessRows[0]?.cf_age_hours || 0);
+    const maxAge = Math.max(rrAgeHours, cfAgeHours);
+    if (maxAge > 3) {
+      const tableNote = rrAgeHours > cfAgeHours
+        ? `rr_campaign_snapshots last write ${rrAgeHours.toFixed(1)}h ago`
+        : `dm_client_funnel last date ${cfAgeHours.toFixed(1)}h ago`;
+      alerts.push({
+        id: 'rr-aurora-stale',
+        name: 'Aurora sync stale',
+        severity: maxAge > 6 ? 'critical' : 'warning',
+        category: 'rapid-response',
+        description: `Hourly monolith→Aurora cron has not refreshed in ${maxAge.toFixed(1)}h (${tableNote}). All dashboards are reading data older than the documented hourly cadence.`,
+        metrics: { current: maxAge, baseline: 3 },
+        detected_at: now,
+        action: 'Check the monolith insights:to-aurora cron in the backoffice repo. Verify the Horizon worker is running and recent jobs have not failed.',
+        link: '/features/features-rei/dm-campaign/operational-health',
+      });
+    }
+  } catch (err) {
+    console.error('[rapid-response/alerts] Aurora staleness probe failed:', err);
+  }
+
+  // RR13: Negative revenue (data integrity) — a domain whose total_revenue is
+  // negative in dm_client_funnel signals a write-side bug in the monolith
+  // (CCS-style sign flip, see funnel-fixes/01-... §5). Always critical.
+  try {
+    const negRows = await runAuroraQuery(`
+      SELECT f.domain, f.total_revenue
+      FROM dm_client_funnel f
+      INNER JOIN (SELECT domain, MAX(date) as md FROM dm_client_funnel GROUP BY domain) l
+        ON f.domain = l.domain AND f.date = l.md
+      WHERE f.total_revenue < 0
+        AND ${EXCLUDE_SEED.replace(/^AND\s+/, '')}
+    `);
+    for (const r of negRows) {
+      const d = String(r.domain || 'unknown');
+      const rev = Number(r.total_revenue || 0);
+      alerts.push({
+        id: `rr-negative-revenue-${d}`,
+        name: 'Negative revenue (data integrity)',
+        severity: 'critical',
+        category: 'rapid-response',
+        description: `${d} shows total_revenue = $${rev.toLocaleString()} in dm_client_funnel. Revenue should never be negative; this points at a write-side sign flip in the monolith's getDealData() / upsert path.`,
+        entity: d,
+        metrics: { current: rev, baseline: 0 },
+        detected_at: now,
+        action: 'Investigate ConversionInsightsService::getDealData and the dm_client_funnel upsert. The displayed dashboard revenue (from dm_property_conversions) is unaffected, but Aurora-stored totals are wrong for this domain.',
+        link: '/features/features-rei/dm-campaign/profitability',
+      });
+    }
+  } catch (err) {
+    console.error('[rapid-response/alerts] Negative-revenue probe failed:', err);
   }
 
   // Sort: critical first, then warning, then info

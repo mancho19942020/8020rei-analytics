@@ -104,6 +104,9 @@ export function DmOverviewTab() {
 
   return (
     <div className="space-y-4">
+      <p className="text-sm text-content-secondary leading-relaxed">
+        Executive lens — daily journal of how DM Campaign is operating and whether 8020REI is making money. Aggregates PCM + Aurora; refreshed every 30 min.
+      </p>
       {/* Headline row */}
       <div style={{ height: 150 }}>
         <Widget

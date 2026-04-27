@@ -46,6 +46,7 @@ interface MergedDomainRow {
   deals: number;
   totalCost: number;
   totalRevenue: number;
+  firstSentDate: string | null;
 }
 
 interface AlertsResult {
@@ -79,7 +80,8 @@ export async function getAlertsData(domain?: string, days?: number): Promise<Ale
         -- Strict attribution + platform-aligned (no temporal gate). See dm-conversions/route.ts.
         COUNT(DISTINCT CASE WHEN attribution_status = 'attributed' AND became_deal_at IS NOT NULL THEN property_id END) as deals,
         COALESCE(SUM(CASE WHEN attribution_status = 'attributed' AND deal_revenue > 0 THEN deal_revenue ELSE 0 END), 0) as total_revenue,
-        COUNT(DISTINCT CASE WHEN attribution_status = 'attributed' AND became_lead_at IS NOT NULL THEN property_id END) as leads
+        COUNT(DISTINCT CASE WHEN attribution_status = 'attributed' AND became_lead_at IS NOT NULL THEN property_id END) as leads,
+        MIN(first_sent_date) as first_sent_date
       FROM dm_property_conversions
       WHERE ${domainFilter(domain)}
         AND ${verifiedDomainsFilter(domain)}
@@ -91,41 +93,57 @@ export async function getAlertsData(domain?: string, days?: number): Promise<Ale
   const alerts: DmAlert[] = [];
   const now = new Date().toISOString();
 
-  // BR-1: Underperforming campaign
-  // Industry response rate for DM in real estate is ~0.3-0.4%.
-  // At 0.3%, 2,000 mailings → ~6 expected leads (statistically meaningful).
-  // 5,000 mailings with 0 leads is genuinely critical.
+  // BR-1: Underperforming campaign — three tiers, anchored on DELIVERED volume.
+  // Industry DM response rate in real estate is ~0.3-0.4%. At 0.3%:
+  //   2,000 delivered → ~6 expected leads (statistically meaningful)
+  //   5,000 delivered → ~15 expected leads (zero leads = clearly broken)
+  // Anchor on totalDelivered (post 2026-04-27 funnel-fix vocabulary): a campaign
+  // dispatching 5K but only delivering 1K shouldn't fire critical — it should
+  // wait for delivery to confirm the volume reached the doorstep.
+  // Folds the legacy BR-5 ("Stagnant campaign") into the info tier.
   for (const row of clientRows) {
-    const { totalMailed, leads, totalCost, totalRevenue, domain: clientDomain } = row;
-    if (totalMailed >= 5000 && leads === 0) {
-      const costNote = totalCost > 500
-        ? ` The campaign has spent $${totalCost.toLocaleString()} with $0 revenue.`
-        : '';
+    const { totalDelivered, leads, deals, totalCost, totalRevenue, domain: clientDomain } = row;
+    const expectedLeads = Math.max(1, Math.round(totalDelivered * 0.003));
+    const costNote = totalCost > 500
+      ? ` The campaign has spent $${totalCost.toLocaleString()} with $${totalRevenue.toLocaleString()} revenue.`
+      : '';
+
+    if (totalDelivered >= 5000 && leads === 0) {
       alerts.push({
         id: `br-underperforming-${clientDomain}`,
         name: 'Underperforming campaign',
         severity: 'critical',
         category: 'dm-business-results',
-        description: `${clientDomain} has mailed ${totalMailed.toLocaleString()} properties with zero leads.${costNote} At industry-average response rates (~0.3%), this volume should have produced ~${Math.round(totalMailed * 0.003)} leads.`,
+        description: `${clientDomain} has delivered ${totalDelivered.toLocaleString()} pieces with zero leads.${costNote} At industry-average response rates (~0.3%), this volume should have produced ~${expectedLeads} leads.`,
         entity: clientDomain,
-        metrics: { current: leads, baseline: totalMailed },
+        metrics: { current: leads, baseline: totalDelivered },
         detected_at: now,
-        action: `Review the template and targeting criteria with the client. Consider using a different template or changing the design of the current one, expanding the geographic area, or adjusting the property type filter.`,
+        action: `Review the template and targeting criteria with the client. Consider switching templates, refreshing the design, expanding the geographic area, or adjusting the property type filter.`,
       });
-    } else if (totalMailed >= 2000 && leads === 0) {
-      const costNote = totalCost > 500
-        ? ` The campaign has spent $${totalCost.toLocaleString()} with $0 revenue.`
-        : '';
+    } else if (totalDelivered >= 2000 && leads === 0) {
       alerts.push({
         id: `br-underperforming-${clientDomain}`,
         name: 'Underperforming campaign',
         severity: 'warning',
         category: 'dm-business-results',
-        description: `${clientDomain} has mailed ${totalMailed.toLocaleString()} properties with zero leads.${costNote} At ~0.3% response rate, ~${Math.round(totalMailed * 0.003)} leads were expected. Volume may still be building.`,
+        description: `${clientDomain} has delivered ${totalDelivered.toLocaleString()} pieces with zero leads.${costNote} At ~0.3% response rate, ~${expectedLeads} leads were expected. Volume may still be building.`,
         entity: clientDomain,
-        metrics: { current: leads, baseline: totalMailed },
+        metrics: { current: leads, baseline: totalDelivered },
         detected_at: now,
-        action: `Monitor for another cycle. If still zero leads after 5,000+ mailings, review template design and targeting criteria with the client.`,
+        action: `Monitor for another cycle. If still zero leads after 5,000+ delivered, review template design and targeting criteria with the client.`,
+      });
+    } else if (totalDelivered >= 2000 && leads > 0 && leads <= 3 && deals === 0) {
+      // Was BR-5: "Stagnant campaign". Folded here as the info tier.
+      alerts.push({
+        id: `br-underperforming-${clientDomain}`,
+        name: 'Underperforming campaign',
+        severity: 'info',
+        category: 'dm-business-results',
+        description: `${clientDomain} has delivered ${totalDelivered.toLocaleString()} pieces but only generated ${leads} lead${leads > 1 ? 's' : ''} with 0 deals. At ~0.3% response rate, ~${expectedLeads} leads were expected.`,
+        entity: clientDomain,
+        metrics: { current: leads, baseline: totalDelivered },
+        detected_at: now,
+        action: `Suggest expanding targeting criteria — broader geography, additional property types, or higher price range. Consider refreshing the template with a new design.`,
       });
     }
   }
@@ -160,39 +178,49 @@ export async function getAlertsData(domain?: string, days?: number): Promise<Ale
   }
 
   // BR-3: Low delivery rate
+  // 14-day age gate: pieces dispatched within the last two weeks may still be
+  // in PCM transit (Heritage-style stuck-in-Sent). Without the gate this fires
+  // false positives on freshly-dispatched campaigns. Once PR #2015 ships
+  // sent_status_count, the denominator should switch to settled pieces only
+  // (delivered + undeliverable + protected) — see funnel-fixes/10-... §4b.
   for (const r of templateRows) {
     const totalSent = Number(r.total_sent || 0);
     const deliveryRate = Number(r.delivery_rate || 0);
     const delivered = Number(r.total_delivered || 0);
     const templateName = String(r.template_name || '');
     const templateDomain = String(r.domain || '');
-    if (totalSent > 50 && deliveryRate > 0 && deliveryRate < 50) {
+    const firstSent = r.first_sent_date ? new Date(String(r.first_sent_date)) : null;
+    const ageDays = firstSent ? Math.floor((Date.now() - firstSent.getTime()) / 86_400_000) : 0;
+    if (totalSent > 50 && deliveryRate > 0 && deliveryRate < 50 && ageDays >= 14) {
       alerts.push({
         id: `br-low-delivery-${templateDomain}-${templateName}`,
         name: 'Low delivery rate',
         severity: 'warning',
         category: 'dm-business-results',
-        description: `"${templateName}" (${templateDomain}) has a ${deliveryRate}% delivery rate (${delivered.toLocaleString()} of ${totalSent.toLocaleString()} sent). Mail list quality may be an issue.`,
+        description: `"${templateName}" (${templateDomain}) has a ${deliveryRate}% delivery rate (${delivered.toLocaleString()} of ${totalSent.toLocaleString()} sent, oldest piece ${ageDays}d old). Mail list quality may be an issue, or pieces are stuck upstream in PCM.`,
         entity: templateDomain,
         metrics: { current: deliveryRate, baseline: 50 },
         detected_at: now,
-        action: `Review property data quality for ${templateDomain}. Bad addresses or outdated property records may be reducing delivery rates. Consider enabling address verification.`,
+        action: `Review property data quality for ${templateDomain}. If addresses look clean, check Operational Health → Campaigns table for pieces stuck in 'Sent' status — that points at PCM, not list quality.`,
       });
     }
   }
 
   // BR-4: Leads coming in but no deals closing
-  // Real estate deals take months to close. Raised from 5 to 10 leads
-  // to avoid false alarms on campaigns that are still in early pipeline.
+  // Real estate deals take 3-6 months. 90-day cohort age gate stops this from
+  // firing on month-old campaigns where no-deals is just early-pipeline reality.
   for (const row of clientRows) {
-    const { leads, deals, domain: clientDomain } = row;
-    if (leads >= 10 && deals === 0) {
+    const { leads, deals, domain: clientDomain, firstSentDate } = row;
+    const cohortAgeDays = firstSentDate
+      ? Math.floor((Date.now() - new Date(firstSentDate).getTime()) / 86_400_000)
+      : 0;
+    if (leads >= 10 && deals === 0 && cohortAgeDays >= 90) {
       alerts.push({
         id: `br-leads-no-deals-${clientDomain}`,
         name: 'Leads coming in but no deals closing',
         severity: 'warning',
         category: 'dm-business-results',
-        description: `${clientDomain} has ${leads} leads but 0 deals. Leads are being generated but none are converting to closed deals.`,
+        description: `${clientDomain} has ${leads} leads but 0 deals across a cohort that's ${cohortAgeDays}d old. Leads are being generated but none are converting after the typical 3-6 month real-estate close window.`,
         entity: clientDomain,
         metrics: { current: deals, baseline: leads },
         detected_at: now,
@@ -201,27 +229,7 @@ export async function getAlertsData(domain?: string, days?: number): Promise<Ale
     }
   }
 
-  // BR-5: Stagnant campaign
-  // At 0.3% response rate, 500 sends → ~1.5 leads is EXPECTED.
-  // Only flag as stagnant at higher volumes where the lead count is clearly below expectations.
-  // 2,000 mailings → ~6 expected; getting 1-3 is genuinely below average.
-  for (const row of clientRows) {
-    const { totalMailed, leads, deals, domain: clientDomain } = row;
-    if (totalMailed >= 2000 && leads > 0 && leads <= 3 && deals === 0) {
-      const expectedLeads = Math.round(totalMailed * 0.003);
-      alerts.push({
-        id: `br-stagnant-${clientDomain}`,
-        name: 'Stagnant campaign',
-        severity: 'info',
-        category: 'dm-business-results',
-        description: `${clientDomain} has mailed ${totalMailed.toLocaleString()} properties but only generated ${leads} lead${leads > 1 ? 's' : ''} with 0 deals. At ~0.3% response rate, ~${expectedLeads} leads were expected.`,
-        entity: clientDomain,
-        metrics: { current: leads, baseline: totalMailed },
-        detected_at: now,
-        action: `Suggest expanding targeting criteria — broader geographic area, additional property types, or higher price range. Consider refreshing the template with a new design.`,
-      });
-    }
-  }
+  // BR-5 was "Stagnant campaign" — folded into BR-1 as the info tier (2026-04-27).
 
   // BR-6: Pipeline leakage
   for (const row of clientRows) {
@@ -361,7 +369,8 @@ async function getMergedClientDataForAlerts(domain?: string): Promise<MergedDoma
         COUNT(DISTINCT CASE WHEN attribution_status = 'attributed' AND became_contract_at IS NOT NULL THEN property_id END) as contracts,
         COUNT(DISTINCT CASE WHEN attribution_status = 'attributed' AND became_deal_at IS NOT NULL THEN property_id END) as deals,
         COALESCE(SUM(total_cost), 0) as total_cost,
-        COALESCE(SUM(CASE WHEN attribution_status = 'attributed' AND deal_revenue > 0 THEN deal_revenue ELSE 0 END), 0) as total_revenue
+        COALESCE(SUM(CASE WHEN attribution_status = 'attributed' AND deal_revenue > 0 THEN deal_revenue ELSE 0 END), 0) as total_revenue,
+        MIN(first_sent_date) as first_sent_date
       FROM dm_property_conversions
       WHERE ${domainFilter(domain)}
         AND ${verifiedDomainsFilter(domain)}
@@ -397,6 +406,7 @@ async function getMergedClientDataForAlerts(domain?: string): Promise<MergedDoma
       deals: Number(r.deals || 0),
       totalCost: funnel ? funnel.totalCost : Number(r.total_cost || 0),
       totalRevenue: Number(r.total_revenue || 0),
+      firstSentDate: r.first_sent_date ? String(r.first_sent_date) : null,
     });
   }
 

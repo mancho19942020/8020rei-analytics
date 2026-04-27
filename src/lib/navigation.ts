@@ -107,6 +107,7 @@ export const DM_CAMPAIGN_SUB_TABS: AxisNavigationTabItem[] = [
   { id: 'operational-health', name: 'Operational health' },
   { id: 'business-results', name: 'Business results' },
   { id: 'pcm-validation', name: 'Profitability' },
+  { id: 'alerts', name: 'Alerts' },
   { id: 'reports', name: 'Reports' },
   { id: 'data-sources', name: 'Data sources' },
 ];
