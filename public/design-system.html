@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>8020 Design Kit - Axis Design System</title>
+  <title>Metrics Hub Design System</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -439,7 +439,7 @@
       padding: 8px 16px;
       font-size: 14px;
       font-weight: 500;
-      border-radius: 4px;
+      border-radius: 6px;
       cursor: pointer;
       transition: all 0.15s ease;
       border: none;
@@ -449,10 +449,12 @@
     .btn-filled {
       background: var(--main-700);
       color: white;
+      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
     }
 
     .btn-filled:hover {
       background: var(--main-900);
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
     }
 
     .dark .btn-filled {
@@ -465,20 +467,18 @@
 
     .btn-outlined {
       background: transparent;
-      border: 1px solid var(--main-700);
+      border: 1px solid var(--border-default);
       color: var(--text-primary);
     }
 
-    .dark .btn-outlined {
-      border-color: var(--main-500);
-    }
-
     .btn-outlined:hover {
-      background: var(--main-50);
+      background: var(--surface-overlay);
+      border-color: var(--border-strong);
     }
 
     .dark .btn-outlined:hover {
-      background: var(--main-950);
+      background: var(--surface-overlay);
+      border-color: var(--border-strong);
     }
 
     .btn-ghost {
@@ -488,11 +488,11 @@
     }
 
     .btn-ghost:hover {
-      background: var(--main-50);
+      background: var(--surface-overlay);
     }
 
     .dark .btn-ghost:hover {
-      background: var(--main-950);
+      background: var(--surface-overlay);
     }
 
     .btn-sm {
@@ -527,7 +527,7 @@
       padding: 0 16px;
       font-size: 14px;
       border: 1px solid var(--border-default);
-      border-radius: 4px;
+      border-radius: 6px;
       background: var(--surface-base);
       color: var(--text-primary);
       font-family: inherit;
@@ -976,7 +976,7 @@
       padding: 0 32px 0 16px;
       font-size: 14px;
       border: 1px solid var(--border-default);
-      border-radius: 4px;
+      border-radius: 6px;
       background: var(--surface-base);
       color: var(--text-primary);
       font-family: inherit;
@@ -1004,7 +1004,7 @@
       padding: 0 16px;
       font-size: 14px;
       border: 1px solid var(--border-default);
-      border-radius: 4px;
+      border-radius: 6px;
       background: var(--surface-base);
       color: var(--text-primary);
       font-family: inherit;
@@ -1021,7 +1021,7 @@
 
     .date-picker-dropdown {
       border: 1px solid var(--border-default);
-      border-radius: 4px;
+      border-radius: 6px;
       background: var(--surface-base);
       box-shadow: var(--shadow-md);
       padding: 6px;
@@ -1036,7 +1036,7 @@
       padding: 6px 8px;
       font-size: 12px;
       border: none;
-      border-radius: 4px;
+      border-radius: 6px;
       background: transparent;
       color: var(--text-secondary);
       cursor: pointer;
@@ -1268,7 +1268,7 @@
   <header class="header">
     <div class="container">
       <div class="header-content">
-        <div class="logo"><span>8020</span> Design Kit</div>
+        <div class="logo"><span>Metrics Hub</span> Design System</div>
         <div class="header-actions">
           <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">
             <svg class="sun-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
@@ -4116,12 +4116,12 @@
                 <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="margin-right: 4px;">
                   <path d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/>
                 </svg>
-                Design Kit
+                Design System
               </button>
             </div>
             <div class="component-info">
-              <div class="component-name">DesignKitButton</div>
-              <div class="component-desc">Button that opens this Design Kit documentation in a new browser tab.</div>
+              <div class="component-name">DesignSystemButton</div>
+              <div class="component-desc">Button that opens this Metrics Hub Design System documentation in a new browser tab.</div>
               <div class="component-props">
                 <span class="prop-tag">-</span>
               </div>

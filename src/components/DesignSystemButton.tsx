@@ -1,11 +1,11 @@
 /**
- * DesignKitButton Component
+ * DesignSystemButton Component
  *
- * A button that opens the Design Kit documentation in a new browser tab.
+ * A button that opens the Metrics Hub Design System documentation in a new browser tab.
  * Placed in the header alongside the ThemeToggle for easy access.
  *
  * USAGE:
- * <DesignKitButton />
+ * <DesignSystemButton />
  */
 
 'use client';
@@ -13,7 +13,7 @@
 import { useState, useEffect } from 'react';
 import { AxisButton } from '@/components/axis/AxisButton';
 
-// Swatches/palette icon for Design Kit
+// Swatches/palette icon for the Design System
 function SwatchesIcon() {
   return (
     <svg
@@ -33,7 +33,7 @@ function SwatchesIcon() {
   );
 }
 
-export function DesignKitButton() {
+export function DesignSystemButton() {
   const [isMounted, setIsMounted] = useState(false);
 
   // Prevent hydration mismatch
@@ -42,13 +42,13 @@ export function DesignKitButton() {
   }, []);
 
   const handleClick = () => {
-    window.open('/design-kit.html', '_blank', 'noopener,noreferrer');
+    window.open('/design-system.html', '_blank', 'noopener,noreferrer');
   };
 
   // Don't render until mounted to avoid hydration mismatch
   if (!isMounted) {
     return (
-      <div className="h-9 w-9 bg-surface-raised border border-stroke rounded-sm animate-pulse" />
+      <div className="h-9 w-9 bg-surface-raised border border-stroke rounded-md animate-pulse" />
     );
   }
 
@@ -58,8 +58,8 @@ export function DesignKitButton() {
       size="md"
       iconOnly
       onClick={handleClick}
-      aria-label="Open Design Kit documentation"
-      title="Design Kit"
+      aria-label="Open Metrics Hub Design System documentation"
+      title="Metrics Hub Design System"
       iconLeft={<SwatchesIcon />}
     />
   );

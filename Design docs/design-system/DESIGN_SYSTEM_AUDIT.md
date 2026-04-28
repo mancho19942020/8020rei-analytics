@@ -1,4 +1,4 @@
-# Design Kit Compliance Audit
+# Design System Compliance Audit
 
 **Date:** 2026-02-24
 **Scope:** Full codebase scan — all `.tsx` files under `src/`

@@ -5,9 +5,9 @@ import { useRouter, usePathname } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { useAuth } from '@/lib/firebase/AuthContext';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { DesignKitButton } from '@/components/DesignKitButton';
+import { DesignSystemButton } from '@/components/DesignSystemButton';
 import {
-  canAccessDesignKit,
+  canAccessDesignSystem,
   canAccessDmAlerts,
   canAccessPlatformAnalytics,
   canAccessFeedbackBoard,
@@ -544,10 +544,10 @@ function Dashboard({ slug }: { slug: string[] }) {
                 size="md"
               />
 
-              {/* Design Kit — visible only to authorized contributors */}
-              {canAccessDesignKit(user?.email) && (
+              {/* Design System — visible only to authorized contributors */}
+              {canAccessDesignSystem(user?.email) && (
                 <div className="h-9 flex items-center">
-                  <DesignKitButton />
+                  <DesignSystemButton />
                 </div>
               )}
 

@@ -1,8 +1,8 @@
-# Axis Design System - 8020REI Analytics
+# Metrics Hub Design System
 
-**Complete design specification for the 8020REI Analytics Dashboard.**
+**Complete design specification for the 8020REI Metrics Hub.**
 
-This project uses the **Axis Design System** - a production-grade, multi-brand design token system built for scalability and accessibility.
+This project uses the **Metrics Hub Design System** (built on Axis tokens) — a production-grade, multi-brand design token system built for scalability and accessibility.
 
 ---
 
