@@ -34,9 +34,46 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useAuth } from '@/lib/firebase/AuthContext';
+import { canAccessAuroraStaleBanner } from '@/lib/access';
 
 const POLL_INTERVAL_MS = 90_000;
 const FIRST_POLL_DELAY_MS = 5_000;
+const DISMISSED_KEY = 'metricsHub.auroraStaleBanner.dismissedTone';
+
+function readDismissedTone(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return sessionStorage.getItem(DISMISSED_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function writeDismissedTone(tone: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.setItem(DISMISSED_KEY, tone);
+  } catch {
+    /* storage unavailable — banner will simply re-show on next poll */
+  }
+}
+
+function CloseIcon({ className = 'w-3.5 h-3.5' }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+      strokeWidth={2.4}
+      stroke="currentColor"
+      className={className}
+      aria-hidden="true"
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+    </svg>
+  );
+}
 
 interface FreshnessResponse {
   snapshotAgeHours: number | null;
@@ -88,10 +125,22 @@ function WarnIcon({ className = 'w-4 h-4' }: { className?: string }) {
 }
 
 export function AuroraStaleBanner() {
+  const { user } = useAuth();
   const [state, setState] = useState<FreshnessResponse | null>(null);
+  const [dismissedTone, setDismissedTone] = useState<string | null>(null);
   const fetchInFlight = useRef(false);
 
+  // Hydrate the dismissed-tone from sessionStorage on mount (client-only).
   useEffect(() => {
+    setDismissedTone(readDismissedTone());
+  }, []);
+
+  // Only poll if this user is allowed to see the banner. Skipping the poll
+  // for unauthorized users avoids a useless backend hit per page load.
+  const canSeeBanner = canAccessAuroraStaleBanner(user?.email);
+
+  useEffect(() => {
+    if (!canSeeBanner) return;
     if (typeof window === 'undefined') return;
 
     let cancelled = false;
@@ -142,15 +191,27 @@ export function AuroraStaleBanner() {
       if (timeoutId !== null) window.clearTimeout(timeoutId);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, []);
+  }, [canSeeBanner]);
 
+  if (!canSeeBanner) return null;
   if (!state || !state.isStale) return null;
 
-  const message = buildMessage(state);
   const tone = state.isCritical ? 'critical' : 'warning';
+
+  // Dismissal is per-tone. Click X while warning → hidden until tone changes.
+  // If sync gets worse (warning → critical), banner reappears to flag the
+  // escalation; if it recovers, banner naturally hides via isStale=false.
+  if (dismissedTone === tone) return null;
+
+  const message = buildMessage(state);
   const bgClass = tone === 'critical'
     ? 'bg-red-700 dark:bg-red-800'
     : 'bg-amber-600 dark:bg-amber-700';
+
+  const handleDismiss = () => {
+    writeDismissedTone(tone);
+    setDismissedTone(tone);
+  };
 
   return (
     <div className="fixed inset-x-0 top-3 z-[1199] flex justify-center pointer-events-none">
@@ -159,7 +220,7 @@ export function AuroraStaleBanner() {
         aria-live="polite"
         className={[
           'pointer-events-auto',
-          'inline-flex items-center gap-2 px-4 py-1.5',
+          'inline-flex items-center gap-2 pl-4 pr-1.5 py-1.5',
           'rounded-full shadow-lg ring-1 ring-white/40 dark:ring-white/30',
           bgClass,
           'text-white',
@@ -172,6 +233,14 @@ export function AuroraStaleBanner() {
           {' — '}
           {message}
         </span>
+        <button
+          type="button"
+          onClick={handleDismiss}
+          aria-label="Dismiss"
+          className="inline-flex items-center justify-center w-7 h-7 rounded-full hover:bg-white/15 active:bg-white/25 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+        >
+          <CloseIcon className="w-3.5 h-3.5" />
+        </button>
       </div>
     </div>
   );

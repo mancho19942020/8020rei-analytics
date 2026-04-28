@@ -55,3 +55,18 @@ export function canAccessFeedbackBoard(email: string | null | undefined): boolea
   if (!email) return false;
   return FEEDBACK_BOARD_AUTHORIZED_EMAILS.includes(email.toLowerCase());
 }
+
+/**
+ * Aurora-stale data freshness banner. The pill that surfaces "the data on
+ * this dashboard is older than the documented Aurora-sync cadence" is an
+ * operational signal for the metrics owner only — CS and other clients
+ * shouldn't be alarmed by backend pipeline drift they can't act on.
+ */
+const AURORA_STALE_BANNER_AUTHORIZED_EMAILS: string[] = [
+  'german@8020rei.com',
+];
+
+export function canAccessAuroraStaleBanner(email: string | null | undefined): boolean {
+  if (!email) return false;
+  return AURORA_STALE_BANNER_AUTHORIZED_EMAILS.includes(email.toLowerCase());
+}
