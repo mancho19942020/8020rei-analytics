@@ -169,44 +169,42 @@ export function UpdateAvailableBanner() {
   };
 
   return (
-    <div
-      role="status"
-      aria-live="polite"
-      className={[
-        'fixed top-3 left-1/2 -translate-x-1/2 z-[1200]',
-        'inline-flex items-center gap-2 pl-4 pr-1.5 py-1.5',
-        'rounded-full shadow-lg ring-1 ring-black/5 dark:ring-white/10',
-        'bg-main-700 text-white dark:bg-main-500',
-        'animate-[updatePillIn_220ms_ease-out_both]',
-      ].join(' ')}
-      style={
-        {
-          // Inline keyframes injected once; @keyframes used inside a Tailwind
-          // arbitrary value won't compile. Using a unique class so it doesn't
-          // collide with anything else.
-          ['--update-pill-anim' as string]: 'updatePillIn 220ms ease-out both',
-        } as React.CSSProperties
-      }
-    >
-      <RefreshIcon className="w-4 h-4 shrink-0" />
-      <span className="text-button-small font-medium whitespace-nowrap">
-        New version available
-      </span>
-      <button
-        type="button"
-        onClick={handleReload}
-        className="rounded-full bg-white/15 hover:bg-white/25 active:bg-white/35 transition-colors px-3 py-1 text-button-small font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+    // Outer wrapper: full-width fixed strip whose only job is to center the
+    // pill horizontally via flex. Pointer-events-none so it doesn't swallow
+    // clicks anywhere across the top of the page; the pill itself opts back
+    // in.
+    <div className="fixed inset-x-0 top-3 z-[1200] flex justify-center pointer-events-none">
+      <div
+        role="status"
+        aria-live="polite"
+        className={[
+          'pointer-events-auto',
+          'inline-flex items-center gap-2 pl-4 pr-1.5 py-1.5',
+          'rounded-full shadow-lg ring-1 ring-white/40 dark:ring-white/30',
+          'bg-main-700 text-white',
+          'animate-[updatePillIn_220ms_ease-out_both]',
+        ].join(' ')}
       >
-        Reload
-      </button>
-      <button
-        type="button"
-        onClick={handleDismiss}
-        aria-label="Dismiss"
-        className="inline-flex items-center justify-center w-7 h-7 rounded-full hover:bg-white/15 active:bg-white/25 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
-      >
-        <CloseIcon className="w-3.5 h-3.5" />
-      </button>
+        <RefreshIcon className="w-4 h-4 shrink-0" />
+        <span className="text-button-small font-medium whitespace-nowrap">
+          New version available
+        </span>
+        <button
+          type="button"
+          onClick={handleReload}
+          className="rounded-full bg-white/15 hover:bg-white/25 active:bg-white/35 transition-colors px-3 py-1 text-button-small font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+        >
+          Reload
+        </button>
+        <button
+          type="button"
+          onClick={handleDismiss}
+          aria-label="Dismiss"
+          className="inline-flex items-center justify-center w-7 h-7 rounded-full hover:bg-white/15 active:bg-white/25 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+        >
+          <CloseIcon className="w-3.5 h-3.5" />
+        </button>
+      </div>
     </div>
   );
 }
