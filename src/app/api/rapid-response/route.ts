@@ -876,11 +876,22 @@ async function getAlerts(days: number, domain?: string) {
     }
   }
 
-  // RR12: Aurora sync stale — the monolith→Aurora cron is hourly. If the
-  // newest snapshot is more than 3 hours old, every dashboard is reading
-  // stale data and the user can't tell. Critical because numerical accuracy
-  // depends on it; surfaces in operational-health (pipeline issue).
+  // RR12: Aurora sync stale — two distinct cadences, one alert.
+  //   • rr_campaign_snapshots is written by an HOURLY backoffice cron
+  //     (metrics:dispatch-to-aurora). Stale at ≥3h, critical at ≥6h.
+  //   • dm_client_funnel is written by a DAILY backoffice cron at 02:00 UTC
+  //     (conversion-insights:dispatch-to-aurora). MAX(date) is a DATE column,
+  //     so ageHours is measured from midnight of the latest date — at the
+  //     start of any given day cf_age is naturally ~24h+ even when the cron
+  //     is healthy. Threshold: ≥27h stale (24h cycle + 3h grace), ≥36h critical.
+  // Confirmed cadences via Johansy Mujica's backoffice cron config 2026-04-28.
+  // Fires when EITHER table is past its own threshold; severity is the worst.
   try {
+    const SNAPSHOT_WARN_H = 3;
+    const SNAPSHOT_CRIT_H = 6;
+    const FUNNEL_WARN_H = 27;
+    const FUNNEL_CRIT_H = 36;
+
     const stalenessRows = await runAuroraQuery(`
       SELECT
         EXTRACT(EPOCH FROM (NOW() - MAX(snapshot_at))) / 3600.0 as rr_age_hours,
@@ -889,20 +900,34 @@ async function getAlerts(days: number, domain?: string) {
     `);
     const rrAgeHours = Number(stalenessRows[0]?.rr_age_hours || 0);
     const cfAgeHours = Number(stalenessRows[0]?.cf_age_hours || 0);
-    const maxAge = Math.max(rrAgeHours, cfAgeHours);
-    if (maxAge > 3) {
-      const tableNote = rrAgeHours > cfAgeHours
-        ? `rr_campaign_snapshots last write ${rrAgeHours.toFixed(1)}h ago`
-        : `dm_client_funnel last date ${cfAgeHours.toFixed(1)}h ago`;
+
+    const snapshotStale = rrAgeHours > SNAPSHOT_WARN_H;
+    const funnelStale = cfAgeHours > FUNNEL_WARN_H;
+
+    if (snapshotStale || funnelStale) {
+      const isCritical = rrAgeHours > SNAPSHOT_CRIT_H || cfAgeHours > FUNNEL_CRIT_H;
+      const reasons: string[] = [];
+      if (snapshotStale) {
+        reasons.push(`rr_campaign_snapshots last write ${rrAgeHours.toFixed(1)}h ago (hourly cadence, ≥${SNAPSHOT_WARN_H}h is stale)`);
+      }
+      if (funnelStale) {
+        reasons.push(`dm_client_funnel last date ${cfAgeHours.toFixed(1)}h ago (daily cron at 02:00 UTC, ≥${FUNNEL_WARN_H}h is stale)`);
+      }
+      const worstAge = Math.max(
+        snapshotStale ? rrAgeHours : 0,
+        funnelStale ? cfAgeHours : 0,
+      );
+      const baseline = snapshotStale && !funnelStale ? SNAPSHOT_WARN_H : FUNNEL_WARN_H;
+
       alerts.push({
         id: 'rr-aurora-stale',
         name: 'Aurora sync stale',
-        severity: maxAge > 6 ? 'critical' : 'warning',
+        severity: isCritical ? 'critical' : 'warning',
         category: 'rapid-response',
-        description: `Hourly monolith→Aurora cron has not refreshed in ${maxAge.toFixed(1)}h (${tableNote}). All dashboards are reading data older than the documented hourly cadence.`,
-        metrics: { current: maxAge, baseline: 3 },
+        description: `Aurora sync is behind documented cadence. ${reasons.join('; ')}.`,
+        metrics: { current: worstAge, baseline },
         detected_at: now,
-        action: 'Check the monolith insights:to-aurora cron in the backoffice repo. Verify the Horizon worker is running and recent jobs have not failed.',
+        action: 'Check the backoffice crons: metrics:dispatch-to-aurora (hourly) writes rr_campaign_snapshots; conversion-insights:dispatch-to-aurora (daily 02:00 UTC) writes dm_client_funnel. Verify Horizon supervisor-aurora-metrics is up and processing the insights_to_aurora queue.',
         link: '/features/features-rei/dm-campaign/operational-health',
       });
     }

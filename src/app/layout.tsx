@@ -3,6 +3,7 @@ import { IBM_Plex_Sans } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/firebase/AuthContext";
 import { UpdateAvailableBanner } from "@/components/UpdateAvailableBanner";
+import { AuroraStaleBanner } from "@/components/AuroraStaleBanner";
 
 const ibmPlexSans = IBM_Plex_Sans({
   subsets: ["latin"],
@@ -51,6 +52,7 @@ export default function RootLayout({
         <AuthProvider>
           {children}
           <UpdateAvailableBanner />
+          <AuroraStaleBanner />
         </AuthProvider>
       </body>
     </html>
