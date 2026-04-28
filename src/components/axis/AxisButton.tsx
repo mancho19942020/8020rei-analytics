@@ -134,29 +134,27 @@ export function AxisButton({
       }[variant]
     : {
         filled: `
-          bg-main-700 text-white
-          hover:bg-main-900
-          active:bg-main-950
+          bg-main-700 text-white shadow-sm
+          hover:bg-main-900 hover:shadow
+          active:bg-main-950 active:shadow-sm
           dark:bg-main-500 dark:hover:bg-main-700 dark:active:bg-main-900
-          disabled:bg-neutral-200 disabled:text-neutral-400
+          disabled:bg-neutral-200 disabled:text-neutral-400 disabled:shadow-none
           dark:disabled:bg-neutral-800 dark:disabled:text-neutral-500
         `,
         outlined: `
-          border border-main-700 text-content-primary bg-transparent
-          hover:bg-main-50 hover:border-main-900
-          active:bg-main-100
-          dark:border-main-500
-          dark:hover:bg-main-950 dark:hover:border-main-300
-          dark:active:bg-main-900
-          disabled:border-neutral-300 disabled:text-content-disabled disabled:bg-transparent
-          dark:disabled:border-neutral-700
+          border border-stroke text-content-primary bg-transparent
+          hover:bg-surface-overlay hover:border-stroke-strong
+          active:bg-surface-sunken
+          dark:hover:bg-surface-overlay dark:hover:border-stroke-strong
+          dark:active:bg-surface-sunken
+          disabled:border-stroke-subtle disabled:text-content-disabled disabled:bg-transparent
         `,
         ghost: `
           text-content-primary bg-transparent
-          hover:bg-main-50
-          active:bg-main-100
-          dark:hover:bg-main-950
-          dark:active:bg-main-900
+          hover:bg-surface-overlay
+          active:bg-surface-sunken
+          dark:hover:bg-surface-overlay
+          dark:active:bg-surface-sunken
           disabled:text-content-disabled disabled:bg-transparent
         `,
       }[variant];
@@ -165,9 +163,9 @@ export function AxisButton({
   const buttonClasses = [
     // Base styles
     'inline-flex items-center justify-center',
-    'rounded-sm',
+    'rounded-md',
     'font-medium',
-    'transition-colors duration-150',
+    'transition-all duration-150',
     'focus:outline-none focus-visible:ring-2 focus-visible:ring-main-500 focus-visible:ring-offset-2',
     // Size
     sizeClasses.button,

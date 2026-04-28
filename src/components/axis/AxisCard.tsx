@@ -124,7 +124,7 @@ export function AxisCard({
   const interactiveClasses = isInteractive && !disabled
     ? [
         'cursor-pointer',
-        'hover:border-main-500 dark:hover:border-main-400',
+        'hover:border-stroke-strong',
         'hover:shadow-sm dark:hover:shadow-md',
         'focus:outline-none focus-visible:ring-2 focus-visible:ring-main-500 focus-visible:ring-offset-2',
       ]

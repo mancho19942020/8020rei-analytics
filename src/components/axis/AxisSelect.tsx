@@ -109,7 +109,7 @@ export function AxisSelect({
     sizeClasses.select,
     'bg-surface-base',
     'border',
-    'rounded-sm',
+    'rounded-md',
     'font-sans',
     'transition-colors duration-150',
     'focus:outline-none',

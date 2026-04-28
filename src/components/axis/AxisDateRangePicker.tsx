@@ -82,7 +82,7 @@ export function AxisDateRangePicker({
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className={`${sizeClasses[size]} inline-flex items-center gap-1.5 rounded-sm border border-stroke bg-surface-base text-content-primary hover:border-stroke-strong transition-colors duration-150 cursor-pointer`}
+        className={`${sizeClasses[size]} inline-flex items-center gap-1.5 rounded-md border border-stroke bg-surface-base text-content-primary hover:border-stroke-strong transition-colors duration-150 cursor-pointer`}
       >
         <svg className="w-3.5 h-3.5 flex-shrink-0 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -94,7 +94,7 @@ export function AxisDateRangePicker({
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-1 z-50 w-72 rounded-sm border border-stroke bg-surface-base shadow-lg overflow-hidden">
+        <div className="absolute right-0 top-full mt-1 z-50 w-72 rounded-md border border-stroke bg-surface-base shadow-lg overflow-hidden">
           {/* Presets */}
           <div className="p-1.5">
             <div className="px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-content-tertiary">
@@ -108,7 +108,7 @@ export function AxisDateRangePicker({
                   onChange({ type: 'preset', days: p.days });
                   setOpen(false);
                 }}
-                className={`w-full text-left px-2 py-1.5 rounded-sm text-xs transition-colors cursor-pointer ${
+                className={`w-full text-left px-2 py-1.5 rounded-md text-xs transition-colors cursor-pointer ${
                   activeDays === p.days
                     ? 'bg-main-500 text-white'
                     : 'text-content-secondary hover:bg-surface-raised'
@@ -127,7 +127,7 @@ export function AxisDateRangePicker({
             <div className="flex gap-2">
               <input
                 type="date"
-                className="flex-1 h-7 px-1.5 text-xs rounded-sm border border-stroke bg-surface-base text-content-primary"
+                className="flex-1 h-7 px-1.5 text-xs rounded-md border border-stroke bg-surface-base text-content-primary"
                 defaultValue={value.type === 'custom' ? value.startDate : getISODate(30)}
                 max={getISODate(0)}
                 onChange={(e) => {
@@ -140,7 +140,7 @@ export function AxisDateRangePicker({
               />
               <input
                 type="date"
-                className="flex-1 h-7 px-1.5 text-xs rounded-sm border border-stroke bg-surface-base text-content-primary"
+                className="flex-1 h-7 px-1.5 text-xs rounded-md border border-stroke bg-surface-base text-content-primary"
                 defaultValue={value.type === 'custom' ? value.endDate : getISODate(0)}
                 max={getISODate(0)}
                 onChange={(e) => {
